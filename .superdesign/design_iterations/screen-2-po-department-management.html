@@ -1,0 +1,776 @@
+<!--
+═══════════════════════════════════════════════════════════════════════════════
+PROCURELINE PROTOTYPE DOCUMENTATION LINKAGE
+═══════════════════════════════════════════════════════════════════════════════
+
+Prototype Name: Procurement Officer Department Management
+Pipeline: Procurement Officer
+Screen Number: 2
+Status: Production-Ready
+
+DOCUMENTATION REFERENCES:
+-------------------------
+Complete Design Spec: /06-UX/02-Screen-Designs/03-Procurement Officer/screen-2-department-management-design-complete.md
+Design Iteration Index: /00-Vision-Exploration/design-iteration-index.md
+Related ADRs: ADR-001 (Multi-Tenant SaaS), ADR-009 (87% Reuse)
+Session Log: /08-Research/Project Logs/bmad-session-log-procurement-officer-screen-2-department-management.md
+
+DESIGN SYSTEM:
+--------------
+Procureline Design DNA: /06-UX/01-Design System/procureline-design-dna-standards.md
+Component Reuse: 87%
+
+TECHNICAL NOTES:
+----------------
+Department creation, budget allocation, vote number management, and departmental user key generation.
+Production-ready quality: 10/10. Part of complete PO pipeline milestone.
+
+Last Updated: 2025-01-25
+═══════════════════════════════════════════════════════════════════════════════
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screen 2 - Department Management | Procureline</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* PROCURELINE DNA - IMMUTABLE DESIGN TOKENS */
+        :root {
+            --background: oklch(0.9834 0.0042 236.4956);
+            --foreground: oklch(0.3351 0.0331 260.9120);
+            --card: oklch(1.0000 0 0);
+            --card-foreground: oklch(0.3351 0.0331 260.9120);
+            --primary: oklch(0.6916 0.1692 154.0327);
+            --primary-foreground: oklch(1.0000 0 0);
+            --secondary: oklch(0.9588 0.0086 247.9151);
+            --secondary-foreground: oklch(0.5412 0.0838 159.9696);
+            --muted: oklch(0.9588 0.0086 247.9151);
+            --muted-foreground: oklch(0.5956 0.0381 257.8663);
+            --accent: oklch(0.9288 0.0126 255.5078);
+            --accent-foreground: oklch(0.5532 0.1067 157.9886);
+            --destructive: oklch(0.6137 0.2039 25.5645);
+            --destructive-foreground: oklch(1.0000 0 0);
+            --border: oklch(0.9288 0.0126 255.5078);
+            --input: oklch(0.9288 0.0126 255.5078);
+            --ring: oklch(0.6342 0.1283 156.1966);
+            --chart-1: oklch(0.5532 0.1067 157.9886);
+            --chart-2: oklch(0.6342 0.1283 156.1966);
+            --chart-3: oklch(0.7096 0.1434 154.5316);
+            --chart-4: oklch(0.7860 0.1379 154.5226);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--background);
+            color: var(--foreground);
+            line-height: 1.5;
+        }
+
+        /* HEADER */
+        .header {
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .search-bar {
+            position: relative;
+        }
+
+        .search-input {
+            padding: 8px 12px 8px 36px;
+            border: 1px solid var(--input);
+            border-radius: 6px;
+            background: var(--background);
+            font-size: 14px;
+            width: 240px;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted-foreground);
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* BREADCRUMB */
+        .breadcrumb {
+            padding: 16px 24px;
+            font-size: 14px;
+            color: var(--muted-foreground);
+        }
+
+        .breadcrumb a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        /* MAIN CONTENT */
+        .main-content {
+            padding: 24px;
+            min-height: calc(100vh - 120px);
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            color: var(--foreground);
+        }
+
+        /* GRID LAYOUT */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        /* DEPARTMENT TREE */
+        .department-tree {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            height: fit-content;
+            min-height: 400px;
+        }
+
+        .tree-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tree-node {
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-bottom: 2px;
+            font-size: 14px;
+        }
+
+        .tree-node:hover {
+            background: var(--accent);
+        }
+
+        .tree-node.selected {
+            background: var(--primary);
+            color: var(--primary-foreground);
+        }
+
+        .tree-node.parent {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .tree-node.child {
+            margin-left: 20px;
+            font-size: 13px;
+        }
+
+        .add-department-btn {
+            background: var(--secondary);
+            color: var(--secondary-foreground);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: all 0.15s ease;
+        }
+
+        .add-department-btn:hover {
+            background: var(--accent);
+        }
+
+        /* CREATION FORM */
+        .creation-form {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            height: fit-content;
+        }
+
+        .form-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--input);
+            border-radius: 6px;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            background: var(--background);
+            transition: all 0.15s ease;
+        }
+
+        .form-input:focus, .form-select:focus {
+            border-color: var(--ring);
+            outline: none;
+            box-shadow: 0 0 0 2px var(--ring);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .primary-button {
+            background: var(--primary);
+            color: var(--primary-foreground);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .primary-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .secondary-button {
+            background: var(--secondary);
+            color: var(--secondary-foreground);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .budget-validation {
+            background: var(--accent);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 16px;
+            font-size: 13px;
+        }
+
+        .budget-validation .warning {
+            color: var(--destructive);
+            font-weight: 500;
+        }
+
+        /* DEPARTMENT DETAILS */
+        .department-details {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            grid-column: 1 / -1;
+        }
+
+        .details-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .info-section {
+            background: var(--background);
+            padding: 16px;
+            border-radius: 6px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .info-label {
+            color: var(--muted-foreground);
+        }
+
+        .info-value {
+            font-weight: 500;
+        }
+
+        /* BUDGET VISUALIZATION */
+        .budget-item {
+            margin-bottom: 12px;
+        }
+
+        .budget-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .budget-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--muted);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .budget-fill {
+            height: 100%;
+            background: var(--chart-2);
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 4px;
+        }
+
+        .budget-fill.warning {
+            background: var(--destructive);
+        }
+
+        /* ACTIVITY LOG */
+        .activity-log {
+            grid-column: 1 / -1;
+            background: var(--background);
+            padding: 16px;
+            border-radius: 6px;
+        }
+
+        .activity-item {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-date {
+            color: var(--muted-foreground);
+            font-size: 12px;
+        }
+
+        /* ACTION BUTTONS */
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .action-button {
+            background: var(--secondary);
+            color: var(--secondary-foreground);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .action-button:hover {
+            background: var(--accent);
+        }
+
+        /* FILTERS */
+        .filters {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 14px;
+        }
+
+        .filter-select {
+            padding: 6px 12px;
+            border: 1px solid var(--input);
+            border-radius: 4px;
+            background: var(--background);
+            font-size: 13px;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .details-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .main-content {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- HEADER -->
+    <header class="header">
+        <div class="logo">
+            🏛️ PROCURELINE
+        </div>
+        <div class="header-right">
+            <div class="search-bar">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="search-input" placeholder="Search departments...">
+            </div>
+            <div class="user-profile">
+                👤 John Mwangi
+            </div>
+        </div>
+    </header>
+
+    <!-- BREADCRUMB -->
+    <nav class="breadcrumb">
+        📍 <a href="#dashboard">Dashboard</a> > Department Management
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <h1 class="page-title">Department Management</h1>
+
+        <!-- CONTENT GRID -->
+        <div class="content-grid">
+            <!-- DEPARTMENT TREE -->
+            <div class="department-tree">
+                <div class="tree-header">
+                    🏬 Department Hierarchy
+                </div>
+
+                <div class="tree-node parent">🏛️ Pwani University</div>
+                <div class="tree-node parent">├─ 📚 Academic Departments</div>
+                <div class="tree-node child selected">│  ├─ Engineering (VOTE: 2401)</div>
+                <div class="tree-node child">│  ├─ Medicine (VOTE: 2402)</div>
+                <div class="tree-node child">│  └─ Business (VOTE: 2403)</div>
+                <div class="tree-node parent">├─ 🏢 Administrative</div>
+                <div class="tree-node child">│  ├─ Finance (VOTE: 1101)</div>
+                <div class="tree-node child">│  └─ HR (VOTE: 1102)</div>
+                <div class="tree-node parent">└─ 🔧 Support Services</div>
+                <div class="tree-node child">   └─ IT (VOTE: 3101)</div>
+
+                <button class="add-department-btn">+ Add Department</button>
+            </div>
+
+            <!-- CREATION FORM -->
+            <div class="creation-form">
+                <div class="form-header">
+                    ➕ Create New Department
+                </div>
+
+                <form>
+                    <div class="form-group">
+                        <label class="form-label" for="dept-name">Department Name</label>
+                        <input type="text" id="dept-name" class="form-input" placeholder="Enter department name">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="dept-code">Department Code</label>
+                        <input type="text" id="dept-code" class="form-input" placeholder="e.g., ENG">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="parent-dept">Parent Department</label>
+                        <select id="parent-dept" class="form-select">
+                            <option>Academic Departments</option>
+                            <option>Administrative</option>
+                            <option>Support Services</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="annual-budget">Annual Budget (KSH)</label>
+                        <input type="number" id="annual-budget" class="form-input" placeholder="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="vote-number">Vote Number</label>
+                        <input type="text" id="vote-number" class="form-input" placeholder="Enter vote number manually">
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="primary-button">Create Department</button>
+                        <button type="button" class="secondary-button">Cancel</button>
+                    </div>
+
+                    <div class="budget-validation">
+                        ⚠️ <strong>Budget Validation:</strong><br>
+                        Total Allocated: KSH 45,000,000<br>
+                        Remaining: KSH 5,000,000
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- DEPARTMENT DETAILS -->
+        <div class="department-details">
+            <div class="details-header">
+                📊 Department Details - Engineering Department
+            </div>
+
+            <div class="details-grid">
+                <!-- BASIC INFO -->
+                <div class="info-section">
+                    <div class="section-title">📋 Basic Information</div>
+
+                    <div class="info-item">
+                        <span class="info-label">Name:</span>
+                        <span class="info-value">Engineering Department</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Code:</span>
+                        <span class="info-value">ENG</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Vote:</span>
+                        <span class="info-value">2401</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Head:</span>
+                        <span class="info-value">Dr. Kamau</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Staff:</span>
+                        <span class="info-value">45 people</span>
+                    </div>
+
+                    <div style="margin-top: 16px;">
+                        <div class="section-title">👥 DU Account Access</div>
+                        <div class="info-item">
+                            <span class="info-label">ID:</span>
+                            <span class="info-value">ENG_2024_001</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Key:</span>
+                            <span class="info-value">●●●●●●●●</span>
+                        </div>
+                        <button class="action-button" style="margin-top: 8px;">Regenerate Key</button>
+                    </div>
+                </div>
+
+                <!-- BUDGET BREAKDOWN -->
+                <div class="info-section">
+                    <div class="section-title">💰 Budget Breakdown</div>
+
+                    <div style="margin-bottom: 16px;">
+                        <strong>Annual Budget: KSH 8,500,000</strong>
+                    </div>
+
+                    <div class="budget-item">
+                        <div class="budget-label">
+                            <span>Personnel (60%)</span>
+                            <span>5,100,000</span>
+                        </div>
+                        <div class="budget-bar">
+                            <div class="budget-fill" style="width: 60%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="budget-item">
+                        <div class="budget-label">
+                            <span>Operations (30%)</span>
+                            <span>2,550,000</span>
+                        </div>
+                        <div class="budget-bar">
+                            <div class="budget-fill" style="width: 30%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="budget-item">
+                        <div class="budget-label">
+                            <span>Capital (10%)</span>
+                            <span>850,000</span>
+                        </div>
+                        <div class="budget-bar">
+                            <div class="budget-fill" style="width: 10%;"></div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 16px; padding: 12px; background: var(--accent); border-radius: 6px;">
+                        📈 <strong>Budget Utilization: 72% (Q3)</strong><br>
+                        <span class="warning">⚠️ Alert: Approaching 80% threshold</span>
+                    </div>
+
+                    <div style="margin-top: 12px;">
+                        <button class="action-button">Edit Budget</button>
+                        <button class="action-button">View History</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ACTIVITY LOG -->
+            <div class="activity-log">
+                <div class="section-title">📈 Recent Activity</div>
+
+                <div class="activity-item">
+                    <div>• Budget allocation updated (+5%)</div>
+                    <div class="activity-date">2025-01-23</div>
+                </div>
+                <div class="activity-item">
+                    <div>• New staff member added (Dr. Wanjiku)</div>
+                    <div class="activity-date">2025-01-20</div>
+                </div>
+                <div class="activity-item">
+                    <div>• DU access key regenerated</div>
+                    <div class="activity-date">2025-01-18</div>
+                </div>
+            </div>
+
+            <!-- ACTION BUTTONS -->
+            <div class="action-buttons">
+                <button class="primary-button">Edit Department</button>
+                <button class="action-button">Archive</button>
+                <button class="action-button">Generate Report</button>
+            </div>
+        </div>
+
+        <!-- FILTERS -->
+        <div class="filters">
+            <span>🔍 Filters & Actions</span>
+            Filter by:
+            <select class="filter-select">
+                <option>All Types</option>
+                <option>Academic</option>
+                <option>Administrative</option>
+                <option>Support</option>
+            </select>
+            <select class="filter-select">
+                <option>Active</option>
+                <option>Inactive</option>
+                <option>Archived</option>
+            </select>
+            Sort:
+            <select class="filter-select">
+                <option>Name</option>
+                <option>Budget</option>
+                <option>Created Date</option>
+            </select>
+
+            <div style="margin-left: auto; display: flex; gap: 8px;">
+                <button class="action-button">📊 Export</button>
+                <button class="action-button">📋 Bulk Actions</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Simple interactivity for demo
+        document.addEventListener('DOMContentLoaded', function() {
+            // Tree node selection
+            const treeNodes = document.querySelectorAll('.tree-node.child');
+            treeNodes.forEach(node => {
+                node.addEventListener('click', function() {
+                    treeNodes.forEach(n => n.classList.remove('selected'));
+                    this.classList.add('selected');
+                });
+            });
+
+            // Form validation
+            const budgetInput = document.getElementById('annual-budget');
+            const voteNumberInput = document.getElementById('vote-number');
+
+            // Vote number manual entry validation
+            voteNumberInput.addEventListener('input', function() {
+                const value = this.value;
+                if (value && !/^\d{4}$/.test(value)) {
+                    this.style.borderColor = 'var(--destructive)';
+                } else {
+                    this.style.borderColor = 'var(--input)';
+                }
+            });
+
+            // Button hover effects
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(button => {
+                button.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-1px)';
+                });
+                button.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0)';
+                });
+            });
+        });
+    </script>
+</body>
+</html>

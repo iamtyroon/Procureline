@@ -1,0 +1,16 @@
+installation:
+  version: 6.0.0-alpha.0
+  installDate: '2025-10-27T01:02:21.635Z'
+  lastUpdated: '2025-10-27T01:02:21.635Z'
+modules:
+  - core
+  - bmb
+  - bmm
+  - cis
+ides:
+  - claude-code
+  - codex
+  - gemini
+  - github-copilot
+  - qwen
+  - roo

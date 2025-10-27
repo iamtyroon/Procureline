@@ -1,0 +1,1296 @@
+<!--
+═══════════════════════════════════════════════════════════════════════════════
+PROCURELINE PROTOTYPE DOCUMENTATION LINKAGE
+═══════════════════════════════════════════════════════════════════════════════
+
+Prototype Name: Procurement Officer Category & Item Management
+Pipeline: Procurement Officer
+Screen Number: 3
+Status: Production-Ready
+
+DOCUMENTATION REFERENCES:
+-------------------------
+Complete Design Spec: /06-UX/02-Screen-Designs/03-Procurement Officer/screen-3-category-management-design-complete.md
+Design Iteration Index: /00-Vision-Exploration/design-iteration-index.md
+Related ADRs: ADR-005 (Excel Integration), ADR-009 (87% Reuse)
+Session Log: /08-Research/Project Logs/bmad-session-log-procurement-officer-screen-3-category-management.md
+
+DESIGN SYSTEM:
+--------------
+Procureline Design DNA: /06-UX/01-Design System/procureline-design-dna-standards.md
+Component Reuse: 87%
+
+TECHNICAL NOTES:
+----------------
+Category creation, item management, Excel import/export, template generation.
+Production-ready quality: 10/10. Part of complete PO pipeline milestone.
+
+Last Updated: 2025-01-25
+═══════════════════════════════════════════════════════════════════════════════
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screen 3: Category Management - Procureline</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Procureline DNA - CSS Custom Properties */
+        :root {
+            /* Primary Colors */
+            --procureline-primary: oklch(0.6916 0.1692 154.0327);
+            --procureline-primary-dark: oklch(0.5916 0.1692 154.0327);
+            --procureline-primary-light: oklch(0.7916 0.1692 154.0327);
+
+            /* Semantic Colors */
+            --success: oklch(0.7 0.15 142);
+            --warning: oklch(0.8 0.15 85);
+            --error: oklch(0.65 0.2 25);
+            --info: oklch(0.7 0.15 250);
+
+            /* Neutral Palette */
+            --neutral-50: oklch(0.98 0.002 247);
+            --neutral-100: oklch(0.95 0.005 247);
+            --neutral-200: oklch(0.89 0.01 247);
+            --neutral-300: oklch(0.83 0.015 247);
+            --neutral-700: oklch(0.42 0.025 247);
+            --neutral-900: oklch(0.19 0.025 247);
+
+            /* Typography */
+            --font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        /* Reset and Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--neutral-50);
+            color: var(--neutral-900);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Container and Grid Layout */
+        .category-management-container {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            grid-template-rows: auto 1fr auto;
+            gap: 24px;
+            height: 100vh;
+            padding: 24px;
+        }
+
+        /* Header Section */
+        .header-section {
+            grid-column: 1 / -1;
+            grid-row: 1;
+        }
+
+        .header-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: white;
+            padding: 16px 24px;
+            border-radius: 16px;
+            border: 1px solid var(--neutral-200);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.875rem;
+            color: var(--neutral-700);
+        }
+
+        .breadcrumb-link {
+            color: var(--procureline-primary);
+            text-decoration: none;
+            transition: color 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .breadcrumb-link:hover {
+            color: var(--procureline-primary-dark);
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--neutral-900);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: var(--procureline-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        /* Main Content Layout */
+        .main-content {
+            grid-column: 1 / -1;
+            grid-row: 2;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 24px;
+            overflow: hidden;
+        }
+
+        /* Bento Card Base Styles */
+        .bento-card {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid var(--neutral-200);
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .bento-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-color: var(--procureline-primary-light);
+        }
+
+        /* Category List Panel */
+        .category-list-panel {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .search-container {
+            margin-bottom: 20px;
+        }
+
+        .search-input-wrapper {
+            position: relative;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            stroke: var(--neutral-700);
+            pointer-events: none;
+        }
+
+        .search-input {
+            width: 100%;
+            height: 44px;
+            padding: 12px 16px 12px 44px;
+            border: 2px solid var(--neutral-200);
+            border-radius: 8px;
+            font-family: var(--font-family);
+            font-size: 0.875rem;
+            transition: border-color 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--procureline-primary);
+            box-shadow: 0 0 0 3px oklch(0.6916 0.1692 154.0327 / 0.1);
+        }
+
+        .category-list {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .category-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+            margin-bottom: 4px;
+        }
+
+        .category-item:hover {
+            background: var(--neutral-100);
+        }
+
+        .category-item.active {
+            background: var(--procureline-primary);
+            color: white;
+        }
+
+        .category-icon {
+            font-size: 1.2rem;
+        }
+
+        .category-name {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .category-count {
+            font-size: 0.75rem;
+            background: var(--neutral-200);
+            color: var(--neutral-700);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        .category-item.active .category-count {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .add-category-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        /* Management Panel */
+        .management-panel {
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            gap: 24px;
+            overflow: hidden;
+        }
+
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--neutral-900);
+            margin-bottom: 16px;
+        }
+
+        /* Form Elements */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--neutral-700);
+            margin-bottom: 8px;
+        }
+
+        .form-input,
+        .form-textarea,
+        .form-select {
+            width: 100%;
+            height: 44px;
+            padding: 12px 16px;
+            border: 2px solid var(--neutral-200);
+            border-radius: 8px;
+            font-family: var(--font-family);
+            font-size: 0.875rem;
+            transition: border-color 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .form-textarea {
+            height: auto;
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .form-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 12px center;
+            background-repeat: no-repeat;
+            background-size: 16px;
+        }
+
+        .form-input:focus,
+        .form-textarea:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: var(--procureline-primary);
+            box-shadow: 0 0 0 3px oklch(0.6916 0.1692 154.0327 / 0.1);
+        }
+
+        .form-input.error {
+            border-color: var(--error);
+        }
+
+        /* Button Styles */
+        .btn-primary {
+            background: var(--procureline-primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-family: var(--font-family);
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary:hover {
+            background: var(--procureline-primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px oklch(0.6916 0.1692 154.0327 / 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--procureline-primary);
+            border: 2px solid var(--procureline-primary);
+            padding: 10px 22px;
+            border-radius: 8px;
+            font-family: var(--font-family);
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-secondary:hover {
+            background: var(--procureline-primary);
+            color: white;
+        }
+
+        .btn-danger {
+            background: transparent;
+            color: var(--error);
+            border: 2px solid var(--error);
+            padding: 10px 22px;
+            border-radius: 8px;
+            font-family: var(--font-family);
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-danger:hover {
+            background: var(--error);
+            color: white;
+        }
+
+        /* Tab System */
+        .item-entry-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .tab-button {
+            background: transparent;
+            border: 2px solid var(--neutral-200);
+            color: var(--neutral-700);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tab-button.active {
+            background: var(--procureline-primary);
+            border-color: var(--procureline-primary);
+            color: white;
+        }
+
+        .tab-button:hover:not(.active) {
+            border-color: var(--procureline-primary);
+            color: var(--procureline-primary);
+        }
+
+        /* Quick Actions */
+        .action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        /* Details Panel */
+        .details-panel {
+            grid-column: 1 / -1;
+            grid-row: 3;
+            min-height: 200px;
+        }
+
+        .details-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .category-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .category-icon-large {
+            font-size: 2rem;
+        }
+
+        .category-name-display {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--neutral-900);
+        }
+
+        .category-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        /* Statistics Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--neutral-50);
+            border: 1px solid var(--neutral-200);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--neutral-900);
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--neutral-700);
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        /* Recent Items */
+        .recent-items {
+            margin-top: 24px;
+        }
+
+        .subsection-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--neutral-900);
+            margin-bottom: 16px;
+        }
+
+        .item-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .item-entry {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+            gap: 16px;
+            padding: 12px 16px;
+            background: var(--neutral-50);
+            border: 1px solid var(--neutral-200);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            align-items: center;
+        }
+
+        .item-name {
+            font-weight: 500;
+            color: var(--neutral-900);
+        }
+
+        .item-method,
+        .item-funds,
+        .item-unit {
+            color: var(--neutral-700);
+        }
+
+        .item-price {
+            font-weight: 600;
+            color: var(--procureline-primary);
+        }
+
+        /* Quick Stats Footer */
+        .quick-stats {
+            grid-column: 1 / -1;
+            background: white;
+            padding: 16px 24px;
+            border-radius: 16px;
+            border: 1px solid var(--neutral-200);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 32px;
+            font-size: 0.875rem;
+            color: var(--neutral-700);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1199px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .category-list-panel {
+                order: 2;
+            }
+
+            .management-panel {
+                order: 1;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 767px) {
+            .category-management-container {
+                padding: 16px;
+                gap: 16px;
+            }
+
+            .bento-card {
+                padding: 16px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .action-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+            }
+
+            .category-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .details-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+
+            .item-entry {
+                grid-template-columns: 1fr;
+                gap: 8px;
+                text-align: left;
+            }
+
+            .quick-stats {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+        }
+
+        /* Success/Error Messages */
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .message.success {
+            background: oklch(0.7 0.15 142 / 0.1);
+            border: 1px solid var(--success);
+            color: oklch(0.4 0.15 142);
+        }
+
+        .message.error {
+            background: oklch(0.65 0.2 25 / 0.1);
+            border: 1px solid var(--error);
+            color: oklch(0.4 0.2 25);
+        }
+
+        /* Loading States */
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--neutral-300);
+            border-radius: 50%;
+            border-top-color: var(--procureline-primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="category-management-container">
+        <!-- Header Section -->
+        <header class="header-section">
+            <nav class="header-nav">
+                <div class="breadcrumb">
+                    <a href="#" class="breadcrumb-link">🏛️ Procureline</a>
+                    <span>›</span>
+                    <a href="#" class="breadcrumb-link">Dashboard</a>
+                    <span>›</span>
+                    <span>Category Management</span>
+                </div>
+                <h1 class="page-title">📋 Category Management</h1>
+                <div class="user-info">
+                    <span>John Doe (PO)</span>
+                    <div class="user-avatar">JD</div>
+                </div>
+            </nav>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Category List Panel -->
+            <section class="category-list-panel bento-card">
+                <div class="search-container">
+                    <div class="search-input-wrapper">
+                        <svg class="search-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input type="text" class="search-input" placeholder="Search categories..." id="category-search">
+                    </div>
+                </div>
+
+                <div class="category-list" id="category-list">
+                    <div class="category-item active" data-category="office-supplies">
+                        <span class="category-icon">📄</span>
+                        <span class="category-name">Office Supplies</span>
+                        <span class="category-count">18</span>
+                    </div>
+                    <div class="category-item" data-category="electronics">
+                        <span class="category-icon">📱</span>
+                        <span class="category-name">Electronics</span>
+                        <span class="category-count">24</span>
+                    </div>
+                    <div class="category-item" data-category="furniture">
+                        <span class="category-icon">🪑</span>
+                        <span class="category-name">Furniture</span>
+                        <span class="category-count">12</span>
+                    </div>
+                    <div class="category-item" data-category="vehicles">
+                        <span class="category-icon">🚗</span>
+                        <span class="category-name">Vehicles</span>
+                        <span class="category-count">6</span>
+                    </div>
+                    <div class="category-item" data-category="educational">
+                        <span class="category-icon">📚</span>
+                        <span class="category-name">Educational</span>
+                        <span class="category-count">32</span>
+                    </div>
+                    <div class="category-item" data-category="maintenance">
+                        <span class="category-icon">🔧</span>
+                        <span class="category-name">Maintenance</span>
+                        <span class="category-count">15</span>
+                    </div>
+                    <div class="category-item" data-category="medical">
+                        <span class="category-icon">🏥</span>
+                        <span class="category-name">Medical</span>
+                        <span class="category-count">8</span>
+                    </div>
+                    <div class="category-item" data-category="catering">
+                        <span class="category-icon">🍽️</span>
+                        <span class="category-name">Catering</span>
+                        <span class="category-count">9</span>
+                    </div>
+                </div>
+
+                <button class="btn-secondary add-category-btn" id="add-category-btn">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    New Category
+                </button>
+            </section>
+
+            <!-- Management Panel -->
+            <section class="management-panel">
+                <!-- Category Creation -->
+                <div class="bento-card category-creation">
+                    <h3 class="section-title">📝 Category Creation</h3>
+                    <div class="message success" id="category-success">Category created successfully!</div>
+                    <div class="message error" id="category-error">Please check the form for errors.</div>
+
+                    <form class="category-form" id="category-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label" for="category-name">Category Name</label>
+                                <input type="text" class="form-input" id="category-name" placeholder="Enter category name" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="category-code">Category Code</label>
+                                <input type="text" class="form-input" id="category-code" placeholder="CAT-001" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="category-description">Description</label>
+                            <textarea class="form-textarea" id="category-description" rows="2" placeholder="Category description..."></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary">
+                            <span class="button-text">Create Category</span>
+                            <span class="spinner" style="display: none;"></span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Item Management -->
+                <div class="bento-card item-management">
+                    <h3 class="section-title">📦 Item Management</h3>
+
+                    <div class="item-entry-tabs">
+                        <button class="tab-button active" data-tab="manual">Manual Entry</button>
+                        <button class="tab-button" data-tab="excel">Excel Import</button>
+                    </div>
+
+                    <div class="message success" id="item-success">Item added successfully!</div>
+                    <div class="message error" id="item-error">Please check the form for errors.</div>
+
+                    <form class="item-form" id="item-form">
+                        <div class="form-group">
+                            <label class="form-label" for="item-description">Item Description</label>
+                            <input type="text" class="form-input" id="item-description" placeholder="Enter item description" required>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label" for="unit-measurement">Unit of Measurement</label>
+                                <input type="text" class="form-input" id="unit-measurement" placeholder="Pcs, Units, Reams" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="unit-price">Unit Price (KSH)</label>
+                                <input type="number" class="form-input" id="unit-price" placeholder="0.00" step="0.01" min="0" required>
+                            </div>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label" for="procurement-method">Procurement Method</label>
+                                <select class="form-select" id="procurement-method" required>
+                                    <option value="">Select method...</option>
+                                    <option value="RFQ">Request for Quote</option>
+                                    <option value="TENDER">Open Tender</option>
+                                    <option value="DIRECT">Direct Procurement</option>
+                                    <option value="LOW_VALUE">Low-Value</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="source-funds">Source of Funds</label>
+                                <select class="form-select" id="source-funds" required>
+                                    <option value="">Select source...</option>
+                                    <option value="GOK">Government (GOK)</option>
+                                    <option value="DONOR">Donor</option>
+                                    <option value="INTERNAL">Internal</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="category-assignment">Category Assignment</label>
+                            <select class="form-select" id="category-assignment" required>
+                                <option value="">Select category...</option>
+                                <option value="office-supplies">Office Supplies</option>
+                                <option value="electronics">Electronics</option>
+                                <option value="furniture">Furniture</option>
+                                <option value="vehicles">Vehicles</option>
+                                <option value="educational">Educational</option>
+                                <option value="maintenance">Maintenance</option>
+                                <option value="medical">Medical</option>
+                                <option value="catering">Catering</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn-primary">
+                            <span class="button-text">Add Item</span>
+                            <span class="spinner" style="display: none;"></span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="bento-card quick-actions">
+                    <h3 class="section-title">🔄 Quick Actions</h3>
+                    <div class="action-grid">
+                        <button class="btn-secondary" id="bulk-import-btn">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                            </svg>
+                            Bulk Import
+                        </button>
+                        <button class="btn-secondary" id="assign-dept-btn">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                            </svg>
+                            Assign to Dept
+                        </button>
+                        <button class="btn-secondary" id="preview-items-btn">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                            Preview Items
+                        </button>
+                        <button class="btn-secondary" id="refresh-btn">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Category Details Panel -->
+        <section class="details-panel bento-card" id="details-panel">
+            <div class="details-header">
+                <div class="category-title">
+                    <span class="category-icon-large">📄</span>
+                    <h2 class="category-name-display" id="details-category-name">Office Supplies</h2>
+                </div>
+                <div class="category-actions">
+                    <button class="btn-primary" id="export-blockly-btn">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                        </svg>
+                        Export to Blockly
+                    </button>
+                    <button class="btn-secondary" id="edit-category-btn">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                        Edit Category
+                    </button>
+                    <button class="btn-danger" id="delete-category-btn">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Delete Category
+                    </button>
+                </div>
+            </div>
+
+            <div class="stats-grid" id="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📦</div>
+                    <div class="stat-number" id="stat-items">18</div>
+                    <div class="stat-label">Items</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🏢</div>
+                    <div class="stat-number" id="stat-departments">6</div>
+                    <div class="stat-label">Departments</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-number" id="stat-total">850K</div>
+                    <div class="stat-label">Est. Total</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📋</div>
+                    <div class="stat-number" id="stat-status">Ready</div>
+                    <div class="stat-label">Status</div>
+                </div>
+            </div>
+
+            <div class="recent-items" id="recent-items">
+                <h4 class="subsection-title">Recent Items</h4>
+                <div class="item-list" id="item-list">
+                    <div class="item-entry">
+                        <span class="item-name">Printer Paper (A4)</span>
+                        <span class="item-method">RFQ</span>
+                        <span class="item-funds">GOK Funds</span>
+                        <span class="item-unit">Per Ream</span>
+                        <span class="item-price">KSH 250</span>
+                    </div>
+                    <div class="item-entry">
+                        <span class="item-name">Office Chairs</span>
+                        <span class="item-method">Open Tender</span>
+                        <span class="item-funds">GOK Funds</span>
+                        <span class="item-unit">Per Unit</span>
+                        <span class="item-price">KSH 15,000</span>
+                    </div>
+                    <div class="item-entry">
+                        <span class="item-name">Desktop Computers</span>
+                        <span class="item-method">RFQ</span>
+                        <span class="item-funds">Donor Funds</span>
+                        <span class="item-unit">Per Unit</span>
+                        <span class="item-price">KSH 75,000</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 24px;">
+                <p><strong>Assigned Departments:</strong> Administration, HR, Finance, ICT, Registry, Library</p>
+            </div>
+        </section>
+
+        <!-- Quick Stats Footer -->
+        <footer class="quick-stats">
+            <span>🗂️ <strong>8</strong> Categories</span>
+            <span>📦 <strong>124</strong> Items</span>
+            <span>🏢 <strong>12</strong> Departments</span>
+            <span>⚡ Ready for Blockly</span>
+        </footer>
+    </div>
+
+    <script>
+        // Category Management JavaScript
+        document.addEventListener('DOMContentLoaded', function() {
+            // Category Data
+            const categoryData = {
+                'office-supplies': {
+                    name: 'Office Supplies',
+                    icon: '📄',
+                    items: 18,
+                    departments: 6,
+                    total: '850K',
+                    status: 'Ready',
+                    recentItems: [
+                        { name: 'Printer Paper (A4)', method: 'RFQ', funds: 'GOK Funds', unit: 'Per Ream', price: 'KSH 250' },
+                        { name: 'Office Chairs', method: 'Open Tender', funds: 'GOK Funds', unit: 'Per Unit', price: 'KSH 15,000' },
+                        { name: 'Desktop Computers', method: 'RFQ', funds: 'Donor Funds', unit: 'Per Unit', price: 'KSH 75,000' }
+                    ]
+                },
+                'electronics': {
+                    name: 'Electronics',
+                    icon: '📱',
+                    items: 24,
+                    departments: 8,
+                    total: '2.5M',
+                    status: 'Ready',
+                    recentItems: [
+                        { name: 'Laptops', method: 'Open Tender', funds: 'Donor Funds', unit: 'Per Unit', price: 'KSH 85,000' },
+                        { name: 'Projectors', method: 'RFQ', funds: 'GOK Funds', unit: 'Per Unit', price: 'KSH 45,000' },
+                        { name: 'Tablets', method: 'Direct Procurement', funds: 'Internal', unit: 'Per Unit', price: 'KSH 25,000' }
+                    ]
+                },
+                'furniture': {
+                    name: 'Furniture',
+                    icon: '🪑',
+                    items: 12,
+                    departments: 4,
+                    total: '1.2M',
+                    status: 'Ready',
+                    recentItems: [
+                        { name: 'Executive Desks', method: 'Open Tender', funds: 'GOK Funds', unit: 'Per Unit', price: 'KSH 35,000' },
+                        { name: 'Filing Cabinets', method: 'RFQ', funds: 'GOK Funds', unit: 'Per Unit', price: 'KSH 18,000' },
+                        { name: 'Conference Tables', method: 'RFQ', funds: 'Internal', unit: 'Per Unit', price: 'KSH 50,000' }
+                    ]
+                }
+            };
+
+            // Category Selection Handler
+            const categoryItems = document.querySelectorAll('.category-item');
+            const detailsPanel = document.getElementById('details-panel');
+
+            categoryItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    // Remove active state from all categories
+                    categoryItems.forEach(cat => cat.classList.remove('active'));
+
+                    // Add active state to clicked category
+                    this.classList.add('active');
+
+                    // Update details panel
+                    const categoryId = this.dataset.category;
+                    updateCategoryDetails(categoryId);
+                });
+            });
+
+            // Update Category Details Function
+            function updateCategoryDetails(categoryId) {
+                const data = categoryData[categoryId];
+                if (!data) return;
+
+                // Update header
+                document.getElementById('details-category-name').textContent = data.name;
+                document.querySelector('.category-icon-large').textContent = data.icon;
+
+                // Update stats
+                document.getElementById('stat-items').textContent = data.items;
+                document.getElementById('stat-departments').textContent = data.departments;
+                document.getElementById('stat-total').textContent = data.total;
+                document.getElementById('stat-status').textContent = data.status;
+
+                // Update recent items
+                const itemList = document.getElementById('item-list');
+                itemList.innerHTML = '';
+                data.recentItems.forEach(item => {
+                    const itemElement = document.createElement('div');
+                    itemElement.className = 'item-entry';
+                    itemElement.innerHTML = `
+                        <span class="item-name">${item.name}</span>
+                        <span class="item-method">${item.method}</span>
+                        <span class="item-funds">${item.funds}</span>
+                        <span class="item-unit">${item.unit}</span>
+                        <span class="item-price">${item.price}</span>
+                    `;
+                    itemList.appendChild(itemElement);
+                });
+
+                // Smooth transition
+                detailsPanel.style.opacity = '0.7';
+                setTimeout(() => {
+                    detailsPanel.style.opacity = '1';
+                }, 150);
+            }
+
+            // Search Functionality
+            const searchInput = document.getElementById('category-search');
+            const categoryList = document.getElementById('category-list');
+
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const categories = categoryList.querySelectorAll('.category-item');
+
+                categories.forEach(category => {
+                    const categoryName = category.querySelector('.category-name').textContent.toLowerCase();
+                    const shouldShow = categoryName.includes(searchTerm);
+                    category.style.display = shouldShow ? 'flex' : 'none';
+                });
+            });
+
+            // Category Form Handler
+            const categoryForm = document.getElementById('category-form');
+            const categoryNameInput = document.getElementById('category-name');
+            const categoryCodeInput = document.getElementById('category-code');
+
+            // Auto-generate category code
+            categoryNameInput.addEventListener('input', function() {
+                const name = this.value;
+                if (name) {
+                    const words = name.split(' ');
+                    const acronym = words.map(word => word.charAt(0).toUpperCase()).join('');
+                    const timestamp = String(Date.now()).slice(-3);
+                    categoryCodeInput.value = `CAT-${acronym}-${timestamp}`;
+                }
+            });
+
+            categoryForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const submitBtn = this.querySelector('.btn-primary');
+                const buttonText = submitBtn.querySelector('.button-text');
+                const spinner = submitBtn.querySelector('.spinner');
+
+                // Show loading state
+                buttonText.style.display = 'none';
+                spinner.style.display = 'inline-block';
+                submitBtn.disabled = true;
+
+                // Simulate API call
+                setTimeout(() => {
+                    // Show success message
+                    const successMsg = document.getElementById('category-success');
+                    successMsg.style.display = 'block';
+                    setTimeout(() => successMsg.style.display = 'none', 3000);
+
+                    // Reset form
+                    this.reset();
+
+                    // Reset button state
+                    buttonText.style.display = 'inline';
+                    spinner.style.display = 'none';
+                    submitBtn.disabled = false;
+                }, 1500);
+            });
+
+            // Item Form Handler
+            const itemForm = document.getElementById('item-form');
+
+            itemForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const submitBtn = this.querySelector('.btn-primary');
+                const buttonText = submitBtn.querySelector('.button-text');
+                const spinner = submitBtn.querySelector('.spinner');
+
+                // Show loading state
+                buttonText.style.display = 'none';
+                spinner.style.display = 'inline-block';
+                submitBtn.disabled = true;
+
+                // Simulate API call
+                setTimeout(() => {
+                    // Show success message
+                    const successMsg = document.getElementById('item-success');
+                    successMsg.style.display = 'block';
+                    setTimeout(() => successMsg.style.display = 'none', 3000);
+
+                    // Reset form
+                    this.reset();
+
+                    // Reset button state
+                    buttonText.style.display = 'inline';
+                    spinner.style.display = 'none';
+                    submitBtn.disabled = false;
+                }, 1500);
+            });
+
+            // Tab System
+            const tabButtons = document.querySelectorAll('.tab-button');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    tabButtons.forEach(tab => tab.classList.remove('active'));
+                    this.classList.add('active');
+
+                    const tabType = this.dataset.tab;
+                    // Handle tab switching logic here
+                    if (tabType === 'excel') {
+                        alert('Excel import functionality would be implemented here');
+                    }
+                });
+            });
+
+            // Quick Action Handlers
+            document.getElementById('bulk-import-btn').addEventListener('click', function() {
+                alert('Bulk import functionality would open file picker');
+            });
+
+            document.getElementById('assign-dept-btn').addEventListener('click', function() {
+                alert('Department assignment modal would open');
+            });
+
+            document.getElementById('preview-items-btn').addEventListener('click', function() {
+                alert('Item preview modal would open');
+            });
+
+            document.getElementById('refresh-btn').addEventListener('click', function() {
+                location.reload();
+            });
+
+            document.getElementById('export-blockly-btn').addEventListener('click', function() {
+                alert('Export to Blockly would generate structured data for Screen 4');
+            });
+
+            document.getElementById('edit-category-btn').addEventListener('click', function() {
+                alert('Edit category modal would open');
+            });
+
+            document.getElementById('delete-category-btn').addEventListener('click', function() {
+                if (confirm('Are you sure you want to delete this category? This action cannot be undone.')) {
+                    alert('Category would be deleted');
+                }
+            });
+
+            // Form Validation
+            function validateForm(form) {
+                const inputs = form.querySelectorAll('input[required], select[required]');
+                let isValid = true;
+
+                inputs.forEach(input => {
+                    input.classList.remove('error');
+                    if (!input.value.trim()) {
+                        input.classList.add('error');
+                        isValid = false;
+                    }
+                });
+
+                return isValid;
+            }
+
+            // Real-time validation
+            const requiredInputs = document.querySelectorAll('input[required], select[required]');
+            requiredInputs.forEach(input => {
+                input.addEventListener('blur', function() {
+                    if (!this.value.trim()) {
+                        this.classList.add('error');
+                    } else {
+                        this.classList.remove('error');
+                    }
+                });
+
+                input.addEventListener('input', function() {
+                    if (this.classList.contains('error') && this.value.trim()) {
+                        this.classList.remove('error');
+                    }
+                });
+            });
+
+            console.log('Screen 3: Category Management initialized successfully');
+        });
+    </script>
+</body>
+</html>

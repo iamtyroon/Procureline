@@ -1,0 +1,855 @@
+<!--
+═══════════════════════════════════════════════════════════════════════════════
+PROCURELINE PROTOTYPE DOCUMENTATION LINKAGE
+═══════════════════════════════════════════════════════════════════════════════
+
+Prototype Name: Procurement Officer & Departmental User Dual Signup
+Pipeline: Procurement Officer / Departmental User (Shared)
+Screen Number: 0
+Status: Prototype
+
+DOCUMENTATION REFERENCES:
+-------------------------
+Complete Design Spec: /06-UX/02-Screen-Designs/04-Departmental User/screen-0-departmental-user-signup-design.md
+Design Iteration Index: /00-Vision-Exploration/design-iteration-index.md
+Related ADRs: ADR-002 (4-Layer Auth), ADR-001 (Multi-Tenant SaaS)
+Session Log: /08-Research/Project Logs/bmad-session-log-departmental-user-signup.md
+
+DESIGN SYSTEM:
+--------------
+Procureline Design DNA: /06-UX/01-Design System/procureline-design-dna-standards.md
+Component Reuse: 85%
+
+TECHNICAL NOTES:
+----------------
+Dual registration interface for both Procurement Officers and Departmental Users.
+Departmental user registration requires department key validation. Layer 4 of 4-tier system.
+
+Last Updated: 2025-10-03
+═══════════════════════════════════════════════════════════════════════════════
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procureline - Procurement Officer & Departmental User Signup</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* PROCUREMENT OFFICER/DEPARTMENTAL USER SIGNUP - OFFICIAL PROCURELINE DNA */
+        :root {
+            /* IMMUTABLE PROCURELINE THEME - EXACT MATCH */
+            --background: oklch(0.9834 0.0042 236.4956);
+            --foreground: oklch(0.3351 0.0331 260.9120);
+            --card: oklch(1.0000 0 0);
+            --card-foreground: oklch(0.3351 0.0331 260.9120);
+            --primary: oklch(0.6916 0.1692 154.0327);
+            --primary-foreground: oklch(1.0000 0 0);
+            --secondary: oklch(0.9588 0.0086 247.9151);
+            --secondary-foreground: oklch(0.5412 0.0838 159.9696);
+            --muted: oklch(0.9588 0.0086 247.9151);
+            --muted-foreground: oklch(0.5956 0.0381 257.8663);
+            --accent: oklch(0.9288 0.0126 255.5078);
+            --accent-foreground: oklch(0.5532 0.1067 157.9886);
+            --destructive: oklch(0.6137 0.2039 25.5645);
+            --destructive-foreground: oklch(1.0000 0 0);
+            --border: oklch(0.9288 0.0126 255.5078);
+            --input: oklch(0.9288 0.0126 255.5078);
+            --ring: oklch(0.6342 0.1283 156.1966);
+
+            /* UNIVERSITY AUTHORITY THEME EXTENSIONS */
+            --university-accent: oklch(0.5532 0.1067 157.9886);
+            --institutional-trust: oklch(0.8619 0.1028 154.8439);
+            --security-indicator: oklch(0.7096 0.1434 154.5316);
+
+            /* ELEVATION & SHADOW SYSTEM */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+            /* TYPOGRAPHY */
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'Fira Code', Consolas, monospace;
+        }
+
+        /* Global Reset & Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+            background: var(--background);
+            color: var(--foreground);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Container & Layout */
+        .signup-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .signup-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            max-width: 480px;
+            overflow: hidden;
+            transition: all 0.2s ease-out;
+            position: relative;
+            animation: slideInUp 0.6s ease-out 0.25s both;
+        }
+
+        .signup-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-xl);
+        }
+
+        /* Header */
+        .signup-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--university-accent) 100%);
+            padding: 2rem 1.5rem 1.5rem;
+            text-align: center;
+            color: var(--primary-foreground);
+            animation: slideInDown 0.5s ease-out 0.1s both;
+        }
+
+        .logo {
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.025em;
+        }
+
+        .signup-subtitle {
+            font-size: 1rem;
+            opacity: 0.9;
+            font-weight: 500;
+        }
+
+        /* Role Toggle */
+        .role-toggle {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .toggle-container {
+            background: var(--secondary);
+            border-radius: 0.75rem;
+            padding: 0.25rem;
+            display: flex;
+            position: relative;
+        }
+
+        .toggle-option {
+            flex: 1;
+            text-align: center;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease-out;
+            position: relative;
+            z-index: 2;
+            color: var(--muted-foreground);
+        }
+
+        .toggle-option.active {
+            background: var(--card);
+            color: var(--university-accent);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .toggle-option:not(.active):hover {
+            color: var(--foreground);
+        }
+
+        /* Form Styles */
+        .signup-form {
+            padding: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--foreground);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-family: var(--font-sans);
+            transition: all 0.2s ease-out;
+            background: var(--background);
+            color: var(--foreground);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--ring);
+            box-shadow: 0 0 0 3px oklch(0.6342 0.1283 156.1966 / 0.1);
+            transform: scale(1.005);
+        }
+
+        .form-input:invalid:not(:focus):not(:placeholder-shown) {
+            border-color: var(--destructive);
+        }
+
+        .form-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+            background-position: right var(--space-3) center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: var(--space-12);
+        }
+
+        /* Key Validation */
+        .key-input-group {
+            position: relative;
+        }
+
+        .key-status {
+            position: absolute;
+            right: var(--space-3);
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: var(--font-size-xs);
+            font-weight: 500;
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-sm);
+        }
+
+        .key-valid {
+            background: var(--security-indicator);
+            color: var(--primary-foreground);
+        }
+
+        .key-invalid {
+            background: var(--destructive);
+            color: var(--destructive-foreground);
+        }
+
+        .key-info {
+            font-size: 0.75rem;
+            color: var(--muted-foreground);
+            margin-top: 0.25rem;
+        }
+
+        /* Two-Factor Authentication */
+        .tfa-option {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: var(--secondary);
+            border-radius: 0.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .checkbox {
+            margin-top: 0.25rem;
+            width: 1rem;
+            height: 1rem;
+            accent-color: var(--primary);
+        }
+
+        .checkbox-label {
+            font-size: 0.875rem;
+            color: var(--foreground);
+            line-height: 1.5;
+        }
+
+        /* Legal Compliance */
+        .legal-section {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: var(--accent);
+            border-radius: 0.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .legal-text {
+            font-size: 0.75rem;
+            color: var(--muted-foreground);
+            line-height: 1.5;
+        }
+
+        .legal-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .legal-link:hover {
+            text-decoration: underline;
+            color: var(--university-accent);
+        }
+
+        /* Progress Indicator */
+        .progress-steps {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .progress-step {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--muted);
+            transition: background-color 0.2s ease-out;
+        }
+
+        .progress-step.active {
+            background: var(--primary);
+        }
+
+        /* Submit Button */
+        .submit-button {
+            width: 100%;
+            background: var(--primary);
+            color: var(--primary-foreground);
+            border: none;
+            padding: 0.875rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease-out;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .submit-button:hover {
+            background: var(--university-accent);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .submit-button:active {
+            transform: translateY(0) scale(0.98);
+        }
+
+        .submit-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Loading State */
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid transparent;
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: var(--space-2);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Footer */
+        .signup-footer {
+            padding: 1rem 1.5rem;
+            background: var(--secondary);
+            text-align: center;
+            border-top: 1px solid var(--border);
+        }
+
+        .footer-text {
+            font-size: 0.875rem;
+            color: var(--muted-foreground);
+        }
+
+        .footer-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .footer-link:hover {
+            text-decoration: underline;
+            color: var(--university-accent);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .signup-container {
+                padding: var(--space-2);
+            }
+
+            .signup-card {
+                max-width: 100%;
+            }
+
+            .signup-header {
+                padding: var(--space-6) var(--space-4) var(--space-4);
+            }
+
+            .signup-form {
+                padding: var(--space-4);
+            }
+
+            .role-toggle {
+                padding: var(--space-4);
+            }
+        }
+
+        /* Accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Focus styles for keyboard navigation */
+        .toggle-option:focus-visible,
+        .form-input:focus-visible,
+        .submit-button:focus-visible,
+        .checkbox:focus-visible {
+            outline: 2px solid var(--ring);
+            outline-offset: 2px;
+        }
+
+        /* Hidden states for role switching */
+        .form-section {
+            display: block;
+        }
+
+        .form-section.hidden {
+            display: none;
+        }
+
+        /* ANIMATIONS - EXACT MATCH TO TENANT ADMIN */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideInUp {
+            from { opacity: 0; transform: translateY(30px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.02); }
+        }
+
+        @keyframes loadingPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        @keyframes successPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        /* SIGNUP CONTAINER ANIMATION */
+        .signup-container {
+            animation: fadeIn 0.4s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="signup-container">
+        <div class="signup-card">
+            <!-- Header -->
+            <div class="signup-header">
+                <div class="logo">🏛️ PROCURELINE</div>
+                <div class="signup-subtitle">University Procurement Portal</div>
+            </div>
+
+            <!-- Role Toggle -->
+            <div class="role-toggle">
+                <div class="toggle-container">
+                    <div class="toggle-option active" data-role="procurement-officer">
+                        Procurement Officer
+                    </div>
+                    <div class="toggle-option" data-role="departmental-user">
+                        Departmental User
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Form -->
+            <form class="signup-form" id="signupForm">
+                <!-- Progress Indicator -->
+                <div class="progress-steps">
+                    <div class="progress-step active"></div>
+                    <div class="progress-step"></div>
+                    <div class="progress-step"></div>
+                </div>
+
+                <!-- Procurement Officer Fields -->
+                <div id="po-fields" class="form-section">
+                    <!-- University Selection -->
+                    <div class="form-group">
+                        <label for="university" class="form-label">University *</label>
+                        <select id="university" name="university" class="form-input form-select" required>
+                            <option value="">Select your university</option>
+                            <option value="pwani">Pwani University</option>
+                            <option value="nairobi">University of Nairobi</option>
+                            <option value="strathmore">Strathmore University</option>
+                            <option value="kenyatta">Kenyatta University</option>
+                        </select>
+                    </div>
+
+                    <!-- University ID -->
+                    <div class="form-group">
+                        <label for="universityId" class="form-label">University ID *</label>
+                        <input type="text" id="universityId" name="universityId" class="form-input"
+                               placeholder="e.g., UNIV001" required>
+                    </div>
+
+                    <!-- PO Key -->
+                    <div class="form-group">
+                        <label for="poKey" class="form-label">Procurement Officer Key *</label>
+                        <div class="key-input-group">
+                            <input type="text" id="poKey" name="poKey" class="form-input"
+                                   placeholder="Enter your PO key" required>
+                            <div class="key-status key-valid" style="display: none;">
+                                Valid until June 30, 2025
+                            </div>
+                        </div>
+                        <div class="key-info">
+                            Key issued by Tenant Admin, valid for current fiscal year
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Departmental User Fields -->
+                <div id="dept-fields" class="form-section hidden">
+                    <!-- Department Key -->
+                    <div class="form-group">
+                        <label for="deptKey" class="form-label">Department Key *</label>
+                        <div class="key-input-group">
+                            <input type="text" id="deptKey" name="deptKey" class="form-input"
+                                   placeholder="Enter your department key">
+                            <div class="key-status key-valid" style="display: none;">
+                                Valid until June 30, 2025
+                            </div>
+                        </div>
+                        <div class="key-info">
+                            Key issued by Procurement Officer, valid for current fiscal year
+                        </div>
+                    </div>
+
+                    <!-- Department Selection -->
+                    <div class="form-group">
+                        <label for="department" class="form-label">Department *</label>
+                        <select id="department" name="department" class="form-input form-select">
+                            <option value="">Select your department</option>
+                            <option value="computer-science">Computer Science</option>
+                            <option value="business">Business Administration</option>
+                            <option value="engineering">Engineering</option>
+                            <option value="medicine">Medicine</option>
+                            <option value="education">Education</option>
+                        </select>
+                    </div>
+
+                </div>
+
+                <!-- Common Fields -->
+                <div class="form-group">
+                    <label for="fullName" class="form-label">Full Name *</label>
+                    <input type="text" id="fullName" name="fullName" class="form-input"
+                           placeholder="Enter your full name" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email" class="form-label">Institutional Email *</label>
+                    <input type="email" id="email" name="email" class="form-input"
+                           placeholder="you@university.edu" required>
+                    <div class="key-info">
+                        Must be a valid institutional email address (.edu domain)
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password" class="form-label">Password *</label>
+                    <input type="password" id="password" name="password" class="form-input"
+                           placeholder="Create a secure password" required minlength="8">
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword" class="form-label">Confirm Password *</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" class="form-input"
+                           placeholder="Confirm your password" required>
+                </div>
+
+                <!-- Two-Factor Authentication -->
+                <div class="tfa-option">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="enable2fa" name="enable2fa" class="checkbox">
+                        <label for="enable2fa" class="checkbox-label">
+                            <strong>Enable Two-Factor Authentication</strong><br>
+                            <span id="tfa-text">Recommended for Procurement Officers</span> -
+                            Adds an extra layer of security to your account
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Legal Compliance -->
+                <div class="legal-section">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="acceptTerms" name="acceptTerms" class="checkbox" required>
+                        <label for="acceptTerms" class="checkbox-label">
+                            I agree to the <a href="#" class="legal-link">Terms of Service</a>,
+                            <a href="#" class="legal-link">Privacy Policy</a>, and
+                            <a href="#" class="legal-link">University Procurement Policies</a>.
+                            I understand this system is FERPA compliant and my data will be protected
+                            according to institutional standards.
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="form-group" style="margin-top: var(--space-6);">
+                    <button type="submit" class="submit-button" id="submitBtn">
+                        <span class="loading-spinner"></span>
+                        <span id="submit-text">Create Procurement Officer Account</span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Footer -->
+            <div class="signup-footer">
+                <div class="footer-text">
+                    Already have an account?
+                    <a href="#" class="footer-link">Sign in here</a>
+                </div>
+                <div class="footer-text" style="margin-top: var(--space-2);">
+                    Need help? <a href="#" class="footer-link">Contact IT Support</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Role toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggleOptions = document.querySelectorAll('.toggle-option');
+            const poFields = document.getElementById('po-fields');
+            const deptFields = document.getElementById('dept-fields');
+            const submitText = document.getElementById('submit-text');
+            const tfaText = document.getElementById('tfa-text');
+
+            toggleOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    // Remove active class from all options
+                    toggleOptions.forEach(opt => opt.classList.remove('active'));
+                    // Add active class to clicked option
+                    this.classList.add('active');
+
+                    const role = this.dataset.role;
+
+                    if (role === 'procurement-officer') {
+                        poFields.classList.remove('hidden');
+                        deptFields.classList.add('hidden');
+                        submitText.textContent = 'Create Procurement Officer Account';
+                        tfaText.textContent = 'Recommended for Procurement Officers';
+
+                        // Update required fields
+                        document.getElementById('university').required = true;
+                        document.getElementById('universityId').required = true;
+                        document.getElementById('poKey').required = true;
+                        document.getElementById('deptKey').required = false;
+                        document.getElementById('department').required = false;
+                    } else {
+                        poFields.classList.add('hidden');
+                        deptFields.classList.remove('hidden');
+                        submitText.textContent = 'Create Departmental User Account';
+                        tfaText.textContent = 'Optional for Departmental Users';
+
+                        // Update required fields
+                        document.getElementById('university').required = false;
+                        document.getElementById('universityId').required = false;
+                        document.getElementById('poKey').required = false;
+                        document.getElementById('deptKey').required = true;
+                        document.getElementById('department').required = true;
+                    }
+                });
+            });
+
+            // Key validation simulation
+            const poKeyInput = document.getElementById('poKey');
+            const deptKeyInput = document.getElementById('deptKey');
+
+            function validateKey(input) {
+                const keyStatus = input.parentElement.querySelector('.key-status');
+                const value = input.value.trim();
+
+                if (value.length >= 8) {
+                    keyStatus.style.display = 'block';
+                    keyStatus.className = 'key-status key-valid';
+                    keyStatus.textContent = 'Valid until June 30, 2025';
+                } else if (value.length > 0) {
+                    keyStatus.style.display = 'block';
+                    keyStatus.className = 'key-status key-invalid';
+                    keyStatus.textContent = 'Invalid key format';
+                } else {
+                    keyStatus.style.display = 'none';
+                }
+            }
+
+            poKeyInput.addEventListener('input', function() {
+                validateKey(this);
+            });
+
+            deptKeyInput.addEventListener('input', function() {
+                validateKey(this);
+            });
+
+            // Password confirmation validation
+            const passwordInput = document.getElementById('password');
+            const confirmPasswordInput = document.getElementById('confirmPassword');
+
+            function validatePasswordMatch() {
+                if (confirmPasswordInput.value && passwordInput.value !== confirmPasswordInput.value) {
+                    confirmPasswordInput.setCustomValidity('Passwords do not match');
+                } else {
+                    confirmPasswordInput.setCustomValidity('');
+                }
+            }
+
+            passwordInput.addEventListener('input', validatePasswordMatch);
+            confirmPasswordInput.addEventListener('input', validatePasswordMatch);
+
+            // Email domain validation
+            const emailInput = document.getElementById('email');
+            emailInput.addEventListener('input', function() {
+                const email = this.value;
+                const eduDomain = /\.edu$/i;
+
+                if (email && !eduDomain.test(email)) {
+                    this.setCustomValidity('Please use your institutional email address (.edu domain)');
+                } else {
+                    this.setCustomValidity('');
+                }
+            });
+
+            // Form submission
+            const form = document.getElementById('signupForm');
+            const submitBtn = document.getElementById('submitBtn');
+            const loadingSpinner = document.querySelector('.loading-spinner');
+
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                // Show loading state
+                submitBtn.disabled = true;
+                loadingSpinner.style.display = 'inline-block';
+                submitText.textContent = 'Creating Account...';
+
+                // Simulate API call
+                setTimeout(() => {
+                    alert('Account creation successful! Please check your email for verification.');
+
+                    // Reset loading state
+                    submitBtn.disabled = false;
+                    loadingSpinner.style.display = 'none';
+                    submitText.textContent = toggleOptions[0].classList.contains('active')
+                        ? 'Create Procurement Officer Account'
+                        : 'Create Departmental User Account';
+                }, 2000);
+            });
+
+            // Progress indicator simulation
+            const progressSteps = document.querySelectorAll('.progress-step');
+            let currentStep = 0;
+
+            function updateProgress() {
+                progressSteps.forEach((step, index) => {
+                    if (index <= currentStep) {
+                        step.classList.add('active');
+                    } else {
+                        step.classList.remove('active');
+                    }
+                });
+            }
+
+            // Simulate progress on form interaction
+            const inputs = document.querySelectorAll('.form-input');
+            let filledInputs = 0;
+
+            inputs.forEach(input => {
+                input.addEventListener('input', function() {
+                    const requiredInputs = document.querySelectorAll('.form-input[required]');
+                    let filled = 0;
+
+                    requiredInputs.forEach(inp => {
+                        if (inp.value.trim()) filled++;
+                    });
+
+                    if (filled >= requiredInputs.length * 0.3) {
+                        currentStep = 1;
+                    }
+                    if (filled >= requiredInputs.length * 0.7) {
+                        currentStep = 2;
+                    }
+
+                    updateProgress();
+                });
+            });
+        });
+    </script>
+</body>
+</html>
