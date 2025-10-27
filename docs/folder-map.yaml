@@ -1,0 +1,213 @@
+# BMAD Documentation Folder Mapping
+# Machine-readable routing rules for agent document placement
+# Version: 1.0.0
+# Last Updated: 2025-10-27
+
+project_root: /home/iamtyroon/Projects/Procureline
+docs_root: ${project_root}/docs
+
+# Document Type to Folder Mappings
+mappings:
+
+  # Vision & Exploration Phase
+  vision:
+    base: 00-Vision-Exploration
+    types:
+      - brainstorming_output
+      - market_research
+      - opportunity_analysis
+      - innovation_strategy
+      - initial_concepts
+      - feasibility_studies
+
+  # Product Requirements Phase
+  requirements:
+    base: 01-Product-Requirements
+    subfolders:
+      prds:
+        types: [prd, product_requirements_document]
+      briefs:
+        types: [product_brief, game_brief, project_brief]
+      research:
+        types: [market_research, competitive_analysis, user_research]
+      stakeholders:
+        types: [stakeholder_analysis, user_personas, user_stories]
+
+  # Architecture Phase
+  architecture:
+    base: 02-Architecture
+    subfolders:
+      decisions:
+        types: [adr, architecture_decision_record, technical_decision]
+      diagrams:
+        types: [system_diagram, c4_model, architecture_diagram, erd]
+      patterns:
+        types: [design_pattern, architecture_pattern, coding_convention]
+
+  # Technical Specifications Phase
+  technical_specs:
+    base: 03-Technical-Specifications
+    subfolders:
+      api:
+        types: [api_spec, openapi, graphql_schema, endpoint_documentation]
+      database:
+        types: [database_schema, migration, data_model]
+      integrations:
+        types: [integration_spec, third_party_integration, webhook_spec]
+      technical-debt:
+        types: [tech_debt_log, refactoring_plan, code_smell_analysis]
+
+  # Development Phase
+  development:
+    base: 04-Development
+    subfolders:
+      epics:
+        types: [epic]
+        structure: nested  # epic-###-name/epic-###-name.md
+        contains_stories: true
+      sprints:
+        types: [sprint_plan, sprint_retrospective]
+        structure: sprint-##/
+      status:
+        types: [sprint_status, development_status]
+        files: [sprint-status.yaml]
+
+  # Testing Phase
+  testing:
+    base: 05-Testing
+    subfolders:
+      test-plans:
+        types: [test_plan, test_strategy, qa_approach]
+      test-cases:
+        types: [test_case, test_scenario, acceptance_criteria]
+      automation:
+        types: [test_automation_spec, test_framework_config]
+      reports:
+        types: [test_report, test_execution_result, coverage_report]
+
+  # UX Phase
+  ux:
+    base: 06-UX
+    subfolders:
+      research:
+        types: [user_research, usability_study, user_feedback]
+      wireframes:
+        types: [wireframe, low_fidelity_design, sketch]
+      mockups:
+        types: [mockup, high_fidelity_design, visual_design]
+      prototypes:
+        types: [prototype, interactive_demo]
+      design-system:
+        types: [design_system, component_library, style_guide]
+
+  # Deployment Phase
+  deployment:
+    base: 07-Deployment
+    types:
+      - deployment_guide
+      - infrastructure_spec
+      - ci_cd_config
+      - release_notes
+      - deployment_checklist
+
+  # Operations Phase
+  operations:
+    base: 08-Operations
+    types:
+      - runbook
+      - monitoring_setup
+      - alerting_config
+      - maintenance_guide
+      - incident_response
+      - sla_documentation
+
+  # Retrospectives Phase
+  retrospectives:
+    base: 09-Retrospectives
+    types:
+      - retrospective
+      - post_mortem
+      - lessons_learned
+      - project_review
+
+  # Reference Materials
+  reference:
+    base: 99-Reference
+    subfolders:
+      glossary:
+        types: [glossary, terminology, definitions]
+      standards:
+        types: [coding_standard, convention, best_practice]
+      templates:
+        types: [document_template, workflow_template]
+
+# Special Routing Rules
+routing_rules:
+
+  # Stories belong inside their parent epic folder
+  story:
+    parent_type: epic
+    path_pattern: "04-Development/epics/epic-{epic_id}-{epic_name}/stories/story-{story_id}-{story_name}.md"
+
+  # Epics have nested structure
+  epic:
+    path_pattern: "04-Development/epics/epic-{epic_id}-{epic_name}/epic-{epic_id}-{epic_name}.md"
+    creates_subfolder: true
+    subfolders: [stories]
+
+  # Sprint plans go in dated folders
+  sprint:
+    path_pattern: "04-Development/sprints/sprint-{sprint_number}/"
+
+  # Status tracking has fixed location
+  status:
+    path_pattern: "04-Development/status/sprint-status.yaml"
+
+# Workflow-Specific Mappings
+workflow_outputs:
+
+  # BMM Workflows
+  bmm:
+    product-brief: 01-Product-Requirements/briefs
+    game-brief: 01-Product-Requirements/briefs
+    prd: 01-Product-Requirements/prds
+    architecture: 02-Architecture/decisions
+    tech-spec: 03-Technical-Specifications
+    create-story: 04-Development/epics/{epic-folder}/stories
+    dev-story: 04-Development/epics/{epic-folder}/stories
+    sprint-planning: 04-Development/status
+    retrospective: 09-Retrospectives
+
+  # CIS Workflows
+  cis:
+    brainstorming: 00-Vision-Exploration
+    design-thinking: 00-Vision-Exploration
+    innovation-strategy: 00-Vision-Exploration
+    problem-solving: 00-Vision-Exploration
+    storytelling: 01-Product-Requirements/briefs
+
+  # BMB Workflows
+  bmb:
+    module-brief: 99-Reference/templates
+    workflow-creation: 99-Reference/templates
+    agent-creation: 99-Reference/templates
+
+# Naming Conventions
+naming_conventions:
+  epic:
+    folder: "epic-{###}-{descriptive-name}"
+    file: "epic-{###}-{descriptive-name}.md"
+    example: "epic-001-user-authentication/epic-001-user-authentication.md"
+
+  story:
+    file: "story-{###}-{descriptive-name}.md"
+    numbering: global  # Numbers increment across all epics
+    example: "story-042-password-reset-flow.md"
+
+  sprint:
+    folder: "sprint-{##}"
+    example: "sprint-01"
+
+  adr:
+    file: "adr-{###}-{decision-title}.md"
+    example: "adr-001-database-selection.md"

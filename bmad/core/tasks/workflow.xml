@@ -23,9 +23,10 @@
         <action>Read workflow.yaml from provided path</action>
         <mandate>Load config_source (REQUIRED for all modules)</mandate>
         <phase n="1">Load external config from config_source path</phase>
-        <phase n="2">Resolve all {config_source}: references with values from config</phase>
-        <phase n="3">Resolve system variables (date:system-generated) and paths ({project-root}, {installed_path})</phase>
-        <phase n="4">Ask user for input of any variables that are still unknown</phase>
+        <phase n="2">Load folder_map from {project-root}/docs/folder-map.yaml if it exists</phase>
+        <phase n="3">Resolve all {config_source}: references with values from config</phase>
+        <phase n="4">Resolve system variables (date:system-generated) and paths ({project-root}, {installed_path})</phase>
+        <phase n="5">Ask user for input of any variables that are still unknown</phase>
       </substep>
 
       <substep n="1b" title="Load Required Components">
@@ -38,6 +39,7 @@
 
       <substep n="1c" title="Initialize Output" if="template-workflow">
         <action>Resolve default_output_file path with all variables and {{date}}</action>
+        <action>If folder_map loaded and document_type specified → Route to appropriate folder per mapping</action>
         <action>Create output directory if doesn't exist</action>
         <action>If template-workflow → Write template to output file with placeholders</action>
         <action>If action-workflow → Skip file creation</action>
