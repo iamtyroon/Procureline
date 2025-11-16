@@ -8,6 +8,18 @@ As a {{role}},
 I want {{action}},
 so that {{benefit}}.
 
+## Context
+
+### UX Specifications Reference
+<!-- CRITICAL: This section is used by story-context workflow to discover and load UX specifications -->
+<!-- List specific screen numbers and component libraries relevant to this story -->
+<!-- Format: Screen X.Y: Screen Name - path/to/file.md -->
+<!-- Example:
+- Screen 5.11: Photo Capture Workflow - docs/09-UX Spec/mobile/mobilespec_sharded/detailed-screen-specifications/5.11-photo-capture-workflow-with-section-association-mobile-technician-p0.md
+- Reusable Widgets: PhotoCaptureScreen, CameraPreview - docs/09-UX Spec/mobile/mobilespec_sharded/reusable-widget-library-flutter.md
+-->
+<!-- Auto-discovered UX specifications will be added below by create-story workflow -->
+
 ## Acceptance Criteria
 
 1. [Add acceptance criteria from epics/PRD]

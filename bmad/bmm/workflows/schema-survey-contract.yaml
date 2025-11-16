@@ -1,0 +1,704 @@
+# Schema Surveyor Output Contract
+# Version: 3.0
+# Last Updated: 2025-11-06
+#
+# This document defines the formal contract between the Schema Surveyor sub-agent
+# and consuming workflows (create-story, story-context, epic-tech-context).
+#
+# The Schema Surveyor MUST return data in this exact format to ensure workflow compatibility.
+
+version: "3.0"
+contract_type: "schema_survey_response"
+
+# ==============================================================================
+# INPUT CONTRACT: How workflows invoke Schema Surveyor
+# ==============================================================================
+
+input_schema:
+  format: "XML"
+  root_element: "schema-survey-request"
+
+  required_fields:
+    - name: "task"
+      type: "object"
+      fields:
+        - name: "id"
+          type: "string"
+          description: "Story ID (e.g., story-a-11)"
+          required: true
+        - name: "summary"
+          type: "string"
+          description: "Brief task description"
+          required: true
+        - name: "description"
+          type: "string"
+          description: "Full task requirements"
+          required: false
+
+    - name: "affected_entities"
+      type: "array"
+      description: "List of tables expected to be involved"
+      items:
+        type: "table"
+        format: "<table>table_name</table>"
+      required: true
+
+    - name: "relationship_depth"
+      type: "integer"
+      description: "How many FK levels to traverse (0, 1, or 2)"
+      default: 1
+      required: true
+
+    - name: "requires_rls"
+      type: "boolean"
+      description: "Should RLS policies be emphasized?"
+      default: false
+      required: true
+
+    - name: "requires_auth"
+      type: "boolean"
+      description: "Does task involve auth.* functions?"
+      default: false
+      required: true
+
+    - name: "refresh_cache"
+      type: "boolean"
+      description: "Force fresh schema query?"
+      default: false
+      required: true
+
+    - name: "generate_migration"
+      type: "boolean"
+      description: "Should migration SQL be generated?"
+      default: true
+      required: true
+
+    - name: "run_security_audit"
+      type: "boolean"
+      description: "Should get_advisors be called?"
+      default: true
+      required: true
+
+    - name: "check_type_updates"
+      type: "boolean"
+      description: "Should TypeScript type changes be checked?"
+      default: false
+      required: false
+
+    - name: "keywords"
+      type: "array"
+      description: "Keywords for fuzzy table matching"
+      items:
+        type: "keyword"
+        format: "<keyword>value</keyword>"
+      required: false
+
+  example_xml: |
+    <schema-survey-request>
+      <task>
+        <id>story-a-11</id>
+        <summary>Add equipment tracking to inspections</summary>
+        <description>Implement equipment register and link to inspections</description>
+      </task>
+      <affected_entities>
+        <table>inspections</table>
+        <table>equipment</table>
+      </affected_entities>
+      <relationship_depth>2</relationship_depth>
+      <requires_rls>true</requires_rls>
+      <requires_auth>false</requires_auth>
+      <refresh_cache>false</refresh_cache>
+      <generate_migration>true</generate_migration>
+      <run_security_audit>true</run_security_audit>
+      <check_type_updates>true</check_type_updates>
+      <keywords>
+        <keyword>equipment</keyword>
+        <keyword>inspection</keyword>
+        <keyword>tracking</keyword>
+      </keywords>
+    </schema-survey-request>
+
+# ==============================================================================
+# OUTPUT CONTRACT: What Schema Surveyor returns
+# ==============================================================================
+
+output_schema:
+  format: "Four-part response"
+  description: "Schema Surveyor returns 4 distinct parts in sequence"
+
+  parts:
+    # -------------------------------------------------------------------------
+    # PART 1: Executive Summary (XML)
+    # -------------------------------------------------------------------------
+    - part_number: 1
+      name: "Executive Summary"
+      format: "XML"
+      description: "Quick intelligence snapshot for workflow decision-making"
+      root_element: "schema-survey-summary"
+
+      structure:
+        - name: "timestamp"
+          type: "ISO8601 datetime"
+          description: "When survey was executed"
+          example: "2025-11-06T14:30:00Z"
+
+        - name: "project_id"
+          type: "string"
+          description: "Supabase project ID"
+          example: "xsrimymebzinenvzyblz"
+
+        - name: "task_id"
+          type: "string"
+          description: "Story/task identifier"
+          example: "story-a-11"
+
+        - name: "cache_status"
+          type: "enum"
+          values: ["fresh", "cached", "stale"]
+          description: "Cache freshness indicator"
+
+        - name: "cache_age_minutes"
+          type: "integer"
+          description: "How old is cached data (0 for fresh)"
+
+        - name: "changes_detected"
+          type: "object"
+          fields:
+            - name: "new_tables"
+              type: "integer"
+            - name: "modified_tables"
+              type: "integer"
+            - name: "new_migrations"
+              type: "integer"
+
+        - name: "security_status"
+          type: "object"
+          fields:
+            - name: "critical_issues"
+              type: "integer"
+            - name: "high_issues"
+              type: "integer"
+            - name: "medium_issues"
+              type: "integer"
+            - name: "low_issues"
+              type: "integer"
+
+        - name: "migration_complexity"
+          type: "enum"
+          values: ["trivial", "simple", "medium", "complex", "high-risk"]
+
+        - name: "branching_recommended"
+          type: "boolean"
+
+        - name: "conflicts_detected"
+          type: "boolean"
+
+      example_xml: |
+        <schema-survey-summary>
+          <timestamp>2025-11-06T14:30:00Z</timestamp>
+          <project_id>xsrimymebzinenvzyblz</project_id>
+          <task_id>story-a-11</task_id>
+          <cache_status>cached</cache_status>
+          <cache_age_minutes>5</cache_age_minutes>
+          <changes_detected>
+            <new_tables>1</new_tables>
+            <modified_tables>2</modified_tables>
+            <new_migrations>3</new_migrations>
+          </changes_detected>
+          <security_status>
+            <critical_issues>1</critical_issues>
+            <high_issues>2</high_issues>
+            <medium_issues>5</medium_issues>
+            <low_issues>0</low_issues>
+          </security_status>
+          <migration_complexity>medium</migration_complexity>
+          <branching_recommended>false</branching_recommended>
+          <conflicts_detected>false</conflicts_detected>
+        </schema-survey-summary>
+
+    # -------------------------------------------------------------------------
+    # PART 2: Raw MCP Results (Markdown)
+    # -------------------------------------------------------------------------
+    - part_number: 2
+      name: "Raw MCP Results"
+      format: "Markdown"
+      description: "Proof of work - actual MCP query outputs"
+
+      sections:
+        - name: "Table List Query"
+          content: "mcp__supabase__list_tables output"
+
+        - name: "Migration History"
+          content: "mcp__supabase__list_migrations output"
+
+        - name: "Schema Queries"
+          content: "SQL query results for each table (columns, constraints, indexes, RLS)"
+
+        - name: "Security Audit"
+          content: "mcp__supabase__get_advisors(type='security') output"
+          conditional: "Only if run_security_audit=true"
+
+        - name: "Performance Audit"
+          content: "mcp__supabase__get_advisors(type='performance') output"
+          conditional: "Only if run_security_audit=true"
+
+        - name: "TypeScript Types"
+          content: "mcp__supabase__generate_typescript_types output"
+          conditional: "Only if check_type_updates=true"
+
+    # -------------------------------------------------------------------------
+    # PART 3: Intelligence Report (Markdown)
+    # -------------------------------------------------------------------------
+    - part_number: 3
+      name: "Intelligence Report"
+      format: "Markdown"
+      description: "Human-readable analysis and recommendations"
+
+      sections:
+        - section: "A. Schema Changes Detected"
+          content:
+            - "New tables since last survey"
+            - "Modified tables (columns added/removed/changed)"
+            - "Constraint changes"
+            - "Index changes"
+            - "RLS policy changes"
+
+        - section: "B. Security Analysis"
+          content:
+            - "Critical issues from get_advisors"
+            - "High priority issues"
+            - "Medium priority issues"
+            - "Remediation URLs"
+            - "Recommended immediate actions"
+          conditional: "Only if run_security_audit=true"
+
+        - section: "C. Migration Recommendations"
+          content:
+            - "Proposed migration file name"
+            - "Complete migration SQL with BEGIN/COMMIT"
+            - "Rollback SQL"
+            - "Data migration warnings (if DDL+DML required)"
+            - "Estimated complexity and downtime"
+            - "Testing checklist"
+          conditional: "Only if generate_migration=true"
+
+        - section: "D. Performance Considerations"
+          content:
+            - "Missing indexes identified"
+            - "Query performance warnings"
+            - "Optimization suggestions"
+            - "Well-indexed queries (positive feedback)"
+
+        - section: "E. TypeScript Type Updates"
+          content:
+            - "Interfaces that will change"
+            - "File locations to update"
+            - "Breaking changes warnings"
+          conditional: "Only if check_type_updates=true"
+
+        - section: "F. Cross-Story Conflicts"
+          content:
+            - "Conflicting stories detected (if any)"
+            - "Tables with concurrent modifications"
+            - "Recommended coordination strategy"
+
+        - section: "G. Branching Strategy"
+          content:
+            - "Recommendation: branch vs direct migration"
+            - "Suggested branch name (if applicable)"
+            - "Merge strategy guidance"
+
+        - section: "H. Testing Requirements"
+          content:
+            - "Test data fixtures needed"
+            - "Integration test suggestions"
+            - "RLS policy test cases"
+
+    # -------------------------------------------------------------------------
+    # PART 4: Complete JSON (JSON)
+    # -------------------------------------------------------------------------
+    - part_number: 4
+      name: "Complete JSON"
+      format: "JSON"
+      description: "Machine-readable structured output for workflow consumption"
+
+      json_schema:
+        type: "object"
+        required_fields:
+          - "metadata"
+          - "domains"
+          - "tables"
+          - "relationships"
+
+        optional_fields:
+          - "diff"
+          - "security_audit"
+          - "migration_recommendation"
+          - "performance_analysis"
+          - "typescript_updates"
+          - "conflicts"
+          - "branching_recommendation"
+          - "test_data_requirements"
+
+        field_definitions:
+          metadata:
+            type: "object"
+            fields:
+              project_id: {type: "string", required: true}
+              task_id: {type: "string", required: true}
+              retrieved_at: {type: "ISO8601 datetime", required: true}
+              cache_status: {type: "enum", values: ["fresh", "cached", "stale"], required: true}
+              cache_age_minutes: {type: "integer", required: true}
+              schema_version: {type: "string", description: "e.g., '42_migrations'", required: true}
+
+          diff:
+            type: "object"
+            description: "Schema changes since last survey"
+            fields:
+              since_last_survey: {type: "ISO8601 datetime"}
+              new_tables: {type: "array of strings"}
+              modified_tables: {type: "array of objects"}
+              new_migrations: {type: "array of strings"}
+
+          domains:
+            type: "array"
+            description: "Tables grouped by domain"
+            items:
+              name: {type: "string", description: "Domain name"}
+              tables: {type: "array of strings"}
+
+          tables:
+            type: "array"
+            description: "Detailed schema for each table"
+            items:
+              name: {type: "string"}
+              schema: {type: "string", default: "public"}
+              columns: {type: "array of objects"}
+              primaryKey: {type: "array of strings"}
+              foreignKeys: {type: "array of objects"}
+              indexes: {type: "array of objects"}
+              rlsPolicies: {type: "array of objects"}
+              constraints: {type: "array of objects"}
+
+          relationships:
+            type: "array"
+            description: "FK relationships between tables"
+            items:
+              from_table: {type: "string"}
+              from_column: {type: "string"}
+              to_table: {type: "string"}
+              to_column: {type: "string"}
+              relationship_type: {type: "enum", values: ["one-to-one", "one-to-many", "many-to-one", "many-to-many"]}
+              cascade: {type: "string", description: "ON DELETE action"}
+
+          security_audit:
+            type: "object"
+            description: "Security issues found by get_advisors"
+            conditional: "Only if run_security_audit=true"
+            fields:
+              critical: {type: "array of objects"}
+              high: {type: "array of objects"}
+              medium: {type: "array of objects"}
+              low: {type: "array of objects"}
+
+          migration_recommendation:
+            type: "object"
+            description: "Suggested migration file"
+            conditional: "Only if generate_migration=true"
+            fields:
+              migration_name: {type: "string"}
+              complexity: {type: "enum", values: ["trivial", "simple", "medium", "complex", "high-risk"]}
+              estimated_downtime: {type: "string", description: "e.g., 'none', '< 1 second', '5-10 seconds'"}
+              requires_data_migration: {type: "boolean"}
+              sql: {type: "string", description: "Complete migration SQL"}
+              rollback_sql: {type: "string"}
+              testing_checklist: {type: "array of strings"}
+
+          performance_analysis:
+            type: "object"
+            fields:
+              missing_indexes: {type: "array of objects"}
+              well_indexed: {type: "array of strings"}
+
+          typescript_updates:
+            type: "object"
+            conditional: "Only if check_type_updates=true"
+            fields:
+              changed_interfaces: {type: "array of objects"}
+              breaking_changes: {type: "boolean"}
+
+          conflicts:
+            type: "object"
+            fields:
+              detected: {type: "boolean"}
+              conflicting_stories: {type: "array of strings"}
+              recommendation: {type: "string"}
+
+          branching_recommendation:
+            type: "object"
+            fields:
+              recommended: {type: "boolean"}
+              reason: {type: "string"}
+              alternative: {type: "string"}
+
+          test_data_requirements:
+            type: "object"
+            fields:
+              fixtures_needed: {type: "array of objects"}
+
+      example_json: |
+        {
+          "metadata": {
+            "project_id": "xsrimymebzinenvzyblz",
+            "task_id": "story-a-11",
+            "retrieved_at": "2025-11-06T14:30:00Z",
+            "cache_status": "cached",
+            "cache_age_minutes": 5,
+            "schema_version": "42_migrations"
+          },
+          "diff": {
+            "since_last_survey": "2025-11-06T13:00:00Z",
+            "new_tables": ["equipment"],
+            "modified_tables": [
+              {
+                "table": "inspections",
+                "changes": ["added column equipment_id uuid FK → equipment.id"]
+              }
+            ],
+            "new_migrations": [
+              "20251106_add_equipment_table",
+              "20251106_add_equipment_fk"
+            ]
+          },
+          "domains": [
+            {
+              "name": "NDT Core",
+              "tables": ["inspections", "equipment", "inspection_templates"]
+            }
+          ],
+          "tables": [
+            {
+              "name": "inspections",
+              "schema": "public",
+              "columns": [
+                {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()"},
+                {"name": "equipment_id", "type": "uuid", "nullable": true}
+              ],
+              "primaryKey": ["id"],
+              "foreignKeys": [
+                {
+                  "column": "equipment_id",
+                  "references_table": "equipment",
+                  "references_column": "id",
+                  "on_delete": "SET NULL"
+                }
+              ],
+              "indexes": [
+                {"name": "inspections_pkey", "columns": ["id"], "type": "btree"},
+                {"name": "idx_inspections_equipment_id", "columns": ["equipment_id"], "type": "btree"}
+              ],
+              "rlsPolicies": [],
+              "constraints": []
+            }
+          ],
+          "relationships": [
+            {
+              "from_table": "inspections",
+              "from_column": "equipment_id",
+              "to_table": "equipment",
+              "to_column": "id",
+              "relationship_type": "many-to-one",
+              "cascade": "SET NULL"
+            }
+          ],
+          "security_audit": {
+            "critical": [
+              {
+                "type": "missing_rls_policy",
+                "table": "equipment",
+                "issue": "Table is publicly readable without RLS",
+                "remediation_url": "https://supabase.com/docs/guides/auth/row-level-security",
+                "priority": "critical"
+              }
+            ],
+            "high": [],
+            "medium": [],
+            "low": []
+          },
+          "migration_recommendation": {
+            "migration_name": "add_equipment_tracking",
+            "complexity": "medium",
+            "estimated_downtime": "none",
+            "requires_data_migration": false,
+            "sql": "BEGIN;\n\nALTER TABLE public.inspections\n  ADD COLUMN equipment_id uuid REFERENCES public.equipment(id) ON DELETE SET NULL;\n\nCREATE INDEX idx_inspections_equipment_id ON public.inspections(equipment_id);\n\nCOMMIT;",
+            "rollback_sql": "ALTER TABLE inspections DROP COLUMN equipment_id; DROP INDEX idx_inspections_equipment_id;",
+            "testing_checklist": [
+              "Test FK constraint enforcement",
+              "Verify SET NULL cascade on equipment delete",
+              "Check index is used in query plans"
+            ]
+          },
+          "performance_analysis": {
+            "missing_indexes": [],
+            "well_indexed": ["inspections.id", "inspections.equipment_id", "equipment.id"]
+          },
+          "typescript_updates": {
+            "changed_interfaces": [
+              {
+                "interface": "Inspection",
+                "file": "lib/types/database.types.ts",
+                "changes": ["added field: equipment_id?: string"]
+              }
+            ],
+            "breaking_changes": false
+          },
+          "conflicts": {
+            "detected": false,
+            "conflicting_stories": [],
+            "recommendation": "No conflicts - safe to proceed"
+          },
+          "branching_recommendation": {
+            "recommended": false,
+            "reason": "Simple migration, low risk",
+            "alternative": "If testing needed, consider branch workflow"
+          },
+          "test_data_requirements": {
+            "fixtures_needed": [
+              {
+                "table": "equipment",
+                "records": 5,
+                "purpose": "Test equipment assignment workflow"
+              }
+            ]
+          }
+        }
+
+# ==============================================================================
+# WORKFLOW CONSUMPTION PATTERNS
+# ==============================================================================
+
+consumption_patterns:
+  create_story_workflow:
+    description: "How create-story workflow consumes Schema Surveyor output"
+    uses:
+      - "Executive Summary XML → Determine if migration is complex/risky"
+      - "Intelligence Report Section C → Copy migration SQL into story AC"
+      - "Intelligence Report Section B → Add security requirements to story"
+      - "Intelligence Report Section G → Add test data setup to story"
+      - "Complete JSON → Store as context for dev agent"
+
+    example_usage: |
+      # In create-story workflow after Schema Surveyor returns:
+
+      1. Parse Executive Summary XML
+      2. If security_status.critical_issues > 0:
+         → Add "Critical: Fix RLS policies" to story acceptance criteria
+      3. If migration_complexity in ["complex", "high-risk"]:
+         → Flag story for architect review
+      4. Extract migration SQL from Intelligence Report Section C
+      5. Add to story under "Database Changes" section
+      6. Extract test fixtures from Section G
+      7. Add to story under "Test Data Setup" section
+      8. Store Complete JSON in story context file for dev agent reference
+
+  story_context_workflow:
+    description: "How story-context workflow uses Schema Surveyor"
+    uses:
+      - "Executive Summary XML → Validate no schema drift since story creation"
+      - "Diff object in JSON → Warn if schema changed unexpectedly"
+      - "Security Audit → Re-validate no new vulnerabilities introduced"
+      - "Conflicts object → Warn if another story touched same tables"
+
+    example_usage: |
+      # In story-context workflow before dev work:
+
+      1. Invoke Schema Surveyor with refresh_cache=true
+      2. Parse Executive Summary
+      3. If changes_detected.modified_tables > 0:
+         → Compare with story's expected schema changes
+         → If mismatch: WARN - schema drift detected
+      4. If conflicts.detected = true:
+         → WARN - conflicting story detected, coordinate before proceeding
+      5. Re-run security audit
+      6. If new critical issues: BLOCK - resolve security issues first
+      7. Include refreshed schema in story context
+
+  epic_tech_context_workflow:
+    description: "How epic-tech-context uses Schema Surveyor for epic-level planning"
+    uses:
+      - "Complete JSON tables array → Build epic-level schema overview"
+      - "Relationships array → Map data model for entire epic"
+      - "Migration recommendations across stories → Identify migration sequencing"
+
+    example_usage: |
+      # In epic-tech-context workflow:
+
+      1. Invoke Schema Surveyor for each story in epic
+      2. Aggregate all table schemas
+      3. Build comprehensive domain model
+      4. Identify shared tables across stories
+      5. Recommend migration sequencing (story A before story B)
+      6. Create epic-level RLS policy strategy
+      7. Generate TypeScript type updates for entire epic
+
+# ==============================================================================
+# VALIDATION RULES
+# ==============================================================================
+
+validation_rules:
+  mandatory_checks:
+    - rule: "Project ID must always be 'xsrimymebzinenvzyblz'"
+      rationale: "Prevent accidental queries to wrong database"
+
+    - rule: "All table/column names must come from MCP queries"
+      rationale: "Zero tolerance for hallucinations"
+
+    - rule: "If run_security_audit=true, security_audit object MUST be in JSON"
+      rationale: "Workflows depend on consistent output structure"
+
+    - rule: "If generate_migration=true, migration_recommendation MUST be in JSON"
+      rationale: "Story creation requires migration SQL"
+
+    - rule: "Executive Summary must be valid XML"
+      rationale: "Workflows parse this programmatically"
+
+    - rule: "Complete JSON must be valid JSON"
+      rationale: "Workflows store and query this data"
+
+  quality_checks:
+    - check: "All security issues include remediation URLs"
+      importance: "high"
+
+    - check: "Migration SQL includes BEGIN/COMMIT"
+      importance: "critical"
+
+    - check: "Rollback SQL provided for all migrations"
+      importance: "high"
+
+    - check: "Testing checklist has at least 3 items"
+      importance: "medium"
+
+# ==============================================================================
+# VERSION HISTORY
+# ==============================================================================
+
+changelog:
+  v3.0:
+    date: "2025-11-06"
+    changes:
+      - "Added Executive Summary XML output (Part 1)"
+      - "Added conditional fields: generate_migration, run_security_audit, check_type_updates"
+      - "Added security_audit object to JSON"
+      - "Added migration_recommendation object to JSON"
+      - "Added typescript_updates object to JSON"
+      - "Added conflicts object to JSON"
+      - "Added branching_recommendation object to JSON"
+      - "Added test_data_requirements object to JSON"
+      - "Enhanced Intelligence Report with 8 sections"
+
+  v2.0:
+    date: "2025-11-05"
+    changes:
+      - "Initial contract definition"
+      - "Three-part output (Raw + Human + JSON)"
+      - "Basic schema retrieval"

@@ -1,0 +1,382 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MCP Tool Awareness Protocol
+  Version: 1.0.0
+  Purpose: Universal MCP tool integration for all BMAD agents
+
+  INTEGRATION INSTRUCTIONS:
+  Add this entire <mcp_awareness> block to any agent's <activation> section,
+  preferably after persona loading and before menu handlers.
+-->
+
+<mcp_awareness critical="MANDATORY">
+  <overview>
+    This project has 9 configured MCP (Model Context Protocol) servers providing specialized capabilities.
+    You MUST proactively use these tools when they align with your task to maximize output quality and efficiency.
+    NEVER assume you cannot do something - check if an MCP tool can help first.
+  </overview>
+
+  <protocol>
+    <rule>ALWAYS check MCP tool availability before stating limitations</rule>
+    <rule>Use MCP tools PROACTIVELY, not just when explicitly asked</rule>
+    <rule>Prefer MCP tools over manual/simulated approaches when available</rule>
+    <rule>Document which MCP tools you used in your implementation notes</rule>
+    <rule>If an MCP tool fails, report the error and suggest alternatives</rule>
+  </protocol>
+
+  <mcp_servers>
+
+    <!-- DOCUMENTATION & REFERENCE -->
+    <server name="Ref" prefix="mcp__Ref__">
+      <description>Search and read current documentation from official sources (GitHub, framework docs)</description>
+      <tools>
+        <tool name="ref_search_documentation">
+          <usage>Search for documentation on frameworks, libraries, APIs</usage>
+          <when_to_use>
+            - Before implementing ANY framework feature you're uncertain about
+            - When API signatures or patterns may have changed since training cutoff
+            - Researching best practices for Next.js, Flutter, React, etc.
+            - Verifying current library versions and breaking changes
+          </when_to_use>
+          <syntax>mcp__Ref__ref_search_documentation(query: "Next.js 16.0 server components")</syntax>
+        </tool>
+        <tool name="ref_read_url">
+          <usage>Read full documentation page content as markdown</usage>
+          <when_to_use>
+            - After ref_search_documentation returns relevant URLs
+            - To read complete API documentation before implementation
+            - To verify exact code examples from official docs
+          </when_to_use>
+          <syntax>mcp__Ref__ref_read_url(url: "https://...")</syntax>
+        </tool>
+      </tools>
+      <relevant_agents>ALL - especially Dev, Architect, Test Architect</relevant_agents>
+      <priority>CRITICAL - Use BEFORE implementing uncertain features</priority>
+    </server>
+
+    <!-- DATABASE OPERATIONS -->
+    <server name="supabase" prefix="mcp__supabase__">
+      <description>Direct Supabase database interaction for this project</description>
+      <tools>
+        <tool name="list_projects">
+          <usage>List available Supabase projects</usage>
+          <when_to_use>Understanding project configuration, verifying database connection</when_to_use>
+        </tool>
+        <tool name="list_tables">
+          <usage>List all tables in the Supabase database</usage>
+          <when_to_use>Schema exploration, understanding data model, planning queries</when_to_use>
+        </tool>
+        <tool name="list_migrations">
+          <usage>View migration history</usage>
+          <when_to_use>Understanding schema evolution, debugging migration issues</when_to_use>
+        </tool>
+        <tool name="apply_migration">
+          <usage>Apply database migrations</usage>
+          <when_to_use>Deploying schema changes, updating database structure</when_to_use>
+        </tool>
+        <tool name="execute_sql">
+          <usage>Execute SQL queries directly against the database</usage>
+          <when_to_use>
+            - Verifying data integrity during implementation
+            - Testing queries before writing ORM code
+            - Debugging data issues
+            - Generating test fixtures
+            - Validating acceptance criteria related to data
+          </when_to_use>
+        </tool>
+      </tools>
+      <relevant_agents>Dev, Architect, Test Architect, Business Analyst</relevant_agents>
+      <priority>HIGH - Use for database verification and data validation tasks</priority>
+    </server>
+
+    <!-- WEB UI TESTING & AUTOMATION -->
+    <server name="chrome-devtools" prefix="mcp__chrome-devtools__">
+      <description>Browser automation and testing via Chrome DevTools Protocol</description>
+      <tools>
+        <tool name="list_pages">
+          <usage>List open browser tabs/pages</usage>
+        </tool>
+        <tool name="new_page">
+          <usage>Open new browser tab</usage>
+        </tool>
+        <tool name="navigate_page">
+          <usage>Navigate to URL</usage>
+          <when_to_use>Loading web application for testing</when_to_use>
+        </tool>
+        <tool name="take_screenshot">
+          <usage>Capture screenshot of current page state</usage>
+          <when_to_use>
+            - Visual regression testing
+            - Documenting UI implementation
+            - Bug reporting with visual evidence
+            - Validating responsive layouts
+          </when_to_use>
+        </tool>
+        <tool name="take_snapshot">
+          <usage>Capture DOM snapshot</usage>
+          <when_to_use>Analyzing page structure, debugging rendering</when_to_use>
+        </tool>
+        <tool name="click">
+          <usage>Click element on page</usage>
+          <when_to_use>Simulating user interactions during testing</when_to_use>
+        </tool>
+        <tool name="fill_form">
+          <usage>Fill form inputs</usage>
+          <when_to_use>Testing form submission workflows</when_to_use>
+        </tool>
+        <tool name="wait_for">
+          <usage>Wait for element or condition</usage>
+          <when_to_use>Handling async operations in tests</when_to_use>
+        </tool>
+        <tool name="list_console_messages">
+          <usage>Get browser console logs</usage>
+          <when_to_use>
+            - Debugging JavaScript errors
+            - Verifying logging implementation
+            - Catching client-side issues
+          </when_to_use>
+        </tool>
+      </tools>
+      <relevant_agents>Dev (web testing), Test Architect, UX Designer (verification)</relevant_agents>
+      <priority>HIGH - Use for web UI validation and visual testing</priority>
+    </server>
+
+    <!-- E2E TESTING (WEB) -->
+    <server name="playwright" prefix="mcp__playwright__">
+      <description>Playwright E2E testing framework integration</description>
+      <tools>
+        <tool name="Various Playwright commands">
+          <usage>Execute Playwright test scripts, generate tests, debug</usage>
+          <when_to_use>
+            - Writing E2E tests for web application
+            - Running automated test suites
+            - Generating test code from user interactions
+            - Cross-browser testing
+          </when_to_use>
+        </tool>
+      </tools>
+      <relevant_agents>Test Architect, Dev (test writing)</relevant_agents>
+      <priority>HIGH - Primary tool for web E2E testing</priority>
+    </server>
+
+    <!-- E2E TESTING (MOBILE) -->
+    <server name="maestro" prefix="mcp__maestro__">
+      <description>Mobile app testing framework for Flutter/iOS/Android</description>
+      <tools>
+        <tool name="Various Maestro commands">
+          <usage>Execute mobile E2E tests, record flows, debug mobile UI</usage>
+          <when_to_use>
+            - Writing E2E tests for Flutter mobile app
+            - Testing native iOS/Android functionality
+            - Validating mobile-specific workflows (camera, offline sync, etc.)
+            - Recording user flows for test automation
+          </when_to_use>
+        </tool>
+      </tools>
+      <relevant_agents>Dev (mobile), Test Architect</relevant_agents>
+      <priority>HIGH - Primary tool for mobile E2E testing</priority>
+    </server>
+
+    <!-- UI COMPONENTS -->
+    <server name="shadcn" prefix="mcp__shadcn__">
+      <description>shadcn/ui component library integration for Next.js web app</description>
+      <tools>
+        <tool name="Various shadcn commands">
+          <usage>Add/manage shadcn UI components, generate component code</usage>
+          <when_to_use>
+            - Adding new UI components to Next.js web app
+            - Following design system standards
+            - Ensuring accessible, consistent UI patterns
+            - Accelerating frontend development
+          </when_to_use>
+        </tool>
+      </tools>
+      <relevant_agents>Dev (web), UX Designer, Architect</relevant_agents>
+      <priority>MEDIUM - Use for web UI component implementation</priority>
+    </server>
+
+    <!-- DEPLOYMENT -->
+    <server name="vercel" prefix="mcp__vercel__">
+      <description>Vercel deployment and hosting platform integration</description>
+      <tools>
+        <tool name="Various Vercel commands">
+          <usage>Deploy, manage deployments, configure hosting</usage>
+          <when_to_use>
+            - Deploying Next.js web application
+            - Managing preview/production environments
+            - Configuring environment variables
+            - Monitoring deployment status
+          </when_to_use>
+        </tool>
+      </tools>
+      <relevant_agents>Dev (deployment), Architect (infrastructure), Scrum Master (release)</relevant_agents>
+      <priority>MEDIUM - Use for deployment and hosting tasks</priority>
+    </server>
+
+    <!-- IDE INTEGRATION -->
+    <server name="ide" prefix="mcp__ide__">
+      <description>IDE integration for diagnostics and code analysis</description>
+      <tools>
+        <tool name="getDiagnostics">
+          <usage>Get TypeScript/ESLint/compiler errors from IDE</usage>
+          <when_to_use>
+            - Identifying compilation errors before running builds
+            - Validating code quality during implementation
+            - Quick error checking without full test runs
+          </when_to_use>
+        </tool>
+      </tools>
+      <relevant_agents>Dev, Test Architect</relevant_agents>
+      <priority>MEDIUM - Use for quick error checking</priority>
+    </server>
+
+    <!-- NEXT.JS DEVTOOLS -->
+    <server name="next-devtools" prefix="mcp__next-devtools__">
+      <description>Next.js DevTools MCP server for inspecting and debugging Next.js applications</description>
+      <tools>
+        <tool name="Various Next.js DevTools commands">
+          <usage>Inspect Next.js app structure, routes, components, and configuration</usage>
+          <when_to_use>
+            - Understanding Next.js application architecture
+            - Debugging routing issues
+            - Analyzing component structure and dependencies
+            - Inspecting Next.js configuration and build setup
+            - Understanding App Router vs Pages Router structure
+            - Analyzing server/client component boundaries
+            - Debugging performance issues in Next.js apps
+          </when_to_use>
+        </tool>
+      </tools>
+      <relevant_agents>Dev (Next.js), Architect, Test Architect</relevant_agents>
+      <priority>HIGH - Use for Next.js application development and debugging</priority>
+    </server>
+
+  </mcp_servers>
+
+  <agent_specific_guidance>
+
+    <agent_role name="Developer">
+      <must_use_tools>
+        <tool>mcp__Ref__* (MANDATORY before uncertain implementations)</tool>
+        <tool>mcp__supabase__execute_sql (verify data operations)</tool>
+        <tool>mcp__chrome-devtools__* (web UI testing)</tool>
+        <tool>mcp__maestro__* (mobile testing)</tool>
+        <tool>mcp__ide__getDiagnostics (quick validation)</tool>
+        <tool>mcp__next-devtools__* (Next.js app inspection and debugging)</tool>
+      </must_use_tools>
+      <workflow_integration>
+        1. Before implementing: Use Ref tools to verify current docs
+        2. During implementation: Use IDE diagnostics for quick checks; use Next.js DevTools to inspect app structure
+        3. After implementation: Use Chrome DevTools or Maestro for UI validation
+        4. For data operations: Use Supabase tools to verify queries/schema
+        5. For Next.js features: Use next-devtools to understand routing, components, and configuration
+        6. Document all MCP tools used in implementation notes
+      </workflow_integration>
+    </agent_role>
+
+    <agent_role name="Test Architect">
+      <must_use_tools>
+        <tool>mcp__playwright__* (web E2E tests)</tool>
+        <tool>mcp__maestro__* (mobile E2E tests)</tool>
+        <tool>mcp__chrome-devtools__* (visual testing, debugging)</tool>
+        <tool>mcp__supabase__execute_sql (test data setup/verification)</tool>
+        <tool>mcp__Ref__* (testing best practices)</tool>
+      </must_use_tools>
+      <workflow_integration>
+        1. Use Playwright for web E2E test implementation
+        2. Use Maestro for mobile E2E test implementation
+        3. Use Chrome DevTools for visual regression and debugging
+        4. Use Supabase tools for test fixture creation and data validation
+        5. Use Ref tools to verify testing framework best practices
+      </workflow_integration>
+    </agent_role>
+
+    <agent_role name="Architect">
+      <must_use_tools>
+        <tool>mcp__Ref__* (research architectural patterns)</tool>
+        <tool>mcp__supabase__list_tables (understand current schema)</tool>
+        <tool>mcp__shadcn__* (UI component architecture)</tool>
+        <tool>mcp__next-devtools__* (Next.js architecture analysis)</tool>
+      </must_use_tools>
+      <workflow_integration>
+        1. Use Ref tools to research current architectural patterns
+        2. Use Supabase tools to understand existing data model
+        3. Use shadcn for UI architecture decisions
+        4. Use next-devtools to analyze Next.js app structure and routing patterns
+        5. Document MCP-based research in architecture decisions
+      </workflow_integration>
+    </agent_role>
+
+    <agent_role name="UX Designer">
+      <must_use_tools>
+        <tool>mcp__chrome-devtools__take_screenshot (capture UI states)</tool>
+        <tool>mcp__shadcn__* (component library)</tool>
+        <tool>mcp__Ref__* (UX best practices)</tool>
+      </must_use_tools>
+      <workflow_integration>
+        1. Use Chrome DevTools to capture current UI state
+        2. Use shadcn to align with component library
+        3. Use Ref tools for accessibility and UX research
+      </workflow_integration>
+    </agent_role>
+
+    <agent_role name="Business Analyst">
+      <must_use_tools>
+        <tool>mcp__supabase__execute_sql (data analysis)</tool>
+        <tool>mcp__supabase__list_tables (understand entities)</tool>
+      </must_use_tools>
+      <workflow_integration>
+        1. Use Supabase tools to analyze current data model
+        2. Use SQL execution for data-driven requirements validation
+      </workflow_integration>
+    </agent_role>
+
+    <agent_role name="Scrum Master">
+      <must_use_tools>
+        <tool>mcp__vercel__* (deployment status)</tool>
+        <tool>mcp__chrome-devtools__* (quick validation)</tool>
+      </must_use_tools>
+      <workflow_integration>
+        1. Use Vercel tools to check deployment status
+        2. Use Chrome DevTools for quick smoke tests
+      </workflow_integration>
+    </agent_role>
+
+    <agent_role name="Product Manager">
+      <must_use_tools>
+        <tool>mcp__chrome-devtools__take_screenshot (feature documentation)</tool>
+        <tool>mcp__supabase__execute_sql (usage analytics queries)</tool>
+      </must_use_tools>
+      <workflow_integration>
+        1. Use Chrome DevTools to document feature implementations
+        2. Use Supabase for data-driven product insights
+      </workflow_integration>
+    </agent_role>
+
+  </agent_specific_guidance>
+
+  <failure_protocol>
+    <rule>If an MCP tool returns an error, report it clearly to the user</rule>
+    <rule>If authentication fails, inform user to check .mcp.json configuration</rule>
+    <rule>If a tool is unavailable, suggest alternative approaches</rule>
+    <rule>NEVER silently skip MCP tools - always announce when you're using them</rule>
+  </failure_protocol>
+
+  <documentation_requirement>
+    When using MCP tools during implementation or testing, document in your output:
+    - Which MCP tools were used
+    - What queries/commands were executed
+    - What results/insights were obtained
+    - How the MCP tool output informed your decisions
+
+    Example:
+    ```markdown
+    ### MCP Tools Used
+    - **mcp__Ref__ref_search_documentation**: Searched "Next.js 16.0 server actions"
+    - **mcp__Ref__ref_read_url**: Read official Next.js docs on form actions
+    - **mcp__supabase__execute_sql**: Verified inspection_template table schema
+    - **mcp__chrome-devtools__take_screenshot**: Captured form rendering for validation
+    ```
+  </documentation_requirement>
+
+</mcp_awareness>

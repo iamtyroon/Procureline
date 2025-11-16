@@ -1,11 +1,13 @@
 {
   "mcpServers": {
     "mcp-obsidian": {
-      "command": "uvx",
+      "type": "stdio",
+      "command": "npx",
       "args": [
+        "-y",
         "mcp-obsidian",
         "--vault",
-        "/home/iamtyroon/Projects/Procureline/procureline obsidian docs"
+        "F:\\project\\Procureline\\docs"
       ],
       "env": {
         "OBSIDIAN_API_KEY": "c3469d944148e69b0c78a8046a107358bf79d44a3b3668332433563d0ce1288e",
@@ -14,12 +16,79 @@
       }
     },
     "supabase": {
+      "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
         "@supabase/mcp-server-supabase@latest",
         "--access-token",
         "sbp_fca05f4ad7facbe3a8a5fec0eddbd493ec113645"
+      ]
+    },
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest"
+      ]
+    },
+    "excel": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "excel-mcp-server",
+        "stdio"
+      ]
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer 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"
+      }
+    },
+    "ref": {
+      "type": "http",
+      "url": "https://api.ref.tools/mcp?apiKey=ref-ff484123cbb022ed4cff"
+    },
+    "next-devtools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "next-devtools-mcp@latest"
+      ]
+    },
+    "sequential-thinking": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "mcp-sequential-thinking"
+      ]
+    },
+    "sequential-thinking-tools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-sequentialthinking-tools"
+      ]
+    },
+    "docfork": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "docfork"
+      ]
+    },
+    "gemini-cli": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "gemini-mcp-tool"
       ]
     }
   }

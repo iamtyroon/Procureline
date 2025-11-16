@@ -1,5 +1,5 @@
 ---
-description: 'Marks a story as done (DoD complete) and moves it from IN PROGRESS → DONE in the status file. Advances the story queue. Simple status-update workflow with no searching required.'
+description: 'Marks a story as done (DoD complete) and moves it from its current status → DONE in the status file. Advances the story queue. Simple status-update workflow with no searching required.'
 ---
 
 # story-done

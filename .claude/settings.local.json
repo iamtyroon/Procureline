@@ -1,0 +1,16 @@
+{
+  "enabledMcpjsonServers": [
+    "chrome-devtools",
+    "supabase",
+    "mcp-obsidian",
+    "Ref",
+    "shadcn",
+    "maestro",
+    "vercel",
+    "playwright",
+    "next-devtools",
+    "sequential-thinking",
+    "filesystem"
+  ],
+  "enableAllProjectMcpServers": true
+}

@@ -3,6 +3,23 @@
 <critical>The workflow execution engine is governed by: {project-root}/bmad/core/tasks/workflow.xml</critical>
 <critical>You MUST have already loaded and processed: {project-root}/bmad/bmm/workflows/4-implementation/sprint-planning/workflow.yaml</critical>
 
+## 📚 Document Discovery - Full Epic Loading
+
+**Strategy**: Sprint planning needs ALL epics and stories to build complete status tracking.
+
+**Epic Discovery Process:**
+
+1. **Search for whole document first** - Look for `epics.md`, `bmm-epics.md`, or any `*epic*.md` file
+2. **Check for sharded version** - If whole document not found, look for `epics/index.md`
+3. **If sharded version found**:
+   - Read `index.md` to understand the document structure
+   - Read ALL epic section files listed in the index (e.g., `epic-1.md`, `epic-2.md`, etc.)
+   - Process all epics and their stories from the combined content
+   - This ensures complete sprint status coverage
+4. **Priority**: If both whole and sharded versions exist, use the whole document
+
+**Fuzzy matching**: Be flexible with document names - users may use variations like `epics.md`, `bmm-epics.md`, `user-stories.md`, etc.
+
 <workflow>
 
 <step n="1" goal="Parse epic files and extract all work items">
@@ -99,7 +116,7 @@ development_status:
 #   - drafted: Story file created in stories folder
 #   - ready-for-dev: Draft approved and story context created
 #   - in-progress: Developer actively working on implementation
-#   - review: Under SM review (via review-story workflow)
+#   - review: Under SM review (via code-review workflow)
 #   - done: Story completed
 #
 # Retrospective Status:
@@ -193,7 +210,7 @@ backlog → drafted → ready-for-dev → in-progress → review → done
 - **drafted**: Story file created (e.g., `stories/1-3-plant-naming.md`)
 - **ready-for-dev**: Draft approved + story context created
 - **in-progress**: Developer actively working
-- **review**: Under SM review (via review-story workflow)
+- **review**: Under SM review (via code-review workflow)
 - **done**: Completed
 
 **Retrospective Status:**

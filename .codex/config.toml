@@ -1,0 +1,42 @@
+# Global options
+network_access = true
+model = "gpt-5-codex"
+model_reasoning_effort = "medium"
+
+# Trust your project path (optional)
+[projects."/Users/dives/inspect/ndt-inspection-toolkit"]
+trust_level = "trusted"
+
+# ── MCP servers ────────────────────────────────────────────────────────────────
+[mcp_servers.supabase]
+command = "npx"
+args = ["-y", "@supabase/mcp-server-supabase", "--project-ref=xsrimymebzinenvzyblz"]
+env = { SUPABASE_ACCESS_TOKEN = "sbp_f2dd020b6d729ee3d231556dcb60827105319b8e" }
+startup_timeout_ms = 20000
+
+[mcp_servers.shadcn]
+command = "npx"
+args = ["-y", "shadcn@latest", "mcp"]
+startup_timeout_ms = 20000
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["-y", "@playwright/mcp@latest", "--extension"]
+startup_timeout_ms = 20000
+
+[mcp_servers.ref]
+url = "https://api.ref.tools/mcp?apiKey=ref-5a8e5fd0142caf802c24"
+
+[mcp_servers.chromedevtools]
+args = ["chrome-devtools-mcp@latest"]
+command = "npx"
+
+
+[mcp_servers.nextdevtools]
+args = ["-y", "next-devtools-mcp@latest"]
+command = "npx"
+
+[mcp_servers.maestro]
+args = ["mcp"]
+command = "/Users/dives/.maestro/bin/maestro"
+
