@@ -1,0 +1,44 @@
+# BMAD Framework
+_bmad-output/          # Workflow working directory - auto-generated artifacts
+_bmad/_memory/         # Agent memory and cache
+*.draft.md             # Draft documents
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node (if applicable)
+node_modules/
+npm-debug.log
+yarn-error.log
+.pnpm-debug.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build outputs (adjust for your stack)
+dist/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp

@@ -1,0 +1,3363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procureline | Tenant Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --background: #F7FAFC;
+            --foreground: #2D3748;
+            --card: #FFFFFF;
+            --card-foreground: #2D3748;
+            --primary: #18b969;
+            --primary-foreground: #FFFFFF;
+            --secondary: #EDF2F7;
+            --secondary-foreground: #3e7e5e;
+            --muted: #EDF2F7;
+            --muted-foreground: #718096;
+            --accent: #E2E8F0;
+            --accent-foreground: #2F855A;
+            --destructive: #E53E3E;
+            --destructive-foreground: #FFFFFF;
+            --success: #38A169;
+            --warning: #ED8936;
+            --info: #3182CE;
+            --border: #E2E8F0;
+            --input: #E2E8F0;
+            --ring: #38A169;
+            --radius: 0.5rem;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+            --green-50: #F0FFF4;
+            --green-100: #C6F6D5;
+            --green-200: #9AE6B4;
+            --green-300: #68D391;
+            --green-400: #48BB78;
+            --green-500: #38A169;
+            --green-600: #2F855A;
+            --green-700: #276749;
+            --green-800: #22543D;
+            --green-900: #1C4532;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: #fafafa;
+            color: var(--foreground);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Utility Classes */
+        .hidden { display: none !important; }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .justify-center { justify-content: center; }
+        .gap-1 { gap: 0.25rem; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-3 { gap: 0.75rem; }
+        .gap-4 { gap: 1rem; }
+        .gap-6 { gap: 1.5rem; }
+        .text-sm { font-size: 0.875rem; }
+        .text-xs { font-size: 0.75rem; }
+        .text-lg { font-size: 1.125rem; }
+        .text-xl { font-size: 1.25rem; }
+        .text-2xl { font-size: 1.5rem; }
+        .font-medium { font-weight: 500; }
+        .font-semibold { font-weight: 600; }
+        .font-bold { font-weight: 700; }
+        .text-muted { color: var(--muted-foreground); }
+        .text-success { color: var(--success); }
+        .text-warning { color: var(--warning); }
+        .text-destructive { color: var(--destructive); }
+        .text-primary { color: var(--primary); }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .uppercase { text-transform: uppercase; }
+        .tracking-wide { letter-spacing: 0.05em; }
+        .w-full { width: 100%; }
+        .mb-1 { margin-bottom: 0.25rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .mt-2 { margin-top: 0.5rem; }
+        .mt-4 { margin-top: 1rem; }
+        .p-4 { padding: 1rem; }
+        .p-6 { padding: 1.5rem; }
+        .rounded { border-radius: var(--radius); }
+        .rounded-lg { border-radius: 0.75rem; }
+        .rounded-xl { border-radius: 1rem; }
+        .border { border: 1px solid var(--border); }
+        .bg-white { background: white; }
+        .bg-muted { background: var(--muted); }
+
+        /* Auth Screen */
+        .auth-wrapper {
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+
+        .auth-container {
+            background: var(--card);
+            padding: 2.5rem;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .brand-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .brand-logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--foreground);
+            letter-spacing: -0.025em;
+        }
+
+        .brand-logo span {
+            color: var(--primary);
+        }
+
+        .brand-tagline {
+            font-size: 0.875rem;
+            color: var(--muted-foreground);
+            margin-top: 0.25rem;
+        }
+
+        .admin-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: linear-gradient(135deg, var(--green-700), var(--green-600));
+            color: white;
+            border-radius: 99px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+
+        /* Form Elements */
+        .form-group { margin-bottom: 1.25rem; }
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--foreground);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.625rem 0.75rem;
+            border: 1px solid var(--input);
+            background-color: transparent;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            color: var(--foreground);
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--ring);
+            box-shadow: 0 0 0 2px rgba(56, 161, 105, 0.2);
+        }
+
+        .form-input:disabled {
+            background: var(--muted);
+            cursor: not-allowed;
+        }
+
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--green-600), var(--green-500));
+            color: white;
+            box-shadow: 0 2px 4px rgba(47, 133, 90, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--green-700), var(--green-600));
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(47, 133, 90, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--foreground);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--muted);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #E53E3E, #C53030);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #C53030, #9B2C2C);
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.75rem;
+            font-size: 0.75rem;
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            border-radius: 8px;
+            background: white;
+            border: 1px solid var(--border);
+            color: var(--muted-foreground);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-icon:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* Dashboard Layout */
+        .dashboard-layout {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: white;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--foreground);
+        }
+
+        .sidebar-logo span {
+            color: var(--primary);
+        }
+
+        .sidebar-subtitle {
+            font-size: 0.7rem;
+            color: var(--muted-foreground);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.25rem;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 1rem 0.75rem;
+            overflow-y: auto;
+        }
+
+        .nav-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .nav-section-title {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--muted-foreground);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            padding: 0 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.625rem 0.75rem;
+            border-radius: var(--radius);
+            color: var(--muted-foreground);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+        }
+
+        .nav-item:hover {
+            background: var(--muted);
+            color: var(--foreground);
+        }
+
+        .nav-item.active {
+            background: var(--green-50);
+            color: var(--green-700);
+        }
+
+        .nav-item.active svg {
+            color: var(--green-600);
+        }
+
+        .nav-item svg {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+
+        .nav-item-badge {
+            margin-left: auto;
+            padding: 2px 8px;
+            background: var(--destructive);
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 600;
+            border-radius: 10px;
+        }
+
+        .sidebar-footer {
+            padding: 1rem 1.25rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .user-card {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--green-600), var(--green-400));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 0.875rem;
+        }
+
+        .user-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .user-name {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--foreground);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .user-role {
+            font-size: 0.7rem;
+            color: var(--muted-foreground);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #f8fafc;
+        }
+
+        .main-header {
+            background: white;
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .page-title-section h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--foreground);
+        }
+
+        .page-title-section p {
+            font-size: 0.8rem;
+            color: var(--muted-foreground);
+            margin-top: 0.15rem;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .icon-btn {
+            position: relative;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--muted-foreground);
+            padding: 0.5rem;
+            border-radius: var(--radius);
+            transition: all 0.15s;
+        }
+
+        .icon-btn:hover {
+            background: var(--muted);
+            color: var(--foreground);
+        }
+
+        .icon-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .notif-dot {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 8px;
+            height: 8px;
+            background: var(--destructive);
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        /* Content Area */
+        .content-area {
+            flex: 1;
+            padding: 1.5rem 2rem;
+            overflow-y: auto;
+        }
+
+        /* Bento Grid */
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.25rem;
+        }
+
+        .bento-grid.cols-4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        .col-span-1 { grid-column: span 1; }
+        .col-span-2 { grid-column: span 2; }
+        .col-span-3 { grid-column: span 3; }
+        .col-span-full { grid-column: 1 / -1; }
+
+        /* Cards */
+        .card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            transition: all 0.2s;
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow);
+            border-color: #d4d4d8;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .card-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--foreground);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-title-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-title-icon svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .card-action {
+            font-size: 0.75rem;
+            color: var(--primary);
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .card-action:hover {
+            text-decoration: underline;
+        }
+
+        /* Stat Cards */
+        .stat-card {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--green-400));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .stat-card:hover::before {
+            opacity: 1;
+        }
+
+        .stat-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .stat-icon svg {
+            width: 22px;
+            height: 22px;
+        }
+
+        .stat-icon.green {
+            background: linear-gradient(135deg, var(--green-600), var(--green-400));
+            color: white;
+        }
+
+        .stat-icon.blue {
+            background: linear-gradient(135deg, #3182CE, #4299E1);
+            color: white;
+        }
+
+        .stat-icon.orange {
+            background: linear-gradient(135deg, #ED8936, #F6AD55);
+            color: white;
+        }
+
+        .stat-icon.purple {
+            background: linear-gradient(135deg, #805AD5, #9F7AEA);
+            color: white;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--muted-foreground);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--foreground);
+            margin: 0.25rem 0;
+            letter-spacing: -0.025em;
+        }
+
+        .stat-meta {
+            font-size: 0.8rem;
+            color: var(--muted-foreground);
+        }
+
+        /* Institution Card */
+        .institution-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .institution-logo {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--green-700), var(--green-500));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
+            font-size: 1.1rem;
+        }
+
+        .institution-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--foreground);
+        }
+
+        .institution-location {
+            font-size: 0.8rem;
+            color: var(--muted-foreground);
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin-top: 0.25rem;
+        }
+
+        .institution-location svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        .fy-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.35rem 0.75rem;
+            background: var(--green-50);
+            color: var(--green-700);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid var(--green-200);
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            height: 8px;
+            background: var(--muted);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--green-500), var(--green-400));
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .progress-fill.warning {
+            background: linear-gradient(90deg, var(--warning), #F6AD55);
+        }
+
+        .progress-fill.danger {
+            background: linear-gradient(90deg, var(--destructive), #FC8181);
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .status-badge.success {
+            background: var(--green-100);
+            color: var(--green-700);
+        }
+
+        .status-badge.warning {
+            background: #FEF3C7;
+            color: #B45309;
+        }
+
+        .status-badge.danger {
+            background: #FEE2E2;
+            color: #DC2626;
+        }
+
+        .status-badge.info {
+            background: #DBEAFE;
+            color: #1D4ED8;
+        }
+
+        .status-badge.neutral {
+            background: var(--muted);
+            color: var(--muted-foreground);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .data-table thead th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--muted-foreground);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border);
+            background: #fafafa;
+        }
+
+        .data-table thead th:first-child {
+            border-radius: 8px 0 0 0;
+        }
+
+        .data-table thead th:last-child {
+            border-radius: 0 8px 0 0;
+        }
+
+        .data-table tbody tr {
+            transition: background 0.15s;
+        }
+
+        .data-table tbody tr:hover {
+            background: #fafafa;
+        }
+
+        .data-table tbody td {
+            padding: 0.875rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.875rem;
+            color: var(--foreground);
+            vertical-align: middle;
+        }
+
+        .data-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* User Row */
+        .user-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .user-row-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #e4e4e7, #f4f4f5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--muted-foreground);
+        }
+
+        .user-row-info {
+            min-width: 0;
+        }
+
+        .user-row-name {
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .user-row-email {
+            font-size: 0.75rem;
+            color: var(--muted-foreground);
+        }
+
+        /* Department Status Grid */
+        .dept-status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .dept-status-card {
+            padding: 1rem;
+            background: #fafafa;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+
+        .dept-status-card:hover {
+            background: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .dept-status-name {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--foreground);
+            margin-bottom: 0.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .dept-status-budget {
+            font-size: 0.7rem;
+            color: var(--muted-foreground);
+            margin-bottom: 0.5rem;
+        }
+
+        .dept-status-bar {
+            height: 4px;
+            background: var(--muted);
+            border-radius: 2px;
+            margin-bottom: 0.5rem;
+            overflow: hidden;
+        }
+
+        .dept-status-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+
+        /* PO Card */
+        .po-profile-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 1.25rem;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #fafafa 0%, #f4f4f5 100%);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .po-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--green-600), var(--green-400));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .po-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .po-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--foreground);
+            margin-bottom: 0.25rem;
+        }
+
+        .po-email {
+            font-size: 0.875rem;
+            color: var(--muted-foreground);
+            margin-bottom: 0.75rem;
+        }
+
+        .po-meta {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .po-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--muted-foreground);
+        }
+
+        .po-meta-item svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .po-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        /* Billing Card */
+        .billing-plan-card {
+            background: linear-gradient(135deg, var(--green-700), var(--green-500));
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .billing-plan-card::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .billing-plan-name {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            opacity: 0.9;
+            margin-bottom: 0.5rem;
+        }
+
+        .billing-plan-price {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+        }
+
+        .billing-plan-cycle {
+            font-size: 0.875rem;
+            opacity: 0.8;
+        }
+
+        .billing-details {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .billing-detail-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .billing-detail-row span:first-child {
+            opacity: 0.8;
+        }
+
+        /* Invoice Table */
+        .invoice-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .invoice-status.paid {
+            background: var(--green-100);
+            color: var(--green-700);
+        }
+
+        .invoice-status.pending {
+            background: #FEF3C7;
+            color: #B45309;
+        }
+
+        /* Audit Log */
+        .audit-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .audit-item:last-child {
+            border-bottom: none;
+        }
+
+        .audit-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .audit-icon svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .audit-icon.create {
+            background: var(--green-100);
+            color: var(--green-600);
+        }
+
+        .audit-icon.edit {
+            background: #DBEAFE;
+            color: #2563EB;
+        }
+
+        .audit-icon.delete {
+            background: #FEE2E2;
+            color: #DC2626;
+        }
+
+        .audit-icon.login {
+            background: #F3E8FF;
+            color: #7C3AED;
+        }
+
+        .audit-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .audit-action {
+            font-size: 0.875rem;
+            color: var(--foreground);
+            margin-bottom: 0.25rem;
+        }
+
+        .audit-action strong {
+            font-weight: 600;
+        }
+
+        .audit-time {
+            font-size: 0.75rem;
+            color: var(--muted-foreground);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-card {
+            background: white;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 480px;
+            max-height: 90vh;
+            overflow: hidden;
+            transform: translateY(20px);
+            transition: transform 0.2s;
+        }
+
+        .modal-overlay.active .modal-card {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--foreground);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--muted-foreground);
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--foreground);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            padding: 1.25rem 1.5rem;
+            border-top: 1px solid var(--border);
+            background: #fafafa;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1.5rem;
+        }
+
+        .empty-state-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 1rem;
+            background: var(--muted);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--muted-foreground);
+        }
+
+        .empty-state-icon svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .empty-state-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--foreground);
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-state-desc {
+            font-size: 0.875rem;
+            color: var(--muted-foreground);
+            margin-bottom: 1.5rem;
+        }
+
+        /* Usage Meter */
+        .usage-item {
+            margin-bottom: 1rem;
+        }
+
+        .usage-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .usage-label {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--foreground);
+        }
+
+        .usage-value {
+            font-size: 0.8rem;
+            color: var(--muted-foreground);
+        }
+
+        /* Animation */
+        .fade-in {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .bento-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .col-span-3 { grid-column: span 2; }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+            .bento-grid {
+                grid-template-columns: 1fr;
+            }
+            .col-span-2, .col-span-3 { grid-column: span 1; }
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem 1.25rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            border-left: 4px solid var(--primary);
+            min-width: 320px;
+            max-width: 420px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.success { border-left-color: var(--success); }
+        .toast.error { border-left-color: var(--destructive); }
+        .toast.warning { border-left-color: var(--warning); }
+        .toast.info { border-left-color: var(--info); }
+
+        .toast-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .toast-icon svg { width: 14px; height: 14px; }
+        .toast.success .toast-icon { background: var(--green-100); color: var(--green-600); }
+        .toast.error .toast-icon { background: #FEE2E2; color: #DC2626; }
+        .toast.warning .toast-icon { background: #FEF3C7; color: #B45309; }
+        .toast.info .toast-icon { background: #DBEAFE; color: #2563EB; }
+
+        .toast-content { flex: 1; }
+        .toast-title { font-weight: 600; font-size: 0.875rem; color: var(--foreground); }
+        .toast-message { font-size: 0.8rem; color: var(--muted-foreground); margin-top: 0.125rem; }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: var(--muted-foreground);
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 4px;
+        }
+        .toast-close:hover { background: var(--muted); color: var(--foreground); }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(100%); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes slideOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(100%); }
+        }
+
+        /* Notification Panel */
+        .notif-panel {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            width: 360px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            border: 1px solid var(--border);
+            margin-top: 0.5rem;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s;
+            z-index: 100;
+        }
+
+        .notif-panel.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .notif-panel-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .notif-panel-title { font-weight: 600; font-size: 0.9rem; }
+        .notif-panel-body { max-height: 320px; overflow-y: auto; }
+
+        .notif-item {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .notif-item:hover { background: #fafafa; }
+        .notif-item:last-child { border-bottom: none; }
+        .notif-item.unread { background: var(--green-50); }
+        .notif-item.unread:hover { background: var(--green-100); }
+
+        .notif-item-title { font-weight: 600; font-size: 0.875rem; color: var(--foreground); }
+        .notif-item-message { font-size: 0.8rem; color: var(--muted-foreground); margin-top: 0.25rem; }
+        .notif-item-time { font-size: 0.7rem; color: var(--muted-foreground); margin-top: 0.5rem; }
+
+        /* Confirmation Dialog */
+        .confirm-dialog {
+            text-align: center;
+            padding: 1rem 0;
+        }
+
+        .confirm-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            margin: 0 auto 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .confirm-icon.warning { background: #FEF3C7; color: #B45309; }
+        .confirm-icon.danger { background: #FEE2E2; color: #DC2626; }
+        .confirm-icon.info { background: #DBEAFE; color: #2563EB; }
+        .confirm-icon svg { width: 28px; height: 28px; }
+
+        .confirm-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .confirm-message { font-size: 0.875rem; color: var(--muted-foreground); }
+
+        /* Notification wrapper for relative positioning */
+        .notif-wrapper { position: relative; }
+    </style>
+</head>
+<body>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- AUTH SCREEN -->
+    <div id="authScreen" class="auth-wrapper">
+        <div class="auth-container">
+            <div class="brand-header">
+                <div class="brand-logo">Procure<span>line</span></div>
+                <p class="brand-tagline">University Procurement Management</p>
+                <div class="admin-badge">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    Tenant Administrator
+                </div>
+            </div>
+
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" id="emailInput" class="form-input" placeholder="admin@university.ac.ke" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" id="passwordInput" class="form-input" placeholder="••••••••" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-full" id="loginBtn">
+                    Sign In to Admin Portal
+                </button>
+
+                <p class="text-sm text-muted text-center mt-4">
+                    Protected by <span class="font-semibold" style="color: var(--foreground);">Procureline Security</span>
+                </p>
+            </form>
+
+            <!-- Dev Tools -->
+            <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px dashed var(--border);">
+                <p class="text-xs text-muted text-center mb-2 font-semibold uppercase tracking-wide">Developer Tools</p>
+                <button type="button" class="btn btn-secondary w-full btn-sm" onclick="quickLogin()">
+                    Auto-fill Demo Credentials
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboardScreen" class="dashboard-layout hidden">
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">Procure<span>line</span></div>
+                <div class="sidebar-subtitle">Tenant Admin Portal</div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Overview</div>
+                    <a class="nav-item active" onclick="showView('dashboard')" data-view="dashboard">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"/>
+                            <rect x="14" y="3" width="7" height="7"/>
+                            <rect x="14" y="14" width="7" height="7"/>
+                            <rect x="3" y="14" width="7" height="7"/>
+                        </svg>
+                        Dashboard
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">User Management</div>
+                    <a class="nav-item" onclick="showView('po-management')" data-view="po-management">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        Procurement Officer
+                    </a>
+                    <a class="nav-item" onclick="showView('du-overview')" data-view="du-overview">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                        Departmental Users
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Procurement</div>
+                    <a class="nav-item" onclick="showView('departments')" data-view="departments">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 21h18"/>
+                            <path d="M5 21V7l8-4 8 4v14"/>
+                            <path d="M9 21v-4h6v4"/>
+                        </svg>
+                        Departments
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Account</div>
+                    <a class="nav-item" onclick="showView('billing')" data-view="billing">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                            <line x1="1" y1="10" x2="23" y2="10"/>
+                        </svg>
+                        Billing
+                    </a>
+                    <a class="nav-item" onclick="showView('settings')" data-view="settings">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                        </svg>
+                        Settings
+                    </a>
+                    <a class="nav-item" onclick="showView('audit-log')" data-view="audit-log">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                        Audit Log
+                    </a>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-card">
+                    <div class="user-avatar" id="sidebarUserInitials">JO</div>
+                    <div class="user-info">
+                        <div class="user-name" id="sidebarUserName">James Ochieng</div>
+                        <div class="user-role">Tenant Admin</div>
+                    </div>
+                    <button class="icon-btn" onclick="logout()" title="Logout">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                            <polyline points="16 17 21 12 16 7"/>
+                            <line x1="21" y1="12" x2="9" y2="12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+
+            <!-- Header -->
+            <header class="main-header">
+                <div class="page-title-section">
+                    <h1 id="pageTitle">Dashboard</h1>
+                    <p id="pageSubtitle">Overview of your institution's procurement system</p>
+                </div>
+                <div class="header-actions">
+                    <div class="notif-wrapper">
+                        <button class="icon-btn" onclick="toggleNotifications()" id="notifBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                            </svg>
+                            <span class="notif-dot" id="notifDot"></span>
+                        </button>
+                        <div class="notif-panel" id="notifPanel">
+                            <div class="notif-panel-header">
+                                <span class="notif-panel-title">Notifications</span>
+                                <button class="btn btn-sm btn-secondary" onclick="markAllRead()">Mark all read</button>
+                            </div>
+                            <div class="notif-panel-body" id="notifPanelBody">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Views -->
+            <div class="content-area">
+
+                <!-- Dashboard View -->
+                <div id="view-dashboard" class="fade-in">
+                    <div class="bento-grid">
+
+                        <!-- Institution Card -->
+                        <div class="card col-span-2">
+                            <div class="institution-header">
+                                <div class="institution-logo" id="institutionInitials">UoN</div>
+                                <div>
+                                    <div class="institution-name" id="institutionName">University of Nairobi</div>
+                                    <div class="institution-location">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                                            <circle cx="12" cy="10" r="3"/>
+                                        </svg>
+                                        <span id="institutionLocation">Nairobi, Kenya</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <div class="fy-badge">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                        <line x1="16" y1="2" x2="16" y2="6"/>
+                                        <line x1="8" y1="2" x2="8" y2="6"/>
+                                        <line x1="3" y1="10" x2="21" y2="10"/>
+                                    </svg>
+                                    FY 2025-2026
+                                </div>
+                                <span class="status-badge success">
+                                    <span class="status-dot"></span>
+                                    Active Subscription
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Users Stat -->
+                        <div class="card stat-card">
+                            <div class="stat-icon blue">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="9" cy="7" r="4"/>
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                                </svg>
+                            </div>
+                            <div class="stat-label">Total Users</div>
+                            <div class="stat-value" id="totalUsers">8</div>
+                            <div class="stat-meta">1 PO + 7 Departmental Users</div>
+                        </div>
+
+                        <!-- Procurement Cycle Stat -->
+                        <div class="card stat-card">
+                            <div class="stat-icon green">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                    <polyline points="22 4 12 14.01 9 11.01"/>
+                                </svg>
+                            </div>
+                            <div class="stat-label">Submission Progress</div>
+                            <div class="stat-value" id="submissionProgress">5/7</div>
+                            <div class="stat-meta">Departments submitted</div>
+                        </div>
+
+                        <!-- Budget Stat -->
+                        <div class="card stat-card">
+                            <div class="stat-icon orange">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="1" x2="12" y2="23"/>
+                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                                </svg>
+                            </div>
+                            <div class="stat-label">Budget Utilized</div>
+                            <div class="stat-value" id="budgetUtilized">67%</div>
+                            <div class="stat-meta">KES 85.2M of 127M</div>
+                        </div>
+
+                        <!-- Active Users Stat -->
+                        <div class="card stat-card">
+                            <div class="stat-icon purple">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                                </svg>
+                            </div>
+                            <div class="stat-label">Active This Month</div>
+                            <div class="stat-value" id="activeUsers">6</div>
+                            <div class="stat-meta">Last login: 2 hours ago</div>
+                        </div>
+
+                        <!-- PO Quick View -->
+                        <div class="card col-span-2">
+                            <div class="card-header">
+                                <div class="card-title">
+                                    <div class="card-title-icon" style="background: linear-gradient(135deg, var(--green-600), var(--green-400)); color: white;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                            <circle cx="12" cy="7" r="4"/>
+                                        </svg>
+                                    </div>
+                                    Procurement Officer
+                                </div>
+                                <a class="card-action" onclick="showView('po-management')">Manage →</a>
+                            </div>
+                            <div class="po-profile-card">
+                                <div class="po-avatar" id="poInitials">SW</div>
+                                <div class="po-details">
+                                    <div class="po-name" id="poName">Sarah Wanjiku</div>
+                                    <div class="po-email" id="poEmail">s.wanjiku@uon.ac.ke</div>
+                                    <div class="po-meta">
+                                        <div class="po-meta-item">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                                <line x1="16" y1="2" x2="16" y2="6"/>
+                                                <line x1="8" y1="2" x2="8" y2="6"/>
+                                                <line x1="3" y1="10" x2="21" y2="10"/>
+                                            </svg>
+                                            Created: Oct 15, 2024
+                                        </div>
+                                        <div class="po-meta-item">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="12" cy="12" r="10"/>
+                                                <polyline points="12 6 12 12 16 14"/>
+                                            </svg>
+                                            Last login: Today, 9:42 AM
+                                        </div>
+                                        <span class="status-badge success">
+                                            <span class="status-dot"></span>
+                                            Active
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Department Status -->
+                        <div class="card col-span-full">
+                            <div class="card-header">
+                                <div class="card-title">
+                                    <div class="card-title-icon" style="background: linear-gradient(135deg, #3182CE, #4299E1); color: white;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M3 21h18"/>
+                                            <path d="M5 21V7l8-4 8 4v14"/>
+                                        </svg>
+                                    </div>
+                                    Department Status
+                                </div>
+                                <a class="card-action" onclick="showView('departments')">View All →</a>
+                            </div>
+                            <div class="dept-status-grid" id="deptStatusGrid">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- PO Management View -->
+                <div id="view-po-management" class="fade-in hidden">
+                    <div class="bento-grid">
+                        <div class="card col-span-full">
+                            <div class="card-header">
+                                <div class="card-title">
+                                    <div class="card-title-icon" style="background: linear-gradient(135deg, var(--green-600), var(--green-400)); color: white;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                            <circle cx="12" cy="7" r="4"/>
+                                        </svg>
+                                    </div>
+                                    Procurement Officer
+                                </div>
+                            </div>
+
+                            <div id="poExistsView">
+                                <div class="po-profile-card mb-6">
+                                    <div class="po-avatar" id="poAvatarLarge">SW</div>
+                                    <div class="po-details">
+                                        <div class="po-name" id="poNameLarge">Sarah Wanjiku</div>
+                                        <div class="po-email" id="poEmailLarge">s.wanjiku@uon.ac.ke</div>
+                                        <div class="po-meta">
+                                            <div class="po-meta-item">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                                    <line x1="16" y1="2" x2="16" y2="6"/>
+                                                    <line x1="8" y1="2" x2="8" y2="6"/>
+                                                    <line x1="3" y1="10" x2="21" y2="10"/>
+                                                </svg>
+                                                Created: Oct 15, 2024
+                                            </div>
+                                            <div class="po-meta-item">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <circle cx="12" cy="12" r="10"/>
+                                                    <polyline points="12 6 12 12 16 14"/>
+                                                </svg>
+                                                Last login: Today, 9:42 AM
+                                            </div>
+                                            <span class="status-badge success">
+                                                <span class="status-dot"></span>
+                                                Active
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="po-actions">
+                                        <button class="btn btn-secondary btn-sm" onclick="openModal('editPoModal')">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                            </svg>
+                                            Edit
+                                        </button>
+                                        <button class="btn btn-secondary btn-sm" onclick="openModal('replacePoModal')">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polyline points="17 1 21 5 17 9"/>
+                                                <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                                                <polyline points="7 23 3 19 7 15"/>
+                                                <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                                            </svg>
+                                            Replace
+                                        </button>
+                                        <button class="btn btn-danger btn-sm" onclick="openModal('deactivatePoModal')">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="12" cy="12" r="10"/>
+                                                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                                            </svg>
+                                            Deactivate
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="bento-grid" style="margin-top: 1.5rem;">
+                                    <div class="card">
+                                        <div class="stat-label mb-2">Departments Managed</div>
+                                        <div class="stat-value">7</div>
+                                    </div>
+                                    <div class="card">
+                                        <div class="stat-label mb-2">Categories Created</div>
+                                        <div class="stat-value">12</div>
+                                    </div>
+                                    <div class="card">
+                                        <div class="stat-label mb-2">Items in Library</div>
+                                        <div class="stat-value">847</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="noPoView" class="hidden">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                            <circle cx="12" cy="7" r="4"/>
+                                        </svg>
+                                    </div>
+                                    <div class="empty-state-title">No Procurement Officer</div>
+                                    <div class="empty-state-desc">Create a Procurement Officer account to manage your institution's procurement.</div>
+                                    <button class="btn btn-primary" onclick="openModal('createPoModal')">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="12" y1="5" x2="12" y2="19"/>
+                                            <line x1="5" y1="12" x2="19" y2="12"/>
+                                        </svg>
+                                        Create Procurement Officer
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DU Overview View -->
+                <div id="view-du-overview" class="fade-in hidden">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-title-icon" style="background: linear-gradient(135deg, #805AD5, #9F7AEA); color: white;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                        <circle cx="9" cy="7" r="4"/>
+                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                                    </svg>
+                                </div>
+                                Departmental Users
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="text" class="form-input" placeholder="Search users..." style="width: 220px;" id="duSearchInput" oninput="filterDUs()">
+                            </div>
+                        </div>
+
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Department</th>
+                                    <th>Status</th>
+                                    <th>Last Login</th>
+                                    <th style="text-align: right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="duTableBody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Departments View -->
+                <div id="view-departments" class="fade-in hidden">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-title-icon" style="background: linear-gradient(135deg, #3182CE, #4299E1); color: white;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 21h18"/>
+                                        <path d="M5 21V7l8-4 8 4v14"/>
+                                    </svg>
+                                </div>
+                                Department Status
+                            </div>
+                        </div>
+
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Department</th>
+                                    <th>Budget Allocated</th>
+                                    <th>Budget Used</th>
+                                    <th>Utilization</th>
+                                    <th>Plan Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="deptTableBody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Billing View -->
+                <div id="view-billing" class="fade-in hidden">
+                    <div class="bento-grid">
+                        <!-- Current Plan -->
+                        <div class="card col-span-1">
+                            <div class="billing-plan-card">
+                                <div class="billing-plan-name" id="billingPlanName">Professional Plan</div>
+                                <div class="billing-plan-price" id="billingPlanPrice">KES 1,200,000</div>
+                                <div class="billing-plan-cycle">per year (FY 2025-26)</div>
+                                <div class="billing-details">
+                                    <div class="billing-detail-row">
+                                        <span>Fiscal Year</span>
+                                        <span id="billingFiscalYear">Jul 1, 2025 - Jun 30, 2026</span>
+                                    </div>
+                                    <div class="billing-detail-row">
+                                        <span>Renewal Date</span>
+                                        <span id="billingRenewalDate">Jun 30, 2026</span>
+                                    </div>
+                                    <div class="billing-detail-row">
+                                        <span>Payment Method</span>
+                                        <span id="billingPaymentMethod">Bank Transfer (LPO)</span>
+                                    </div>
+                                    <div class="billing-detail-row">
+                                        <span>LPO Reference</span>
+                                        <span id="billingLpoRef">UON/FIN/2025/0234</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn btn-secondary w-full mt-4" onclick="openSubscriptionModal()">Manage Subscription</button>
+                        </div>
+
+                        <!-- Usage -->
+                        <div class="card col-span-2">
+                            <div class="card-header">
+                                <div class="card-title">Usage (FY 2025-26)</div>
+                            </div>
+
+                            <div class="usage-item">
+                                <div class="usage-header">
+                                    <span class="usage-label">Departments</span>
+                                    <span class="usage-value" id="usageDepts">7 of 25</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="usageDeptsBar" style="width: 28%;"></div>
+                                </div>
+                            </div>
+
+                            <div class="usage-item">
+                                <div class="usage-header">
+                                    <span class="usage-label">Users</span>
+                                    <span class="usage-value" id="usageUsers">8 of 50</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="usageUsersBar" style="width: 16%;"></div>
+                                </div>
+                            </div>
+
+                            <div class="usage-item">
+                                <div class="usage-header">
+                                    <span class="usage-label">Storage</span>
+                                    <span class="usage-value" id="usageStorage">1.2 GB of 25 GB</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="usageStorageBar" style="width: 5%;"></div>
+                                </div>
+                            </div>
+
+                            <div class="usage-item">
+                                <div class="usage-header">
+                                    <span class="usage-label">Plan Revisions</span>
+                                    <span class="usage-value" id="usageRevisions">1 of 4</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="usageRevisionsBar" style="width: 25%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Invoice History -->
+                        <div class="card col-span-full">
+                            <div class="card-header">
+                                <div class="card-title">Invoice History (Annual)</div>
+                                <a class="card-action" onclick="downloadAllInvoices()" style="cursor:pointer;">Download All</a>
+                            </div>
+
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Invoice</th>
+                                        <th>Fiscal Year</th>
+                                        <th>Date</th>
+                                        <th>Amount (incl. VAT)</th>
+                                        <th>Status</th>
+                                        <th style="text-align: right;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="invoiceTableBody">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Tax Information -->
+                        <div class="card col-span-full">
+                            <div class="card-header">
+                                <div class="card-title">Tax & Payment Information</div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
+                                <div>
+                                    <div style="font-size: 0.7rem; color: var(--muted-foreground); text-transform: uppercase; margin-bottom: 0.5rem;">Vendor Details</div>
+                                    <div style="font-weight: 600; margin-bottom: 0.25rem;">Procureline Technologies Ltd</div>
+                                    <div style="font-size: 0.875rem; color: var(--muted-foreground);">P.O. Box 12345-00100, Nairobi</div>
+                                    <div style="font-size: 0.875rem; color: var(--muted-foreground);">VAT PIN: P051234567A</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.7rem; color: var(--muted-foreground); text-transform: uppercase; margin-bottom: 0.5rem;">Bank Details</div>
+                                    <div style="font-weight: 600; margin-bottom: 0.25rem;">Equity Bank Kenya</div>
+                                    <div style="font-size: 0.875rem; color: var(--muted-foreground);">A/C: 1234567890123</div>
+                                    <div style="font-size: 0.875rem; color: var(--muted-foreground);">Branch: University Way</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.7rem; color: var(--muted-foreground); text-transform: uppercase; margin-bottom: 0.5rem;">M-Pesa Paybill</div>
+                                    <div style="font-weight: 600; margin-bottom: 0.25rem;">Business No: 123456</div>
+                                    <div style="font-size: 0.875rem; color: var(--muted-foreground);">Account: UON-PROF</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings View -->
+                <div id="view-settings" class="fade-in hidden">
+                    <div class="bento-grid">
+                        <!-- Institution Settings -->
+                        <div class="card col-span-2">
+                            <div class="card-header">
+                                <div class="card-title">Institution Settings</div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Institution Name</label>
+                                <input type="text" class="form-input" value="University of Nairobi" id="settingsInstName">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Location</label>
+                                <input type="text" class="form-input" value="Nairobi, Kenya" id="settingsLocation">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Current Fiscal Year</label>
+                                <input type="text" class="form-input" value="2025-2026" disabled>
+                            </div>
+
+                            <button class="btn btn-primary" onclick="saveInstitutionSettings()">Save Changes</button>
+                        </div>
+
+                        <!-- Admin Profile -->
+                        <div class="card col-span-1">
+                            <div class="card-header">
+                                <div class="card-title">Your Profile</div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Full Name</label>
+                                <input type="text" class="form-input" id="settingsAdminName">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-input" id="settingsAdminEmail">
+                            </div>
+
+                            <button class="btn btn-secondary w-full mb-2" onclick="openModal('changePasswordModal')">Change Password</button>
+                            <button class="btn btn-primary w-full" onclick="saveAdminProfile()">Update Profile</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Audit Log View -->
+                <div id="view-audit-log" class="fade-in hidden">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-title-icon" style="background: linear-gradient(135deg, #718096, #A0AEC0); color: white;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14 2 14 8 20 8"/>
+                                    </svg>
+                                </div>
+                                Audit Log
+                            </div>
+                            <button class="btn btn-secondary btn-sm" onclick="exportAuditLog()">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="7 10 12 15 17 10"/>
+                                    <line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
+                                Export CSV
+                            </button>
+                        </div>
+
+                        <div id="auditLogList">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Edit PO Modal -->
+    <div id="editPoModal" class="modal-overlay" onclick="if(event.target === this) closeModal('editPoModal')">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title">Edit Procurement Officer</div>
+                <button class="modal-close" onclick="closeModal('editPoModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" class="form-input" value="Sarah Wanjiku" id="editPoName">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" class="form-input" value="s.wanjiku@uon.ac.ke" id="editPoEmail">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">New Password (leave blank to keep current)</label>
+                    <input type="password" class="form-input" placeholder="••••••••">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('editPoModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="savePOEdit()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Replace PO Modal -->
+    <div id="replacePoModal" class="modal-overlay" onclick="if(event.target === this) closeModal('replacePoModal')">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title">Replace Procurement Officer</div>
+                <button class="modal-close" onclick="closeModal('replacePoModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+                    <p class="text-sm" style="color: #B45309;">
+                        <strong>Important:</strong> All data (departments, categories, items, and plans) will be transferred to the new Procurement Officer. The current PO will lose access.
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">New PO Full Name</label>
+                    <input type="text" class="form-input" placeholder="Enter full name" id="newPoName">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">New PO Email Address</label>
+                    <input type="email" class="form-input" placeholder="email@university.ac.ke" id="newPoEmail">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">New PO Password</label>
+                    <input type="password" class="form-input" placeholder="••••••••" id="newPoPassword">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('replacePoModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="replacePO()">Replace & Transfer Data</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deactivate PO Modal -->
+    <div id="deactivatePoModal" class="modal-overlay" onclick="if(event.target === this) closeModal('deactivatePoModal')">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title">Deactivate Procurement Officer</div>
+                <button class="modal-close" onclick="closeModal('deactivatePoModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="background: #FEE2E2; border: 1px solid #EF4444; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+                    <p class="text-sm" style="color: #DC2626;">
+                        <strong>Warning:</strong> Deactivating the Procurement Officer will prevent them from logging in. All data will be preserved. You can reactivate or replace them later.
+                    </p>
+                </div>
+                <p class="text-sm text-muted">Are you sure you want to deactivate <strong>Sarah Wanjiku</strong>?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('deactivatePoModal')">Cancel</button>
+                <button class="btn btn-danger" onclick="deactivatePO()">Deactivate</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create PO Modal -->
+    <div id="createPoModal" class="modal-overlay" onclick="if(event.target === this) closeModal('createPoModal')">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title">Create Procurement Officer</div>
+                <button class="modal-close" onclick="closeModal('createPoModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" class="form-input" placeholder="Enter full name" id="createPoName">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" class="form-input" placeholder="email@university.ac.ke" id="createPoEmail">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-input" placeholder="••••••••" id="createPoPassword">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('createPoModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="createPO()">Create Procurement Officer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="changePasswordModal" class="modal-overlay" onclick="if(event.target === this) closeModal('changePasswordModal')">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title">Change Password</div>
+                <button class="modal-close" onclick="closeModal('changePasswordModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Current Password</label>
+                    <input type="password" class="form-input" placeholder="••••••••" id="currentPassword">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">New Password</label>
+                    <input type="password" class="form-input" placeholder="••••••••" id="newPassword">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Confirm New Password</label>
+                    <input type="password" class="form-input" placeholder="••••••••" id="confirmPassword">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('changePasswordModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="changePassword()">Change Password</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- View DU Modal -->
+    <div id="viewDuModal" class="modal-overlay" onclick="if(event.target === this) closeModal('viewDuModal')">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title">User Details</div>
+                <button class="modal-close" onclick="closeModal('viewDuModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="viewDuContent">
+                <!-- Populated dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('viewDuModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Subscription Modal -->
+    <div id="subscriptionModal" class="modal-overlay" onclick="if(event.target === this) closeModal('subscriptionModal')">
+        <div class="modal-card" style="max-width: 600px;">
+            <div class="modal-header">
+                <div class="modal-title">Manage Subscription</div>
+                <button class="modal-close" onclick="closeModal('subscriptionModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="text-align: center; padding: 1rem 0;">
+                    <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted-foreground); margin-bottom: 0.5rem;">Current Plan (FY 2025-26)</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--foreground);" id="subPlanName">Professional</div>
+                    <div style="font-size: 2rem; font-weight: 800; color: var(--primary); margin: 0.5rem 0;" id="subPlanPrice">KES 1,200,000</div>
+                    <div style="font-size: 0.875rem; color: var(--muted-foreground);">per year (billed annually)</div>
+                </div>
+
+                <div style="background: var(--green-50); border: 1px solid var(--green-200); border-radius: 8px; padding: 0.75rem; margin: 1rem 0; font-size: 0.8rem;">
+                    <strong>Note:</strong> All subscriptions align to Kenya's fiscal year (July 1 - June 30). Plan changes take effect at the next fiscal year unless upgrading mid-year.
+                </div>
+
+                <div style="border-top: 1px solid var(--border); margin: 1rem 0; padding-top: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Select Plan for Next Fiscal Year</label>
+                        <select class="form-input" id="planSelect" onchange="showPlanDetails()">
+                            <option value="starter">Starter - KES 500,000/year</option>
+                            <option value="professional" selected>Professional - KES 1,200,000/year</option>
+                            <option value="enterprise">Enterprise - KES 2,400,000/year</option>
+                        </select>
+                    </div>
+
+                    <div id="planDetailsBox" style="background: #fafafa; border-radius: 8px; padding: 1rem; margin-top: 1rem;">
+                        <div style="font-weight: 600; margin-bottom: 0.75rem;">Plan Includes:</div>
+                        <div id="planFeaturesList" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.8rem;">
+                            <div>✓ Up to 25 Departments</div>
+                            <div>✓ Up to 50 Users</div>
+                            <div>✓ 25 GB Storage</div>
+                            <div>✓ 4 Plan Revisions/year</div>
+                            <div>✓ 1,500 Export Rows</div>
+                            <div>✓ Email + Chat Support (24hr)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('subscriptionModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="updateSubscription()">Request Plan Change</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // LOCAL STORAGE FUNCTIONS
+        // ============================================
+        const STORAGE_KEY = 'procureline_tenant_data';
+        const SESSION_KEY = 'procureline_session';
+
+        function saveData() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            return saved ? JSON.parse(saved) : null;
+        }
+
+        function resetData() {
+            localStorage.removeItem(STORAGE_KEY);
+            sessionStorage.removeItem(SESSION_KEY);
+            location.reload();
+        }
+
+        function getTimestamp() {
+            const now = new Date();
+            const hours = now.getHours();
+            const mins = now.getMinutes().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            const hour12 = hours % 12 || 12;
+            return `Today, ${hour12}:${mins} ${ampm}`;
+        }
+
+        function addAuditLog(action, description) {
+            const newLog = {
+                id: appData.auditLog.length + 1,
+                action: action,
+                user: appData.tenantAdmin.name,
+                description: description,
+                timestamp: getTimestamp()
+            };
+            appData.auditLog.unshift(newLog);
+            saveData();
+            renderAuditLog();
+        }
+
+        // ============================================
+        // DEFAULT DATA
+        // ============================================
+        const defaultData = {
+            tenantAdmin: {
+                id: 1,
+                name: 'James Ochieng',
+                email: 'j.ochieng@uon.ac.ke',
+                password: 'demo1234',
+                initials: 'JO'
+            },
+            institution: {
+                name: 'University of Nairobi',
+                location: 'Nairobi, Kenya',
+                initials: 'UoN',
+                fiscalYear: '2025-2026'
+            },
+            subscription: {
+                plan: 'Professional',
+                priceAnnual: 1200000,
+                priceMonthlyEquiv: 100000,
+                currency: 'KES',
+                cycle: 'annual',
+                fiscalYearStart: 'Jul 1, 2025',
+                fiscalYearEnd: 'Jun 30, 2026',
+                renewalDate: 'Jun 30, 2026',
+                paymentMethod: 'Bank Transfer (LPO)',
+                lpoReference: 'UON/FIN/2025/0234',
+                status: 'active',
+                limits: {
+                    departments: 25,
+                    users: 50,
+                    storageGB: 25,
+                    planRevisions: 4,
+                    exportRows: 1500
+                }
+            },
+            notifications: [
+                { id: 1, title: 'Plan submission due', message: 'Education department plan due in 3 days', time: '2 hours ago', read: false },
+                { id: 2, title: 'New user registered', message: 'Faith Njeri joined Business department', time: '1 day ago', read: false },
+                { id: 3, title: 'Budget updated', message: 'Computer Science budget was updated', time: '2 days ago', read: true }
+            ],
+            po: {
+                id: 1,
+                name: 'Sarah Wanjiku',
+                email: 's.wanjiku@uon.ac.ke',
+                initials: 'SW',
+                createdAt: 'Oct 15, 2024',
+                lastLogin: 'Today, 9:42 AM',
+                status: 'active',
+                departmentsManaged: 7,
+                categoriesCreated: 12,
+                itemsInLibrary: 847
+            },
+            departmentalUsers: [
+                { id: 1, name: 'Mary Kamau', email: 'm.kamau@uon.ac.ke', initials: 'MK', department: 'Computer Science', status: 'active', lastLogin: 'Today, 8:15 AM' },
+                { id: 2, name: 'John Mwangi', email: 'j.mwangi@uon.ac.ke', initials: 'JM', department: 'Engineering', status: 'active', lastLogin: 'Yesterday' },
+                { id: 3, name: 'Grace Akinyi', email: 'g.akinyi@uon.ac.ke', initials: 'GA', department: 'Medicine', status: 'active', lastLogin: 'Jan 2, 2026' },
+                { id: 4, name: 'Peter Otieno', email: 'p.otieno@uon.ac.ke', initials: 'PO', department: 'Law', status: 'active', lastLogin: 'Today, 11:30 AM' },
+                { id: 5, name: 'Alice Wambui', email: 'a.wambui@uon.ac.ke', initials: 'AW', department: 'Education', status: 'inactive', lastLogin: 'Dec 15, 2025' },
+                { id: 6, name: 'David Kipchoge', email: 'd.kipchoge@uon.ac.ke', initials: 'DK', department: 'Agriculture', status: 'active', lastLogin: 'Today, 10:00 AM' },
+                { id: 7, name: 'Faith Njeri', email: 'f.njeri@uon.ac.ke', initials: 'FN', department: 'Business', status: 'active', lastLogin: 'Yesterday' }
+            ],
+            departments: [
+                { id: 1, name: 'Computer Science', code: 'CS', budgetAllocated: 25000000, budgetUsed: 18500000, status: 'approved' },
+                { id: 2, name: 'Engineering', code: 'ENG', budgetAllocated: 35000000, budgetUsed: 22000000, status: 'approved' },
+                { id: 3, name: 'Medicine', code: 'MED', budgetAllocated: 40000000, budgetUsed: 28000000, status: 'submitted' },
+                { id: 4, name: 'Law', code: 'LAW', budgetAllocated: 12000000, budgetUsed: 8500000, status: 'approved' },
+                { id: 5, name: 'Education', code: 'EDU', budgetAllocated: 8000000, budgetUsed: 5200000, status: 'draft' },
+                { id: 6, name: 'Agriculture', code: 'AGR', budgetAllocated: 15000000, budgetUsed: 11000000, status: 'approved' },
+                { id: 7, name: 'Business', code: 'BUS', budgetAllocated: 10000000, budgetUsed: 6800000, status: 'submitted' }
+            ],
+            invoices: [
+                { id: 'INV-2025-001', date: 'Jul 1, 2025', amount: 1392000, amountExVat: 1200000, vat: 192000, period: 'FY 2025-26', status: 'paid', description: 'Professional Plan - Annual Subscription' },
+                { id: 'INV-2024-001', date: 'Jul 1, 2024', amount: 1392000, amountExVat: 1200000, vat: 192000, period: 'FY 2024-25', status: 'paid', description: 'Professional Plan - Annual Subscription' }
+            ],
+            auditLog: [
+                { id: 1, action: 'login', user: 'Sarah Wanjiku', description: 'Logged in to the system', timestamp: 'Today, 9:42 AM' },
+                { id: 2, action: 'edit', user: 'James Ochieng', description: 'Updated institution settings', timestamp: 'Today, 9:15 AM' },
+                { id: 3, action: 'create', user: 'Sarah Wanjiku', description: 'Created new department: Business', timestamp: 'Yesterday, 4:30 PM' },
+                { id: 4, action: 'login', user: 'Mary Kamau', description: 'Logged in to the system', timestamp: 'Today, 8:15 AM' },
+                { id: 5, action: 'edit', user: 'Sarah Wanjiku', description: 'Updated budget for Computer Science', timestamp: 'Yesterday, 2:00 PM' },
+                { id: 6, action: 'create', user: 'Sarah Wanjiku', description: 'Added 45 items to ICT category', timestamp: 'Jan 2, 2026' },
+                { id: 7, action: 'login', user: 'James Ochieng', description: 'Logged in to admin portal', timestamp: 'Jan 2, 2026' }
+            ]
+        };
+
+        // Load from localStorage or use defaults
+        let appData = loadData() || JSON.parse(JSON.stringify(defaultData));
+
+        // ============================================
+        // DOM REFERENCES
+        // ============================================
+        let authScreen, dashboardScreen;
+
+        // ============================================
+        // TOAST NOTIFICATIONS
+        // ============================================
+        function showToast(title, message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const icons = {
+                success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>',
+                error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+                warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+                info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+            };
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <div class="toast-icon">${icons[type]}</div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    ${message ? `<div class="toast-message">${message}</div>` : ''}
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            `;
+
+            container.appendChild(toast);
+
+            // Auto remove after 4 seconds
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // ============================================
+        // NOTIFICATION FUNCTIONS
+        // ============================================
+        function toggleNotifications() {
+            const panel = document.getElementById('notifPanel');
+            panel.classList.toggle('active');
+        }
+
+        function renderNotifications() {
+            const container = document.getElementById('notifPanelBody');
+            const dot = document.getElementById('notifDot');
+            if (!container || !appData.notifications) return;
+
+            const unreadCount = appData.notifications.filter(n => !n.read).length;
+            dot.style.display = unreadCount > 0 ? 'block' : 'none';
+
+            if (appData.notifications.length === 0) {
+                container.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--muted-foreground);">No notifications</div>';
+                return;
+            }
+
+            container.innerHTML = appData.notifications.map(notif => `
+                <div class="notif-item ${notif.read ? '' : 'unread'}" onclick="markNotificationRead(${notif.id})">
+                    <div class="notif-item-title">${notif.title}</div>
+                    <div class="notif-item-message">${notif.message}</div>
+                    <div class="notif-item-time">${notif.time}</div>
+                </div>
+            `).join('');
+        }
+
+        function markNotificationRead(id) {
+            const notif = appData.notifications.find(n => n.id === id);
+            if (notif) {
+                notif.read = true;
+                saveData();
+                renderNotifications();
+            }
+        }
+
+        function markAllRead() {
+            appData.notifications.forEach(n => n.read = true);
+            saveData();
+            renderNotifications();
+            showToast('Done', 'All notifications marked as read', 'success');
+        }
+
+        // Close notification panel when clicking outside
+        document.addEventListener('click', function(e) {
+            const panel = document.getElementById('notifPanel');
+            const btn = document.getElementById('notifBtn');
+            if (panel && btn && !panel.contains(e.target) && !btn.contains(e.target)) {
+                panel.classList.remove('active');
+            }
+        });
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        function init() {
+            authScreen = document.getElementById('authScreen');
+            dashboardScreen = document.getElementById('dashboardScreen');
+
+            // Check for existing session
+            const session = sessionStorage.getItem(SESSION_KEY);
+            if (session) {
+                enterDashboard();
+            }
+
+            // Render initial data
+            renderDepartmentStatusGrid();
+            renderDUTable();
+            renderDeptTable();
+            renderAuditLog();
+            renderNotifications();
+            renderBillingView();
+        }
+
+        // ============================================
+        // AUTH FUNCTIONS
+        // ============================================
+        function quickLogin() {
+            document.getElementById('emailInput').value = appData.tenantAdmin.email;
+            document.getElementById('passwordInput').value = appData.tenantAdmin.password || 'demo1234';
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('emailInput').value.trim();
+            const password = document.getElementById('passwordInput').value;
+            const btn = document.getElementById('loginBtn');
+
+            // Validate inputs
+            if (!email || !password) {
+                showToast('Validation Error', 'Please enter email and password', 'error');
+                return;
+            }
+
+            // Validate email format
+            if (!email.includes('@')) {
+                showToast('Validation Error', 'Please enter a valid email address', 'error');
+                return;
+            }
+
+            btn.textContent = 'Signing in...';
+            btn.disabled = true;
+
+            setTimeout(() => {
+                // Check credentials
+                if (email === appData.tenantAdmin.email && password === (appData.tenantAdmin.password || 'demo1234')) {
+                    // Store session
+                    sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+                        email: email,
+                        loginTime: new Date().toISOString()
+                    }));
+
+                    addAuditLog('login', 'Logged in to admin portal');
+                    enterDashboard();
+                    showToast('Welcome back', `Signed in as ${appData.tenantAdmin.name}`, 'success');
+                } else {
+                    showToast('Login Failed', 'Invalid email or password', 'error');
+                }
+
+                btn.textContent = 'Sign In to Admin Portal';
+                btn.disabled = false;
+            }, 800);
+        }
+
+        function enterDashboard() {
+            authScreen.classList.add('hidden');
+            dashboardScreen.classList.remove('hidden');
+
+            // Update user info in sidebar
+            document.getElementById('sidebarUserName').textContent = appData.tenantAdmin.name;
+            document.getElementById('sidebarUserInitials').textContent = appData.tenantAdmin.initials;
+
+            // Re-render data
+            renderNotifications();
+        }
+
+        function logout() {
+            sessionStorage.removeItem(SESSION_KEY);
+            dashboardScreen.classList.add('hidden');
+            authScreen.classList.remove('hidden');
+            document.getElementById('loginForm').reset();
+            showView('dashboard');
+            showToast('Signed Out', 'You have been logged out successfully', 'info');
+        }
+
+        // ============================================
+        // NAVIGATION
+        // ============================================
+        function showView(viewId) {
+            // Hide all views
+            document.querySelectorAll('[id^="view-"]').forEach(v => v.classList.add('hidden'));
+
+            // Show selected view
+            const view = document.getElementById(`view-${viewId}`);
+            if (view) {
+                view.classList.remove('hidden');
+                view.classList.add('fade-in');
+            }
+
+            // Update nav items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.view === viewId) {
+                    item.classList.add('active');
+                }
+            });
+
+            // Update page title
+            const titles = {
+                'dashboard': { title: 'Dashboard', subtitle: 'Overview of your institution\'s procurement system' },
+                'po-management': { title: 'Procurement Officer', subtitle: 'Manage your institution\'s Procurement Officer' },
+                'du-overview': { title: 'Departmental Users', subtitle: 'View all departmental users in your institution' },
+                'departments': { title: 'Departments', subtitle: 'View department status and budget utilization' },
+                'billing': { title: 'Billing & Subscription', subtitle: 'Manage your subscription and view invoices' },
+                'settings': { title: 'Settings', subtitle: 'Manage institution and profile settings' },
+                'audit-log': { title: 'Audit Log', subtitle: 'View system activity and changes' }
+            };
+
+            const titleData = titles[viewId] || { title: 'Dashboard', subtitle: '' };
+            document.getElementById('pageTitle').textContent = titleData.title;
+            document.getElementById('pageSubtitle').textContent = titleData.subtitle;
+        }
+
+        // ============================================
+        // RENDER FUNCTIONS
+        // ============================================
+        function renderDepartmentStatusGrid() {
+            const container = document.getElementById('deptStatusGrid');
+            if (!container) return;
+
+            container.innerHTML = appData.departments.map(dept => {
+                const utilization = Math.round((dept.budgetUsed / dept.budgetAllocated) * 100);
+                const statusClass = dept.status === 'approved' ? 'var(--green-500)' :
+                                   dept.status === 'submitted' ? 'var(--info)' : 'var(--muted-foreground)';
+                const barColor = utilization > 90 ? 'var(--destructive)' :
+                                utilization > 70 ? 'var(--warning)' : 'var(--green-500)';
+
+                return `
+                    <div class="dept-status-card">
+                        <div class="dept-status-name">${dept.name}</div>
+                        <div class="dept-status-budget">KES ${(dept.budgetUsed / 1000000).toFixed(1)}M / ${(dept.budgetAllocated / 1000000).toFixed(1)}M</div>
+                        <div class="dept-status-bar">
+                            <div class="dept-status-bar-fill" style="width: ${utilization}%; background: ${barColor};"></div>
+                        </div>
+                        <span class="status-badge ${dept.status === 'approved' ? 'success' : dept.status === 'submitted' ? 'info' : 'neutral'}">
+                            <span class="status-dot"></span>
+                            ${dept.status.charAt(0).toUpperCase() + dept.status.slice(1)}
+                        </span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderDUTable(filter = '') {
+            const tbody = document.getElementById('duTableBody');
+            if (!tbody) return;
+
+            const filtered = appData.departmentalUsers.filter(du =>
+                du.name.toLowerCase().includes(filter.toLowerCase()) ||
+                du.email.toLowerCase().includes(filter.toLowerCase()) ||
+                du.department.toLowerCase().includes(filter.toLowerCase())
+            );
+
+            tbody.innerHTML = filtered.map(du => `
+                <tr>
+                    <td>
+                        <div class="user-row">
+                            <div class="user-row-avatar">${du.initials}</div>
+                            <div class="user-row-info">
+                                <div class="user-row-name">${du.name}</div>
+                                <div class="user-row-email">${du.email}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${du.department}</td>
+                    <td>
+                        <span class="status-badge ${du.status === 'active' ? 'success' : 'neutral'}">
+                            <span class="status-dot"></span>
+                            ${du.status.charAt(0).toUpperCase() + du.status.slice(1)}
+                        </span>
+                    </td>
+                    <td class="text-muted">${du.lastLogin}</td>
+                    <td style="text-align: right;">
+                        <button class="btn-icon" title="View Details" onclick="viewDU(${du.id})">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterDUs() {
+            const filter = document.getElementById('duSearchInput').value;
+            renderDUTable(filter);
+        }
+
+        function renderDeptTable() {
+            const tbody = document.getElementById('deptTableBody');
+            if (!tbody) return;
+
+            tbody.innerHTML = appData.departments.map(dept => {
+                const utilization = Math.round((dept.budgetUsed / dept.budgetAllocated) * 100);
+                const barColor = utilization > 90 ? 'danger' : utilization > 70 ? 'warning' : '';
+
+                return `
+                    <tr>
+                        <td class="font-semibold">${dept.name}</td>
+                        <td>KES ${(dept.budgetAllocated / 1000000).toFixed(1)}M</td>
+                        <td>KES ${(dept.budgetUsed / 1000000).toFixed(1)}M</td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <div class="progress-bar" style="width: 100px;">
+                                    <div class="progress-fill ${barColor}" style="width: ${utilization}%;"></div>
+                                </div>
+                                <span class="text-sm">${utilization}%</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="status-badge ${dept.status === 'approved' ? 'success' : dept.status === 'submitted' ? 'info' : 'neutral'}">
+                                <span class="status-dot"></span>
+                                ${dept.status.charAt(0).toUpperCase() + dept.status.slice(1)}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderAuditLog() {
+            const container = document.getElementById('auditLogList');
+            if (!container) return;
+
+            container.innerHTML = appData.auditLog.map(log => {
+                const iconClass = log.action === 'create' ? 'create' :
+                                 log.action === 'edit' ? 'edit' :
+                                 log.action === 'delete' ? 'delete' : 'login';
+                const icon = log.action === 'create' ? '<path d="M12 5v14M5 12h14"/>' :
+                            log.action === 'edit' ? '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>' :
+                            log.action === 'delete' ? '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>' :
+                            '<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>';
+
+                return `
+                    <div class="audit-item">
+                        <div class="audit-icon ${iconClass}">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${icon}</svg>
+                        </div>
+                        <div class="audit-content">
+                            <div class="audit-action"><strong>${log.user}</strong> ${log.description}</div>
+                            <div class="audit-time">${log.timestamp}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ============================================
+        // MODAL FUNCTIONS
+        // ============================================
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        // ============================================
+        // PO MANAGEMENT FUNCTIONS
+        // ============================================
+        function savePOEdit() {
+            const name = document.getElementById('editPoName').value.trim();
+            const email = document.getElementById('editPoEmail').value.trim();
+
+            if (!name || !email) {
+                showToast('Validation Error', 'Please fill in all required fields', 'error');
+                return;
+            }
+
+            // Update data
+            appData.po.name = name;
+            appData.po.email = email;
+            appData.po.initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
+            saveData();
+            addAuditLog('edit', `Updated Procurement Officer: ${name}`);
+
+            // Update UI
+            document.getElementById('poName').textContent = name;
+            document.getElementById('poEmail').textContent = email;
+            document.getElementById('poInitials').textContent = appData.po.initials;
+            document.getElementById('poNameLarge').textContent = name;
+            document.getElementById('poEmailLarge').textContent = email;
+            document.getElementById('poAvatarLarge').textContent = appData.po.initials;
+
+            closeModal('editPoModal');
+            showToast('Success', 'Procurement Officer updated successfully', 'success');
+        }
+
+        function replacePO() {
+            const name = document.getElementById('newPoName').value.trim();
+            const email = document.getElementById('newPoEmail').value.trim();
+            const password = document.getElementById('newPoPassword').value;
+
+            if (!name || !email || !password) {
+                showToast('Validation Error', 'Please fill in all required fields', 'error');
+                return;
+            }
+
+            if (password.length < 6) {
+                showToast('Validation Error', 'Password must be at least 6 characters', 'error');
+                return;
+            }
+
+            const oldPoName = appData.po.name;
+
+            // Update data
+            appData.po.name = name;
+            appData.po.email = email;
+            appData.po.initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
+            appData.po.createdAt = getTimestamp().replace('Today, ', '');
+            appData.po.lastLogin = 'Never';
+            appData.po.status = 'active';
+            saveData();
+            addAuditLog('edit', `Replaced Procurement Officer: ${oldPoName} → ${name}`);
+
+            // Update UI
+            document.getElementById('poName').textContent = name;
+            document.getElementById('poEmail').textContent = email;
+            document.getElementById('poInitials').textContent = appData.po.initials;
+            document.getElementById('poNameLarge').textContent = name;
+            document.getElementById('poEmailLarge').textContent = email;
+            document.getElementById('poAvatarLarge').textContent = appData.po.initials;
+
+            // Show PO exists view
+            document.getElementById('noPoView').classList.add('hidden');
+            document.getElementById('poExistsView').classList.remove('hidden');
+
+            closeModal('replacePoModal');
+            document.getElementById('newPoName').value = '';
+            document.getElementById('newPoEmail').value = '';
+            document.getElementById('newPoPassword').value = '';
+            showToast('Success', 'Procurement Officer replaced successfully. All data has been transferred.', 'success');
+        }
+
+        function deactivatePO() {
+            appData.po.status = 'inactive';
+            saveData();
+            addAuditLog('edit', `Deactivated Procurement Officer: ${appData.po.name}`);
+
+            closeModal('deactivatePoModal');
+
+            // Show no PO view
+            document.getElementById('poExistsView').classList.add('hidden');
+            document.getElementById('noPoView').classList.remove('hidden');
+
+            showToast('Success', 'Procurement Officer has been deactivated', 'warning');
+        }
+
+        function createPO() {
+            const name = document.getElementById('createPoName').value.trim();
+            const email = document.getElementById('createPoEmail').value.trim();
+            const password = document.getElementById('createPoPassword').value;
+
+            if (!name || !email || !password) {
+                showToast('Validation Error', 'Please fill in all required fields', 'error');
+                return;
+            }
+
+            if (password.length < 6) {
+                showToast('Validation Error', 'Password must be at least 6 characters', 'error');
+                return;
+            }
+
+            appData.po.name = name;
+            appData.po.email = email;
+            appData.po.initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
+            appData.po.status = 'active';
+            appData.po.createdAt = getTimestamp().replace('Today, ', '');
+            appData.po.lastLogin = 'Never';
+            saveData();
+            addAuditLog('create', `Created new Procurement Officer: ${name}`);
+
+            // Update UI
+            document.getElementById('poName').textContent = name;
+            document.getElementById('poEmail').textContent = email;
+            document.getElementById('poInitials').textContent = appData.po.initials;
+            document.getElementById('poNameLarge').textContent = name;
+            document.getElementById('poEmailLarge').textContent = email;
+            document.getElementById('poAvatarLarge').textContent = appData.po.initials;
+
+            // Show PO exists view
+            document.getElementById('noPoView').classList.add('hidden');
+            document.getElementById('poExistsView').classList.remove('hidden');
+
+            closeModal('createPoModal');
+            document.getElementById('createPoName').value = '';
+            document.getElementById('createPoEmail').value = '';
+            document.getElementById('createPoPassword').value = '';
+            showToast('Success', 'Procurement Officer created successfully', 'success');
+        }
+
+        // ============================================
+        // SETTINGS FUNCTIONS
+        // ============================================
+        function populateSettingsFields() {
+            document.getElementById('settingsInstName').value = appData.institution.name;
+            document.getElementById('settingsLocation').value = appData.institution.location;
+            document.getElementById('settingsAdminName').value = appData.tenantAdmin.name;
+            document.getElementById('settingsAdminEmail').value = appData.tenantAdmin.email;
+        }
+
+        function saveInstitutionSettings() {
+            const name = document.getElementById('settingsInstName').value.trim();
+            const location = document.getElementById('settingsLocation').value.trim();
+
+            if (!name || !location) {
+                showToast('Validation Error', 'Please fill in all fields', 'error');
+                return;
+            }
+
+            appData.institution.name = name;
+            appData.institution.location = location;
+            appData.institution.initials = name.split(' ').map(w => w[0]).join('').toUpperCase().substring(0, 3);
+            saveData();
+            addAuditLog('edit', 'Updated institution settings');
+
+            // Update dashboard display
+            document.getElementById('institutionName').textContent = name;
+            document.getElementById('institutionLocation').textContent = location;
+            document.getElementById('institutionInitials').textContent = appData.institution.initials;
+
+            showToast('Success', 'Institution settings saved', 'success');
+        }
+
+        function saveAdminProfile() {
+            const name = document.getElementById('settingsAdminName').value.trim();
+            const email = document.getElementById('settingsAdminEmail').value.trim();
+
+            if (!name || !email) {
+                showToast('Validation Error', 'Please fill in all fields', 'error');
+                return;
+            }
+
+            if (!email.includes('@')) {
+                showToast('Validation Error', 'Please enter a valid email', 'error');
+                return;
+            }
+
+            appData.tenantAdmin.name = name;
+            appData.tenantAdmin.email = email;
+            appData.tenantAdmin.initials = name.split(' ').map(w => w[0]).join('').toUpperCase();
+            saveData();
+            addAuditLog('edit', 'Updated admin profile');
+
+            // Update sidebar
+            document.getElementById('sidebarUserName').textContent = name;
+            document.getElementById('sidebarUserInitials').textContent = appData.tenantAdmin.initials;
+
+            showToast('Success', 'Profile updated', 'success');
+        }
+
+        function changePassword() {
+            const current = document.getElementById('currentPassword').value;
+            const newPass = document.getElementById('newPassword').value;
+            const confirm = document.getElementById('confirmPassword').value;
+
+            if (!current || !newPass || !confirm) {
+                showToast('Validation Error', 'Please fill in all fields', 'error');
+                return;
+            }
+
+            if (current !== (appData.tenantAdmin.password || 'demo1234')) {
+                showToast('Error', 'Current password is incorrect', 'error');
+                return;
+            }
+
+            if (newPass.length < 6) {
+                showToast('Validation Error', 'New password must be at least 6 characters', 'error');
+                return;
+            }
+
+            if (newPass !== confirm) {
+                showToast('Validation Error', 'Passwords do not match', 'error');
+                return;
+            }
+
+            appData.tenantAdmin.password = newPass;
+            saveData();
+            addAuditLog('edit', 'Changed admin password');
+
+            closeModal('changePasswordModal');
+            document.getElementById('currentPassword').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+            showToast('Success', 'Password changed successfully', 'success');
+        }
+
+        // ============================================
+        // DU MANAGEMENT FUNCTIONS
+        // ============================================
+        function viewDU(id) {
+            const du = appData.departmentalUsers.find(u => u.id === id);
+            if (!du) return;
+
+            const content = document.getElementById('viewDuContent');
+            content.innerHTML = `
+                <div style="text-align: center; margin-bottom: 1.5rem;">
+                    <div style="width: 72px; height: 72px; border-radius: 16px; background: linear-gradient(135deg, var(--green-600), var(--green-400)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 1.5rem; margin: 0 auto 1rem;">
+                        ${du.initials}
+                    </div>
+                    <div style="font-size: 1.25rem; font-weight: 700;">${du.name}</div>
+                    <div style="font-size: 0.875rem; color: var(--muted-foreground);">${du.email}</div>
+                </div>
+                <div style="background: #fafafa; border-radius: 10px; padding: 1rem;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+                        <span style="color: var(--muted-foreground); font-size: 0.875rem;">Department</span>
+                        <span style="font-weight: 600;">${du.department}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+                        <span style="color: var(--muted-foreground); font-size: 0.875rem;">Status</span>
+                        <span class="status-badge ${du.status === 'active' ? 'success' : 'neutral'}">
+                            <span class="status-dot"></span>
+                            ${du.status.charAt(0).toUpperCase() + du.status.slice(1)}
+                        </span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--muted-foreground); font-size: 0.875rem;">Last Login</span>
+                        <span>${du.lastLogin}</span>
+                    </div>
+                </div>
+            `;
+            openModal('viewDuModal');
+        }
+
+        // ============================================
+        // SUBSCRIPTION FUNCTIONS
+        // ============================================
+        const PLAN_TIERS = {
+            'starter': {
+                name: 'Starter',
+                priceAnnual: 500000,
+                limits: { departments: 10, users: 15, storageGB: 5, planRevisions: 2, exportRows: 500 },
+                features: ['Up to 10 Departments', 'Up to 15 Users', '5 GB Storage', '2 Plan Revisions/year', '500 Export Rows', 'Email Support (48hr)']
+            },
+            'professional': {
+                name: 'Professional',
+                priceAnnual: 1200000,
+                limits: { departments: 25, users: 50, storageGB: 25, planRevisions: 4, exportRows: 1500 },
+                features: ['Up to 25 Departments', 'Up to 50 Users', '25 GB Storage', '4 Plan Revisions/year', '1,500 Export Rows', 'Email + Chat Support (24hr)']
+            },
+            'enterprise': {
+                name: 'Enterprise',
+                priceAnnual: 2400000,
+                limits: { departments: -1, users: -1, storageGB: 100, planRevisions: -1, exportRows: -1 },
+                features: ['Unlimited Departments', 'Unlimited Users', '100 GB Storage', 'Unlimited Revisions', 'Unlimited Export Rows', 'Priority Support (4hr) + Phone']
+            }
+        };
+
+        function openSubscriptionModal() {
+            document.getElementById('subPlanName').textContent = appData.subscription.plan;
+            document.getElementById('subPlanPrice').textContent = `${appData.subscription.currency} ${appData.subscription.priceAnnual.toLocaleString()}`;
+
+            const planMap = { 'Starter': 'starter', 'Professional': 'professional', 'Enterprise': 'enterprise' };
+            document.getElementById('planSelect').value = planMap[appData.subscription.plan] || 'professional';
+            showPlanDetails();
+
+            openModal('subscriptionModal');
+        }
+
+        function showPlanDetails() {
+            const planKey = document.getElementById('planSelect').value;
+            const plan = PLAN_TIERS[planKey];
+            const featuresList = document.getElementById('planFeaturesList');
+            featuresList.innerHTML = plan.features.map(f => `<div>✓ ${f}</div>`).join('');
+        }
+
+        function updateSubscription() {
+            const planSelect = document.getElementById('planSelect');
+            const selected = PLAN_TIERS[planSelect.value];
+
+            if (selected.name === appData.subscription.plan) {
+                closeModal('subscriptionModal');
+                showToast('No Change', 'You are already on this plan', 'info');
+                return;
+            }
+
+            // For annual billing, plan changes are requested for next FY
+            const isUpgrade = selected.priceAnnual > appData.subscription.priceAnnual;
+
+            if (isUpgrade) {
+                // Mid-year upgrades can be applied immediately with pro-rated fee
+                appData.subscription.plan = selected.name;
+                appData.subscription.priceAnnual = selected.priceAnnual;
+                appData.subscription.limits = selected.limits;
+                saveData();
+                addAuditLog('edit', `Upgraded subscription to ${selected.name} plan`);
+                closeModal('subscriptionModal');
+                showToast('Upgrade Requested', `Your upgrade to ${selected.name} plan has been submitted. You will receive a pro-rated invoice.`, 'success');
+                renderBillingView();
+            } else {
+                // Downgrades take effect at next fiscal year
+                addAuditLog('edit', `Requested downgrade to ${selected.name} plan for next FY`);
+                closeModal('subscriptionModal');
+                showToast('Downgrade Scheduled', `Your downgrade to ${selected.name} will take effect on July 1 of the next fiscal year.`, 'info');
+            }
+        }
+
+        function renderBillingView() {
+            // Update billing card
+            document.getElementById('billingPlanName').textContent = appData.subscription.plan + ' Plan';
+            document.getElementById('billingPlanPrice').textContent = `${appData.subscription.currency} ${appData.subscription.priceAnnual.toLocaleString()}`;
+            document.getElementById('billingFiscalYear').textContent = `${appData.subscription.fiscalYearStart} - ${appData.subscription.fiscalYearEnd}`;
+            document.getElementById('billingRenewalDate').textContent = appData.subscription.renewalDate;
+            document.getElementById('billingPaymentMethod').textContent = appData.subscription.paymentMethod;
+            document.getElementById('billingLpoRef').textContent = appData.subscription.lpoReference || 'N/A';
+
+            // Update usage
+            const limits = appData.subscription.limits;
+            const deptCount = appData.departments.length;
+            const userCount = appData.departmentalUsers.length + 1; // +1 for PO
+            const storageUsed = 1.2; // Mock value
+
+            document.getElementById('usageDepts').textContent = limits.departments === -1 ? `${deptCount} (Unlimited)` : `${deptCount} of ${limits.departments}`;
+            document.getElementById('usageDeptsBar').style.width = limits.departments === -1 ? '10%' : `${(deptCount / limits.departments) * 100}%`;
+
+            document.getElementById('usageUsers').textContent = limits.users === -1 ? `${userCount} (Unlimited)` : `${userCount} of ${limits.users}`;
+            document.getElementById('usageUsersBar').style.width = limits.users === -1 ? '10%' : `${(userCount / limits.users) * 100}%`;
+
+            document.getElementById('usageStorage').textContent = `${storageUsed} GB of ${limits.storageGB} GB`;
+            document.getElementById('usageStorageBar').style.width = `${(storageUsed / limits.storageGB) * 100}%`;
+
+            document.getElementById('usageRevisions').textContent = limits.planRevisions === -1 ? '1 (Unlimited)' : `1 of ${limits.planRevisions}`;
+            document.getElementById('usageRevisionsBar').style.width = limits.planRevisions === -1 ? '10%' : `${(1 / limits.planRevisions) * 100}%`;
+
+            // Render invoices
+            renderInvoiceTable();
+        }
+
+        function renderInvoiceTable() {
+            const tbody = document.getElementById('invoiceTableBody');
+            tbody.innerHTML = appData.invoices.map(inv => `
+                <tr>
+                    <td class="font-semibold">${inv.id}</td>
+                    <td>${inv.period}</td>
+                    <td>${inv.date}</td>
+                    <td>KES ${inv.amount.toLocaleString()}</td>
+                    <td><span class="invoice-status ${inv.status}"><span class="status-dot"></span> ${inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}</span></td>
+                    <td style="text-align: right;"><a class="card-action" onclick="downloadInvoice('${inv.id}')" style="cursor:pointer;">Download</a></td>
+                </tr>
+            `).join('');
+        }
+
+        // ============================================
+        // INVOICE FUNCTIONS
+        // ============================================
+        function downloadInvoice(invoiceId) {
+            const invoice = appData.invoices.find(i => i.id === invoiceId);
+            if (!invoice) return;
+
+            const wht = invoice.amount * 0.05; // 5% Withholding Tax for govt institutions
+            const netPayable = invoice.amount - wht;
+
+            const content = `
+═══════════════════════════════════════════════════════════════════
+                         PROCURELINE INVOICE
+═══════════════════════════════════════════════════════════════════
+
+VENDOR:                                    INVOICE: ${invoice.id}
+Procureline Technologies Ltd               DATE: ${invoice.date}
+P.O. Box 12345-00100                       PERIOD: ${invoice.period}
+Nairobi, Kenya
+VAT PIN: P051234567A
+
+BILL TO:
+${appData.institution.name}
+${appData.institution.location}
+LPO Reference: ${appData.subscription.lpoReference || 'N/A'}
+
+───────────────────────────────────────────────────────────────────
+DESCRIPTION                                              AMOUNT (KES)
+───────────────────────────────────────────────────────────────────
+
+${invoice.description || appData.subscription.plan + ' Plan'}
+Subscription Period: ${invoice.period}
+  - Departments: Up to ${appData.subscription.limits.departments === -1 ? 'Unlimited' : appData.subscription.limits.departments}
+  - Users: Up to ${appData.subscription.limits.users === -1 ? 'Unlimited' : appData.subscription.limits.users}
+  - Storage: ${appData.subscription.limits.storageGB} GB
+
+                                           Subtotal:    ${invoice.amountExVat.toLocaleString()}
+                                           VAT (16%):      ${invoice.vat.toLocaleString()}
+                                           ─────────────────────────
+                                           TOTAL:       ${invoice.amount.toLocaleString()}
+
+                                           Less WHT (5%): (${wht.toLocaleString()})
+                                           ─────────────────────────
+                                           NET PAYABLE: ${netPayable.toLocaleString()}
+
+═══════════════════════════════════════════════════════════════════
+PAYMENT METHODS:
+
+Bank Transfer:                   M-Pesa Paybill:
+Equity Bank Kenya                Business No: 123456
+A/C: 1234567890123               Account: ${appData.institution.initials}-PROF
+Branch: University Way
+
+Payment Due: Before fiscal year end (June 30)
+───────────────────────────────────────────────────────────────────
+Status: ${invoice.status.toUpperCase()}
+
+Thank you for choosing Procureline!
+            `.trim();
+
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${invoice.id}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showToast('Downloaded', `Invoice ${invoice.id} downloaded`, 'success');
+        }
+
+        function downloadAllInvoices() {
+            let content = `PROCURELINE - INVOICE HISTORY\n${'═'.repeat(60)}\nInstitution: ${appData.institution.name}\nGenerated: ${new Date().toLocaleDateString()}\n\n`;
+
+            appData.invoices.forEach(inv => {
+                content += `${inv.id} | ${inv.period} | ${inv.date} | KES ${inv.amount.toLocaleString()} | ${inv.status.toUpperCase()}\n`;
+            });
+
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'all-invoices.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showToast('Downloaded', 'All invoices downloaded', 'success');
+        }
+
+        // ============================================
+        // EXPORT FUNCTIONS
+        // ============================================
+        function exportAuditLog() {
+            let csv = 'Timestamp,User,Action,Description\n';
+            appData.auditLog.forEach(log => {
+                csv += `"${log.timestamp}","${log.user}","${log.action}","${log.description}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'audit-log.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showToast('Exported', 'Audit log exported to CSV', 'success');
+        }
+
+        // ============================================
+        // INITIALIZE APP
+        // ============================================
+        init();
+        populateSettingsFields();
+    </script>
+</body>
+</html>

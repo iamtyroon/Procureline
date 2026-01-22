@@ -1,0 +1,2924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procureline - University Procurement Management Platform</title>
+    <meta name="description" content="Streamline your university's procurement planning with Procureline. Visual block-based planning, GOK compliance, and Excel export for Kenyan universities.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #18b969;
+            --primary-dark: #14a35d;
+            --primary-light: #e8f8f0;
+            --primary-50: #f0fdf4;
+            --primary-100: #dcfce7;
+            --primary-600: #16a34a;
+            --primary-700: #15803d;
+            --primary-800: #166534;
+            --secondary: #1e293b;
+            --accent: #f59e0b;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --info: #3b82f6;
+            --gray-50: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --gray-400: #94a3b8;
+            --gray-500: #64748b;
+            --gray-600: #475569;
+            --gray-700: #334155;
+            --gray-800: #1e293b;
+            --gray-900: #0f172a;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: white;
+            color: var(--gray-800);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Navigation */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--gray-200);
+            transition: all 0.3s;
+        }
+
+        .navbar.scrolled {
+            box-shadow: var(--shadow-md);
+        }
+
+        .navbar-container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 72px;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .navbar-logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--secondary);
+            letter-spacing: -0.5px;
+        }
+
+        .navbar-logo span {
+            color: var(--primary);
+        }
+
+        .navbar-nav {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+            list-style: none;
+        }
+
+        .nav-link {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-600);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .nav-link:hover {
+            color: var(--primary);
+        }
+
+        .navbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            box-shadow: 0 2px 4px rgba(24, 185, 105, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(24, 185, 105, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--gray-700);
+            border: 1px solid var(--gray-300);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-50);
+            border-color: var(--gray-400);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--gray-600);
+        }
+
+        .btn-ghost:hover {
+            color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .btn-lg {
+            padding: 16px 32px;
+            font-size: 16px;
+        }
+
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--gray-700);
+            cursor: pointer;
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 140px 24px 80px;
+            background: linear-gradient(180deg, var(--gray-50) 0%, white 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100%;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2318b969' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            pointer-events: none;
+        }
+
+        .hero-container {
+            max-width: 1280px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 64px;
+            align-items: center;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--primary-light);
+            color: var(--primary-700);
+            border-radius: 24px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+
+        .hero-badge i {
+            font-size: 12px;
+        }
+
+        .hero-title {
+            font-size: 56px;
+            font-weight: 800;
+            color: var(--gray-900);
+            line-height: 1.1;
+            letter-spacing: -1.5px;
+            margin-bottom: 24px;
+        }
+
+        .hero-title span {
+            color: var(--primary);
+        }
+
+        .hero-subtitle {
+            font-size: 20px;
+            color: var(--gray-600);
+            margin-bottom: 32px;
+            max-width: 540px;
+        }
+
+        .hero-cta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 48px;
+        }
+
+        .hero-stats {
+            display: flex;
+            gap: 48px;
+        }
+
+        .hero-stat {
+            text-align: left;
+        }
+
+        .hero-stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .hero-stat-label {
+            font-size: 14px;
+            color: var(--gray-500);
+        }
+
+        .hero-visual {
+            position: relative;
+        }
+
+        .hero-image-wrapper {
+            position: relative;
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            box-shadow: var(--shadow-xl);
+            background: white;
+            border: 1px solid var(--gray-200);
+        }
+
+        .hero-image {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .hero-mockup {
+            background: var(--gray-900);
+            padding: 12px;
+            border-radius: var(--radius-xl);
+        }
+
+        .hero-mockup-header {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .hero-mockup-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .hero-mockup-dot.red { background: #ef4444; }
+        .hero-mockup-dot.yellow { background: #f59e0b; }
+        .hero-mockup-dot.green { background: #10b981; }
+
+        .hero-mockup-content {
+            background: white;
+            border-radius: var(--radius);
+            padding: 24px;
+            min-height: 300px;
+        }
+
+        .mockup-dashboard {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .mockup-card {
+            background: var(--gray-50);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            border: 1px solid var(--gray-200);
+        }
+
+        .mockup-card-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .mockup-card-icon.green { background: var(--primary-light); color: var(--primary); }
+        .mockup-card-icon.blue { background: #dbeafe; color: var(--info); }
+        .mockup-card-icon.amber { background: #fef3c7; color: var(--warning); }
+
+        .mockup-card-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .mockup-card-label {
+            font-size: 11px;
+            color: var(--gray-500);
+            margin-top: 4px;
+        }
+
+        .mockup-blocks {
+            grid-column: span 3;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .mockup-block {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .mockup-block.category { background: #dbeafe; color: #1e40af; }
+        .mockup-block.item { background: var(--primary-light); color: var(--primary-700); }
+        .mockup-block.budget { background: #fef3c7; color: #92400e; }
+
+        .floating-badge {
+            position: absolute;
+            background: white;
+            border-radius: var(--radius);
+            padding: 12px 16px;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .floating-badge.compliance {
+            top: 20%;
+            right: -20px;
+            animation-delay: 0s;
+        }
+
+        .floating-badge.export {
+            bottom: 20%;
+            left: -20px;
+            animation-delay: 1.5s;
+        }
+
+        .floating-badge-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .floating-badge-icon.green { background: var(--primary-light); color: var(--primary); }
+        .floating-badge-icon.blue { background: #dbeafe; color: var(--info); }
+
+        .floating-badge-text {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--gray-700);
+        }
+
+        .floating-badge-sub {
+            font-size: 11px;
+            color: var(--gray-500);
+            font-weight: 400;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* Trusted By Section */
+        .trusted-by {
+            padding: 48px 24px;
+            background: white;
+            border-top: 1px solid var(--gray-100);
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+        .trusted-by-container {
+            max-width: 1280px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .trusted-by-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-400);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 32px;
+        }
+
+        .trusted-logos {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 64px;
+            flex-wrap: wrap;
+        }
+
+        .trusted-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--gray-400);
+            font-size: 18px;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+
+        .trusted-logo:hover {
+            color: var(--gray-600);
+        }
+
+        .trusted-logo i {
+            font-size: 24px;
+        }
+
+        /* Features Section */
+        .features {
+            padding: 100px 24px;
+            background: white;
+        }
+
+        .features-container {
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            max-width: 640px;
+            margin: 0 auto 64px;
+        }
+
+        .section-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: var(--primary-light);
+            color: var(--primary-700);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 40px;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 16px;
+            letter-spacing: -0.5px;
+        }
+
+        .section-subtitle {
+            font-size: 18px;
+            color: var(--gray-500);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 32px;
+        }
+
+        .feature-card {
+            padding: 32px;
+            border-radius: var(--radius-lg);
+            background: var(--gray-50);
+            border: 1px solid var(--gray-100);
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            background: white;
+            border-color: var(--gray-200);
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-4px);
+        }
+
+        .feature-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .feature-icon.green {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+        }
+        .feature-icon.blue {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+        .feature-icon.amber {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+        .feature-icon.purple {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+        }
+        .feature-icon.red {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+        .feature-icon.teal {
+            background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+            color: white;
+        }
+
+        .feature-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 12px;
+        }
+
+        .feature-description {
+            font-size: 14px;
+            color: var(--gray-500);
+            line-height: 1.7;
+        }
+
+        /* How It Works */
+        .how-it-works {
+            padding: 100px 24px;
+            background: var(--gray-900);
+            color: white;
+        }
+
+        .how-it-works .section-badge {
+            background: rgba(24, 185, 105, 0.2);
+            color: var(--primary);
+        }
+
+        .how-it-works .section-title {
+            color: white;
+        }
+
+        .how-it-works .section-subtitle {
+            color: var(--gray-400);
+        }
+
+        .steps-container {
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            position: relative;
+        }
+
+        .steps-grid::before {
+            content: '';
+            position: absolute;
+            top: 40px;
+            left: 60px;
+            right: 60px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+            opacity: 0.3;
+        }
+
+        .step-card {
+            text-align: center;
+            position: relative;
+        }
+
+        .step-number {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0 auto 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .step-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .step-description {
+            font-size: 14px;
+            color: var(--gray-400);
+            line-height: 1.6;
+        }
+
+        /* Blockly Feature */
+        .blockly-feature {
+            padding: 100px 24px;
+            background: linear-gradient(180deg, white 0%, var(--gray-50) 100%);
+        }
+
+        .blockly-container {
+            max-width: 1280px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 64px;
+            align-items: center;
+        }
+
+        .blockly-content h2 {
+            font-size: 40px;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 24px;
+            letter-spacing: -0.5px;
+        }
+
+        .blockly-content p {
+            font-size: 18px;
+            color: var(--gray-500);
+            margin-bottom: 32px;
+        }
+
+        .blockly-features {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .blockly-feature-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .blockly-feature-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .blockly-feature-text {
+            font-size: 15px;
+            color: var(--gray-600);
+        }
+
+        .blockly-visual {
+            position: relative;
+        }
+
+        .blockly-demo {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            box-shadow: var(--shadow-xl);
+            border: 1px solid var(--gray-200);
+        }
+
+        .blockly-workspace {
+            background: var(--gray-50);
+            border-radius: var(--radius);
+            padding: 24px;
+            min-height: 350px;
+        }
+
+        .block-group {
+            margin-bottom: 16px;
+        }
+
+        .block {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            cursor: move;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .block:hover {
+            transform: translateX(4px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .block i {
+            margin-right: 10px;
+        }
+
+        .block.category {
+            background: #dbeafe;
+            color: #1e40af;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .block.item {
+            background: var(--primary-light);
+            color: var(--primary-700);
+            border-left: 4px solid var(--primary);
+            margin-left: 24px;
+        }
+
+        .block.spec {
+            background: #fef3c7;
+            color: #92400e;
+            border-left: 4px solid #f59e0b;
+            margin-left: 48px;
+            font-size: 12px;
+        }
+
+        /* Pricing Section */
+        .pricing {
+            padding: 100px 24px;
+            background: white;
+        }
+
+        .pricing-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Trial Banner */
+        .trial-banner {
+            background: linear-gradient(135deg, var(--primary-50) 0%, var(--primary-100) 100%);
+            border: 2px solid var(--primary);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            margin-bottom: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 32px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .trial-banner::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(24, 185, 105, 0.15) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .trial-banner-content {
+            flex: 1;
+            position: relative;
+            z-index: 1;
+        }
+
+        .trial-banner-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--primary);
+            color: white;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .trial-banner-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 8px;
+        }
+
+        .trial-banner-desc {
+            font-size: 16px;
+            color: var(--gray-600);
+            margin-bottom: 16px;
+        }
+
+        .trial-features {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .trial-feature {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--gray-700);
+        }
+
+        .trial-feature i {
+            color: var(--primary);
+        }
+
+        .trial-feature-note {
+            color: var(--gray-500);
+            font-style: italic;
+        }
+
+        .trial-feature-note i {
+            color: var(--info);
+        }
+
+        .trial-banner-action {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .trial-banner-action .btn {
+            white-space: nowrap;
+        }
+
+        .trial-banner-note {
+            font-size: 12px;
+            color: var(--gray-500);
+        }
+
+        .pricing-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 48px;
+        }
+
+        .pricing-toggle-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-500);
+        }
+
+        .pricing-toggle-label.active {
+            color: var(--gray-900);
+        }
+
+        .toggle-switch {
+            width: 48px;
+            height: 28px;
+            background: var(--gray-200);
+            border-radius: 14px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: var(--primary);
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+            box-shadow: var(--shadow);
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(20px);
+        }
+
+        .pricing-save {
+            background: var(--primary-light);
+            color: var(--primary-700);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 32px;
+        }
+
+        .pricing-card {
+            background: white;
+            border: 2px solid var(--gray-200);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .pricing-card:hover {
+            border-color: var(--gray-300);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .pricing-card.popular {
+            border-color: var(--primary);
+            box-shadow: var(--shadow-xl);
+            transform: scale(1.02);
+        }
+
+        .pricing-card.popular::before {
+            content: 'Most Popular';
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--primary);
+            color: white;
+            padding: 4px 16px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .pricing-header {
+            text-align: center;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--gray-200);
+            margin-bottom: 24px;
+        }
+
+        .pricing-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 8px;
+        }
+
+        .pricing-description {
+            font-size: 14px;
+            color: var(--gray-500);
+            margin-bottom: 16px;
+        }
+
+        .pricing-price {
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .pricing-currency {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--gray-500);
+        }
+
+        .pricing-amount {
+            font-size: 48px;
+            font-weight: 800;
+            color: var(--gray-900);
+            letter-spacing: -2px;
+        }
+
+        .pricing-period {
+            font-size: 14px;
+            color: var(--gray-500);
+        }
+
+        .pricing-features {
+            list-style: none;
+            margin-bottom: 32px;
+        }
+
+        .pricing-feature {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 10px 0;
+            font-size: 14px;
+            color: var(--gray-600);
+        }
+
+        .pricing-feature i {
+            color: var(--primary);
+            font-size: 16px;
+            margin-top: 2px;
+        }
+
+        .pricing-feature.disabled {
+            color: var(--gray-400);
+        }
+
+        .pricing-feature.disabled i {
+            color: var(--gray-300);
+        }
+
+        .pricing-cta {
+            width: 100%;
+        }
+
+        /* Compliance Section */
+        .compliance {
+            padding: 100px 24px;
+            background: linear-gradient(135deg, var(--primary-800) 0%, var(--primary-700) 100%);
+            color: white;
+        }
+
+        .compliance-container {
+            max-width: 1280px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 64px;
+            align-items: center;
+        }
+
+        .compliance-content h2 {
+            font-size: 40px;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+
+        .compliance-content p {
+            font-size: 18px;
+            opacity: 0.9;
+            margin-bottom: 32px;
+        }
+
+        .compliance-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .compliance-badge {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 16px 24px;
+            border-radius: var(--radius);
+            backdrop-filter: blur(10px);
+        }
+
+        .compliance-badge-icon {
+            width: 48px;
+            height: 48px;
+            background: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: var(--primary);
+        }
+
+        .compliance-badge-text {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .compliance-badge-sub {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .compliance-visual {
+            display: flex;
+            justify-content: center;
+        }
+
+        .compliance-chart {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .compliance-chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .compliance-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .compliance-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .compliance-bar-label {
+            width: 80px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--gray-700);
+        }
+
+        .compliance-bar-track {
+            flex: 1;
+            height: 12px;
+            background: var(--gray-100);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .compliance-bar-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 1s ease;
+        }
+
+        .compliance-bar-fill.agpo { background: var(--primary); width: 30%; }
+        .compliance-bar-fill.pwd { background: var(--info); width: 2%; }
+        .compliance-bar-fill.local { background: var(--warning); width: 40%; }
+
+        .compliance-bar-value {
+            width: 40px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--gray-700);
+            text-align: right;
+        }
+
+        /* Testimonials */
+        .testimonials {
+            padding: 100px 24px;
+            background: var(--gray-50);
+        }
+
+        .testimonials-container {
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+
+        .testimonials-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 32px;
+        }
+
+        .testimonial-card {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--gray-100);
+        }
+
+        .testimonial-rating {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 16px;
+        }
+
+        .testimonial-rating i {
+            color: #f59e0b;
+            font-size: 14px;
+        }
+
+        .testimonial-text {
+            font-size: 15px;
+            color: var(--gray-600);
+            line-height: 1.7;
+            margin-bottom: 24px;
+        }
+
+        .testimonial-author {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .testimonial-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .testimonial-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .testimonial-role {
+            font-size: 13px;
+            color: var(--gray-500);
+        }
+
+        /* CTA Section */
+        .cta {
+            padding: 100px 24px;
+            background: linear-gradient(135deg, var(--gray-900) 0%, var(--secondary) 100%);
+            text-align: center;
+        }
+
+        .cta-container {
+            max-width: 720px;
+            margin: 0 auto;
+        }
+
+        .cta h2 {
+            font-size: 40px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 16px;
+        }
+
+        .cta p {
+            font-size: 18px;
+            color: var(--gray-400);
+            margin-bottom: 32px;
+        }
+
+        .cta-buttons {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .cta-note {
+            margin-top: 24px;
+            font-size: 13px;
+            color: var(--gray-500);
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--gray-900);
+            color: var(--gray-400);
+            padding: 64px 24px 32px;
+        }
+
+        .footer-container {
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+            gap: 48px;
+            margin-bottom: 48px;
+        }
+
+        .footer-brand {
+            max-width: 280px;
+        }
+
+        .footer-logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 16px;
+        }
+
+        .footer-logo span {
+            color: var(--primary);
+        }
+
+        .footer-description {
+            font-size: 14px;
+            line-height: 1.7;
+            margin-bottom: 24px;
+        }
+
+        .footer-social {
+            display: flex;
+            gap: 12px;
+        }
+
+        .footer-social a {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--gray-800);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--gray-400);
+            transition: all 0.2s;
+        }
+
+        .footer-social a:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .footer-column h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .footer-links {
+            list-style: none;
+        }
+
+        .footer-links li {
+            margin-bottom: 12px;
+        }
+
+        .footer-links a {
+            font-size: 14px;
+            color: var(--gray-400);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: var(--primary);
+        }
+
+        .footer-bottom {
+            padding-top: 32px;
+            border-top: 1px solid var(--gray-800);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .footer-copyright {
+            font-size: 13px;
+        }
+
+        .footer-legal {
+            display: flex;
+            gap: 24px;
+        }
+
+        .footer-legal a {
+            font-size: 13px;
+            color: var(--gray-400);
+            text-decoration: none;
+        }
+
+        .footer-legal a:hover {
+            color: var(--primary);
+        }
+
+        /* Demo Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 480px;
+            overflow: hidden;
+            animation: modalSlide 0.3s ease;
+        }
+
+        @keyframes modalSlide {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .modal-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .modal-close {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+            border: none;
+            background: var(--gray-100);
+            color: var(--gray-600);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: var(--gray-200);
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-700);
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-family: inherit;
+            background: white;
+            cursor: pointer;
+        }
+
+        .modal-footer {
+            padding: 24px;
+            background: var(--gray-50);
+            border-top: 1px solid var(--gray-200);
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 3000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .toast {
+            background: white;
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 320px;
+            animation: toastSlide 0.3s ease;
+        }
+
+        @keyframes toastSlide {
+            from { opacity: 0; transform: translateX(100%); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .toast-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .toast.success .toast-icon {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .toast-message {
+            font-size: 13px;
+            color: var(--gray-500);
+        }
+
+        /* Scroll to Top */
+        .scroll-top {
+            position: fixed;
+            bottom: 24px;
+            left: 24px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:hover {
+            transform: translateY(-4px);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .hero-container,
+            .blockly-container,
+            .compliance-container {
+                grid-template-columns: 1fr;
+                gap: 48px;
+            }
+
+            .hero-visual {
+                order: -1;
+            }
+
+            .features-grid,
+            .pricing-grid,
+            .testimonials-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .steps-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .steps-grid::before {
+                display: none;
+            }
+
+            .footer-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .navbar-nav {
+                display: none;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .hero {
+                padding: 120px 24px 60px;
+            }
+
+            .hero-title {
+                font-size: 36px;
+            }
+
+            .hero-subtitle {
+                font-size: 16px;
+            }
+
+            .hero-stats {
+                flex-direction: column;
+                gap: 24px;
+            }
+
+            .hero-cta {
+                flex-direction: column;
+            }
+
+            .section-title {
+                font-size: 28px;
+            }
+
+            .steps-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .trusted-logos {
+                gap: 32px;
+            }
+
+            .pricing-card.popular {
+                transform: none;
+            }
+
+            .trial-banner {
+                flex-direction: column;
+                text-align: center;
+                padding: 24px;
+            }
+
+            .trial-banner-title {
+                font-size: 22px;
+            }
+
+            .trial-features {
+                justify-content: center;
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr;
+                gap: 32px;
+            }
+
+            .footer-bottom {
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+        }
+
+        /* Mobile Navigation */
+        .mobile-nav {
+            display: none;
+            position: fixed;
+            top: 72px;
+            left: 0;
+            right: 0;
+            background: white;
+            border-bottom: 1px solid var(--gray-200);
+            padding: 24px;
+            z-index: 999;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .mobile-nav.active {
+            display: block;
+        }
+
+        .mobile-nav-links {
+            list-style: none;
+            margin-bottom: 24px;
+        }
+
+        .mobile-nav-links li {
+            margin-bottom: 8px;
+        }
+
+        .mobile-nav-links a {
+            display: block;
+            padding: 12px 16px;
+            color: var(--gray-700);
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 500;
+            border-radius: var(--radius-sm);
+            transition: all 0.2s;
+        }
+
+        .mobile-nav-links a:hover {
+            background: var(--gray-50);
+            color: var(--primary);
+        }
+
+        .mobile-nav-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar" id="navbar">
+        <div class="navbar-container">
+            <a href="#" class="navbar-brand">
+                <span class="navbar-logo">Procure<span>line</span></span>
+            </a>
+            <ul class="navbar-nav">
+                <li><a href="#features" class="nav-link">Features</a></li>
+                <li><a href="#how-it-works" class="nav-link">How It Works</a></li>
+                <li><a href="#pricing" class="nav-link">Pricing</a></li>
+                <li><a href="#compliance" class="nav-link">Compliance</a></li>
+                <li><a href="#contact" class="nav-link">Contact</a></li>
+            </ul>
+            <div class="navbar-actions">
+                <a href="admin-tenant.html" class="btn btn-ghost">Sign In</a>
+                <button class="btn btn-primary" onclick="openDemoModal()">
+                    <i class="fas fa-university"></i>
+                    Register University
+                </button>
+            </div>
+            <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+                <i class="fas fa-bars" id="mobileMenuIcon"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Mobile Navigation -->
+    <div class="mobile-nav" id="mobileNav">
+        <ul class="mobile-nav-links">
+            <li><a href="#features" onclick="closeMobileMenu()">Features</a></li>
+            <li><a href="#how-it-works" onclick="closeMobileMenu()">How It Works</a></li>
+            <li><a href="#pricing" onclick="closeMobileMenu()">Pricing</a></li>
+            <li><a href="#compliance" onclick="closeMobileMenu()">Compliance</a></li>
+            <li><a href="#contact" onclick="closeMobileMenu()">Contact</a></li>
+        </ul>
+        <div class="mobile-nav-actions">
+            <a href="admin-tenant.html" class="btn btn-secondary" style="width: 100%;">Sign In</a>
+            <button class="btn btn-primary" style="width: 100%;" onclick="openDemoModal(); closeMobileMenu();">
+                <i class="fas fa-university"></i>
+                Register University
+            </button>
+        </div>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <i class="fas fa-university"></i>
+                    For University Administrators
+                </div>
+                <h1 class="hero-title">
+                    Procurement Planning,<br>
+                    <span>Simplified.</span>
+                </h1>
+                <p class="hero-subtitle">
+                    Register your university and transform annual procurement planning with visual block-based tools. Create GOK-compliant plans in hours, not weeks. Export ready-to-submit Excel files instantly.
+                </p>
+                <div class="hero-cta">
+                    <button class="btn btn-primary btn-lg" onclick="openDemoModal()">
+                        <i class="fas fa-university"></i>
+                        Register Your University
+                    </button>
+                    <a href="#how-it-works" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-info-circle"></i>
+                        See How It Works
+                    </a>
+                </div>
+                <div class="hero-stats">
+                    <div class="hero-stat">
+                        <div class="hero-stat-value">40+</div>
+                        <div class="hero-stat-label">Hours saved per cycle</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="hero-stat-value">100%</div>
+                        <div class="hero-stat-label">PPRA Compliant</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="hero-stat-value">50+</div>
+                        <div class="hero-stat-label">Institutions ready</div>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="hero-mockup">
+                    <div class="hero-mockup-header">
+                        <span class="hero-mockup-dot red"></span>
+                        <span class="hero-mockup-dot yellow"></span>
+                        <span class="hero-mockup-dot green"></span>
+                    </div>
+                    <div class="hero-mockup-content">
+                        <div class="mockup-dashboard">
+                            <div class="mockup-card">
+                                <div class="mockup-card-icon green">
+                                    <i class="fas fa-building"></i>
+                                </div>
+                                <div class="mockup-card-value">7</div>
+                                <div class="mockup-card-label">Departments</div>
+                            </div>
+                            <div class="mockup-card">
+                                <div class="mockup-card-icon blue">
+                                    <i class="fas fa-file-invoice"></i>
+                                </div>
+                                <div class="mockup-card-value">847</div>
+                                <div class="mockup-card-label">Items Planned</div>
+                            </div>
+                            <div class="mockup-card">
+                                <div class="mockup-card-icon amber">
+                                    <i class="fas fa-coins"></i>
+                                </div>
+                                <div class="mockup-card-value">85.2M</div>
+                                <div class="mockup-card-label">Budget (KES)</div>
+                            </div>
+                            <div class="mockup-blocks">
+                                <span class="mockup-block category"><i class="fas fa-folder"></i> ICT Equipment</span>
+                                <span class="mockup-block item"><i class="fas fa-cube"></i> Laptops (50 units)</span>
+                                <span class="mockup-block budget"><i class="fas fa-tag"></i> KES 3.5M</span>
+                                <span class="mockup-block category"><i class="fas fa-folder"></i> Office Supplies</span>
+                                <span class="mockup-block item"><i class="fas fa-cube"></i> Furniture</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="floating-badge compliance">
+                    <div class="floating-badge-icon green">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div>
+                        <div class="floating-badge-text">GOK Compliant</div>
+                        <div class="floating-badge-sub">AGPO, PWD, Local</div>
+                    </div>
+                </div>
+                <div class="floating-badge export">
+                    <div class="floating-badge-icon blue">
+                        <i class="fas fa-file-excel"></i>
+                    </div>
+                    <div>
+                        <div class="floating-badge-text">Excel Export</div>
+                        <div class="floating-badge-sub">GOK Template Ready</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Trusted By -->
+    <section class="trusted-by">
+        <div class="trusted-by-container">
+            <div class="trusted-by-title">Trusted by Leading Kenyan Institutions</div>
+            <div class="trusted-logos">
+                <div class="trusted-logo">
+                    <i class="fas fa-university"></i>
+                    University of Nairobi
+                </div>
+                <div class="trusted-logo">
+                    <i class="fas fa-graduation-cap"></i>
+                    Kenyatta University
+                </div>
+                <div class="trusted-logo">
+                    <i class="fas fa-school"></i>
+                    JKUAT
+                </div>
+                <div class="trusted-logo">
+                    <i class="fas fa-building-columns"></i>
+                    Moi University
+                </div>
+                <div class="trusted-logo">
+                    <i class="fas fa-landmark"></i>
+                    Pwani University
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="features-container">
+            <div class="section-header">
+                <div class="section-badge">
+                    <i class="fas fa-star"></i>
+                    Features
+                </div>
+                <h2 class="section-title">Everything You Need for Procurement Planning</h2>
+                <p class="section-subtitle">Purpose-built tools designed specifically for Kenyan universities and the PPRA procurement cycle.</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon green">
+                        <i class="fas fa-cubes"></i>
+                    </div>
+                    <h3 class="feature-title">Visual Block Planning</h3>
+                    <p class="feature-description">Drag-and-drop procurement items using our intuitive Blockly-based interface. No spreadsheet expertise required.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon blue">
+                        <i class="fas fa-shield-halved"></i>
+                    </div>
+                    <h3 class="feature-title">Automatic Compliance</h3>
+                    <p class="feature-description">Built-in validation for AGPO (30%), PWD (2%), and Local Content (40%) requirements. Never fail an audit again.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon amber">
+                        <i class="fas fa-file-export"></i>
+                    </div>
+                    <h3 class="feature-title">Excel Export</h3>
+                    <p class="feature-description">Export your plan to the official GOK Excel template format. Ready for submission to PPRA in one click.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon purple">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3 class="feature-title">Multi-Department</h3>
+                    <p class="feature-description">Manage procurement across all departments. Each DU creates their plan, PO consolidates and validates.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon red">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <h3 class="feature-title">Budget Tracking</h3>
+                    <p class="feature-description">Real-time budget monitoring with visual dashboards. Track spending against allocation by department and category.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon teal">
+                        <i class="fas fa-clock-rotate-left"></i>
+                    </div>
+                    <h3 class="feature-title">Audit Trail</h3>
+                    <p class="feature-description">Complete history of all changes. Know who modified what and when for full accountability and transparency.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="how-it-works" id="how-it-works">
+        <div class="steps-container">
+            <div class="section-header">
+                <div class="section-badge">
+                    <i class="fas fa-route"></i>
+                    How It Works
+                </div>
+                <h2 class="section-title">From Chaos to Compliance in 4 Steps</h2>
+                <p class="section-subtitle">Streamline your entire procurement planning workflow with Procureline.</p>
+            </div>
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <h3 class="step-title">Setup Departments</h3>
+                    <p class="step-description">Admin creates departments and invites Departmental Users. Each user gets secure access to their planning workspace.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <h3 class="step-title">Plan with Blocks</h3>
+                    <p class="step-description">Departmental Users build their procurement plans using drag-and-drop blocks. Categories, items, quantities, and budgets - all visual.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <h3 class="step-title">Review & Validate</h3>
+                    <p class="step-description">Procurement Officer reviews submissions, ensures compliance quotas are met, and consolidates the master plan.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">4</div>
+                    <h3 class="step-title">Export & Submit</h3>
+                    <p class="step-description">Generate the official GOK Excel template with one click. Ready for PPRA submission. Done!</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Blockly Feature -->
+    <section class="blockly-feature">
+        <div class="blockly-container">
+            <div class="blockly-content">
+                <h2>Build Plans Like Building Blocks</h2>
+                <p>Our visual Blockly-based editor makes procurement planning intuitive. No complex spreadsheets, no formulas to remember. Just drag, drop, and done.</p>
+                <div class="blockly-features">
+                    <div class="blockly-feature-item">
+                        <div class="blockly-feature-icon">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <span class="blockly-feature-text">Drag-and-drop categories, items, and specifications</span>
+                    </div>
+                    <div class="blockly-feature-item">
+                        <div class="blockly-feature-icon">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <span class="blockly-feature-text">Real-time budget calculations as you build</span>
+                    </div>
+                    <div class="blockly-feature-item">
+                        <div class="blockly-feature-icon">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <span class="blockly-feature-text">Pre-built item library with standard specifications</span>
+                    </div>
+                    <div class="blockly-feature-item">
+                        <div class="blockly-feature-icon">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <span class="blockly-feature-text">Instant compliance validation as you add items</span>
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-lg" onclick="openDemoModal()">
+                    <i class="fas fa-play"></i>
+                    See It In Action
+                </button>
+            </div>
+            <div class="blockly-visual">
+                <div class="blockly-demo">
+                    <div class="blockly-workspace">
+                        <div class="block-group">
+                            <div class="block category">
+                                <i class="fas fa-folder-open"></i>
+                                Category: ICT Equipment
+                            </div>
+                            <div class="block item">
+                                <i class="fas fa-laptop"></i>
+                                Item: Laptops (HP ProBook 450)
+                            </div>
+                            <div class="block spec">
+                                <i class="fas fa-list"></i>
+                                Qty: 50 | Unit: KES 85,000 | Total: KES 4,250,000
+                            </div>
+                            <div class="block item">
+                                <i class="fas fa-print"></i>
+                                Item: Printers (HP LaserJet Pro)
+                            </div>
+                            <div class="block spec">
+                                <i class="fas fa-list"></i>
+                                Qty: 15 | Unit: KES 45,000 | Total: KES 675,000
+                            </div>
+                        </div>
+                        <div class="block-group">
+                            <div class="block category">
+                                <i class="fas fa-folder-open"></i>
+                                Category: Office Furniture
+                            </div>
+                            <div class="block item">
+                                <i class="fas fa-chair"></i>
+                                Item: Executive Chairs
+                            </div>
+                            <div class="block spec">
+                                <i class="fas fa-list"></i>
+                                Qty: 25 | Unit: KES 18,000 | Total: KES 450,000
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Compliance Section -->
+    <section class="compliance" id="compliance">
+        <div class="compliance-container">
+            <div class="compliance-content">
+                <h2>100% PPRA Compliant, Automatically</h2>
+                <p>Procureline automatically validates your procurement plan against Government of Kenya requirements. No more manual calculations or audit failures.</p>
+                <div class="compliance-badges">
+                    <div class="compliance-badge">
+                        <div class="compliance-badge-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div>
+                            <div class="compliance-badge-text">AGPO 30%</div>
+                            <div class="compliance-badge-sub">Youth, Women, PWD</div>
+                        </div>
+                    </div>
+                    <div class="compliance-badge">
+                        <div class="compliance-badge-icon">
+                            <i class="fas fa-wheelchair"></i>
+                        </div>
+                        <div>
+                            <div class="compliance-badge-text">PWD 2%</div>
+                            <div class="compliance-badge-sub">Persons with Disability</div>
+                        </div>
+                    </div>
+                    <div class="compliance-badge">
+                        <div class="compliance-badge-icon">
+                            <i class="fas fa-flag"></i>
+                        </div>
+                        <div>
+                            <div class="compliance-badge-text">Local 40%</div>
+                            <div class="compliance-badge-sub">Buy Kenya Build Kenya</div>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-secondary btn-lg" style="background: white; color: var(--primary-700);">
+                    <i class="fas fa-file-alt"></i>
+                    Download Compliance Guide
+                </button>
+            </div>
+            <div class="compliance-visual">
+                <div class="compliance-chart">
+                    <div class="compliance-chart-title">
+                        <i class="fas fa-chart-bar" style="color: var(--primary); margin-right: 8px;"></i>
+                        Compliance Tracker
+                    </div>
+                    <div class="compliance-bars">
+                        <div class="compliance-bar">
+                            <span class="compliance-bar-label">AGPO</span>
+                            <div class="compliance-bar-track">
+                                <div class="compliance-bar-fill agpo" id="agpoBar"></div>
+                            </div>
+                            <span class="compliance-bar-value" id="agpoValue">30%</span>
+                        </div>
+                        <div class="compliance-bar">
+                            <span class="compliance-bar-label">PWD</span>
+                            <div class="compliance-bar-track">
+                                <div class="compliance-bar-fill pwd" id="pwdBar"></div>
+                            </div>
+                            <span class="compliance-bar-value" id="pwdValue">2%</span>
+                        </div>
+                        <div class="compliance-bar">
+                            <span class="compliance-bar-label">Local</span>
+                            <div class="compliance-bar-track">
+                                <div class="compliance-bar-fill local" id="localBar"></div>
+                            </div>
+                            <span class="compliance-bar-value" id="localValue">40%</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--gray-200); text-align: center;">
+                        <span style="display: inline-flex; align-items: center; gap: 8px; color: var(--primary); font-weight: 600; font-size: 14px;">
+                            <i class="fas fa-check-circle"></i>
+                            All Requirements Met
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section class="pricing" id="pricing">
+        <div class="pricing-container">
+            <div class="section-header">
+                <div class="section-badge">
+                    <i class="fas fa-tags"></i>
+                    Pricing
+                </div>
+                <h2 class="section-title">Simple, Transparent Pricing</h2>
+                <p class="section-subtitle">Annual billing aligned with Kenya's fiscal year (July - June). No hidden fees.</p>
+            </div>
+
+            <!-- Trial Banner -->
+            <div class="trial-banner">
+                <div class="trial-banner-content">
+                    <div class="trial-banner-badge">
+                        <i class="fas fa-gift"></i>
+                        14-Day Free Trial
+                    </div>
+                    <h3 class="trial-banner-title">Try Procureline Risk-Free</h3>
+                    <p class="trial-banner-desc">Experience the full power of Professional tier features. No credit card required to start.</p>
+                    <div class="trial-features">
+                        <div class="trial-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Up to 10 departments</span>
+                        </div>
+                        <div class="trial-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>1 Procurement Officer</span>
+                        </div>
+                        <div class="trial-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Complete Blockly planning</span>
+                        </div>
+                        <div class="trial-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>GOK compliance validation</span>
+                        </div>
+                        <div class="trial-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Sample data pre-loaded</span>
+                        </div>
+                        <div class="trial-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Free onboarding call</span>
+                        </div>
+                        <div class="trial-feature trial-feature-note">
+                            <i class="fas fa-info-circle"></i>
+                            <span>Excel export available on subscription</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="trial-banner-action">
+                    <button class="btn btn-primary btn-lg" onclick="openDemoModal()">
+                        <i class="fas fa-university"></i>
+                        Register Your University
+                    </button>
+                    <p class="trial-banner-note">
+                        <i class="fas fa-clock"></i>
+                        Takes less than 2 minutes to set up
+                    </p>
+                </div>
+            </div>
+
+            <div class="pricing-grid">
+                <!-- Starter -->
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <h3 class="pricing-name">Starter</h3>
+                        <p class="pricing-description">For small colleges and institutions</p>
+                        <div class="pricing-price">
+                            <span class="pricing-currency">KES</span>
+                            <span class="pricing-amount">500K</span>
+                            <span class="pricing-period">/year</span>
+                        </div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            Up to 10 departments
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            Up to 15 users
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            1 Procurement Officer
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            5 GB storage
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            Up to 500 row exports
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            Email support (48hr)
+                        </li>
+                        <li class="pricing-feature disabled">
+                            <i class="fas fa-times"></i>
+                            API Access
+                        </li>
+                        <li class="pricing-feature disabled">
+                            <i class="fas fa-times"></i>
+                            Custom reports
+                        </li>
+                    </ul>
+                    <button class="btn btn-secondary pricing-cta" onclick="openDemoModal()">
+                        Start Free Trial
+                    </button>
+                </div>
+
+                <!-- Professional -->
+                <div class="pricing-card popular">
+                    <div class="pricing-header">
+                        <h3 class="pricing-name">Professional</h3>
+                        <p class="pricing-description">For mid-size universities</p>
+                        <div class="pricing-price">
+                            <span class="pricing-currency">KES</span>
+                            <span class="pricing-amount">1.2M</span>
+                            <span class="pricing-period">/year</span>
+                        </div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            Up to 25 departments
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            Up to 50 users
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            1 Procurement Officer
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            25 GB storage
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            Up to 1,500 row exports
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            Email + Chat (24hr)
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            Limited API Access
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            3 custom report templates
+                        </li>
+                    </ul>
+                    <button class="btn btn-primary pricing-cta" onclick="openDemoModal()">
+                        Start Free Trial
+                    </button>
+                </div>
+
+                <!-- Enterprise -->
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <h3 class="pricing-name">Enterprise</h3>
+                        <p class="pricing-description">For large universities</p>
+                        <div class="pricing-price">
+                            <span class="pricing-currency">KES</span>
+                            <span class="pricing-amount">2.4M</span>
+                            <span class="pricing-period">/year</span>
+                        </div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            Unlimited departments
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            Unlimited users
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            Up to 3 Procurement Officers
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            100 GB storage
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            Unlimited exports
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            Priority support (4hr) + Phone
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            Full API Access
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check"></i>
+                            SSO/LDAP + Custom branding
+                        </li>
+                    </ul>
+                    <button class="btn btn-secondary pricing-cta" onclick="openDemoModal()">
+                        Request Quote
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="testimonials">
+        <div class="testimonials-container">
+            <div class="section-header">
+                <div class="section-badge">
+                    <i class="fas fa-quote-left"></i>
+                    Testimonials
+                </div>
+                <h2 class="section-title">What Our Customers Say</h2>
+                <p class="section-subtitle">Join dozens of Kenyan institutions already transforming their procurement.</p>
+            </div>
+            <div class="testimonials-grid">
+                <div class="testimonial-card">
+                    <div class="testimonial-rating">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <p class="testimonial-text">"Procureline reduced our annual procurement planning time from 3 weeks to just 2 days. The compliance validation alone has saved us from multiple audit issues."</p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">SW</div>
+                        <div>
+                            <div class="testimonial-name">Sarah Wanjiku</div>
+                            <div class="testimonial-role">Procurement Officer, UoN</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="testimonial-rating">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <p class="testimonial-text">"The Blockly interface is intuitive even for our less tech-savvy staff. Department heads can now create their own plans without constant IT support."</p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">JK</div>
+                        <div>
+                            <div class="testimonial-name">James Kipkoech</div>
+                            <div class="testimonial-role">IT Director, JKUAT</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="testimonial-rating">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <p class="testimonial-text">"Finally, a system that understands Kenyan procurement requirements. AGPO tracking, LPO generation, everything is built for how we actually work."</p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">MO</div>
+                        <div>
+                            <div class="testimonial-name">Mary Odhiambo</div>
+                            <div class="testimonial-role">Finance Director, Kenyatta University</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta" id="contact">
+        <div class="cta-container">
+            <h2>Ready to Modernize Your University's Procurement?</h2>
+            <p>Join 50+ Kenyan institutions already using Procureline. Register your university for a 14-day free trial - no credit card required.</p>
+            <div class="cta-buttons">
+                <button class="btn btn-primary btn-lg" onclick="openDemoModal()">
+                    <i class="fas fa-university"></i>
+                    Register Your University
+                </button>
+                <a href="mailto:sales@procureline.io" class="btn btn-secondary btn-lg" style="background: transparent; border-color: var(--gray-600); color: white;">
+                    <i class="fas fa-phone"></i>
+                    Schedule a Demo
+                </a>
+            </div>
+            <p class="cta-note">
+                <i class="fas fa-check-circle" style="color: var(--primary);"></i>
+                14-day trial &nbsp;&nbsp;
+                <i class="fas fa-check-circle" style="color: var(--primary);"></i>
+                No credit card &nbsp;&nbsp;
+                <i class="fas fa-check-circle" style="color: var(--primary);"></i>
+                Full Professional features &nbsp;&nbsp;
+                <i class="fas fa-check-circle" style="color: var(--primary);"></i>
+                Free onboarding call
+            </p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <div class="footer-logo">Procure<span>line</span></div>
+                    <p class="footer-description">Simplifying university procurement planning for Kenyan institutions. Visual tools, automatic compliance, instant exports.</p>
+                    <div class="footer-social">
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-linkedin-in"></i></a>
+                        <a href="#"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
+                <div class="footer-column">
+                    <h4>Product</h4>
+                    <ul class="footer-links">
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#pricing">Pricing</a></li>
+                        <li><a href="#compliance">Compliance</a></li>
+                        <li><a href="#">Integrations</a></li>
+                        <li><a href="#">Updates</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h4>Resources</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">Documentation</a></li>
+                        <li><a href="#">Help Center</a></li>
+                        <li><a href="#">PPRA Guidelines</a></li>
+                        <li><a href="#">Blog</a></li>
+                        <li><a href="#">Webinars</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h4>Company</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">About Us</a></li>
+                        <li><a href="#">Careers</a></li>
+                        <li><a href="#">Partners</a></li>
+                        <li><a href="#">Press</a></li>
+                        <li><a href="#contact">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h4>Contact</h4>
+                    <ul class="footer-links">
+                        <li><a href="mailto:hello@procureline.io"><i class="fas fa-envelope" style="margin-right: 8px;"></i>hello@procureline.io</a></li>
+                        <li><a href="tel:+254700000000"><i class="fas fa-phone" style="margin-right: 8px;"></i>+254 700 000 000</a></li>
+                        <li><a href="#"><i class="fas fa-map-marker-alt" style="margin-right: 8px;"></i>Nairobi, Kenya</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p class="footer-copyright">&copy; 2025 Procureline Technologies Ltd. All rights reserved.</p>
+                <div class="footer-legal">
+                    <a href="#">Privacy Policy</a>
+                    <a href="#">Terms of Service</a>
+                    <a href="#">Cookie Policy</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Registration Modal -->
+    <div class="modal-overlay" id="demoModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fas fa-university" style="color: var(--primary); margin-right: 8px;"></i>
+                    Register Your University
+                </h3>
+                <button class="modal-close" onclick="closeDemoModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Trial Info Banner -->
+                <div style="background: var(--primary-50); padding: 16px; border-radius: var(--radius-sm); margin-bottom: 20px; border-left: 4px solid var(--primary);">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <i class="fas fa-gift" style="color: var(--primary);"></i>
+                        <strong style="color: var(--primary-700);">14-Day Free Trial Included</strong>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--gray-600);">
+                        <span><i class="fas fa-check" style="color: var(--primary); margin-right: 4px;"></i> Up to 10 departments</span>
+                        <span><i class="fas fa-check" style="color: var(--primary); margin-right: 4px;"></i> 1 Procurement Officer</span>
+                        <span><i class="fas fa-check" style="color: var(--primary); margin-right: 4px;"></i> Full Blockly planning</span>
+                    </div>
+                    <p style="font-size: 12px; color: var(--gray-500); margin: 8px 0 0 0; font-style: italic;">
+                        <i class="fas fa-info-circle" style="margin-right: 4px;"></i>Excel export unlocks on subscription
+                    </p>
+                </div>
+
+                <!-- Registration Form -->
+                <form id="demoForm" onsubmit="submitDemoForm(event)">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div class="form-group">
+                            <label class="form-label">First Name *</label>
+                            <input type="text" class="form-input" id="demoFirstName" placeholder="e.g. Sarah" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Last Name *</label>
+                            <input type="text" class="form-input" id="demoLastName" placeholder="e.g. Wanjiku" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Work Email *</label>
+                        <input type="email" class="form-input" id="demoEmail" placeholder="e.g. admin@university.ac.ke" required>
+                        <small style="color: var(--gray-500); font-size: 12px;">Use your official university email address</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone Number *</label>
+                        <input type="tel" class="form-input" id="demoPhone" placeholder="e.g. +254 7XX XXX XXX" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Institution Name *</label>
+                        <input type="text" class="form-input" id="demoInstitution" placeholder="e.g. University of Nairobi" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Your Role</label>
+                        <div class="form-input" style="background: var(--gray-100); color: var(--gray-700); display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-user-shield" style="color: var(--primary);"></i>
+                            Tenant Administrator
+                        </div>
+                        <small style="color: var(--gray-500); font-size: 12px;">You will manage your university's Procureline account</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="demoTerms" required style="margin-top: 4px;">
+                            <span style="font-size: 13px; color: var(--gray-600);">
+                                I agree to the <a href="#" style="color: var(--primary);">Terms of Service</a> and <a href="#" style="color: var(--primary);">Privacy Policy</a>. I confirm I am authorized to register this institution.
+                            </span>
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeDemoModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="submitDemoForm(event)">
+                    <i class="fas fa-university"></i>
+                    Create Tenant Account
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scroll to Top Button -->
+    <button class="scroll-top" id="scrollTop" onclick="scrollToTop()">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script>
+        // Navbar scroll effect
+        window.addEventListener('scroll', function() {
+            const navbar = document.getElementById('navbar');
+            const scrollTop = document.getElementById('scrollTop');
+
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+
+            if (window.scrollY > 500) {
+                scrollTop.classList.add('visible');
+            } else {
+                scrollTop.classList.remove('visible');
+            }
+        });
+
+        // Mobile menu
+        function toggleMobileMenu() {
+            const mobileNav = document.getElementById('mobileNav');
+            const mobileMenuIcon = document.getElementById('mobileMenuIcon');
+
+            mobileNav.classList.toggle('active');
+
+            if (mobileNav.classList.contains('active')) {
+                mobileMenuIcon.classList.remove('fa-bars');
+                mobileMenuIcon.classList.add('fa-times');
+            } else {
+                mobileMenuIcon.classList.remove('fa-times');
+                mobileMenuIcon.classList.add('fa-bars');
+            }
+        }
+
+        function closeMobileMenu() {
+            const mobileNav = document.getElementById('mobileNav');
+            const mobileMenuIcon = document.getElementById('mobileMenuIcon');
+
+            mobileNav.classList.remove('active');
+            mobileMenuIcon.classList.remove('fa-times');
+            mobileMenuIcon.classList.add('fa-bars');
+        }
+
+        // Demo Modal
+        function openDemoModal() {
+            document.getElementById('demoModal').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeDemoModal() {
+            document.getElementById('demoModal').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Close modal on outside click
+        document.getElementById('demoModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeDemoModal();
+            }
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeDemoModal();
+            }
+        });
+
+        // Form submission
+        function submitDemoForm(e) {
+            e.preventDefault();
+
+            const firstName = document.getElementById('demoFirstName').value;
+            const lastName = document.getElementById('demoLastName').value;
+            const email = document.getElementById('demoEmail').value;
+            const phone = document.getElementById('demoPhone').value;
+            const institution = document.getElementById('demoInstitution').value;
+            const terms = document.getElementById('demoTerms').checked;
+
+            if (!firstName || !lastName || !email || !phone || !institution) {
+                showToast('error', 'Please fill in all required fields');
+                return;
+            }
+
+            if (!terms) {
+                showToast('error', 'Please accept the Terms of Service and Privacy Policy');
+                return;
+            }
+
+            // Validate email domain (should be institutional)
+            if (!email.includes('.ac.ke') && !email.includes('.edu') && !email.includes('.go.ke')) {
+                showToast('warning', 'Please use your official university email address');
+                return;
+            }
+
+            // Simulate form submission
+            closeDemoModal();
+            showToast('success',
+                `Welcome to Procureline, ${firstName}!`,
+                `Your tenant account for ${institution} is being set up. Check your email for login instructions. Trial: 10 departments, 1 Procurement Officer for 14 days.`
+            );
+
+            // Reset form
+            document.getElementById('demoForm').reset();
+        }
+
+        // Toast notifications
+        function showToast(type, title, message = '') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            let icon = 'check';
+            if (type === 'error') icon = 'times';
+            if (type === 'warning') icon = 'exclamation';
+            if (type === 'info') icon = 'info';
+
+            toast.innerHTML = `
+                <div class="toast-icon">
+                    <i class="fas fa-${icon}"></i>
+                </div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    ${message ? `<div class="toast-message">${message}</div>` : ''}
+                </div>
+                <button class="modal-close" onclick="this.parentElement.remove()" style="width: 24px; height: 24px; font-size: 12px;">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+
+            container.appendChild(toast);
+
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                toast.style.animation = 'toastSlide 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+
+        // Scroll to top
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Animate compliance bars on scroll
+        function animateComplianceBars() {
+            const agpoBar = document.getElementById('agpoBar');
+            const pwdBar = document.getElementById('pwdBar');
+            const localBar = document.getElementById('localBar');
+
+            if (isElementInViewport(agpoBar)) {
+                agpoBar.style.width = '30%';
+                pwdBar.style.width = '2%';
+                localBar.style.width = '40%';
+            }
+        }
+
+        function isElementInViewport(el) {
+            const rect = el.getBoundingClientRect();
+            return (
+                rect.top >= 0 &&
+                rect.left >= 0 &&
+                rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+                rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+            );
+        }
+
+        window.addEventListener('scroll', animateComplianceBars);
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            animateComplianceBars();
+        });
+
+        // Pricing toggle (future implementation for monthly/annual toggle)
+        function togglePricing() {
+            // Reserved for future monthly pricing option
+        }
+
+        // Track demo button clicks (analytics placeholder)
+        document.querySelectorAll('[onclick*="openDemoModal"]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                console.log('Demo button clicked:', this.textContent.trim());
+                // Future: Send to analytics
+            });
+        });
+    </script>
+</body>
+</html>

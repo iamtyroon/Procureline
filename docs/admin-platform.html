@@ -1,0 +1,4385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procureline - Platform Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #18b969;
+            --primary-dark: #14a35d;
+            --primary-light: #e8f8f0;
+            --secondary: #1e293b;
+            --accent: #f59e0b;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --info: #3b82f6;
+            --gray-50: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --gray-400: #94a3b8;
+            --gray-500: #64748b;
+            --gray-600: #475569;
+            --gray-700: #334155;
+            --gray-800: #1e293b;
+            --gray-900: #0f172a;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--gray-100);
+            color: var(--gray-800);
+            line-height: 1.5;
+        }
+
+        /* Login Screen */
+        .login-screen {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--gray-900) 100%);
+            padding: 20px;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: var(--radius);
+            padding: 48px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .login-logo {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .login-logo h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--secondary);
+        }
+
+        .login-logo h1 span {
+            color: var(--primary);
+        }
+
+        .login-logo p {
+            color: var(--gray-500);
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        .login-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--gray-900);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 12px;
+        }
+
+        .login-badge i {
+            color: var(--accent);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-700);
+            margin-bottom: 8px;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--gray-700);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-300);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-info {
+            background: var(--info);
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #2563eb;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--gray-300);
+            color: var(--gray-700);
+        }
+
+        .btn-outline:hover {
+            background: var(--gray-100);
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+
+        .dev-tools {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px dashed var(--gray-300);
+        }
+
+        .dev-tools-title {
+            font-size: 12px;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .dev-btn {
+            width: 100%;
+            padding: 10px;
+            background: var(--gray-100);
+            border: 1px dashed var(--gray-300);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            color: var(--gray-600);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .dev-btn:hover {
+            background: var(--gray-200);
+            border-color: var(--gray-400);
+        }
+
+        /* App Layout */
+        .app-container {
+            display: none;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 260px;
+            background: var(--secondary);
+            color: white;
+            padding: 24px 0;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .sidebar-logo {
+            padding: 0 24px 24px;
+            border-bottom: 1px solid var(--gray-700);
+            margin-bottom: 24px;
+        }
+
+        .sidebar-logo h1 {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .sidebar-logo h1 span {
+            color: var(--primary);
+        }
+
+        .sidebar-logo p {
+            font-size: 11px;
+            color: var(--gray-400);
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .nav-section {
+            margin-bottom: 24px;
+        }
+
+        .nav-section-title {
+            padding: 0 24px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--gray-500);
+            margin-bottom: 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            color: var(--gray-400);
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .nav-item:hover {
+            background: var(--gray-800);
+            color: white;
+        }
+
+        .nav-item.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .nav-item i {
+            width: 20px;
+            text-align: center;
+        }
+
+        .main-content {
+            margin-left: 260px;
+            padding: 32px;
+            min-height: 100vh;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 32px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .page-subtitle {
+            font-size: 14px;
+            color: var(--gray-500);
+            margin-top: 4px;
+        }
+
+        /* Dashboard Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .stat-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .stat-card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .stat-card-icon.green {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .stat-card-icon.blue {
+            background: #dbeafe;
+            color: var(--info);
+        }
+
+        .stat-card-icon.amber {
+            background: #fef3c7;
+            color: var(--warning);
+        }
+
+        .stat-card-icon.red {
+            background: #fee2e2;
+            color: var(--danger);
+        }
+
+        .stat-card-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .stat-card-label {
+            font-size: 14px;
+            color: var(--gray-500);
+            margin-top: 4px;
+        }
+
+        .stat-card-trend {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        .stat-card-trend.up {
+            color: var(--success);
+        }
+
+        .stat-card-trend.down {
+            color: var(--danger);
+        }
+
+        /* Bento Grid */
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .bento-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .bento-card.span-2 {
+            grid-column: span 2;
+        }
+
+        .bento-card.span-3 {
+            grid-column: span 3;
+        }
+
+        .bento-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .bento-card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--gray-500);
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .data-table td {
+            padding: 16px;
+            border-bottom: 1px solid var(--gray-100);
+            font-size: 14px;
+        }
+
+        .data-table tr:hover {
+            background: var(--gray-50);
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Status Badges */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-badge.active {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
+        .status-badge.inactive {
+            background: var(--gray-200);
+            color: var(--gray-600);
+        }
+
+        .status-badge.pending {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .status-badge.paid {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
+        .status-badge.overdue {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .status-badge.trial {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        .status-badge.error {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .status-badge.warning {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .status-badge.healthy {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
+        /* Action Buttons */
+        .action-btns {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--gray-200);
+            background: white;
+            color: var(--gray-600);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: var(--gray-100);
+            color: var(--gray-900);
+        }
+
+        .action-btn.danger:hover {
+            background: #fee2e2;
+            color: var(--danger);
+            border-color: var(--danger);
+        }
+
+        .action-btn.warning:hover {
+            background: #fef3c7;
+            color: var(--warning);
+            border-color: var(--warning);
+        }
+
+        /* Views */
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        /* Search & Filters */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            gap: 16px;
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: white;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius-sm);
+            padding: 10px 16px;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .search-box i {
+            color: var(--gray-400);
+        }
+
+        .search-box input {
+            border: none;
+            outline: none;
+            font-size: 14px;
+            width: 100%;
+            font-family: inherit;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .filter-select {
+            padding: 10px 16px;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-family: inherit;
+            background: white;
+            cursor: pointer;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: var(--radius);
+            width: 100%;
+            max-width: 560px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .modal.large {
+            max-width: 800px;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .modal-close {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+            border: none;
+            background: var(--gray-100);
+            color: var(--gray-600);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: var(--gray-200);
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 24px;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        /* Form Grid */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .form-grid .form-group.full {
+            grid-column: span 2;
+        }
+
+        /* Health Indicators */
+        .health-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .health-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            background: var(--gray-50);
+            border-radius: var(--radius-sm);
+        }
+
+        .health-item-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .health-item-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .health-item-icon.green {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .health-item-icon.blue {
+            background: #dbeafe;
+            color: var(--info);
+        }
+
+        .health-item-icon.amber {
+            background: #fef3c7;
+            color: var(--warning);
+        }
+
+        .health-item-name {
+            font-weight: 500;
+            color: var(--gray-900);
+        }
+
+        .health-item-detail {
+            font-size: 13px;
+            color: var(--gray-500);
+        }
+
+        /* Revenue Chart Placeholder */
+        .chart-placeholder {
+            height: 200px;
+            background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--gray-400);
+            font-size: 14px;
+        }
+
+        /* Activity Feed */
+        .activity-feed {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .activity-item {
+            display: flex;
+            gap: 16px;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 14px;
+        }
+
+        .activity-icon.tenant {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .activity-icon.billing {
+            background: #dbeafe;
+            color: var(--info);
+        }
+
+        .activity-icon.user {
+            background: #fef3c7;
+            color: var(--warning);
+        }
+
+        .activity-icon.system {
+            background: var(--gray-200);
+            color: var(--gray-600);
+        }
+
+        .activity-icon.error {
+            background: #fee2e2;
+            color: var(--danger);
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-title {
+            font-weight: 500;
+            color: var(--gray-900);
+            margin-bottom: 4px;
+        }
+
+        .activity-desc {
+            font-size: 13px;
+            color: var(--gray-500);
+        }
+
+        .activity-time {
+            font-size: 12px;
+            color: var(--gray-400);
+            margin-top: 4px;
+        }
+
+        /* Tenant Detail Card */
+        .tenant-detail-card {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .tenant-detail-item {
+            padding: 20px;
+            background: var(--gray-50);
+            border-radius: var(--radius-sm);
+        }
+
+        .tenant-detail-label {
+            font-size: 12px;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .tenant-detail-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--gray-200);
+            padding-bottom: 0;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-500);
+            background: none;
+            border: none;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: var(--gray-700);
+        }
+
+        .tab.active {
+            color: var(--primary);
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary);
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            height: 8px;
+            background: var(--gray-200);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+
+        .progress-fill.warning {
+            background: var(--warning);
+        }
+
+        .progress-fill.danger {
+            background: var(--danger);
+        }
+
+        /* Avatar */
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .avatar.sm {
+            width: 28px;
+            height: 28px;
+            font-size: 11px;
+        }
+
+        /* User Header */
+        .user-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 24px;
+            border-top: 1px solid var(--gray-700);
+            margin-top: auto;
+        }
+
+        .user-info {
+            flex: 1;
+        }
+
+        .user-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: white;
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: var(--gray-400);
+        }
+
+        .logout-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+            border: none;
+            background: var(--gray-800);
+            color: var(--gray-400);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* Error Panel */
+        .error-panel {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .error-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .error-panel-title {
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .error-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+        .error-item:last-child {
+            border-bottom: none;
+        }
+
+        .error-severity {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .error-severity.critical {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .error-severity.warning {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .error-severity.info {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        .error-details {
+            flex: 1;
+        }
+
+        .error-message {
+            font-weight: 500;
+            color: var(--gray-900);
+            margin-bottom: 4px;
+        }
+
+        .error-meta {
+            font-size: 13px;
+            color: var(--gray-500);
+        }
+
+        /* Impersonation Banner */
+        .impersonation-banner {
+            display: none;
+            background: var(--warning);
+            color: white;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            position: fixed;
+            top: 0;
+            left: 260px;
+            right: 0;
+            z-index: 99;
+        }
+
+        .impersonation-banner.active {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .impersonation-banner .btn {
+            background: white;
+            color: var(--warning);
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 101;
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-sm);
+            background: var(--secondary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .sidebar.open {
+            transform: translateX(0);
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 99;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        /* Simple Bar Chart */
+        .simple-chart {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            height: 180px;
+            padding: 20px 10px 30px;
+            gap: 8px;
+        }
+
+        .chart-bar-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+            justify-content: flex-end;
+        }
+
+        .chart-bar {
+            width: 100%;
+            max-width: 40px;
+            background: linear-gradient(180deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: 4px 4px 0 0;
+            transition: height 0.5s ease;
+            position: relative;
+        }
+
+        .chart-bar:hover {
+            opacity: 0.8;
+        }
+
+        .chart-bar-value {
+            position: absolute;
+            top: -24px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--gray-700);
+            white-space: nowrap;
+        }
+
+        .chart-bar-label {
+            font-size: 11px;
+            color: var(--gray-500);
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        /* Line Chart */
+        .simple-line-chart {
+            height: 180px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .line-chart-area {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .line-chart-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            top: 0;
+            background: linear-gradient(180deg, rgba(24, 185, 105, 0.3) 0%, rgba(24, 185, 105, 0.05) 100%);
+            clip-path: polygon(0 80%, 15% 60%, 30% 70%, 45% 40%, 60% 50%, 75% 20%, 90% 30%, 100% 10%, 100% 100%, 0 100%);
+        }
+
+        .line-chart-line {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 100%;
+            border: none;
+            background: transparent;
+        }
+
+        .line-chart-line::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 100%;
+            border-top: 3px solid var(--primary);
+            clip-path: polygon(0 80%, 15% 60%, 30% 70%, 45% 40%, 60% 50%, 75% 20%, 90% 30%, 100% 10%);
+        }
+
+        .chart-legend {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 16px;
+        }
+
+        .chart-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--gray-600);
+        }
+
+        .chart-legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        /* Error Detail Modal */
+        .error-detail-content {
+            background: var(--gray-50);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            font-family: monospace;
+            font-size: 13px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .bento-grid {
+                grid-template-columns: 1fr;
+            }
+            .bento-card.span-2 {
+                grid-column: span 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-btn {
+                display: flex;
+            }
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            .main-content {
+                margin-left: 0;
+                padding-top: 70px;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+            .toolbar {
+                flex-direction: column;
+            }
+            .search-box {
+                max-width: none;
+            }
+            .filter-group {
+                width: 100%;
+                flex-wrap: wrap;
+            }
+            .filter-select {
+                flex: 1;
+                min-width: 120px;
+            }
+            .impersonation-banner {
+                left: 0;
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--gray-100);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--gray-300);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--gray-400);
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div class="login-screen" id="loginScreen">
+        <div class="login-container">
+            <div class="login-logo">
+                <h1>Procure<span>line</span></h1>
+                <p>Platform Administration</p>
+                <div class="login-badge">
+                    <i class="fas fa-shield-halved"></i>
+                    Super Admin Access
+                </div>
+            </div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="loginEmail" placeholder="admin@procureline.io" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" placeholder="Enter your password" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">
+                    <i class="fas fa-right-to-bracket"></i>
+                    Sign In to Platform Admin
+                </button>
+            </form>
+            <div class="dev-tools">
+                <div class="dev-tools-title">🛠 Dev Tools</div>
+                <button class="dev-btn" onclick="quickFillAdmin()">
+                    <i class="fas fa-bolt"></i> Quick Fill Platform Admin
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Menu Button -->
+    <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleMobileMenu()">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileMenu()"></div>
+
+    <!-- Impersonation Banner -->
+    <div class="impersonation-banner" id="impersonationBanner">
+        <span><i class="fas fa-user-secret"></i> You are impersonating: <strong id="impersonatingUser">-</strong></span>
+        <button class="btn" onclick="endImpersonation()">End Session</button>
+    </div>
+
+    <!-- App Container -->
+    <div class="app-container" id="appContainer">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <h1>Procure<span>line</span></h1>
+                <p>Platform Admin</p>
+            </div>
+
+            <nav>
+                <div class="nav-section">
+                    <div class="nav-section-title">Overview</div>
+                    <div class="nav-item active" onclick="showView('dashboard')">
+                        <i class="fas fa-chart-pie"></i>
+                        Dashboard
+                    </div>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Tenant Management</div>
+                    <div class="nav-item" onclick="showView('tenants')">
+                        <i class="fas fa-building-columns"></i>
+                        All Tenants
+                    </div>
+                    <div class="nav-item" onclick="showView('subscriptions')">
+                        <i class="fas fa-credit-card"></i>
+                        Subscriptions
+                    </div>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">User Management</div>
+                    <div class="nav-item" onclick="showView('tenant-admins')">
+                        <i class="fas fa-user-tie"></i>
+                        Tenant Admins
+                    </div>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Platform</div>
+                    <div class="nav-item" onclick="showView('analytics')">
+                        <i class="fas fa-chart-line"></i>
+                        Analytics
+                    </div>
+                    <div class="nav-item" onclick="showView('health')">
+                        <i class="fas fa-heart-pulse"></i>
+                        System Health
+                    </div>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Support</div>
+                    <div class="nav-item" onclick="showView('audit-logs')">
+                        <i class="fas fa-clock-rotate-left"></i>
+                        Audit Logs
+                    </div>
+                    <div class="nav-item" onclick="showView('errors')">
+                        <i class="fas fa-triangle-exclamation"></i>
+                        Error Monitor
+                    </div>
+                </div>
+            </nav>
+
+            <div class="user-header">
+                <div class="avatar">PA</div>
+                <div class="user-info">
+                    <div class="user-name">Platform Admin</div>
+                    <div class="user-role">Super Administrator</div>
+                </div>
+                <button class="logout-btn" onclick="logout()" title="Sign Out">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard View -->
+            <div class="view active" id="view-dashboard">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Platform Dashboard</h1>
+                        <p class="page-subtitle">Overview of all tenants and platform metrics</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="openModal('createTenantModal')">
+                        <i class="fas fa-plus"></i>
+                        Add Tenant
+                    </button>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon green">
+                                <i class="fas fa-building-columns"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value" id="totalTenants">12</div>
+                        <div class="stat-card-label">Total Tenants</div>
+                        <div class="stat-card-trend up">
+                            <i class="fas fa-arrow-up"></i> 2 this month
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon blue">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value" id="activeTenants">10</div>
+                        <div class="stat-card-label">Active Tenants</div>
+                        <div class="stat-card-trend up">
+                            <i class="fas fa-arrow-up"></i> 83% active
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon amber">
+                                <i class="fas fa-money-bill-wave"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value">KES 6.5M</div>
+                        <div class="stat-card-label">Annual Revenue (FY 24-25)</div>
+                        <div class="stat-card-trend up">
+                            <i class="fas fa-arrow-up"></i> +22% vs last FY
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon red">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value" id="overdueCount">2</div>
+                        <div class="stat-card-label">Overdue Payments</div>
+                        <div class="stat-card-trend down">
+                            <i class="fas fa-arrow-down"></i> Needs attention
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bento-grid">
+                    <div class="bento-card span-2">
+                        <div class="bento-card-header">
+                            <h3 class="bento-card-title">Recent Tenants</h3>
+                            <button class="btn btn-outline btn-sm" onclick="showView('tenants')">View All</button>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Institution</th>
+                                    <th>Plan</th>
+                                    <th>Status</th>
+                                    <th>Departments</th>
+                                    <th>Joined</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentTenantsTable">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="bento-card">
+                        <div class="bento-card-header">
+                            <h3 class="bento-card-title">System Health</h3>
+                            <span class="status-badge healthy"><i class="fas fa-circle"></i> All Systems Operational</span>
+                        </div>
+                        <div class="health-grid">
+                            <div class="health-item">
+                                <div class="health-item-info">
+                                    <div class="health-item-icon green">
+                                        <i class="fas fa-server"></i>
+                                    </div>
+                                    <div>
+                                        <div class="health-item-name">API Server</div>
+                                        <div class="health-item-detail">Response: 45ms</div>
+                                    </div>
+                                </div>
+                                <span class="status-badge healthy">Online</span>
+                            </div>
+                            <div class="health-item">
+                                <div class="health-item-info">
+                                    <div class="health-item-icon blue">
+                                        <i class="fas fa-database"></i>
+                                    </div>
+                                    <div>
+                                        <div class="health-item-name">Database</div>
+                                        <div class="health-item-detail">Load: 23%</div>
+                                    </div>
+                                </div>
+                                <span class="status-badge healthy">Online</span>
+                            </div>
+                            <div class="health-item">
+                                <div class="health-item-info">
+                                    <div class="health-item-icon amber">
+                                        <i class="fas fa-cloud"></i>
+                                    </div>
+                                    <div>
+                                        <div class="health-item-name">Storage</div>
+                                        <div class="health-item-detail">Used: 67%</div>
+                                    </div>
+                                </div>
+                                <span class="status-badge warning">Monitor</span>
+                            </div>
+                            <div class="health-item">
+                                <div class="health-item-info">
+                                    <div class="health-item-icon green">
+                                        <i class="fas fa-envelope"></i>
+                                    </div>
+                                    <div>
+                                        <div class="health-item-name">Email Service</div>
+                                        <div class="health-item-detail">Queue: 0</div>
+                                    </div>
+                                </div>
+                                <span class="status-badge healthy">Online</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bento-card span-3">
+                        <div class="bento-card-header">
+                            <h3 class="bento-card-title">Recent Activity</h3>
+                            <button class="btn btn-outline btn-sm" onclick="showView('audit-logs')">View All</button>
+                        </div>
+                        <div class="activity-feed" id="dashboardActivity">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tenants View -->
+            <div class="view" id="view-tenants">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">All Tenants</h1>
+                        <p class="page-subtitle">Manage university tenants on the platform</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="openModal('createTenantModal')">
+                        <i class="fas fa-plus"></i>
+                        Add Tenant
+                    </button>
+                </div>
+
+                <div class="toolbar">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Search tenants..." id="tenantSearch" oninput="filterTenants()">
+                    </div>
+                    <div class="filter-group">
+                        <select class="filter-select" id="tenantStatusFilter" onchange="filterTenants()">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="trial">Trial</option>
+                        </select>
+                        <select class="filter-select" id="tenantPlanFilter" onchange="filterTenants()">
+                            <option value="">All Plans</option>
+                            <option value="starter">Starter</option>
+                            <option value="professional">Professional</option>
+                            <option value="enterprise">Enterprise</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="bento-card">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Institution</th>
+                                <th>Tenant Admin</th>
+                                <th>Plan</th>
+                                <th>Status</th>
+                                <th>Departments</th>
+                                <th>Users</th>
+                                <th>Joined</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tenantsTableBody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Subscriptions View -->
+            <div class="view" id="view-subscriptions">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Subscriptions & Billing</h1>
+                        <p class="page-subtitle">Manage subscription plans and payment status</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="openGenerateInvoiceModal()">
+                        <i class="fas fa-file-invoice"></i>
+                        Generate Invoice
+                    </button>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon green">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value">8</div>
+                        <div class="stat-card-label">Paid Subscriptions</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon blue">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value">2</div>
+                        <div class="stat-card-label">Trial Period</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon red">
+                                <i class="fas fa-exclamation-circle"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value">2</div>
+                        <div class="stat-card-label">Overdue</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon amber">
+                                <i class="fas fa-coins"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value">KES 6.5M</div>
+                        <div class="stat-card-label">Annual Revenue (FY 24-25)</div>
+                    </div>
+                </div>
+
+                <div class="bento-card">
+                    <div class="bento-card-header">
+                        <h3 class="bento-card-title">Subscription Details</h3>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Institution</th>
+                                <th>Plan</th>
+                                <th>Amount</th>
+                                <th>Billing Cycle</th>
+                                <th>Payment Status</th>
+                                <th>Next Due</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="subscriptionsTableBody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="bento-grid" style="margin-top: 24px;">
+                    <div class="bento-card span-2">
+                        <div class="bento-card-header">
+                            <h3 class="bento-card-title">Recent Invoices</h3>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Invoice #</th>
+                                    <th>Institution</th>
+                                    <th>Amount</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoicesTableBody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="bento-card">
+                        <div class="bento-card-header">
+                            <h3 class="bento-card-title">Plan Distribution</h3>
+                        </div>
+                        <div style="padding: 20px 0;">
+                            <div style="margin-bottom: 16px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                    <span style="font-size: 14px; color: var(--gray-700);">Enterprise</span>
+                                    <span style="font-size: 14px; font-weight: 600;">4 tenants</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 33%;"></div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 16px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                    <span style="font-size: 14px; color: var(--gray-700);">Professional</span>
+                                    <span style="font-size: 14px; font-weight: 600;">5 tenants</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 42%; background: var(--info);"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                    <span style="font-size: 14px; color: var(--gray-700);">Starter</span>
+                                    <span style="font-size: 14px; font-weight: 600;">3 tenants</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 25%; background: var(--warning);"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tenant Admins View -->
+            <div class="view" id="view-tenant-admins">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Tenant Administrators</h1>
+                        <p class="page-subtitle">Manage all tenant admin users across the platform</p>
+                    </div>
+                </div>
+
+                <div class="toolbar">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Search tenant admins..." id="adminSearch" oninput="filterTenantAdmins()">
+                    </div>
+                </div>
+
+                <div class="bento-card">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Institution</th>
+                                <th>Status</th>
+                                <th>Last Login</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tenantAdminsTableBody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Analytics View -->
+            <div class="view" id="view-analytics">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Platform Analytics</h1>
+                        <p class="page-subtitle">Usage statistics and growth metrics</p>
+                    </div>
+                    <div class="filter-group">
+                        <select class="filter-select" id="analyticsTimeFilter" onchange="filterAnalytics()">
+                            <option value="30d">Last 30 Days</option>
+                            <option value="90d">Last 90 Days</option>
+                            <option value="12m">Last 12 Months</option>
+                            <option value="all">All Time</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon green">
+                                <i class="fas fa-users"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value">156</div>
+                        <div class="stat-card-label">Total Users</div>
+                        <div class="stat-card-trend up">
+                            <i class="fas fa-arrow-up"></i> +23 this month
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon blue">
+                                <i class="fas fa-file-invoice"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value">1,247</div>
+                        <div class="stat-card-label">Plans Created</div>
+                        <div class="stat-card-trend up">
+                            <i class="fas fa-arrow-up"></i> +89 this month
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon amber">
+                                <i class="fas fa-download"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value">3,892</div>
+                        <div class="stat-card-label">Excel Exports</div>
+                        <div class="stat-card-trend up">
+                            <i class="fas fa-arrow-up"></i> +156 this month
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon green">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value">99.9%</div>
+                        <div class="stat-card-label">Uptime</div>
+                        <div class="stat-card-trend up">
+                            <i class="fas fa-check"></i> Excellent
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bento-grid">
+                    <div class="bento-card span-2">
+                        <div class="bento-card-header">
+                            <h3 class="bento-card-title">Revenue Trend</h3>
+                        </div>
+                        <div class="simple-chart" id="revenueChart">
+                            <!-- Populated by JS -->
+                        </div>
+                        <div class="chart-legend">
+                            <div class="chart-legend-item">
+                                <div class="chart-legend-dot" style="background: var(--primary);"></div>
+                                Fiscal Year Revenue (KES)
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bento-card">
+                        <div class="bento-card-header">
+                            <h3 class="bento-card-title">User Growth</h3>
+                        </div>
+                        <div class="simple-line-chart">
+                            <div class="line-chart-area">
+                                <div class="line-chart-fill"></div>
+                                <div class="line-chart-line"></div>
+                            </div>
+                        </div>
+                        <div class="chart-legend">
+                            <div class="chart-legend-item">
+                                <div class="chart-legend-dot" style="background: var(--primary);"></div>
+                                Total Users
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bento-card span-3">
+                        <div class="bento-card-header">
+                            <h3 class="bento-card-title">Usage by Tenant</h3>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Institution</th>
+                                    <th>Active Users</th>
+                                    <th>Plans Created</th>
+                                    <th>Exports</th>
+                                    <th>API Calls</th>
+                                    <th>Storage Used</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usageTableBody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Health View -->
+            <div class="view" id="view-health">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">System Health</h1>
+                        <p class="page-subtitle">Monitor platform infrastructure and services</p>
+                    </div>
+                    <span class="status-badge healthy" style="font-size: 14px; padding: 8px 16px;">
+                        <i class="fas fa-circle"></i> All Systems Operational
+                    </span>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon green">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value">99.9%</div>
+                        <div class="stat-card-label">Uptime (30 days)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon blue">
+                                <i class="fas fa-bolt"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value">45ms</div>
+                        <div class="stat-card-label">Avg Response Time</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon amber">
+                                <i class="fas fa-hard-drive"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value">67%</div>
+                        <div class="stat-card-label">Storage Used</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon green">
+                                <i class="fas fa-microchip"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value">23%</div>
+                        <div class="stat-card-label">CPU Usage</div>
+                    </div>
+                </div>
+
+                <div class="bento-grid">
+                    <div class="bento-card span-2">
+                        <div class="bento-card-header">
+                            <h3 class="bento-card-title">Service Status</h3>
+                        </div>
+                        <div class="health-grid">
+                            <div class="health-item">
+                                <div class="health-item-info">
+                                    <div class="health-item-icon green"><i class="fas fa-server"></i></div>
+                                    <div>
+                                        <div class="health-item-name">API Server</div>
+                                        <div class="health-item-detail">api.procureline.io</div>
+                                    </div>
+                                </div>
+                                <span class="status-badge healthy">Operational</span>
+                            </div>
+                            <div class="health-item">
+                                <div class="health-item-info">
+                                    <div class="health-item-icon green"><i class="fas fa-database"></i></div>
+                                    <div>
+                                        <div class="health-item-name">PostgreSQL Database</div>
+                                        <div class="health-item-detail">Primary + 2 replicas</div>
+                                    </div>
+                                </div>
+                                <span class="status-badge healthy">Operational</span>
+                            </div>
+                            <div class="health-item">
+                                <div class="health-item-info">
+                                    <div class="health-item-icon green"><i class="fas fa-shield-halved"></i></div>
+                                    <div>
+                                        <div class="health-item-name">Authentication (Supabase)</div>
+                                        <div class="health-item-detail">auth.procureline.io</div>
+                                    </div>
+                                </div>
+                                <span class="status-badge healthy">Operational</span>
+                            </div>
+                            <div class="health-item">
+                                <div class="health-item-info">
+                                    <div class="health-item-icon amber"><i class="fas fa-cloud"></i></div>
+                                    <div>
+                                        <div class="health-item-name">File Storage</div>
+                                        <div class="health-item-detail">67% capacity used</div>
+                                    </div>
+                                </div>
+                                <span class="status-badge warning">Monitor</span>
+                            </div>
+                            <div class="health-item">
+                                <div class="health-item-info">
+                                    <div class="health-item-icon green"><i class="fas fa-envelope"></i></div>
+                                    <div>
+                                        <div class="health-item-name">Email Service</div>
+                                        <div class="health-item-detail">Resend API</div>
+                                    </div>
+                                </div>
+                                <span class="status-badge healthy">Operational</span>
+                            </div>
+                            <div class="health-item">
+                                <div class="health-item-info">
+                                    <div class="health-item-icon green"><i class="fas fa-credit-card"></i></div>
+                                    <div>
+                                        <div class="health-item-name">Payment Gateway</div>
+                                        <div class="health-item-detail">Stripe Integration</div>
+                                    </div>
+                                </div>
+                                <span class="status-badge healthy">Operational</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bento-card">
+                        <div class="bento-card-header">
+                            <h3 class="bento-card-title">Recent Incidents</h3>
+                        </div>
+                        <div style="padding: 20px 0; text-align: center; color: var(--gray-400);">
+                            <i class="fas fa-check-circle" style="font-size: 48px; margin-bottom: 16px; color: var(--primary);"></i>
+                            <p>No incidents in the last 30 days</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audit Logs View -->
+            <div class="view" id="view-audit-logs">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Audit Logs</h1>
+                        <p class="page-subtitle">Platform-wide activity and security logs</p>
+                    </div>
+                    <button class="btn btn-outline" onclick="exportAuditLogs()">
+                        <i class="fas fa-download"></i>
+                        Export Logs
+                    </button>
+                </div>
+
+                <div class="toolbar">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Search logs..." id="auditLogSearch" oninput="filterAuditLogs()">
+                    </div>
+                    <div class="filter-group">
+                        <select class="filter-select" id="auditLogTypeFilter" onchange="filterAuditLogs()">
+                            <option value="">All Types</option>
+                            <option value="tenant">Tenant</option>
+                            <option value="billing">Billing</option>
+                            <option value="user">User</option>
+                            <option value="system">System</option>
+                            <option value="error">Error</option>
+                        </select>
+                        <select class="filter-select" id="auditLogTimeFilter" onchange="filterAuditLogs()">
+                            <option value="">All Time</option>
+                            <option value="today">Today</option>
+                            <option value="week">This Week</option>
+                            <option value="month">This Month</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="bento-card">
+                    <div class="activity-feed" id="auditLogsFeed" style="max-height: none;">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Monitor View -->
+            <div class="view" id="view-errors">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Error Monitor</h1>
+                        <p class="page-subtitle">Track and resolve platform errors</p>
+                    </div>
+                    <div class="filter-group">
+                        <select class="filter-select" id="errorTimeFilter" onchange="filterErrors()">
+                            <option value="24h">Last 24 Hours</option>
+                            <option value="7d">Last 7 Days</option>
+                            <option value="30d">Last 30 Days</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon red">
+                                <i class="fas fa-times-circle"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value" id="criticalErrorCount">3</div>
+                        <div class="stat-card-label">Critical Errors</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon amber">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value" id="warningErrorCount">12</div>
+                        <div class="stat-card-label">Warnings</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon blue">
+                                <i class="fas fa-info-circle"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value" id="infoErrorCount">45</div>
+                        <div class="stat-card-label">Info Events</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon green">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value">97%</div>
+                        <div class="stat-card-label">Error-Free Rate</div>
+                    </div>
+                </div>
+
+                <div class="error-panel">
+                    <div class="error-panel-header">
+                        <span class="error-panel-title">Recent Errors (<span id="errorCount">0</span>)</span>
+                        <button class="btn btn-sm btn-outline" onclick="markAllErrorsResolved()">Mark All Resolved</button>
+                    </div>
+                    <div id="errorsList">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Create Tenant Modal -->
+    <div class="modal-overlay" id="createTenantModal">
+        <div class="modal large">
+            <div class="modal-header">
+                <h2 class="modal-title">Add New Tenant</h2>
+                <button class="modal-close" onclick="closeModal('createTenantModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label>Institution Name *</label>
+                        <input type="text" id="newTenantName" placeholder="e.g., University of Nairobi">
+                    </div>
+                    <div class="form-group">
+                        <label>Institution Type</label>
+                        <select id="newTenantType">
+                            <option value="public">Public University</option>
+                            <option value="private">Private University</option>
+                            <option value="college">Technical College</option>
+                            <option value="polytechnic">Polytechnic</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Subscription Plan *</label>
+                        <select id="newTenantPlan">
+                            <option value="starter">Starter - KES 50,000/mo</option>
+                            <option value="professional">Professional - KES 150,000/mo</option>
+                            <option value="enterprise">Enterprise - KES 300,000/mo</option>
+                        </select>
+                    </div>
+                    <div class="form-group full" style="border-top: 1px solid var(--gray-200); padding-top: 20px; margin-top: 10px;">
+                        <label style="font-weight: 600; color: var(--gray-900);">Tenant Administrator</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Admin Name *</label>
+                        <input type="text" id="newAdminName" placeholder="Full name">
+                    </div>
+                    <div class="form-group">
+                        <label>Admin Email *</label>
+                        <input type="email" id="newAdminEmail" placeholder="admin@university.ac.ke">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <input type="tel" id="newAdminPhone" placeholder="+254 7XX XXX XXX">
+                    </div>
+                    <div class="form-group">
+                        <label>Initial Status</label>
+                        <select id="newTenantStatus">
+                            <option value="trial">Trial (14 days)</option>
+                            <option value="active">Active</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('createTenantModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="createTenant()">
+                    <i class="fas fa-plus"></i>
+                    Create Tenant
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Tenant Modal -->
+    <div class="modal-overlay" id="editTenantModal">
+        <div class="modal large">
+            <div class="modal-header">
+                <h2 class="modal-title">Edit Tenant</h2>
+                <button class="modal-close" onclick="closeModal('editTenantModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label>Institution Name</label>
+                        <input type="text" id="editTenantName">
+                    </div>
+                    <div class="form-group">
+                        <label>Institution Type</label>
+                        <select id="editTenantType">
+                            <option value="public">Public University</option>
+                            <option value="private">Private University</option>
+                            <option value="college">Technical College</option>
+                            <option value="polytechnic">Polytechnic</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Subscription Plan</label>
+                        <select id="editTenantPlan">
+                            <option value="starter">Starter</option>
+                            <option value="professional">Professional</option>
+                            <option value="enterprise">Enterprise</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="editTenantStatus">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="trial">Trial</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('editTenantModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveTenantEdit()">
+                    <i class="fas fa-save"></i>
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Tenant Modal -->
+    <div class="modal-overlay" id="viewTenantModal">
+        <div class="modal large">
+            <div class="modal-header">
+                <h2 class="modal-title" id="viewTenantTitle">Tenant Details</h2>
+                <button class="modal-close" onclick="closeModal('viewTenantModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="tenant-detail-card" id="viewTenantDetails">
+                    <!-- Populated by JS -->
+                </div>
+                <div class="tabs" id="tenantDetailTabs">
+                    <button class="tab active" onclick="switchTenantTab('overview')">Overview</button>
+                    <button class="tab" onclick="switchTenantTab('users')">Users</button>
+                    <button class="tab" onclick="switchTenantTab('billing')">Billing</button>
+                    <button class="tab" onclick="switchTenantTab('activity')">Activity</button>
+                </div>
+                <div id="viewTenantContent">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('viewTenantModal')">Close</button>
+                <button class="btn btn-info" onclick="impersonateTenant()">
+                    <i class="fas fa-user-secret"></i>
+                    Impersonate Admin
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Impersonate Confirmation Modal -->
+    <div class="modal-overlay" id="impersonateModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">Confirm Impersonation</h2>
+                <button class="modal-close" onclick="closeModal('impersonateModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="text-align: center; padding: 20px 0;">
+                    <div style="width: 64px; height: 64px; background: #fef3c7; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                        <i class="fas fa-user-secret" style="font-size: 28px; color: var(--warning);"></i>
+                    </div>
+                    <h3 style="margin-bottom: 12px; color: var(--gray-900);">Impersonate Tenant Admin?</h3>
+                    <p style="color: var(--gray-500); font-size: 14px;">You will be logged in as <strong id="impersonateAdminName">-</strong> from <strong id="impersonateTenantName">-</strong>. All actions will be logged.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('impersonateModal')">Cancel</button>
+                <button class="btn btn-warning" onclick="confirmImpersonation()">
+                    <i class="fas fa-user-secret"></i>
+                    Start Impersonation
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset Password Modal -->
+    <div class="modal-overlay" id="resetPasswordModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">Reset Password</h2>
+                <button class="modal-close" onclick="closeModal('resetPasswordModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="text-align: center; padding: 20px 0;">
+                    <div style="width: 64px; height: 64px; background: #dbeafe; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                        <i class="fas fa-key" style="font-size: 28px; color: var(--info);"></i>
+                    </div>
+                    <h3 style="margin-bottom: 12px; color: var(--gray-900);">Send Password Reset?</h3>
+                    <p style="color: var(--gray-500); font-size: 14px;">A password reset link will be sent to <strong id="resetPasswordEmail">-</strong></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('resetPasswordModal')">Cancel</button>
+                <button class="btn btn-info" onclick="sendPasswordReset()">
+                    <i class="fas fa-paper-plane"></i>
+                    Send Reset Link
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Detail Modal -->
+    <div class="modal-overlay" id="errorDetailModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">Error Details</h2>
+                <button class="modal-close" onclick="closeModal('errorDetailModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px;">
+                    <span class="error-severity" id="errorDetailSeverity">Critical</span>
+                    <span style="margin-left: 12px; color: var(--gray-500); font-size: 13px;" id="errorDetailTime">2 hours ago</span>
+                </div>
+                <h3 style="margin-bottom: 12px; color: var(--gray-900);" id="errorDetailMessage">Error Message</h3>
+                <p style="color: var(--gray-500); font-size: 14px; margin-bottom: 20px;" id="errorDetailMeta">Tenant info and occurrence count</p>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px;">Stack Trace</label>
+                    <div class="error-detail-content" id="errorDetailStack">
+Error: Database connection timeout
+    at ConnectionPool.getConnection (db.js:156)
+    at async QueryExecutor.execute (query.js:89)
+    at async TenantService.getData (tenant.js:234)
+    at async APIHandler.handle (api.js:67)
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('errorDetailModal')">Close</button>
+                <button class="btn btn-primary" onclick="markCurrentErrorResolved()">
+                    <i class="fas fa-check"></i>
+                    Mark Resolved
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoice View Modal -->
+    <div class="modal-overlay" id="invoiceViewModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="invoiceViewTitle">Invoice Details</h2>
+                <button class="modal-close" onclick="closeModal('invoiceViewModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="invoiceViewContent">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('invoiceViewModal')">Close</button>
+                <button class="btn btn-primary" onclick="downloadInvoice()">
+                    <i class="fas fa-download"></i>
+                    Download PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Admin Modal -->
+    <div class="modal-overlay" id="editAdminModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">Edit Administrator</h2>
+                <button class="modal-close" onclick="closeModal('editAdminModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="editAdminName" placeholder="Full name">
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="editAdminEmail" placeholder="admin@university.ac.ke">
+                </div>
+                <div class="form-group">
+                    <label>Institution</label>
+                    <input type="text" id="editAdminInstitution" disabled style="background: var(--gray-100);">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('editAdminModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveAdminEdit()">
+                    <i class="fas fa-save"></i>
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Tenant Confirmation Modal -->
+    <div class="modal-overlay" id="deleteTenantModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">Delete Tenant</h2>
+                <button class="modal-close" onclick="closeModal('deleteTenantModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="text-align: center; padding: 20px 0;">
+                    <div style="width: 64px; height: 64px; background: #fee2e2; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                        <i class="fas fa-trash" style="font-size: 28px; color: var(--danger);"></i>
+                    </div>
+                    <h3 style="margin-bottom: 12px; color: var(--gray-900);">Delete Tenant Permanently?</h3>
+                    <p style="color: var(--gray-500); font-size: 14px;">This will permanently delete <strong id="deleteTenantName">-</strong> and all associated data. This action cannot be undone.</p>
+                </div>
+                <div class="form-group" style="margin-top: 20px;">
+                    <label>Type the institution name to confirm:</label>
+                    <input type="text" id="deleteTenantConfirm" placeholder="Enter institution name">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('deleteTenantModal')">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmDeleteTenant()">
+                    <i class="fas fa-trash"></i>
+                    Delete Permanently
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Send Reminder Modal -->
+    <div class="modal-overlay" id="sendReminderModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">Send Payment Reminder</h2>
+                <button class="modal-close" onclick="closeModal('sendReminderModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="text-align: center; padding: 20px 0;">
+                    <div style="width: 64px; height: 64px; background: #fef3c7; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                        <i class="fas fa-bell" style="font-size: 28px; color: var(--warning);"></i>
+                    </div>
+                    <h3 style="margin-bottom: 12px; color: var(--gray-900);">Send Payment Reminder?</h3>
+                    <p style="color: var(--gray-500); font-size: 14px;">A payment reminder email will be sent to the administrator of <strong id="reminderTenantName">-</strong></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('sendReminderModal')">Cancel</button>
+                <button class="btn btn-warning" onclick="confirmSendReminder()">
+                    <i class="fas fa-paper-plane"></i>
+                    Send Reminder
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generate Invoice Modal -->
+    <div class="modal-overlay" id="generateInvoiceModal">
+        <div class="modal" style="max-width: 560px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Generate Invoice</h2>
+                <button class="modal-close" onclick="closeModal('generateInvoiceModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="generateInvoiceForm">
+                    <div class="form-group">
+                        <label class="form-label">Select Tenant *</label>
+                        <select class="form-input" id="invoiceTenantSelect" required>
+                            <option value="">Choose a tenant...</option>
+                        </select>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div class="form-group">
+                            <label class="form-label">Fiscal Year *</label>
+                            <select class="form-input" id="invoiceFiscalYear" required>
+                                <option value="2024-25">FY 2024-25 (Jul 2024 - Jun 2025)</option>
+                                <option value="2025-26">FY 2025-26 (Jul 2025 - Jun 2026)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Due Date *</label>
+                            <input type="date" class="form-input" id="invoiceDueDate" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">LPO Reference</label>
+                        <input type="text" class="form-input" id="invoiceLpoReference" placeholder="e.g. UON/FIN/2024/0234">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <input type="text" class="form-input" id="invoiceDescription" placeholder="e.g. Professional Plan - Annual Subscription FY 2024-25">
+                    </div>
+
+                    <!-- Invoice Preview -->
+                    <div id="invoicePreview" style="display: none; background: var(--gray-50); border-radius: 8px; padding: 16px; margin-top: 8px;">
+                        <div style="font-weight: 600; color: var(--gray-700); margin-bottom: 12px;">Invoice Preview</div>
+                        <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; font-size: 14px;">
+                            <span>Subtotal (Annual Plan):</span>
+                            <span id="previewSubtotal" style="text-align: right;">-</span>
+                            <span>VAT (16%):</span>
+                            <span id="previewVat" style="text-align: right;">-</span>
+                            <span style="font-weight: 600; border-top: 1px solid var(--gray-300); padding-top: 8px;">Total:</span>
+                            <span id="previewTotal" style="text-align: right; font-weight: 600; border-top: 1px solid var(--gray-300); padding-top: 8px;">-</span>
+                            <span id="whtLabel" style="color: var(--amber-600);">WHT (5%) - Govt Institution:</span>
+                            <span id="previewWht" style="text-align: right; color: var(--amber-600);">-</span>
+                            <span style="font-weight: 700; color: var(--primary); font-size: 16px; border-top: 2px solid var(--primary); padding-top: 8px;">Net Payable:</span>
+                            <span id="previewNetPayable" style="text-align: right; font-weight: 700; color: var(--primary); font-size: 16px; border-top: 2px solid var(--primary); padding-top: 8px;">-</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 16px;">
+                        <label class="form-label">Additional Notes</label>
+                        <textarea class="form-input" id="invoiceNotes" rows="2" placeholder="Optional notes to include in the invoice..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="sendInvoiceImmediately" checked style="width: 16px; height: 16px;">
+                            <span style="font-size: 14px; color: var(--gray-700);">Send invoice to tenant immediately</span>
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('generateInvoiceModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="generateInvoice()">
+                    <i class="fas fa-file-invoice"></i>
+                    Generate Invoice
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Send Invoice Modal -->
+    <div class="modal-overlay" id="sendInvoiceModal">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Send Invoice</h2>
+                <button class="modal-close" onclick="closeModal('sendInvoiceModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="text-align: center; padding: 20px 0;">
+                    <div style="width: 64px; height: 64px; background: #dbeafe; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                        <i class="fas fa-paper-plane" style="font-size: 28px; color: var(--primary);"></i>
+                    </div>
+                    <h3 style="margin-bottom: 12px; color: var(--gray-900);">Send Invoice <span id="sendInvoiceId">-</span>?</h3>
+                    <p style="color: var(--gray-500); font-size: 14px; margin-bottom: 16px;">
+                        This invoice will be emailed to the administrator of <strong id="sendInvoiceTenant">-</strong>
+                    </p>
+                    <div style="background: var(--gray-50); padding: 16px; border-radius: var(--radius-sm); margin-bottom: 16px;">
+                        <div style="font-size: 12px; color: var(--gray-500);">Invoice Amount</div>
+                        <div style="font-size: 24px; font-weight: 700; color: var(--primary);" id="sendInvoiceAmount">-</div>
+                    </div>
+                    <div class="form-group" style="text-align: left;">
+                        <label class="form-label">Additional Message (optional)</label>
+                        <textarea class="form-input" id="invoiceEmailMessage" rows="2" placeholder="Add a personalized message to the email..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('sendInvoiceModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmSendInvoice()">
+                    <i class="fas fa-paper-plane"></i>
+                    Send Invoice
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoice Sent Success Modal -->
+    <div class="modal-overlay" id="invoiceSentModal">
+        <div class="modal" style="max-width: 420px;">
+            <div class="modal-body">
+                <div style="text-align: center; padding: 40px 20px;">
+                    <div style="width: 80px; height: 80px; background: #dcfce7; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
+                        <i class="fas fa-check" style="font-size: 36px; color: var(--primary);"></i>
+                    </div>
+                    <h3 style="margin-bottom: 12px; color: var(--gray-900); font-size: 20px;">Invoice Sent Successfully!</h3>
+                    <p style="color: var(--gray-500); font-size: 14px;" id="invoiceSentMessage">The invoice has been emailed to the tenant administrator.</p>
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: center; border-top: none; padding-top: 0;">
+                <button class="btn btn-primary" onclick="closeModal('invoiceSentModal')">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== Mock Data ====================
+        const appData = {
+            platformAdmin: {
+                name: 'Platform Admin',
+                email: 'admin@procureline.io',
+                role: 'Super Administrator'
+            },
+            // Billing aligned to Kenya Fiscal Year (July 1 - June 30)
+            // Annual Pricing: Starter KES 500K, Professional KES 1.2M, Enterprise KES 2.4M
+            fiscalYear: '2024-25', // Current FY: July 1, 2024 - June 30, 2025
+            vatRate: 0.16, // 16% VAT
+            whtRate: 0.05, // 5% Withholding Tax for govt institutions
+            tenants: [
+                {
+                    id: 'T001',
+                    name: 'University of Nairobi',
+                    type: 'public',
+                    status: 'active',
+                    plan: 'enterprise',
+                    planAmount: 2400000, // Annual: KES 2.4M
+                    billingCycle: 'annual',
+                    paymentStatus: 'paid',
+                    fiscalYear: '2024-25',
+                    nextDue: '2025-06-30', // Fiscal year end
+                    departments: 24,
+                    users: 48,
+                    joined: '2024-07-01',
+                    admin: { name: 'Dr. James Mwangi', email: 'j.mwangi@uonbi.ac.ke', lastLogin: '2025-01-02' },
+                    usage: { plans: 156, exports: 423, apiCalls: 12500, storage: '2.4 GB' }
+                },
+                {
+                    id: 'T002',
+                    name: 'Kenyatta University',
+                    type: 'public',
+                    status: 'active',
+                    plan: 'enterprise',
+                    planAmount: 2400000,
+                    billingCycle: 'annual',
+                    paymentStatus: 'paid',
+                    fiscalYear: '2024-25',
+                    nextDue: '2025-06-30',
+                    departments: 18,
+                    users: 36,
+                    joined: '2024-07-20',
+                    admin: { name: 'Prof. Sarah Kimani', email: 's.kimani@ku.ac.ke', lastLogin: '2025-01-03' },
+                    usage: { plans: 134, exports: 356, apiCalls: 9800, storage: '1.8 GB' }
+                },
+                {
+                    id: 'T003',
+                    name: 'Moi University',
+                    type: 'public',
+                    status: 'active',
+                    plan: 'professional',
+                    planAmount: 1200000, // Annual: KES 1.2M
+                    billingCycle: 'annual',
+                    paymentStatus: 'overdue',
+                    fiscalYear: '2024-25',
+                    nextDue: '2025-06-30',
+                    departments: 15,
+                    users: 30,
+                    joined: '2024-08-10',
+                    admin: { name: 'Dr. Peter Cheruiyot', email: 'p.cheruiyot@mu.ac.ke', lastLogin: '2024-12-28' },
+                    usage: { plans: 98, exports: 245, apiCalls: 6500, storage: '1.2 GB' }
+                },
+                {
+                    id: 'T004',
+                    name: 'Strathmore University',
+                    type: 'private',
+                    status: 'active',
+                    plan: 'professional',
+                    planAmount: 1200000,
+                    billingCycle: 'annual',
+                    paymentStatus: 'paid',
+                    fiscalYear: '2024-25',
+                    nextDue: '2025-06-30',
+                    departments: 12,
+                    users: 24,
+                    joined: '2024-09-01',
+                    admin: { name: 'Ms. Grace Wanjiku', email: 'g.wanjiku@strathmore.edu', lastLogin: '2025-01-02' },
+                    usage: { plans: 87, exports: 198, apiCalls: 5200, storage: '0.9 GB' }
+                },
+                {
+                    id: 'T005',
+                    name: 'JKUAT',
+                    type: 'public',
+                    status: 'active',
+                    plan: 'enterprise',
+                    planAmount: 2400000,
+                    billingCycle: 'annual',
+                    paymentStatus: 'paid',
+                    fiscalYear: '2024-25',
+                    nextDue: '2025-06-30',
+                    departments: 20,
+                    users: 40,
+                    joined: '2024-07-01',
+                    admin: { name: 'Dr. Alice Njeri', email: 'a.njeri@jkuat.ac.ke', lastLogin: '2025-01-01' },
+                    usage: { plans: 145, exports: 387, apiCalls: 11200, storage: '2.1 GB' }
+                },
+                {
+                    id: 'T006',
+                    name: 'Egerton University',
+                    type: 'public',
+                    status: 'active',
+                    plan: 'professional',
+                    planAmount: 1200000,
+                    billingCycle: 'annual',
+                    paymentStatus: 'paid',
+                    fiscalYear: '2024-25',
+                    nextDue: '2025-06-30',
+                    departments: 14,
+                    users: 28,
+                    joined: '2024-10-15',
+                    admin: { name: 'Mr. John Odhiambo', email: 'j.odhiambo@egerton.ac.ke', lastLogin: '2024-12-30' },
+                    usage: { plans: 76, exports: 167, apiCalls: 4800, storage: '0.8 GB' }
+                },
+                {
+                    id: 'T007',
+                    name: 'Maseno University',
+                    type: 'public',
+                    status: 'trial',
+                    plan: 'professional',
+                    planAmount: 1200000,
+                    billingCycle: 'annual',
+                    paymentStatus: 'trial',
+                    fiscalYear: '2024-25',
+                    trialEnds: '2025-01-20',
+                    nextDue: '2025-06-30',
+                    departments: 10,
+                    users: 15,
+                    joined: '2025-01-06',
+                    admin: { name: 'Dr. Ruth Otieno', email: 'r.otieno@maseno.ac.ke', lastLogin: '2025-01-03' },
+                    usage: { plans: 12, exports: 0, apiCalls: 450, storage: '0.1 GB' } // No exports in trial
+                },
+                {
+                    id: 'T008',
+                    name: 'Technical University of Kenya',
+                    type: 'public',
+                    status: 'active',
+                    plan: 'starter',
+                    planAmount: 500000, // Annual: KES 500K
+                    billingCycle: 'annual',
+                    paymentStatus: 'paid',
+                    fiscalYear: '2024-25',
+                    nextDue: '2025-06-30',
+                    departments: 8,
+                    users: 12,
+                    joined: '2024-11-01',
+                    admin: { name: 'Eng. Michael Kamau', email: 'm.kamau@tukenya.ac.ke', lastLogin: '2024-12-29' },
+                    usage: { plans: 45, exports: 89, apiCalls: 2100, storage: '0.4 GB' }
+                },
+                {
+                    id: 'T009',
+                    name: 'Mount Kenya University',
+                    type: 'private',
+                    status: 'active',
+                    plan: 'professional',
+                    planAmount: 1200000,
+                    billingCycle: 'annual',
+                    paymentStatus: 'overdue',
+                    fiscalYear: '2024-25',
+                    nextDue: '2025-06-30',
+                    departments: 16,
+                    users: 32,
+                    joined: '2024-08-25',
+                    admin: { name: 'Dr. Francis Gitau', email: 'f.gitau@mku.ac.ke', lastLogin: '2024-12-25' },
+                    usage: { plans: 92, exports: 213, apiCalls: 5900, storage: '1.1 GB' }
+                },
+                {
+                    id: 'T010',
+                    name: 'Pwani University',
+                    type: 'public',
+                    status: 'active',
+                    plan: 'starter',
+                    planAmount: 500000,
+                    billingCycle: 'annual',
+                    paymentStatus: 'paid',
+                    fiscalYear: '2024-25',
+                    nextDue: '2025-06-30',
+                    departments: 6,
+                    users: 10,
+                    joined: '2024-12-01',
+                    admin: { name: 'Ms. Fatuma Hassan', email: 'f.hassan@pu.ac.ke', lastLogin: '2025-01-02' },
+                    usage: { plans: 23, exports: 45, apiCalls: 980, storage: '0.2 GB' }
+                },
+                {
+                    id: 'T011',
+                    name: 'Dedan Kimathi University',
+                    type: 'public',
+                    status: 'trial',
+                    plan: 'starter',
+                    planAmount: 500000,
+                    billingCycle: 'annual',
+                    paymentStatus: 'trial',
+                    fiscalYear: '2024-25',
+                    trialEnds: '2025-01-25',
+                    nextDue: '2025-06-30',
+                    departments: 5,
+                    users: 8,
+                    joined: '2025-01-11',
+                    admin: { name: 'Dr. Patrick Muturi', email: 'p.muturi@dkut.ac.ke', lastLogin: '2025-01-03' },
+                    usage: { plans: 5, exports: 0, apiCalls: 120, storage: '0.05 GB' }
+                },
+                {
+                    id: 'T012',
+                    name: 'Multimedia University',
+                    type: 'private',
+                    status: 'inactive',
+                    plan: 'professional',
+                    planAmount: 1200000,
+                    billingCycle: 'annual',
+                    paymentStatus: 'lapsed',
+                    fiscalYear: '2023-24',
+                    nextDue: '-',
+                    departments: 9,
+                    users: 18,
+                    joined: '2023-07-01',
+                    admin: { name: 'Mr. David Kiprop', email: 'd.kiprop@mmu.ac.ke', lastLogin: '2024-10-15' },
+                    usage: { plans: 67, exports: 134, apiCalls: 3400, storage: '0.6 GB' }
+                }
+            ],
+            // Invoice structure per BILLING-SYSTEM.md
+            // Amounts include: subtotal + VAT (16%) - WHT (5% for govt institutions)
+            invoices: [
+                {
+                    id: 'INV-2024-001',
+                    tenant: 'University of Nairobi',
+                    tenantType: 'public',
+                    fiscalYear: '2024-25',
+                    subtotal: 2400000,
+                    vat: 384000, // 16%
+                    wht: 139200, // 5% (govt institution)
+                    total: 2784000, // subtotal + VAT
+                    netPayable: 2644800, // total - WHT
+                    date: '2024-07-01',
+                    dueDate: '2024-07-15',
+                    status: 'paid',
+                    lpoReference: 'UON/FIN/2024/0234'
+                },
+                {
+                    id: 'INV-2024-002',
+                    tenant: 'Kenyatta University',
+                    tenantType: 'public',
+                    fiscalYear: '2024-25',
+                    subtotal: 2400000,
+                    vat: 384000,
+                    wht: 139200,
+                    total: 2784000,
+                    netPayable: 2644800,
+                    date: '2024-07-15',
+                    dueDate: '2024-08-01',
+                    status: 'paid',
+                    lpoReference: 'KU/PROC/2024/0156'
+                },
+                {
+                    id: 'INV-2024-003',
+                    tenant: 'Moi University',
+                    tenantType: 'public',
+                    fiscalYear: '2024-25',
+                    subtotal: 1200000,
+                    vat: 192000,
+                    wht: 69600,
+                    total: 1392000,
+                    netPayable: 1322400,
+                    date: '2024-08-10',
+                    dueDate: '2024-09-10',
+                    status: 'overdue',
+                    lpoReference: 'MU/FIN/2024/0089'
+                },
+                {
+                    id: 'INV-2024-004',
+                    tenant: 'Strathmore University',
+                    tenantType: 'private',
+                    fiscalYear: '2024-25',
+                    subtotal: 1200000,
+                    vat: 192000,
+                    wht: 0, // Private - no WHT
+                    total: 1392000,
+                    netPayable: 1392000,
+                    date: '2024-09-01',
+                    dueDate: '2024-09-15',
+                    status: 'paid',
+                    lpoReference: 'STR/2024/0078'
+                },
+                {
+                    id: 'INV-2024-005',
+                    tenant: 'Mount Kenya University',
+                    tenantType: 'private',
+                    fiscalYear: '2024-25',
+                    subtotal: 1200000,
+                    vat: 192000,
+                    wht: 0,
+                    total: 1392000,
+                    netPayable: 1392000,
+                    date: '2024-08-25',
+                    dueDate: '2024-09-10',
+                    status: 'overdue',
+                    lpoReference: 'MKU/PROC/2024/0234'
+                },
+                {
+                    id: 'INV-2024-006',
+                    tenant: 'JKUAT',
+                    tenantType: 'public',
+                    fiscalYear: '2024-25',
+                    subtotal: 2400000,
+                    vat: 384000,
+                    wht: 139200,
+                    total: 2784000,
+                    netPayable: 2644800,
+                    date: '2024-07-01',
+                    dueDate: '2024-07-15',
+                    status: 'paid',
+                    lpoReference: 'JKUAT/FIN/2024/0112'
+                }
+            ],
+            activityLog: [
+                { type: 'tenant', title: 'New tenant onboarded', desc: 'Dedan Kimathi University started 14-day trial', time: '2 hours ago', timeValue: 2 },
+                { type: 'billing', title: 'Payment received', desc: 'University of Nairobi - FY 2024-25 - KES 2,644,800', time: '5 hours ago', timeValue: 5 },
+                { type: 'user', title: 'Password reset requested', desc: 'Dr. Peter Cheruiyot (Moi University)', time: '8 hours ago', timeValue: 8 },
+                { type: 'system', title: 'System backup completed', desc: 'Daily backup successful - 45.2 GB', time: '12 hours ago', timeValue: 12 },
+                { type: 'error', title: 'Payment webhook failed', desc: 'Kenyatta University - Retrying...', time: '1 day ago', timeValue: 24 },
+                { type: 'tenant', title: 'Subscription upgraded', desc: 'Strathmore University: Starter → Professional', time: '2 days ago', timeValue: 48 },
+                { type: 'billing', title: 'Invoice generated', desc: 'JKUAT - January 2025', time: '3 days ago', timeValue: 72 },
+                { type: 'user', title: 'New admin created', desc: 'Ms. Fatuma Hassan - Pwani University', time: '4 days ago', timeValue: 96 },
+                { type: 'tenant', title: 'Tenant deactivated', desc: 'Multimedia University - Non-payment', time: '5 days ago', timeValue: 120 },
+                { type: 'system', title: 'Platform maintenance', desc: 'Scheduled maintenance completed', time: '1 week ago', timeValue: 168 }
+            ],
+            errors: [
+                { id: 'E001', severity: 'critical', message: 'Database connection timeout', tenant: 'University of Nairobi', occurrences: 3, time: '2 hours ago', timeValue: 2, resolved: false, stack: 'Error: Database connection timeout\n    at ConnectionPool.getConnection (db.js:156)\n    at async QueryExecutor.execute (query.js:89)\n    at async TenantService.getData (tenant.js:234)\n    at async APIHandler.handle (api.js:67)' },
+                { id: 'E002', severity: 'critical', message: 'Payment webhook failed', tenant: 'Kenyatta University', occurrences: 1, time: '5 hours ago', timeValue: 5, resolved: false, stack: 'Error: Payment webhook failed\n    at WebhookHandler.process (webhook.js:45)\n    at async PaymentService.notify (payment.js:123)\n    at async BillingController.handlePayment (billing.js:89)' },
+                { id: 'E003', severity: 'warning', message: 'Slow API response (>2s)', tenant: 'Global', occurrences: 8, time: '1 hour ago', timeValue: 1, resolved: false, stack: 'Warning: Slow API response detected\n    Response time: 2.4s\n    Endpoint: /api/v1/procurement/plans\n    Threshold: 2.0s' },
+                { id: 'E004', severity: 'warning', message: 'Email delivery delayed', tenant: 'Moi University', occurrences: 4, time: '3 hours ago', timeValue: 3, resolved: false, stack: 'Warning: Email delivery delayed\n    Queue position: 156\n    Expected delay: 15 minutes\n    Service: Resend API' },
+                { id: 'E005', severity: 'info', message: 'Storage threshold reached (65%)', tenant: 'Global', occurrences: 1, time: 'Ongoing', timeValue: 0, resolved: false, stack: 'Info: Storage threshold warning\n    Current usage: 65%\n    Total capacity: 500 GB\n    Used: 325 GB\n    Threshold: 60%' }
+            ],
+            revenueData: [
+                { month: 'Aug', value: 1800000 },
+                { month: 'Sep', value: 2000000 },
+                { month: 'Oct', value: 2100000 },
+                { month: 'Nov', value: 2250000 },
+                { month: 'Dec', value: 2300000 },
+                { month: 'Jan', value: 2400000 }
+            ],
+            selectedTenant: null,
+            selectedError: null,
+            selectedInvoice: null,
+            impersonating: null
+        };
+
+        // ==================== Authentication ====================
+        function quickFillAdmin() {
+            document.getElementById('loginEmail').value = 'admin@procureline.io';
+            document.getElementById('loginPassword').value = 'superadmin123';
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            login();
+        });
+
+        function login() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('appContainer').style.display = 'block';
+            renderDashboard();
+        }
+
+        function logout() {
+            document.getElementById('appContainer').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('loginEmail').value = '';
+            document.getElementById('loginPassword').value = '';
+        }
+
+        // ==================== Navigation ====================
+        function showView(viewId) {
+            // Update nav items
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            // Update views
+            document.querySelectorAll('.view').forEach(view => view.classList.remove('active'));
+            document.getElementById('view-' + viewId).classList.add('active');
+
+            // Render view-specific content
+            switch(viewId) {
+                case 'dashboard':
+                    renderDashboard();
+                    break;
+                case 'tenants':
+                    renderTenantsTable();
+                    break;
+                case 'subscriptions':
+                    renderSubscriptions();
+                    break;
+                case 'tenant-admins':
+                    renderTenantAdmins();
+                    break;
+                case 'analytics':
+                    renderAnalytics();
+                    break;
+                case 'audit-logs':
+                    renderAuditLogs();
+                    break;
+                case 'errors':
+                    renderErrors();
+                    break;
+            }
+        }
+
+        // ==================== Dashboard ====================
+        function renderDashboard() {
+            // Update stats
+            const activeTenants = appData.tenants.filter(t => t.status === 'active').length;
+            const totalTenants = appData.tenants.length;
+            const overdue = appData.tenants.filter(t => t.paymentStatus === 'overdue').length;
+
+            document.getElementById('totalTenants').textContent = totalTenants;
+            document.getElementById('activeTenants').textContent = activeTenants;
+            document.getElementById('overdueCount').textContent = overdue;
+
+            // Recent tenants table
+            const recentTenants = appData.tenants.slice(0, 5);
+            document.getElementById('recentTenantsTable').innerHTML = recentTenants.map(tenant => `
+                <tr>
+                    <td><strong>${tenant.name}</strong></td>
+                    <td><span class="status-badge ${tenant.plan}">${capitalize(tenant.plan)}</span></td>
+                    <td><span class="status-badge ${tenant.status}">${capitalize(tenant.status)}</span></td>
+                    <td>${tenant.departments}</td>
+                    <td>${formatDate(tenant.joined)}</td>
+                </tr>
+            `).join('');
+
+            // Activity feed
+            document.getElementById('dashboardActivity').innerHTML = appData.activityLog.slice(0, 6).map(item => `
+                <div class="activity-item">
+                    <div class="activity-icon ${item.type}">
+                        <i class="fas fa-${getActivityIcon(item.type)}"></i>
+                    </div>
+                    <div class="activity-content">
+                        <div class="activity-title">${item.title}</div>
+                        <div class="activity-desc">${item.desc}</div>
+                        <div class="activity-time">${item.time}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ==================== Tenants ====================
+        function renderTenantsTable(filter = null) {
+            let tenants = [...appData.tenants];
+
+            // Apply filters
+            const search = document.getElementById('tenantSearch')?.value?.toLowerCase() || '';
+            const statusFilter = document.getElementById('tenantStatusFilter')?.value || '';
+            const planFilter = document.getElementById('tenantPlanFilter')?.value || '';
+
+            if (search) {
+                tenants = tenants.filter(t =>
+                    t.name.toLowerCase().includes(search) ||
+                    t.admin.name.toLowerCase().includes(search) ||
+                    t.admin.email.toLowerCase().includes(search)
+                );
+            }
+            if (statusFilter) {
+                tenants = tenants.filter(t => t.status === statusFilter);
+            }
+            if (planFilter) {
+                tenants = tenants.filter(t => t.plan === planFilter);
+            }
+
+            document.getElementById('tenantsTableBody').innerHTML = tenants.map(tenant => `
+                <tr>
+                    <td><strong>${tenant.name}</strong><br><small style="color: var(--gray-500);">${capitalize(tenant.type)}</small></td>
+                    <td>${tenant.admin.name}<br><small style="color: var(--gray-500);">${tenant.admin.email}</small></td>
+                    <td><span class="status-badge ${tenant.plan}">${capitalize(tenant.plan)}</span></td>
+                    <td><span class="status-badge ${tenant.status}">${capitalize(tenant.status)}</span></td>
+                    <td>${tenant.departments}</td>
+                    <td>${tenant.users}</td>
+                    <td>${formatDate(tenant.joined)}</td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="action-btn" onclick="viewTenant('${tenant.id}')" title="View Details"><i class="fas fa-eye"></i></button>
+                            <button class="action-btn" onclick="editTenant('${tenant.id}')" title="Edit"><i class="fas fa-pen"></i></button>
+                            <button class="action-btn ${tenant.status === 'active' ? 'warning' : ''}" onclick="toggleTenantStatus('${tenant.id}')" title="${tenant.status === 'active' ? 'Deactivate' : 'Activate'}">
+                                <i class="fas fa-${tenant.status === 'active' ? 'pause' : 'play'}"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterTenants() {
+            renderTenantsTable();
+        }
+
+        function viewTenant(tenantId) {
+            const tenant = appData.tenants.find(t => t.id === tenantId);
+            if (!tenant) return;
+
+            appData.selectedTenant = tenant;
+
+            document.getElementById('viewTenantTitle').textContent = tenant.name;
+            document.getElementById('viewTenantDetails').innerHTML = `
+                <div class="tenant-detail-item">
+                    <div class="tenant-detail-label">Plan</div>
+                    <div class="tenant-detail-value">${capitalize(tenant.plan)}</div>
+                </div>
+                <div class="tenant-detail-item">
+                    <div class="tenant-detail-label">Status</div>
+                    <div class="tenant-detail-value"><span class="status-badge ${tenant.status}">${capitalize(tenant.status)}</span></div>
+                </div>
+                <div class="tenant-detail-item">
+                    <div class="tenant-detail-label">Monthly Fee</div>
+                    <div class="tenant-detail-value">KES ${tenant.planAmount.toLocaleString()}</div>
+                </div>
+                <div class="tenant-detail-item">
+                    <div class="tenant-detail-label">Departments</div>
+                    <div class="tenant-detail-value">${tenant.departments}</div>
+                </div>
+                <div class="tenant-detail-item">
+                    <div class="tenant-detail-label">Total Users</div>
+                    <div class="tenant-detail-value">${tenant.users}</div>
+                </div>
+                <div class="tenant-detail-item">
+                    <div class="tenant-detail-label">Joined</div>
+                    <div class="tenant-detail-value">${formatDate(tenant.joined)}</div>
+                </div>
+            `;
+
+            document.getElementById('viewTenantContent').innerHTML = `
+                <div style="padding: 20px 0;">
+                    <h4 style="margin-bottom: 16px; color: var(--gray-900);">Tenant Administrator</h4>
+                    <div style="display: flex; align-items: center; gap: 16px; padding: 16px; background: var(--gray-50); border-radius: var(--radius-sm);">
+                        <div class="avatar">${tenant.admin.name.split(' ').map(n => n[0]).join('')}</div>
+                        <div>
+                            <div style="font-weight: 500; color: var(--gray-900);">${tenant.admin.name}</div>
+                            <div style="font-size: 13px; color: var(--gray-500);">${tenant.admin.email}</div>
+                            <div style="font-size: 12px; color: var(--gray-400); margin-top: 4px;">Last login: ${tenant.admin.lastLogin}</div>
+                        </div>
+                    </div>
+                    <h4 style="margin: 24px 0 16px; color: var(--gray-900);">Usage Statistics</h4>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+                        <div style="padding: 16px; background: var(--gray-50); border-radius: var(--radius-sm); text-align: center;">
+                            <div style="font-size: 24px; font-weight: 600; color: var(--gray-900);">${tenant.usage.plans}</div>
+                            <div style="font-size: 12px; color: var(--gray-500);">Plans Created</div>
+                        </div>
+                        <div style="padding: 16px; background: var(--gray-50); border-radius: var(--radius-sm); text-align: center;">
+                            <div style="font-size: 24px; font-weight: 600; color: var(--gray-900);">${tenant.usage.exports}</div>
+                            <div style="font-size: 12px; color: var(--gray-500);">Exports</div>
+                        </div>
+                        <div style="padding: 16px; background: var(--gray-50); border-radius: var(--radius-sm); text-align: center;">
+                            <div style="font-size: 24px; font-weight: 600; color: var(--gray-900);">${(tenant.usage.apiCalls / 1000).toFixed(1)}k</div>
+                            <div style="font-size: 12px; color: var(--gray-500);">API Calls</div>
+                        </div>
+                        <div style="padding: 16px; background: var(--gray-50); border-radius: var(--radius-sm); text-align: center;">
+                            <div style="font-size: 24px; font-weight: 600; color: var(--gray-900);">${tenant.usage.storage}</div>
+                            <div style="font-size: 12px; color: var(--gray-500);">Storage</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            openModal('viewTenantModal');
+        }
+
+        function editTenant(tenantId) {
+            const tenant = appData.tenants.find(t => t.id === tenantId);
+            if (!tenant) return;
+
+            appData.selectedTenant = tenant;
+
+            document.getElementById('editTenantName').value = tenant.name;
+            document.getElementById('editTenantType').value = tenant.type;
+            document.getElementById('editTenantPlan').value = tenant.plan;
+            document.getElementById('editTenantStatus').value = tenant.status;
+
+            openModal('editTenantModal');
+        }
+
+        function saveTenantEdit() {
+            if (!appData.selectedTenant) return;
+
+            appData.selectedTenant.name = document.getElementById('editTenantName').value;
+            appData.selectedTenant.type = document.getElementById('editTenantType').value;
+            appData.selectedTenant.plan = document.getElementById('editTenantPlan').value;
+            appData.selectedTenant.status = document.getElementById('editTenantStatus').value;
+
+            closeModal('editTenantModal');
+            renderTenantsTable();
+            alert('Tenant updated successfully!');
+        }
+
+        function toggleTenantStatus(tenantId) {
+            const tenant = appData.tenants.find(t => t.id === tenantId);
+            if (!tenant) return;
+
+            const newStatus = tenant.status === 'active' ? 'inactive' : 'active';
+            if (confirm(`Are you sure you want to ${newStatus === 'active' ? 'activate' : 'deactivate'} ${tenant.name}?`)) {
+                tenant.status = newStatus;
+                renderTenantsTable();
+            }
+        }
+
+        function createTenant() {
+            const name = document.getElementById('newTenantName').value;
+            const type = document.getElementById('newTenantType').value;
+            const plan = document.getElementById('newTenantPlan').value;
+            const adminName = document.getElementById('newAdminName').value;
+            const adminEmail = document.getElementById('newAdminEmail').value;
+            const status = document.getElementById('newTenantStatus').value;
+
+            if (!name || !adminName || !adminEmail) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            const planAmounts = { starter: 50000, professional: 150000, enterprise: 300000 };
+
+            const newTenant = {
+                id: 'T' + String(appData.tenants.length + 1).padStart(3, '0'),
+                name: name,
+                type: type,
+                status: status,
+                plan: plan,
+                planAmount: planAmounts[plan],
+                billingCycle: 'monthly',
+                paymentStatus: status === 'trial' ? 'trial' : 'pending',
+                nextDue: getNextDueDate(),
+                departments: 0,
+                users: 1,
+                joined: new Date().toISOString().split('T')[0],
+                admin: { name: adminName, email: adminEmail, lastLogin: '-' },
+                usage: { plans: 0, exports: 0, apiCalls: 0, storage: '0 GB' }
+            };
+
+            appData.tenants.unshift(newTenant);
+            closeModal('createTenantModal');
+            renderTenantsTable();
+            renderDashboard();
+            alert(`Tenant "${name}" created successfully! An invitation email has been sent to ${adminEmail}.`);
+
+            // Clear form
+            document.getElementById('newTenantName').value = '';
+            document.getElementById('newAdminName').value = '';
+            document.getElementById('newAdminEmail').value = '';
+            document.getElementById('newAdminPhone').value = '';
+        }
+
+        // ==================== Subscriptions ====================
+        function renderSubscriptions() {
+            document.getElementById('subscriptionsTableBody').innerHTML = appData.tenants.map(tenant => `
+                <tr>
+                    <td><strong>${tenant.name}</strong></td>
+                    <td><span class="status-badge ${tenant.plan}">${capitalize(tenant.plan)}</span></td>
+                    <td>KES ${tenant.planAmount.toLocaleString()}</td>
+                    <td>${capitalize(tenant.billingCycle)}</td>
+                    <td><span class="status-badge ${tenant.paymentStatus}">${capitalize(tenant.paymentStatus)}</span></td>
+                    <td>${tenant.nextDue}</td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="action-btn" onclick="viewTenantInvoice('${tenant.id}')" title="View Invoice"><i class="fas fa-file-invoice"></i></button>
+                            <button class="action-btn" onclick="sendPaymentReminder('${tenant.id}')" title="Send Reminder"><i class="fas fa-bell"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+
+            document.getElementById('invoicesTableBody').innerHTML = appData.invoices.map(inv => `
+                <tr>
+                    <td><strong>${inv.id}</strong><br><small style="color: var(--gray-500);">FY ${inv.fiscalYear}</small></td>
+                    <td>${inv.tenant}</td>
+                    <td>KES ${inv.netPayable.toLocaleString()}<br><small style="color: var(--gray-400);">Net payable</small></td>
+                    <td>${formatDate(inv.date)}</td>
+                    <td><span class="status-badge ${inv.status}">${capitalize(inv.status)}</span></td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="action-btn" onclick="viewInvoice('${inv.id}')" title="View Invoice"><i class="fas fa-eye"></i></button>
+                            <button class="action-btn" onclick="openSendInvoiceModal('${inv.id}')" title="Send to Tenant"><i class="fas fa-paper-plane"></i></button>
+                            <button class="action-btn" onclick="downloadInvoiceDirect('${inv.id}')" title="Download"><i class="fas fa-download"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // ==================== Tenant Admins ====================
+        function renderTenantAdmins(filter = '') {
+            let tenants = [...appData.tenants];
+
+            if (filter) {
+                tenants = tenants.filter(t =>
+                    t.admin.name.toLowerCase().includes(filter.toLowerCase()) ||
+                    t.admin.email.toLowerCase().includes(filter.toLowerCase()) ||
+                    t.name.toLowerCase().includes(filter.toLowerCase())
+                );
+            }
+
+            document.getElementById('tenantAdminsTableBody').innerHTML = tenants.map(tenant => `
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div class="avatar">${tenant.admin.name.split(' ').map(n => n[0]).join('')}</div>
+                            <strong>${tenant.admin.name}</strong>
+                        </div>
+                    </td>
+                    <td>${tenant.admin.email}</td>
+                    <td>${tenant.name}</td>
+                    <td><span class="status-badge ${tenant.status}">${capitalize(tenant.status)}</span></td>
+                    <td>${tenant.admin.lastLogin}</td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="action-btn" onclick="editAdmin('${tenant.id}')" title="Edit Admin"><i class="fas fa-pen"></i></button>
+                            <button class="action-btn" onclick="prepareImpersonation('${tenant.id}')" title="Impersonate"><i class="fas fa-user-secret"></i></button>
+                            <button class="action-btn" onclick="preparePasswordReset('${tenant.id}')" title="Reset Password"><i class="fas fa-key"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterTenantAdmins() {
+            const search = document.getElementById('adminSearch').value;
+            renderTenantAdmins(search);
+        }
+
+        function prepareImpersonation(tenantId) {
+            const tenant = appData.tenants.find(t => t.id === tenantId);
+            if (!tenant) return;
+
+            appData.selectedTenant = tenant;
+            document.getElementById('impersonateAdminName').textContent = tenant.admin.name;
+            document.getElementById('impersonateTenantName').textContent = tenant.name;
+            openModal('impersonateModal');
+        }
+
+        function confirmImpersonation() {
+            if (!appData.selectedTenant) return;
+
+            appData.impersonating = appData.selectedTenant;
+            document.getElementById('impersonatingUser').textContent =
+                `${appData.selectedTenant.admin.name} (${appData.selectedTenant.name})`;
+            document.getElementById('impersonationBanner').classList.add('active');
+            document.querySelector('.main-content').style.marginTop = '48px';
+
+            closeModal('impersonateModal');
+            closeModal('viewTenantModal');
+
+            alert(`You are now impersonating ${appData.selectedTenant.admin.name}. All actions will be logged.`);
+        }
+
+        function impersonateTenant() {
+            prepareImpersonation(appData.selectedTenant.id);
+        }
+
+        function endImpersonation() {
+            appData.impersonating = null;
+            document.getElementById('impersonationBanner').classList.remove('active');
+            document.querySelector('.main-content').style.marginTop = '0';
+            alert('Impersonation session ended.');
+        }
+
+        function preparePasswordReset(tenantId) {
+            const tenant = appData.tenants.find(t => t.id === tenantId);
+            if (!tenant) return;
+
+            appData.selectedTenant = tenant;
+            document.getElementById('resetPasswordEmail').textContent = tenant.admin.email;
+            openModal('resetPasswordModal');
+        }
+
+        function sendPasswordReset() {
+            if (!appData.selectedTenant) return;
+
+            closeModal('resetPasswordModal');
+            alert(`Password reset link sent to ${appData.selectedTenant.admin.email}`);
+        }
+
+        // ==================== Analytics ====================
+        function renderAnalytics() {
+            document.getElementById('usageTableBody').innerHTML = appData.tenants
+                .filter(t => t.status === 'active')
+                .sort((a, b) => b.usage.plans - a.usage.plans)
+                .slice(0, 8)
+                .map(tenant => `
+                    <tr>
+                        <td><strong>${tenant.name}</strong></td>
+                        <td>${tenant.users}</td>
+                        <td>${tenant.usage.plans}</td>
+                        <td>${tenant.usage.exports}</td>
+                        <td>${tenant.usage.apiCalls.toLocaleString()}</td>
+                        <td>${tenant.usage.storage}</td>
+                    </tr>
+                `).join('');
+        }
+
+        // ==================== Audit Logs ====================
+        function renderAuditLogs() {
+            document.getElementById('auditLogsFeed').innerHTML = appData.activityLog.map(item => `
+                <div class="activity-item">
+                    <div class="activity-icon ${item.type}">
+                        <i class="fas fa-${getActivityIcon(item.type)}"></i>
+                    </div>
+                    <div class="activity-content">
+                        <div class="activity-title">${item.title}</div>
+                        <div class="activity-desc">${item.desc}</div>
+                        <div class="activity-time">${item.time}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ==================== Modal Functions ====================
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        // Close modal on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.remove('active');
+                }
+            });
+        });
+
+        // ==================== Utility Functions ====================
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr || dateStr === '-') return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        function getNextDueDate() {
+            const date = new Date();
+            date.setMonth(date.getMonth() + 1);
+            return date.toISOString().split('T')[0];
+        }
+
+        function getActivityIcon(type) {
+            const icons = {
+                tenant: 'building-columns',
+                billing: 'credit-card',
+                user: 'user',
+                system: 'server',
+                error: 'triangle-exclamation'
+            };
+            return icons[type] || 'circle';
+        }
+
+        // ==================== Mobile Menu ====================
+        function toggleMobileMenu() {
+            const sidebar = document.querySelector('.sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
+
+        function closeMobileMenu() {
+            const sidebar = document.querySelector('.sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+        }
+
+        // ==================== Tenant Tabs ====================
+        function switchTenantTab(tabName) {
+            const tabs = document.querySelectorAll('#tenantDetailTabs .tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            const tenant = appData.selectedTenant;
+            if (!tenant) return;
+
+            let content = '';
+            switch(tabName) {
+                case 'overview':
+                    content = `
+                        <div style="padding: 20px 0;">
+                            <h4 style="margin-bottom: 16px; color: var(--gray-900);">Tenant Administrator</h4>
+                            <div style="display: flex; align-items: center; gap: 16px; padding: 16px; background: var(--gray-50); border-radius: var(--radius-sm);">
+                                <div class="avatar">${tenant.admin.name.split(' ').map(n => n[0]).join('')}</div>
+                                <div>
+                                    <div style="font-weight: 500; color: var(--gray-900);">${tenant.admin.name}</div>
+                                    <div style="font-size: 13px; color: var(--gray-500);">${tenant.admin.email}</div>
+                                    <div style="font-size: 12px; color: var(--gray-400); margin-top: 4px;">Last login: ${tenant.admin.lastLogin}</div>
+                                </div>
+                            </div>
+                            <h4 style="margin: 24px 0 16px; color: var(--gray-900);">Usage Statistics</h4>
+                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+                                <div style="padding: 16px; background: var(--gray-50); border-radius: var(--radius-sm); text-align: center;">
+                                    <div style="font-size: 24px; font-weight: 600; color: var(--gray-900);">${tenant.usage.plans}</div>
+                                    <div style="font-size: 12px; color: var(--gray-500);">Plans Created</div>
+                                </div>
+                                <div style="padding: 16px; background: var(--gray-50); border-radius: var(--radius-sm); text-align: center;">
+                                    <div style="font-size: 24px; font-weight: 600; color: var(--gray-900);">${tenant.usage.exports}</div>
+                                    <div style="font-size: 12px; color: var(--gray-500);">Exports</div>
+                                </div>
+                                <div style="padding: 16px; background: var(--gray-50); border-radius: var(--radius-sm); text-align: center;">
+                                    <div style="font-size: 24px; font-weight: 600; color: var(--gray-900);">${(tenant.usage.apiCalls / 1000).toFixed(1)}k</div>
+                                    <div style="font-size: 12px; color: var(--gray-500);">API Calls</div>
+                                </div>
+                                <div style="padding: 16px; background: var(--gray-50); border-radius: var(--radius-sm); text-align: center;">
+                                    <div style="font-size: 24px; font-weight: 600; color: var(--gray-900);">${tenant.usage.storage}</div>
+                                    <div style="font-size: 12px; color: var(--gray-500);">Storage</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'users':
+                    content = `
+                        <div style="padding: 20px 0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                <h4 style="color: var(--gray-900);">Users (${tenant.users})</h4>
+                            </div>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Role</th>
+                                        <th>Department</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>${tenant.admin.name}</strong><br><small>${tenant.admin.email}</small></td>
+                                        <td>Tenant Admin</td>
+                                        <td>Administration</td>
+                                        <td><span class="status-badge active">Active</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Sample User 1</strong><br><small>user1@${tenant.admin.email.split('@')[1]}</small></td>
+                                        <td>Procurement Officer</td>
+                                        <td>Finance</td>
+                                        <td><span class="status-badge active">Active</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Sample User 2</strong><br><small>user2@${tenant.admin.email.split('@')[1]}</small></td>
+                                        <td>Department User</td>
+                                        <td>Engineering</td>
+                                        <td><span class="status-badge active">Active</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <p style="color: var(--gray-400); font-size: 12px; margin-top: 12px; text-align: center;">Showing sample data - ${tenant.users - 3} more users</p>
+                        </div>
+                    `;
+                    break;
+                case 'billing':
+                    content = `
+                        <div style="padding: 20px 0;">
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+                                <div style="padding: 16px; background: var(--gray-50); border-radius: var(--radius-sm);">
+                                    <div style="font-size: 12px; color: var(--gray-500); margin-bottom: 4px;">Current Plan</div>
+                                    <div style="font-size: 18px; font-weight: 600; color: var(--gray-900);">${capitalize(tenant.plan)}</div>
+                                </div>
+                                <div style="padding: 16px; background: var(--gray-50); border-radius: var(--radius-sm);">
+                                    <div style="font-size: 12px; color: var(--gray-500); margin-bottom: 4px;">Monthly Amount</div>
+                                    <div style="font-size: 18px; font-weight: 600; color: var(--gray-900);">KES ${tenant.planAmount.toLocaleString()}</div>
+                                </div>
+                                <div style="padding: 16px; background: var(--gray-50); border-radius: var(--radius-sm);">
+                                    <div style="font-size: 12px; color: var(--gray-500); margin-bottom: 4px;">Payment Status</div>
+                                    <div><span class="status-badge ${tenant.paymentStatus}">${capitalize(tenant.paymentStatus)}</span></div>
+                                </div>
+                            </div>
+                            <h4 style="margin-bottom: 16px; color: var(--gray-900);">Recent Invoices</h4>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Invoice</th>
+                                        <th>Amount</th>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>INV-2025-${tenant.id.slice(-3)}</strong></td>
+                                        <td>KES ${tenant.planAmount.toLocaleString()}</td>
+                                        <td>${formatDate(tenant.nextDue)}</td>
+                                        <td><span class="status-badge ${tenant.paymentStatus}">${capitalize(tenant.paymentStatus)}</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    break;
+                case 'activity':
+                    content = `
+                        <div style="padding: 20px 0;">
+                            <h4 style="margin-bottom: 16px; color: var(--gray-900);">Recent Activity</h4>
+                            <div class="activity-feed">
+                                <div class="activity-item">
+                                    <div class="activity-icon user"><i class="fas fa-user"></i></div>
+                                    <div class="activity-content">
+                                        <div class="activity-title">Admin logged in</div>
+                                        <div class="activity-desc">${tenant.admin.name} accessed the dashboard</div>
+                                        <div class="activity-time">${tenant.admin.lastLogin}</div>
+                                    </div>
+                                </div>
+                                <div class="activity-item">
+                                    <div class="activity-icon billing"><i class="fas fa-credit-card"></i></div>
+                                    <div class="activity-content">
+                                        <div class="activity-title">Plan created</div>
+                                        <div class="activity-desc">New procurement plan submitted</div>
+                                        <div class="activity-time">2 days ago</div>
+                                    </div>
+                                </div>
+                                <div class="activity-item">
+                                    <div class="activity-icon system"><i class="fas fa-download"></i></div>
+                                    <div class="activity-content">
+                                        <div class="activity-title">Export completed</div>
+                                        <div class="activity-desc">Consolidated plan exported to Excel</div>
+                                        <div class="activity-time">3 days ago</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+            }
+            document.getElementById('viewTenantContent').innerHTML = content;
+        }
+
+        // ==================== Error Monitor ====================
+        function renderErrors() {
+            const errors = appData.errors.filter(e => !e.resolved);
+
+            // Update stats
+            document.getElementById('criticalErrorCount').textContent = errors.filter(e => e.severity === 'critical').length;
+            document.getElementById('warningErrorCount').textContent = errors.filter(e => e.severity === 'warning').length;
+            document.getElementById('infoErrorCount').textContent = errors.filter(e => e.severity === 'info').length;
+            document.getElementById('errorCount').textContent = errors.length;
+
+            // Render error list
+            document.getElementById('errorsList').innerHTML = errors.length === 0
+                ? '<div style="padding: 40px; text-align: center; color: var(--gray-400);"><i class="fas fa-check-circle" style="font-size: 48px; color: var(--primary); margin-bottom: 16px;"></i><p>No active errors</p></div>'
+                : errors.map(error => `
+                    <div class="error-item" id="error-${error.id}">
+                        <span class="error-severity ${error.severity}">${capitalize(error.severity)}</span>
+                        <div class="error-details">
+                            <div class="error-message">${error.message}</div>
+                            <div class="error-meta">Tenant: ${error.tenant} • ${error.occurrences} occurrence${error.occurrences > 1 ? 's' : ''} • Last: ${error.time}</div>
+                        </div>
+                        <div class="action-btns">
+                            <button class="action-btn" onclick="viewErrorDetail('${error.id}')" title="View Details"><i class="fas fa-eye"></i></button>
+                            <button class="action-btn" onclick="markErrorResolved('${error.id}')" title="Mark Resolved"><i class="fas fa-check"></i></button>
+                        </div>
+                    </div>
+                `).join('');
+        }
+
+        function filterErrors() {
+            renderErrors();
+        }
+
+        function viewErrorDetail(errorId) {
+            const error = appData.errors.find(e => e.id === errorId);
+            if (!error) return;
+
+            appData.selectedError = error;
+            document.getElementById('errorDetailSeverity').className = 'error-severity ' + error.severity;
+            document.getElementById('errorDetailSeverity').textContent = capitalize(error.severity);
+            document.getElementById('errorDetailTime').textContent = error.time;
+            document.getElementById('errorDetailMessage').textContent = error.message;
+            document.getElementById('errorDetailMeta').textContent = `Tenant: ${error.tenant} • ${error.occurrences} occurrence${error.occurrences > 1 ? 's' : ''}`;
+            document.getElementById('errorDetailStack').textContent = error.stack;
+            openModal('errorDetailModal');
+        }
+
+        function markErrorResolved(errorId) {
+            const error = appData.errors.find(e => e.id === errorId);
+            if (!error) return;
+
+            error.resolved = true;
+            renderErrors();
+            alert('Error marked as resolved');
+        }
+
+        function markCurrentErrorResolved() {
+            if (!appData.selectedError) return;
+            markErrorResolved(appData.selectedError.id);
+            closeModal('errorDetailModal');
+        }
+
+        function markAllErrorsResolved() {
+            if (confirm('Mark all errors as resolved?')) {
+                appData.errors.forEach(e => e.resolved = true);
+                renderErrors();
+                alert('All errors marked as resolved');
+            }
+        }
+
+        // ==================== Audit Logs ====================
+        function filterAuditLogs() {
+            const search = document.getElementById('auditLogSearch').value.toLowerCase();
+            const typeFilter = document.getElementById('auditLogTypeFilter').value;
+            const timeFilter = document.getElementById('auditLogTimeFilter').value;
+
+            let logs = [...appData.activityLog];
+
+            if (search) {
+                logs = logs.filter(l =>
+                    l.title.toLowerCase().includes(search) ||
+                    l.desc.toLowerCase().includes(search)
+                );
+            }
+
+            if (typeFilter) {
+                logs = logs.filter(l => l.type === typeFilter);
+            }
+
+            if (timeFilter) {
+                const maxHours = {
+                    'today': 24,
+                    'week': 168,
+                    'month': 720
+                };
+                if (maxHours[timeFilter]) {
+                    logs = logs.filter(l => l.timeValue <= maxHours[timeFilter]);
+                }
+            }
+
+            document.getElementById('auditLogsFeed').innerHTML = logs.length === 0
+                ? '<div style="padding: 40px; text-align: center; color: var(--gray-400);">No logs found matching your criteria</div>'
+                : logs.map(item => `
+                    <div class="activity-item">
+                        <div class="activity-icon ${item.type}">
+                            <i class="fas fa-${getActivityIcon(item.type)}"></i>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-title">${item.title}</div>
+                            <div class="activity-desc">${item.desc}</div>
+                            <div class="activity-time">${item.time}</div>
+                        </div>
+                    </div>
+                `).join('');
+        }
+
+        function exportAuditLogs() {
+            const logs = appData.activityLog.map(l => `${l.time}\t${l.type}\t${l.title}\t${l.desc}`).join('\n');
+            const header = 'Time\tType\tTitle\tDescription\n';
+            const blob = new Blob([header + logs], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'audit-logs-' + new Date().toISOString().split('T')[0] + '.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+            alert('Audit logs exported successfully');
+        }
+
+        // ==================== Analytics ====================
+        function filterAnalytics() {
+            renderAnalytics();
+        }
+
+        function renderRevenueChart() {
+            const chartContainer = document.getElementById('revenueChart');
+            if (!chartContainer) return;
+
+            const maxValue = Math.max(...appData.revenueData.map(d => d.value));
+
+            chartContainer.innerHTML = appData.revenueData.map(data => {
+                const height = (data.value / maxValue) * 120;
+                return `
+                    <div class="chart-bar-wrapper">
+                        <div class="chart-bar" style="height: ${height}px;">
+                            <div class="chart-bar-value">${(data.value / 1000000).toFixed(1)}M</div>
+                        </div>
+                        <div class="chart-bar-label">${data.month}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ==================== Invoice Functions ====================
+        function viewTenantInvoice(tenantId) {
+            const tenant = appData.tenants.find(t => t.id === tenantId);
+            if (!tenant) return;
+
+            appData.selectedTenant = tenant;
+            const invoiceId = 'INV-2025-' + tenantId.slice(-3);
+
+            document.getElementById('invoiceViewTitle').textContent = invoiceId;
+            document.getElementById('invoiceViewContent').innerHTML = `
+                <div style="border: 1px solid var(--gray-200); border-radius: var(--radius-sm); padding: 24px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 24px;">
+                        <div>
+                            <h3 style="color: var(--gray-900); margin-bottom: 4px;">Procureline</h3>
+                            <p style="color: var(--gray-500); font-size: 13px;">Platform Invoice</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 12px; color: var(--gray-500);">Invoice #</div>
+                            <div style="font-weight: 600; color: var(--gray-900);">${invoiceId}</div>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                        <div>
+                            <div style="font-size: 12px; color: var(--gray-500); margin-bottom: 4px;">Bill To</div>
+                            <div style="font-weight: 500; color: var(--gray-900);">${tenant.name}</div>
+                            <div style="font-size: 13px; color: var(--gray-500);">${tenant.admin.name}</div>
+                            <div style="font-size: 13px; color: var(--gray-500);">${tenant.admin.email}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 12px; color: var(--gray-500); margin-bottom: 4px;">Due Date</div>
+                            <div style="font-weight: 500; color: var(--gray-900);">${formatDate(tenant.nextDue)}</div>
+                            <div style="margin-top: 8px;"><span class="status-badge ${tenant.paymentStatus}">${capitalize(tenant.paymentStatus)}</span></div>
+                        </div>
+                    </div>
+                    <table style="width: 100%; margin-bottom: 24px;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--gray-200);">
+                                <th style="text-align: left; padding: 12px 0; font-size: 12px; color: var(--gray-500);">Description</th>
+                                <th style="text-align: right; padding: 12px 0; font-size: 12px; color: var(--gray-500);">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 12px 0; font-size: 14px;">${capitalize(tenant.plan)} Plan - Monthly Subscription</td>
+                                <td style="padding: 12px 0; text-align: right; font-size: 14px;">KES ${tenant.planAmount.toLocaleString()}</td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr style="border-top: 2px solid var(--gray-200);">
+                                <td style="padding: 12px 0; font-weight: 600;">Total</td>
+                                <td style="padding: 12px 0; text-align: right; font-weight: 600; font-size: 18px; color: var(--primary);">KES ${tenant.planAmount.toLocaleString()}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            `;
+            openModal('invoiceViewModal');
+        }
+
+        function viewInvoice(invoiceId) {
+            const invoice = appData.invoices.find(i => i.id === invoiceId);
+            if (!invoice) return;
+
+            const tenant = appData.tenants.find(t => t.name === invoice.tenant);
+            const planName = tenant ? capitalize(tenant.plan) : 'Professional';
+
+            appData.selectedInvoice = invoice;
+            document.getElementById('invoiceViewTitle').textContent = invoice.id;
+            document.getElementById('invoiceViewContent').innerHTML = `
+                <div style="border: 1px solid var(--gray-200); border-radius: var(--radius-sm); padding: 24px;">
+                    <!-- Header -->
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--gray-200);">
+                        <div>
+                            <h3 style="color: var(--gray-900); margin-bottom: 4px;">PROCURELINE TECHNOLOGIES LTD</h3>
+                            <p style="color: var(--gray-500); font-size: 12px;">P.O. Box 12345-00100, Nairobi</p>
+                            <p style="color: var(--gray-500); font-size: 12px;">VAT PIN: P051234567A</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 20px; font-weight: 700; color: var(--primary); margin-bottom: 8px;">INVOICE</div>
+                            <div style="font-weight: 600; color: var(--gray-900);">${invoice.id}</div>
+                        </div>
+                    </div>
+
+                    <!-- Bill To & Details -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                        <div>
+                            <div style="font-size: 11px; text-transform: uppercase; color: var(--gray-400); margin-bottom: 8px;">Bill To</div>
+                            <div style="font-weight: 600; color: var(--gray-900); margin-bottom: 4px;">${invoice.tenant}</div>
+                            <div style="font-size: 13px; color: var(--gray-500);">Finance Department</div>
+                            ${tenant ? `<div style="font-size: 13px; color: var(--gray-500);">${tenant.admin.email}</div>` : ''}
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="margin-bottom: 12px;">
+                                <div style="font-size: 11px; text-transform: uppercase; color: var(--gray-400);">Invoice Date</div>
+                                <div style="font-weight: 500; color: var(--gray-900);">${formatDate(invoice.date)}</div>
+                            </div>
+                            <div style="margin-bottom: 12px;">
+                                <div style="font-size: 11px; text-transform: uppercase; color: var(--gray-400);">Due Date</div>
+                                <div style="font-weight: 500; color: var(--gray-900);">${formatDate(invoice.dueDate)}</div>
+                            </div>
+                            <div style="margin-bottom: 12px;">
+                                <div style="font-size: 11px; text-transform: uppercase; color: var(--gray-400);">Fiscal Year</div>
+                                <div style="font-weight: 500; color: var(--gray-900);">FY ${invoice.fiscalYear}</div>
+                            </div>
+                            ${invoice.lpoReference ? `
+                            <div>
+                                <div style="font-size: 11px; text-transform: uppercase; color: var(--gray-400);">LPO Reference</div>
+                                <div style="font-weight: 500; color: var(--gray-900);">${invoice.lpoReference}</div>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+
+                    <!-- Line Items -->
+                    <table style="width: 100%; margin-bottom: 20px; font-size: 14px;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid var(--gray-200);">
+                                <th style="text-align: left; padding: 12px 0; color: var(--gray-500); font-size: 11px; text-transform: uppercase;">Description</th>
+                                <th style="text-align: right; padding: 12px 0; color: var(--gray-500); font-size: 11px; text-transform: uppercase;">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom: 1px solid var(--gray-100);">
+                                <td style="padding: 16px 0;">
+                                    <div style="font-weight: 500; color: var(--gray-900);">${planName} Plan - Annual Subscription</div>
+                                    <div style="font-size: 12px; color: var(--gray-500);">July 1, ${invoice.fiscalYear.split('-')[0]} - June 30, 20${invoice.fiscalYear.split('-')[1]}</div>
+                                </td>
+                                <td style="padding: 16px 0; text-align: right; font-weight: 500;">KES ${invoice.subtotal.toLocaleString()}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Totals -->
+                    <div style="margin-left: auto; width: 280px;">
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px;">
+                            <span style="color: var(--gray-600);">Subtotal</span>
+                            <span style="color: var(--gray-900);">KES ${invoice.subtotal.toLocaleString()}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px;">
+                            <span style="color: var(--gray-600);">VAT (16%)</span>
+                            <span style="color: var(--gray-900);">KES ${invoice.vat.toLocaleString()}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; border-bottom: 1px solid var(--gray-200);">
+                            <span style="font-weight: 600; color: var(--gray-900);">Total</span>
+                            <span style="font-weight: 600; color: var(--gray-900);">KES ${invoice.total.toLocaleString()}</span>
+                        </div>
+                        ${invoice.wht > 0 ? `
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; color: var(--danger);">
+                            <span>Less: WHT (5%)</span>
+                            <span>(KES ${invoice.wht.toLocaleString()})</span>
+                        </div>
+                        ` : ''}
+                        <div style="display: flex; justify-content: space-between; padding: 12px 0; font-size: 16px; background: var(--primary-light); margin: 8px -8px -8px; padding: 12px 8px; border-radius: 0 0 var(--radius-sm) var(--radius-sm);">
+                            <span style="font-weight: 700; color: var(--primary-dark);">Net Payable</span>
+                            <span style="font-weight: 700; color: var(--primary-dark);">KES ${invoice.netPayable.toLocaleString()}</span>
+                        </div>
+                    </div>
+
+                    <!-- Payment Methods -->
+                    <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--gray-200);">
+                        <div style="font-size: 11px; text-transform: uppercase; color: var(--gray-400); margin-bottom: 12px;">Payment Methods</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 13px;">
+                            <div style="padding: 12px; background: var(--gray-50); border-radius: var(--radius-sm);">
+                                <div style="font-weight: 600; color: var(--gray-900); margin-bottom: 4px;">Bank Transfer</div>
+                                <div style="color: var(--gray-600);">Equity Bank Kenya</div>
+                                <div style="color: var(--gray-600);">A/C: 1234567890123</div>
+                            </div>
+                            <div style="padding: 12px; background: var(--gray-50); border-radius: var(--radius-sm);">
+                                <div style="font-weight: 600; color: var(--gray-900); margin-bottom: 4px;">M-Pesa Paybill</div>
+                                <div style="color: var(--gray-600);">Business No: 123456</div>
+                                <div style="color: var(--gray-600);">Account: ${invoice.tenant.substring(0, 3).toUpperCase()}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status -->
+                    <div style="margin-top: 16px; text-align: center;">
+                        <span class="status-badge ${invoice.status}" style="font-size: 14px; padding: 8px 16px;">${capitalize(invoice.status)}</span>
+                    </div>
+                </div>
+            `;
+            openModal('invoiceViewModal');
+        }
+
+        function downloadInvoice() {
+            alert('Invoice PDF download started. In production, this would generate and download a PDF.');
+            closeModal('invoiceViewModal');
+        }
+
+        function downloadInvoiceDirect(invoiceId) {
+            alert(`Downloading invoice ${invoiceId}. In production, this would generate and download a PDF.`);
+        }
+
+        function sendPaymentReminder(tenantId) {
+            const tenant = appData.tenants.find(t => t.id === tenantId);
+            if (!tenant) return;
+
+            appData.selectedTenant = tenant;
+            document.getElementById('reminderTenantName').textContent = tenant.name;
+            openModal('sendReminderModal');
+        }
+
+        function confirmSendReminder() {
+            if (!appData.selectedTenant) return;
+            closeModal('sendReminderModal');
+            alert(`Payment reminder sent to ${appData.selectedTenant.admin.email}`);
+        }
+
+        // ==================== Invoice Generation & Sending ====================
+        function openGenerateInvoiceModal() {
+            // Populate tenant dropdown
+            const select = document.getElementById('invoiceTenantSelect');
+            select.innerHTML = '<option value="">Choose a tenant...</option>' +
+                appData.tenants.filter(t => t.status === 'active').map(t =>
+                    `<option value="${t.id}" data-type="${t.type}" data-plan="${t.plan}" data-amount="${t.planAmount}">${t.name} - ${capitalize(t.plan)} Plan (${t.type === 'public' ? 'Public' : 'Private'})</option>`
+                ).join('');
+
+            // Set default fiscal year and due date (June 30 fiscal year end)
+            document.getElementById('invoiceFiscalYear').value = appData.fiscalYear;
+            document.getElementById('invoiceDueDate').value = '2025-06-30';
+
+            // Clear other fields
+            document.getElementById('invoiceLpoReference').value = '';
+            document.getElementById('invoiceDescription').value = '';
+            document.getElementById('invoiceNotes').value = '';
+            document.getElementById('sendInvoiceImmediately').checked = true;
+            document.getElementById('invoicePreview').style.display = 'none';
+
+            // Update preview function
+            function updateInvoicePreview() {
+                const selectedOption = select.options[select.selectedIndex];
+                if (!selectedOption || !selectedOption.value) {
+                    document.getElementById('invoicePreview').style.display = 'none';
+                    return;
+                }
+
+                const tenantType = selectedOption.dataset.type;
+                const planAmount = parseInt(selectedOption.dataset.amount);
+                const plan = selectedOption.dataset.plan;
+
+                // Calculate amounts per billing doc
+                const subtotal = planAmount;
+                const vat = Math.round(subtotal * appData.vatRate);
+                const total = subtotal + vat;
+                const wht = tenantType === 'public' ? Math.round(total * appData.whtRate) : 0;
+                const netPayable = total - wht;
+
+                // Update preview
+                document.getElementById('previewSubtotal').textContent = `KES ${subtotal.toLocaleString()}`;
+                document.getElementById('previewVat').textContent = `KES ${vat.toLocaleString()}`;
+                document.getElementById('previewTotal').textContent = `KES ${total.toLocaleString()}`;
+
+                if (tenantType === 'public') {
+                    document.getElementById('whtLabel').style.display = 'inline';
+                    document.getElementById('previewWht').style.display = 'inline';
+                    document.getElementById('previewWht').textContent = `- KES ${wht.toLocaleString()}`;
+                } else {
+                    document.getElementById('whtLabel').style.display = 'none';
+                    document.getElementById('previewWht').style.display = 'none';
+                }
+
+                document.getElementById('previewNetPayable').textContent = `KES ${netPayable.toLocaleString()}`;
+                document.getElementById('invoicePreview').style.display = 'block';
+
+                // Auto-fill description
+                const fiscalYear = document.getElementById('invoiceFiscalYear').value;
+                document.getElementById('invoiceDescription').value =
+                    `${capitalize(plan)} Plan - Annual Subscription FY ${fiscalYear}`;
+            }
+
+            // Bind events
+            select.onchange = updateInvoicePreview;
+            document.getElementById('invoiceFiscalYear').onchange = function() {
+                if (select.value) updateInvoicePreview();
+            };
+
+            openModal('generateInvoiceModal');
+        }
+
+        function generateInvoice() {
+            const tenantId = document.getElementById('invoiceTenantSelect').value;
+            const fiscalYear = document.getElementById('invoiceFiscalYear').value;
+            const dueDate = document.getElementById('invoiceDueDate').value;
+            const lpoReference = document.getElementById('invoiceLpoReference').value;
+            const description = document.getElementById('invoiceDescription').value;
+            const notes = document.getElementById('invoiceNotes').value;
+            const sendImmediately = document.getElementById('sendInvoiceImmediately').checked;
+
+            if (!tenantId || !dueDate) {
+                alert('Please select a tenant and due date');
+                return;
+            }
+
+            const tenant = appData.tenants.find(t => t.id === tenantId);
+            if (!tenant) return;
+
+            // Calculate amounts per billing documentation
+            const subtotal = tenant.planAmount;
+            const vat = Math.round(subtotal * appData.vatRate);
+            const total = subtotal + vat;
+            const wht = tenant.type === 'public' ? Math.round(total * appData.whtRate) : 0;
+            const netPayable = total - wht;
+
+            // Generate invoice ID with fiscal year
+            const fyParts = fiscalYear.split('-');
+            const nextNum = appData.invoices.length + 1;
+            const invoiceId = `INV-20${fyParts[0]}-${String(nextNum).padStart(3, '0')}`;
+
+            // Create new invoice with full billing structure
+            const newInvoice = {
+                id: invoiceId,
+                tenant: tenant.name,
+                tenantId: tenant.id,
+                tenantType: tenant.type,
+                fiscalYear: fiscalYear,
+                subtotal: subtotal,
+                vat: vat,
+                wht: wht,
+                total: total,
+                netPayable: netPayable,
+                date: new Date().toISOString().split('T')[0],
+                dueDate: dueDate,
+                status: 'pending',
+                description: description || `${capitalize(tenant.plan)} Plan - Annual Subscription FY ${fiscalYear}`,
+                lpoReference: lpoReference || null,
+                notes: notes,
+                createdAt: new Date().toISOString(),
+                sentAt: null
+            };
+
+            // Add to invoices
+            appData.invoices.unshift(newInvoice);
+
+            // Add to activity log
+            appData.activityLog.unshift({
+                type: 'billing',
+                title: 'Invoice generated',
+                desc: `${invoiceId} - ${tenant.name} - KES ${netPayable.toLocaleString()} (Net Payable)`,
+                time: 'Just now',
+                timeValue: 0
+            });
+
+            closeModal('generateInvoiceModal');
+
+            if (sendImmediately) {
+                // Automatically send the invoice
+                appData.selectedInvoice = newInvoice;
+                newInvoice.sentAt = new Date().toISOString();
+
+                // Show success modal with full breakdown
+                document.getElementById('invoiceSentMessage').innerHTML =
+                    `Invoice <strong>${invoiceId}</strong> for <strong>KES ${netPayable.toLocaleString()}</strong> (Net Payable) has been generated and emailed to <strong>${tenant.admin.email}</strong>
+                     <br><small style="color: var(--gray-500);">Subtotal: KES ${subtotal.toLocaleString()} + VAT: KES ${vat.toLocaleString()}${wht > 0 ? ` - WHT: KES ${wht.toLocaleString()}` : ''}</small>`;
+                openModal('invoiceSentModal');
+
+                // Add send activity
+                appData.activityLog.unshift({
+                    type: 'billing',
+                    title: 'Invoice sent',
+                    desc: `${invoiceId} emailed to ${tenant.admin.name}`,
+                    time: 'Just now',
+                    timeValue: 0
+                });
+            } else {
+                alert(`Invoice ${invoiceId} has been generated successfully!`);
+            }
+
+            // Re-render tables
+            renderSubscriptionsTable();
+        }
+
+        function openSendInvoiceModal(invoiceId) {
+            const invoice = appData.invoices.find(i => i.id === invoiceId);
+            if (!invoice) return;
+
+            appData.selectedInvoice = invoice;
+
+            // Find tenant for this invoice
+            const tenant = appData.tenants.find(t => t.name === invoice.tenant);
+
+            document.getElementById('sendInvoiceId').textContent = invoice.id;
+            document.getElementById('sendInvoiceTenant').textContent = invoice.tenant;
+            document.getElementById('sendInvoiceAmount').textContent = `KES ${invoice.amount.toLocaleString()}`;
+            document.getElementById('invoiceEmailMessage').value = '';
+
+            openModal('sendInvoiceModal');
+        }
+
+        function confirmSendInvoice() {
+            if (!appData.selectedInvoice) return;
+
+            const invoice = appData.selectedInvoice;
+            const message = document.getElementById('invoiceEmailMessage').value;
+            const tenant = appData.tenants.find(t => t.name === invoice.tenant);
+
+            // Update invoice sent status
+            invoice.sentAt = new Date().toISOString();
+
+            // Add to activity log
+            appData.activityLog.unshift({
+                type: 'billing',
+                title: 'Invoice sent',
+                desc: `${invoice.id} emailed to ${tenant ? tenant.admin.name : invoice.tenant}`,
+                time: 'Just now',
+                timeValue: 0
+            });
+
+            closeModal('sendInvoiceModal');
+
+            // Show success
+            document.getElementById('invoiceSentMessage').innerHTML =
+                `Invoice <strong>${invoice.id}</strong> has been emailed to <strong>${tenant ? tenant.admin.email : invoice.tenant}</strong>`;
+            openModal('invoiceSentModal');
+        }
+
+        // ==================== Edit Admin ====================
+        function editAdmin(tenantId) {
+            const tenant = appData.tenants.find(t => t.id === tenantId);
+            if (!tenant) return;
+
+            appData.selectedTenant = tenant;
+            document.getElementById('editAdminName').value = tenant.admin.name;
+            document.getElementById('editAdminEmail').value = tenant.admin.email;
+            document.getElementById('editAdminInstitution').value = tenant.name;
+            openModal('editAdminModal');
+        }
+
+        function saveAdminEdit() {
+            if (!appData.selectedTenant) return;
+
+            appData.selectedTenant.admin.name = document.getElementById('editAdminName').value;
+            appData.selectedTenant.admin.email = document.getElementById('editAdminEmail').value;
+
+            closeModal('editAdminModal');
+            renderTenantAdmins();
+            alert('Administrator updated successfully!');
+        }
+
+        // ==================== Delete Tenant ====================
+        function deleteTenant(tenantId) {
+            const tenant = appData.tenants.find(t => t.id === tenantId);
+            if (!tenant) return;
+
+            appData.selectedTenant = tenant;
+            document.getElementById('deleteTenantName').textContent = tenant.name;
+            document.getElementById('deleteTenantConfirm').value = '';
+            openModal('deleteTenantModal');
+        }
+
+        function confirmDeleteTenant() {
+            if (!appData.selectedTenant) return;
+
+            const confirmText = document.getElementById('deleteTenantConfirm').value;
+            if (confirmText !== appData.selectedTenant.name) {
+                alert('Institution name does not match. Please type the exact name to confirm deletion.');
+                return;
+            }
+
+            const index = appData.tenants.findIndex(t => t.id === appData.selectedTenant.id);
+            if (index > -1) {
+                appData.tenants.splice(index, 1);
+            }
+
+            closeModal('deleteTenantModal');
+            renderTenantsTable();
+            renderDashboard();
+            alert('Tenant deleted successfully');
+        }
+
+        // ==================== Initialize ====================
+        // Auto-render dashboard on load if logged in
+    </script>
+</body>
+</html>

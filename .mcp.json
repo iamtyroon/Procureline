@@ -2,12 +2,14 @@
   "mcpServers": {
     "mcp-obsidian": {
       "type": "stdio",
-      "command": "npx",
+      "command": "cmd",
       "args": [
+        "/c",
+        "npx",
         "-y",
         "mcp-obsidian",
         "--vault",
-        "F:\\project\\Procureline\\docs"
+        "\\docs"
       ],
       "env": {
         "OBSIDIAN_API_KEY": "c3469d944148e69b0c78a8046a107358bf79d44a3b3668332433563d0ce1288e",
@@ -17,8 +19,10 @@
     },
     "supabase": {
       "type": "stdio",
-      "command": "npx",
+      "command": "cmd",
       "args": [
+        "/c",
+        "npx",
         "-y",
         "@supabase/mcp-server-supabase@latest",
         "--access-token",
@@ -27,16 +31,20 @@
     },
     "chrome-devtools": {
       "type": "stdio",
-      "command": "npx",
+      "command": "cmd",
       "args": [
+        "/c",
+        "npx",
         "-y",
         "chrome-devtools-mcp@latest"
       ]
     },
     "excel": {
       "type": "stdio",
-      "command": "uvx",
+      "command": "cmd",
       "args": [
+        "/c",
+        "uvx",
         "excel-mcp-server",
         "stdio"
       ]
@@ -54,39 +62,40 @@
     },
     "next-devtools": {
       "type": "stdio",
-      "command": "npx",
+      "command": "cmd",
       "args": [
+        "/c",
+        "npx",
         "-y",
         "next-devtools-mcp@latest"
       ]
     },
-    "sequential-thinking": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": [
-        "mcp-sequential-thinking"
-      ]
-    },
     "sequential-thinking-tools": {
       "type": "stdio",
-      "command": "npx",
+      "command": "cmd",
       "args": [
+        "/c",
+        "npx",
         "-y",
-        "mcp-sequentialthinking-tools"
+        "mcp-server-sequential-thinking"
       ]
     },
     "docfork": {
       "type": "stdio",
-      "command": "npx",
+      "command": "cmd",
       "args": [
+        "/c",
+        "npx",
         "-y",
         "docfork"
       ]
     },
     "gemini-cli": {
       "type": "stdio",
-      "command": "npx",
+      "command": "cmd",
       "args": [
+        "/c",
+        "npx",
         "-y",
         "gemini-mcp-tool"
       ]
