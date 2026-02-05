@@ -24,7 +24,7 @@ This document captures the technology stack decisions for Procureline, a multi-t
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                                   FRONTEND                                       │
 │  ┌─────────────────────────────────────────────────────────────────────────┐    │
-│  │                         Next.js 14+ (App Router)                        │    │
+│  │                          Next.js 16 (App Router)                         │    │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐  │    │
 │  │  │   Blockly    │  │   Shadcn/ui  │  │  TailwindCSS │  │  TypeScript │  │    │
 │  │  │  Workspace   │  │  Components  │  │   Styling    │  │    Strict   │  │    │
@@ -68,7 +68,7 @@ This document captures the technology stack decisions for Procureline, a multi-t
 
 | Component | Decision | Rationale |
 |-----------|----------|-----------|
-| **Framework** | Next.js 14+ (App Router) | SSR, excellent React ecosystem, Vercel-native deployment |
+| **Framework** | Next.js 16 (App Router) | SSR, React 19 support, async APIs, excellent ecosystem, Vercel-native |
 | **Language** | TypeScript (strict mode) | Type safety, better DX, reduced runtime errors |
 | **UI Library** | Shadcn/ui + Radix | Accessible, customizable, modern design system |
 | **Styling** | TailwindCSS | Utility-first, rapid development, consistent design |
@@ -197,6 +197,7 @@ This document captures the technology stack decisions for Procureline, a multi-t
 
 | Date | Decision | Made By | Rationale |
 |------|----------|---------|-----------|
+| 2026-02-03 | Upgrade to Next.js 16 | Tyroon + Team | Latest stable, async APIs, React 19 support |
 | 2026-01-18 | Next.js frontend | Tyroon | Best React framework for SaaS |
 | 2026-01-18 | Convex primary backend | Tyroon | Real-time, TypeScript-native, serverless |
 | 2026-01-18 | NestJS microservice | Tyroon | Complex integrations, enterprise patterns |
@@ -204,6 +205,50 @@ This document captures the technology stack decisions for Procureline, a multi-t
 | 2026-01-18 | Stripe + IntaSend payments | Tyroon | Global cards + Kenya M-Pesa coverage |
 | 2026-01-18 | Resend email | Tyroon | Modern, React Email support |
 | 2026-01-18 | JSON Blockly storage | Tyroon | Native versioning, audit trail |
+
+---
+
+## Next.js 16 Migration Notes
+
+### Breaking Changes
+- **Async Request APIs**: `params`, `searchParams`, `cookies()`, `headers()`, `draftMode()` are now async
+- All code accessing these APIs must use `await`
+- Automated codemod available: `npx @next/codemod@canary upgrade latest`
+
+### New Features
+- **React 19.2** support with improved performance
+- **Turbopack** stable for faster builds
+- **Cache Components** mode (experimental in 16.0.0, stable in canary)
+- Improved error handling and debugging
+
+### Migration Strategy
+1. Start with Convex Ents SaaS Starter (Next.js 14)
+2. Upgrade packages: `npm install next@16 react@latest react-dom@latest`
+3. Run codemod to fix async API usage
+4. Test all Convex integration points
+5. Verify authentication flows work correctly
+
+**Implementation**: See Epic 1, Story 1.1 for detailed migration steps.
+
+---
+
+## Security Implementation
+
+### Core Security Features (Story 1.9)
+- **XSS Protection**: DOMPurify for input sanitization
+- **CORS**: Restricted to known domains (production, staging, localhost)
+- **Input Validation**: React Hook Form + Zod + Convex validators
+- **Security Headers**: CSP, X-Frame-Options, X-Content-Type-Options
+- **Audit Logging**: Security events tracked in Convex database
+
+### Compliance
+- **Encryption at Rest**: AES-256 (Convex default) ✅
+- **Encryption in Transit**: TLS 1.3 ✅
+- **Session Security**: HTTP-only secure cookies, 24-hour timeout
+- **Password Policy**: 12+ chars, complexity requirements
+- **Failed Login Protection**: 5-attempt lockout
+
+**Implementation**: See Epic 1, Story 1.9 for complete security infrastructure setup.
 
 ---
 

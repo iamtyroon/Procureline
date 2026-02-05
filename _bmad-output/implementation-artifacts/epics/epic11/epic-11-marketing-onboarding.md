@@ -14,7 +14,7 @@ createdAt: 2026-01-22
 
 ## Epic Goal
 
-Visitors can learn about Procureline, understand pricing, and start a trial seamlessly. New users receive guided onboarding for quick time-to-value.
+Visitors can learn about Procureline, understand pricing tiers, and start using the Free tier seamlessly. New users receive guided onboarding for quick time-to-value.
 
 ## User Outcome
 
@@ -27,7 +27,7 @@ The path from "What is Procureline?" to "I'm using Procureline" is smooth, infor
 **Marketing & Onboarding (5 FRs):**
 - FR90: Marketing landing page with feature descriptions
 - FR91: Pricing tiers and comparison
-- FR92: Trial signup process
+- FR92: Free tier signup process
 - FR93: Onboarding flow after first login
 - FR94: Contextual help within application
 
@@ -80,9 +80,9 @@ So that I can decide if it's right for my organization.
 **When** search engines index it
 **Then** page has proper SEO metadata: title, description, OG tags
 
-**Given** a visitor clicks "Start Free Trial"
+**Given** a visitor clicks "Start Free"
 **When** navigating to signup
-**Then** system routes to trial signup page
+**Then** system routes to Free tier signup page
 
 **Technical Notes:**
 - Landing page as Next.js static page for optimal SEO
@@ -149,9 +149,9 @@ So that I can quickly understand how to use Procureline.
 
 **Acceptance Criteria:**
 
-**Given** a visitor wants to start a trial
+**Given** a visitor wants to start using the Free tier
 **When** they access the signup page
-**Then** system displays trial signup process (FR92)
+**Then** system displays Free tier signup process (FR92)
 **And** form collects: email, password, organization name, role
 
 **Given** a user completes signup

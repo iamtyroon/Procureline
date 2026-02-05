@@ -1,0 +1,154 @@
+# generated: 2026-02-05
+# project: Procureline
+# project_key: procureline
+# tracking_system: file-system
+# story_location: c:\Users\Tyroon\Downloads\project\Procureline\_bmad-output\implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-02-05
+project: Procureline
+project_key: procureline
+tracking_system: file-system
+story_location: "c:\\Users\\Tyroon\\Downloads\\project\\Procureline\\_bmad-output\\implementation-artifacts"
+
+development_status:
+  epic-1: in-progress
+  1-1-project-initialization-with-convex-ents-starter: done
+  1-2-tenant-admin-registration-free-tier-signup: ready-for-dev
+  1-3-user-login-with-email-password: backlog
+  1-4-password-reset-via-email: backlog
+  1-5-session-management-logout: backlog
+  1-6-four-layer-role-based-access-control: backlog
+  1-7-tenant-data-isolation: backlog
+  1-8-du-access-code-authentication: backlog
+  1-9-security-infrastructure-input-validation: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-0-nestjs-microservice-foundation-external-services: backlog
+  2-1-platform-admin-authentication-2fa: backlog
+  2-2-platform-admin-dashboard-shell: backlog
+  2-3-tenant-list-overview: backlog
+  2-4-tenant-creation-provisioning: backlog
+  2-5-tenant-configuration-management: backlog
+  2-6-subscription-status-management: backlog
+  2-7-payment-verification-processing: backlog
+  2-8-cross-tenant-user-management: backlog
+  2-9-free-tier-management-usage-monitoring: backlog
+  2-10-system-health-monitoring: backlog
+  2-11-security-dashboard-compliance: backlog
+  2-12-support-tickets-incidents: backlog
+  2-13-system-configuration-feature-flags: backlog
+  epic-2-retrospective: optional
+
+  epic-3: backlog
+  3-1-tenant-admin-onboarding-flow: backlog
+  3-2-tenant-admin-dashboard: backlog
+  3-3-po-management-add-invite: backlog
+  3-4-po-management-lifecycle-activity: backlog
+  3-5-institutional-settings-configuration: backlog
+  3-6-billing-dashboard-payment-methods: backlog
+  3-7-subscription-lifecycle-management: backlog
+  3-8-report-generation-system: backlog
+  3-9-cross-institutional-visibility: backlog
+  3-10-notification-system: backlog
+  3-11-security-session-management: backlog
+  3-12-account-lifecycle-admin-transfer: backlog
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-po-dashboard-onboarding-wizard: backlog
+  4-2-department-crud-operations: backlog
+  4-3-access-code-generation-management: backlog
+  4-4-budget-allocation-department-import: backlog
+  4-5-submission-deadline-management: backlog
+  4-6-submission-monitoring-reminders: backlog
+  4-7-category-management: backlog
+  4-8-item-catalog-management: backlog
+  4-9-catalog-search-export: backlog
+  4-10-item-category-request-processing: backlog
+  epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-1-du-dashboard-plan-status: backlog
+  5-2-blockly-workspace-core: backlog
+  5-3-blockly-validation-constraints: backlog
+  5-4-plan-persistence-recovery: backlog
+  5-5-item-category-requests-du-side: backlog
+  5-6-budget-meter-calculations: backlog
+  5-7-blockly-toolbox-block-management: backlog
+  epic-5-retrospective: optional
+
+  epic-6: backlog
+  6-1-plan-submission-flow: backlog
+  6-2-pre-submission-validation: backlog
+  6-3-po-submission-queue: backlog
+  6-4-plan-review-interface: backlog
+  6-5-plan-approval-rejection: backlog
+  6-6-du-revision-flow: backlog
+  6-7-submission-status-tracking: backlog
+  epic-6-retrospective: optional
+
+  epic-7: backlog
+  7-1-consolidation-workspace-access: backlog
+  7-2-drag-and-drop-department-consolidation: backlog
+  7-3-compliance-calculations-totals: backlog
+  7-4-finalization-versioning: backlog
+  7-5-excel-export: backlog
+  7-6-excel-formatting-content: backlog
+  epic-7-retrospective: optional
+
+  epic-8: backlog
+  8-1-free-tier-provisioning-usage-monitoring: backlog
+  8-2-subscription-tier-selection: backlog
+  8-3-payment-processing: backlog
+  8-4-invoice-management: backlog
+  8-5-subscription-lifecycle-management: backlog
+  epic-8-retrospective: optional
+
+  epic-9: backlog
+  9-1-plan-workflow-notifications: backlog
+  9-2-deadline-reminder-notifications: backlog
+  9-3-billing-notifications: backlog
+  9-4-item-request-custom-notifications: backlog
+  epic-9-retrospective: optional
+
+  epic-10: backlog
+  10-1-comprehensive-action-logging: backlog
+  10-2-audit-log-viewing: backlog
+  10-3-audit-report-generation: backlog
+  epic-10-retrospective: optional
+
+  epic-11: backlog
+  11-1-marketing-landing-page: backlog
+  11-2-pricing-page-tier-comparison: backlog
+  11-3-trial-signup-user-onboarding: backlog
+  epic-11-retrospective: optional

@@ -14,7 +14,14 @@
       "mcp__chrome-devtools__handle_dialog",
       "mcp__chrome-devtools__list_pages",
       "Skill(bmad:bmm:workflows:generate-project-context)",
-      "Skill(bmad:bmm:workflows:workflow-status)"
+      "Skill(bmad:bmm:workflows:workflow-status)",
+      "mcp__next-devtools__nextjs_docs",
+      "mcp__docfork__docfork_search_docs",
+      "Bash(npx @next/codemod@canary upgrade:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npx convex dev:*)",
+      "mcp__ref__ref_search_documentation",
+      "Bash(test:*)"
     ]
   },
   "enabledMcpjsonServers": [

@@ -1,34 +1,5 @@
 {
   "mcpServers": {
-    "mcp-obsidian": {
-      "type": "stdio",
-      "command": "cmd",
-      "args": [
-        "/c",
-        "npx",
-        "-y",
-        "mcp-obsidian",
-        "--vault",
-        "\\docs"
-      ],
-      "env": {
-        "OBSIDIAN_API_KEY": "c3469d944148e69b0c78a8046a107358bf79d44a3b3668332433563d0ce1288e",
-        "OBSIDIAN_HOST": "127.0.0.1",
-        "OBSIDIAN_PORT": "27124"
-      }
-    },
-    "supabase": {
-      "type": "stdio",
-      "command": "cmd",
-      "args": [
-        "/c",
-        "npx",
-        "-y",
-        "@supabase/mcp-server-supabase@latest",
-        "--access-token",
-        "sbp_fca05f4ad7facbe3a8a5fec0eddbd493ec113645"
-      ]
-    },
     "chrome-devtools": {
       "type": "stdio",
       "command": "cmd",
@@ -38,23 +9,6 @@
         "-y",
         "chrome-devtools-mcp@latest"
       ]
-    },
-    "excel": {
-      "type": "stdio",
-      "command": "cmd",
-      "args": [
-        "/c",
-        "uvx",
-        "excel-mcp-server",
-        "stdio"
-      ]
-    },
-    "github": {
-      "type": "http",
-      "url": "https://api.githubcopilot.com/mcp/",
-      "headers": {
-        "Authorization": "Bearer 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"
-      }
     },
     "ref": {
       "type": "http",
@@ -68,16 +22,6 @@
         "npx",
         "-y",
         "next-devtools-mcp@latest"
-      ]
-    },
-    "sequential-thinking-tools": {
-      "type": "stdio",
-      "command": "cmd",
-      "args": [
-        "/c",
-        "npx",
-        "-y",
-        "mcp-server-sequential-thinking"
       ]
     },
     "docfork": {
@@ -98,6 +42,20 @@
         "npx",
         "-y",
         "gemini-mcp-tool"
+      ]
+    },
+    "convex-mcp": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "convex@latest",
+        "mcp",
+        "start",
+        "--project-dir",
+        "c:\\Users\\Tyroon\\Downloads\\project\\Procureline"
       ]
     }
   }

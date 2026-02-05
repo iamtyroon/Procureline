@@ -14,18 +14,18 @@ createdAt: 2026-01-22
 
 ## Epic Goal
 
-The platform supports a complete subscription lifecycle from trial to paid tiers with multiple payment methods and proper billing management.
+The platform supports a complete subscription lifecycle from Free tier to paid tiers with multiple payment methods and proper billing management.
 
 ## User Outcome
 
-Organizations can start with a free trial, choose appropriate subscription tiers, pay via their preferred method, and have subscriptions managed automatically aligned to fiscal year cycles.
+Organizations can start with a permanent Free tier, choose appropriate subscription tiers when ready to upgrade, pay via their preferred method, and have subscriptions managed automatically aligned to fiscal year cycles.
 
 ## Requirements Covered
 
 ### Functional Requirements
 
-**Trial & Subscription (9 FRs):**
-- FR71-FR72: 14-day free trial, expiration countdown
+**Free Tier & Subscription (9 FRs):**
+- FR71-FR72: Free tier provisioning with usage-based limits, tier usage meters
 - FR73-FR74: Subscription tier selection, payment method choice
 - FR75-FR76: Invoice generation, payment processing
 - FR77-FR79: Feature limits, grace period, suspension
@@ -48,44 +48,47 @@ Organizations can start with a free trial, choose appropriate subscription tiers
 
 ## Stories
 
-### Story 8.1: Trial Provisioning & Management
+### Story 8.1: Free Tier Provisioning & Usage Monitoring
 
 As a **prospective customer**,
-I want to start with a free trial,
-So that I can evaluate Procureline before committing to a paid subscription.
+I want to start with a permanent Free tier,
+So that I can evaluate Procureline without time pressure and upgrade when I exceed usage limits.
 
 **Acceptance Criteria:**
 
 **Given** a new user completes signup
 **When** their account is created
-**Then** system provisions a 14-day free trial automatically (FR71)
-**And** trial includes all Professional tier features
+**Then** system provisions a Free tier account automatically (FR71)
+**And** Free tier has usage-based limits: 10 departments, 20 categories, 50 items/category
+**And** no time limit or expiration
 
-**Given** a user is on trial
-**When** they view their dashboard
-**Then** system displays trial expiration countdown prominently (FR72)
-**And** shows: "X days remaining in trial"
+**Given** a Free tier user views their dashboard
+**When** they access the billing section
+**Then** system displays tier usage meters prominently (FR72)
+**And** shows: "5/10 departments", "12/20 categories", "max 35/50 items per category"
+**And** usage bars are color-coded: green (<70%), yellow (70-90%), red (>90%)
 
-**Given** trial has 7 days remaining
-**When** user logs in
-**Then** system sends trial expiration warning email
-**And** shows upgrade CTA prominently
+**Given** Free tier user approaches limit (>70% usage)
+**When** they view dashboard
+**Then** system shows upgrade suggestion banner
+**And** displays: "You're using 8/10 departments. Upgrade to Starter for 30 departments."
 
-**Given** trial expires
-**When** user attempts to log in
-**Then** system redirects to upgrade page
-**And** displays: "Your trial has expired. Subscribe to continue."
+**Given** Free tier user hits a limit
+**When** they attempt to create resource at limit
+**Then** system blocks action with upgrade modal
+**And** modal shows: "Free tier limit: 10 departments. Upgrade to continue."
+**And** modal displays tier comparison (Starter/Professional/Enterprise)
 
-**Given** trial expires
-**When** user has created data during trial
-**Then** data is retained for 30 days in read-only mode
-**And** becomes accessible upon subscription
+**Given** Free tier user with significant data
+**When** they decide not to upgrade
+**Then** data remains accessible indefinitely (no deletion or suspension)
+**And** user can continue using existing data within limits
 
 **Technical Notes:**
-- Trial status in `tenants.status: 'trial'` with `trialEndsAt` timestamp
-- Trial countdown calculated client-side from `trialEndsAt`
-- Trial expiration email via cron job checking approaching dates
-- Post-trial data retention via `dataRetainedUntil` field
+- Free tier status in `tenants.tier: 'free'`, `status: 'active'` (no expiration)
+- Usage meters calculated via Convex queries counting active resources
+- Tier enforcement at Convex mutation layer (see architecture.md)
+- No time-based expiration - only usage-based upgrade triggers
 
 ---
 
@@ -253,7 +256,7 @@ So that tenants have appropriate access based on payment status.
 **And** data deleted 90 days after expiration
 
 **Technical Notes:**
-- Subscription status: trial, active, grace, suspended, cancelled
+- Subscription status: active, grace, suspended, cancelled (tier tracked separately: free, starter, professional, enterprise)
 - Status transitions via Convex cron jobs checking dates
 - Feature limits checked at query level via subscription context
 - Grace period: `gracePeriodEndsAt` set to payment due + 7 days

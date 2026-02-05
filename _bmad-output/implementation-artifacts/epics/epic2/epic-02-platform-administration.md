@@ -3,7 +3,7 @@ epic: 2
 title: "Platform Administration"
 status: ready
 priority: P0
-totalStories: 13
+totalStories: 14
 frsConvered: ["FR8-FR14", "FR-PA1a-PA10j"]
 nfrsAddressed: ["NFR-S1", "NFR-S9", "NFR-R1", "NFR-R3", "NFR-R7"]
 dependencies: ["Epic 1"]
@@ -31,7 +31,7 @@ Platform Admin has complete visibility and control over all tenants, subscriptio
 - FR11: Platform Admin can view system health metrics (API, database, jobs)
 - FR12: Platform Admin can view and manage subscription statuses
 - FR13: Platform Admin can access support ticket activity logs
-- FR14: Platform Admin can monitor trial engagement and conversion metrics
+- FR14: Platform Admin can monitor Free tier usage and upgrade conversion metrics
 
 **Sub-sections:**
 - FR-PA1a-PA1j: Authentication & Access (10 FRs)
@@ -39,7 +39,7 @@ Platform Admin has complete visibility and control over all tenants, subscriptio
 - FR-PA3a-PA3o: Tenant Management (15 FRs)
 - FR-PA4a-PA4o: Subscription & Billing (15 FRs)
 - FR-PA5a-PA5j: User Management Cross-Tenant (10 FRs)
-- FR-PA6a-PA6j: Trial Management (10 FRs)
+- FR-PA6a-PA6j: Free Tier Management (10 FRs)
 - FR-PA7a-PA7j: System Health (10 FRs)
 - FR-PA8a-PA8j: Security & Compliance (10 FRs)
 - FR-PA9a-PA9j: Support & Incidents (10 FRs)
@@ -59,9 +59,328 @@ Platform Admin has complete visibility and control over all tenants, subscriptio
 - All actions logged to immutable audit trail
 - Bento box dashboard design per UX specification
 
+## Epic 1 Dependency
+
+**Prerequisites:**
+- ✅ Epic 1 must be 100% complete before starting Epic 2
+- Next.js 16 + React 19 + Convex stack validated and running
+- Authentication system (Convex Auth) fully functional
+- RBAC system with all 4 roles implemented
+- Tenant isolation enforced at database level
+
+**What You'll Inherit from Epic 1:**
+- `_roleGuard.ts` helper for role-based access in Convex functions
+- `RoleGuard` React component for frontend route protection
+- `_tenantGuard.ts` helper for tenant filtering
+- Platform Admin role already defined in users table
+- Security infrastructure (XSS protection, CORS, audit logging)
+
+**Developer Notes:**
+- All Platform Admin routes require `role: 'platform_admin'` check
+- Platform Admin bypasses tenant filtering (can view all tenants)
+- All Platform Admin actions MUST be logged via audit system from Story 1.9
+
 ---
 
 ## Stories
+
+### Story 2.0: NestJS Microservice Foundation & External Services
+
+As a **development team**,
+I want a NestJS microservice providing payment processing, file generation, and email services,
+So that all epics have access to critical external integrations and heavy processing capabilities.
+
+**Acceptance Criteria:**
+
+**Given** the platform requires external service integration
+**When** the NestJS microservice is initialized
+**Then** project structure follows NestJS best practices with modular architecture
+**And** includes: auth module, payments module, files module, emails module
+
+**Given** Next.js frontend needs to call NestJS services
+**When** API gateway is configured
+**Then** REST API is exposed at `/api/services/*` with OpenAPI documentation
+**And** all endpoints require authentication via Convex session token validation
+
+**Given** Convex session tokens must be validated
+**When** Next.js calls NestJS
+**Then** NestJS validates token by calling Convex auth endpoint
+**And** extracts userId and tenantId from token
+**And** rejects requests with invalid/expired tokens
+
+**Given** payment processing is required
+**When** Stripe integration is configured
+**Then** Stripe SDK is installed and initialized with API keys
+**And** supports: creating subscriptions, processing payments, managing customers
+**And** webhook endpoints handle: payment_intent.succeeded, subscription_updated, invoice.paid
+
+**Given** M-Pesa payment processing is needed (Kenya market)
+**When** IntaSend integration is configured
+**Then** IntaSend SDK is installed and initialized
+**And** supports: M-Pesa STK Push, payment verification, callback handling
+**And** webhook endpoints handle: payment notifications and status updates
+
+**Given** bank transfer payments are used (LPO-based)
+**When** manual verification is needed
+**Then** system provides API for Platform Admin to mark payments as verified
+**And** updates tenant subscription status accordingly
+
+**Given** invoices and reports need generation
+**When** PDF generation is configured
+**Then** PDFKit or Puppeteer is installed
+**And** supports: invoice templates, report templates, watermarks, multi-page documents
+
+**Given** Excel import/export is required across multiple epics
+**When** Excel processing is configured
+**Then** ExcelJS library is installed
+**And** supports: reading uploaded files, generating downloads, data validation, template creation
+
+**Given** email sending is required
+**When** Resend integration is configured
+**Then** Resend SDK is installed with API key
+**And** supports: transactional emails, templates, bounce/complaint webhooks
+**And** email templates use React Email for consistent branding
+
+**Given** webhook events are received from external services
+**When** webhook endpoints are hit
+**Then** system validates webhook signatures (Stripe: stripe-signature, IntaSend: API key)
+**And** processes events idempotently (checks for duplicate event IDs)
+**And** retries failed processing with exponential backoff (3 attempts max)
+
+**Given** file processing tasks are CPU-intensive
+**When** background jobs are needed
+**Then** Bull queue with Redis is configured for job processing
+**And** supports: retry logic, job prioritization, progress tracking
+
+**Given** the microservice needs error tracking
+**When** exceptions occur
+**Then** errors are logged with context (userId, tenantId, request details)
+**And** critical errors trigger alerts to Platform Admin
+
+**Given** the microservice is deployed
+**When** environment variables are configured
+**Then** includes: DATABASE_URL (Convex), STRIPE_SECRET_KEY, INTASEND_API_KEY, RESEND_API_KEY, REDIS_URL
+**And** validates all required env vars on startup
+
+**Given** API rate limiting is needed
+**When** endpoints are exposed
+**Then** rate limiting is configured: 100 req/min per user, 1000 req/min per tenant
+**And** returns 429 with retry-after header when exceeded
+
+**Technical Notes:**
+
+**Project Structure:**
+```
+nestjs-services/
+├── src/
+│   ├── auth/
+│   │   ├── auth.guard.ts          # Validates Convex tokens
+│   │   ├── convex-auth.service.ts # Calls Convex to verify tokens
+│   │   └── decorators/            # @UserId(), @TenantId() decorators
+│   ├── payments/
+│   │   ├── stripe.service.ts      # Stripe SDK wrapper
+│   │   ├── intasend.service.ts    # IntaSend SDK wrapper
+│   │   ├── bank-transfer.service.ts
+│   │   ├── webhooks.controller.ts # Payment webhooks
+│   │   └── dto/                   # Payment DTOs
+│   ├── files/
+│   │   ├── pdf.service.ts         # PDF generation
+│   │   ├── excel.service.ts       # Excel import/export
+│   │   └── templates/             # PDF/Excel templates
+│   ├── emails/
+│   │   ├── resend.service.ts      # Resend SDK wrapper
+│   │   ├── templates/             # React Email templates
+│   │   └── dto/
+│   └── common/
+│       ├── filters/               # Exception filters
+│       ├── interceptors/          # Logging, transform
+│       └── pipes/                 # Validation pipes
+├── .env.example
+└── package.json
+```
+
+**Authentication Flow:**
+```typescript
+// auth.guard.ts
+@Injectable()
+export class ConvexAuthGuard implements CanActivate {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest();
+    const token = request.headers.authorization?.split(' ')[1];
+
+    if (!token) throw new UnauthorizedException();
+
+    // Call Convex to validate token
+    const user = await this.convexAuthService.validateToken(token);
+
+    request.user = user; // { userId, tenantId, role }
+    return true;
+  }
+}
+```
+
+**Stripe Integration:**
+```typescript
+// stripe.service.ts
+@Injectable()
+export class StripeService {
+  private stripe: Stripe;
+
+  constructor() {
+    this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2023-10-16',
+    });
+  }
+
+  async createSubscription(customerId: string, priceId: string) {
+    return await this.stripe.subscriptions.create({
+      customer: customerId,
+      items: [{ price: priceId }],
+    });
+  }
+
+  async handleWebhook(signature: string, body: Buffer) {
+    const event = this.stripe.webhooks.constructEvent(
+      body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+
+    // Process event and call Convex mutations to update subscription status
+  }
+}
+```
+
+**IntaSend Integration:**
+```typescript
+// intasend.service.ts
+@Injectable()
+export class IntaSendService {
+  private client: IntaSend;
+
+  constructor() {
+    this.client = new IntaSend(
+      process.env.INTASEND_PUBLISHABLE_KEY,
+      process.env.INTASEND_SECRET_KEY,
+      true // test mode
+    );
+  }
+
+  async initiateMpesaPayment(phoneNumber: string, amount: number) {
+    const collection = this.client.collection();
+    return await collection.mpesaStkPush({
+      phone_number: phoneNumber,
+      amount: amount,
+      currency: 'KES',
+      api_ref: generateRef(),
+    });
+  }
+}
+```
+
+**Excel Generation:**
+```typescript
+// excel.service.ts
+@Injectable()
+export class ExcelService {
+  async generateDepartmentTemplate(): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Departments');
+
+    sheet.columns = [
+      { header: 'Department Name', key: 'name', width: 30 },
+      { header: 'Code', key: 'code', width: 15 },
+      { header: 'Budget', key: 'budget', width: 15 },
+    ];
+
+    return await workbook.xlsx.writeBuffer();
+  }
+
+  async importDepartments(file: Express.Multer.File): Promise<Department[]> {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(file.buffer);
+
+    const sheet = workbook.getWorksheet(1);
+    const departments: Department[] = [];
+
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) { // Skip header
+        departments.push({
+          name: row.getCell(1).value,
+          code: row.getCell(2).value,
+          budget: row.getCell(3).value,
+        });
+      }
+    });
+
+    return departments;
+  }
+}
+```
+
+**Email Templates:**
+```typescript
+// emails/templates/po-invitation.tsx (React Email)
+export function POInvitationEmail({ orgName, loginUrl, code }) {
+  return (
+    <Html>
+      <Head />
+      <Body>
+        <Container>
+          <Heading>You've been invited to {orgName}</Heading>
+          <Text>
+            You've been added as a Procurement Officer. Use the access code
+            below to log in and get started.
+          </Text>
+          <Section>
+            <Text style={{ fontSize: '24px', fontWeight: 'bold' }}>
+              {code}
+            </Text>
+          </Section>
+          <Button href={loginUrl}>Log In Now</Button>
+        </Container>
+      </Body>
+    </Html>
+  );
+}
+```
+
+**Deployment:**
+- Deploy as separate service (Vercel, Railway, or Fly.io)
+- Environment variables managed via deployment platform
+- Health check endpoint at `/health`
+- Metrics exposed at `/metrics` (Prometheus format)
+- CORS configured to accept requests from Next.js app domain only
+
+**Dependencies:**
+```json
+{
+  "dependencies": {
+    "@nestjs/common": "^10.0.0",
+    "@nestjs/core": "^10.0.0",
+    "@nestjs/platform-express": "^10.0.0",
+    "@nestjs/swagger": "^7.0.0",
+    "@nestjs/bull": "^10.0.0",
+    "stripe": "^14.0.0",
+    "intasend-node": "^1.0.0",
+    "resend": "^2.0.0",
+    "exceljs": "^4.4.0",
+    "pdfkit": "^0.14.0",
+    "react-email": "^2.0.0",
+    "bull": "^4.12.0",
+    "redis": "^4.6.0",
+    "axios": "^1.6.0"
+  }
+}
+```
+
+**Testing Requirements:**
+- Unit tests for all services
+- Integration tests for payment webhooks with test events
+- E2E tests for critical flows (subscription creation, invoice generation)
+- Mock external services (Stripe, IntaSend) in test environment
+
+---
 
 ### Story 2.1: Platform Admin Authentication & 2FA
 
@@ -140,11 +459,11 @@ So that I can quickly assess platform health and take action on critical issues.
 
 **Given** the dashboard is displayed
 **When** tenant data is loaded
-**Then** tenant overview shows counts: active, trial, suspended, churned (FR-PA2b)
+**Then** tenant overview shows counts by tier: Free, Starter, Professional, Enterprise; and status: suspended, churned (FR-PA2b)
 
 **Given** the dashboard is displayed
 **When** revenue data is loaded
-**Then** key metrics show MRR, ARR, trial conversion rate (FR-PA2c)
+**Then** key metrics show MRR, ARR, Free-to-paid conversion rate (FR-PA2c)
 
 **Given** the dashboard is displayed
 **When** alerts exist
@@ -194,7 +513,7 @@ So that I can quickly find and assess any tenant's status.
 
 **Given** the tenant list is displayed
 **When** Platform Admin applies filters
-**Then** list can be filtered by status (active, trial, suspended, churned)
+**Then** list can be filtered by tier (Free, Starter, Professional, Enterprise) and status (active, suspended, churned)
 **And** list can be searched by name or subdomain
 
 **Given** a Platform Admin clicks on a tenant
@@ -470,63 +789,97 @@ So that I can handle security issues and support requests efficiently.
 
 ---
 
-### Story 2.9: Trial Management & Conversion
+### Story 2.9: Free Tier Management & Usage Monitoring
 
 As a **Platform Admin**,
-I want to manage trials and track conversion metrics,
-So that I can optimize the trial experience and improve conversion rates.
+I want to manage Free tier tenants and monitor their usage against tier limits,
+So that I can identify upgrade candidates and ensure fair platform usage.
 
 **Acceptance Criteria:**
 
-**Given** a Platform Admin accesses trial management
-**When** the trial list loads
-**Then** all active trials with engagement metrics are shown (FR-PA6a)
-**And** metrics include: days remaining, logins, features used
+**Given** a Platform Admin accesses Free tier management
+**When** the Free tier tenant list loads
+**Then** all Free tier tenants with usage metrics are shown (FR-PA6a)
+**And** metrics include: departments used/limit, categories used/limit, items per category max, logins, last activity
 
-**Given** conversion insights are needed
-**When** Platform Admin views conversion funnel
-**Then** trial-to-paid conversion funnel is displayed (FR-PA6b)
-**And** shows: started, engaged, converted, churned
+**Given** a Platform Admin views Free tier usage
+**When** they access the usage dashboard
+**Then** system displays tier limit utilization for all Free tier tenants (FR-PA6b)
+**And** shows: tenant name, departments (X/10), categories (X/20), items per category (max X/50)
+**And** color codes: green (<70%), yellow (70-90%), red (>90%)
 
-**Given** a trial needs extension
-**When** Platform Admin extends trial
-**Then** extension is applied (max 2 extensions, 30 days total) (FR-PA6c)
-**And** tenant is notified of extension
+**Given** a Free tier tenant approaches limits
+**When** any resource exceeds 90% utilization
+**Then** tenant is automatically flagged as "upgrade candidate" (FR-PA6c)
+**And** Platform Admin sees "Upgrade Candidate" badge next to tenant
+**And** system tracks when tenant first hit 90% threshold
 
-**Given** a promising trial is identified
-**When** Platform Admin flags for sales
-**Then** trial is marked for sales follow-up (FR-PA6d)
+**Given** a Platform Admin identifies an upgrade candidate
+**When** they want to encourage upgrade
+**Then** Platform Admin can flag tenant for sales outreach (FR-PA6d)
+**And** tenant record is marked with "Sales Follow-up" status
+**And** notes can be added to explain upgrade opportunity
 
-**Given** a trial has zero engagement for 7 days
+**Given** a Free tier tenant has zero activity for 90 days
 **When** the system checks engagement
-**Then** trial is auto-archived (FR-PA6e)
+**Then** tenant is auto-flagged as "inactive" (FR-PA6e)
+**And** Platform Admin sees "Inactive" badge
+**And** tenant remains accessible (no deletion or suspension)
 
-**Given** trial abuse is suspected
-**When** system detects same org with multiple trials
-**Then** abuse is flagged for review (FR-PA6f)
+**Given** Free tier abuse is suspected
+**When** system detects same organization or email domain with multiple Free tier accounts
+**Then** abuse is flagged for Platform Admin review (FR-PA6f)
+**And** displays: suspected duplicate accounts, matching criteria (email domain, org name)
 
-**Given** a trial is ready to convert
-**When** Platform Admin converts to paid
-**Then** trial converts to specific subscription tier (FR-PA6g)
+**Given** a Free tier tenant is ready to upgrade
+**When** Platform Admin converts to paid tier
+**Then** tenant upgrades to specified tier (Starter/Professional/Enterprise) (FR-PA6g)
+**And** tier limits are immediately updated
+**And** tenant is notified of upgrade and new features
 
-**Given** a trial expires
-**When** expiration occurs
-**Then** read-only access is provided for 7 days (FR-PA6h)
-**And** then access is fully revoked
+**Given** a Free tier tenant exceeds tier limits
+**When** Platform Admin views the tenant
+**Then** system displays which limits are exceeded and by how much (FR-PA6h)
+**And** shows: "Departments: 12/10 (exceeded by 2)"
+**And** Platform Admin can see this occurred due to downgrade from higher tier
 
-**Given** trial signups are monitored
-**When** unusual signup volume detected
+**Given** Free tier signups are monitored
+**When** unusual signup volume is detected (>50 signups in 1 hour)
 **Then** rate-limiting prevents spam (FR-PA6i)
+**And** Platform Admin receives alert about unusual activity
 
-**Given** expired trials need review
-**When** Platform Admin views expired list
-**Then** expired trials with reasons are shown (FR-PA6j)
+**Given** conversion metrics are needed
+**When** Platform Admin views Free tier conversion report
+**Then** system shows: total Free tier tenants, upgrade candidates, converted to paid, inactive (FR-PA6j)
+**And** displays conversion rate: (converted / (converted + active Free)) × 100%
 
 **Technical Notes:**
-- Engagement tracking: login count, features accessed, data created
-- Conversion funnel visualization with Recharts
-- Auto-archive via Convex scheduled function
-- Abuse detection: match by organization name/domain
+- Free tier is permanent (NO time limit, NO expiration)
+- Tier limits for Free tier:
+  - Departments: 10 max
+  - Categories: 20 max
+  - Items per category: 50 max
+  - DU editor: 5 category blocks, 15 items per block
+  - Export rows: 300 max
+  - Bulk import: NOT available
+  - Catalog export: NOT available
+  - Audit reports: NOT available
+- Usage metrics calculated via Convex queries:
+  - `db.query("tenants").filter(q => q.eq(q.field("tier"), "free")).collect()`
+  - For each tenant, query departments, categories, items counts
+- Upgrade candidate flagging:
+  - Tracked via `upgradeCandidate: boolean` field on tenant
+  - `upgradeCandidateSince: timestamp` to track when flagged
+- Engagement tracking: login count, last activity timestamp, resource creation dates
+- Inactive detection: Convex cron job checks `lastActivityAt` field (90 days)
+- Abuse detection: match by organization name (fuzzy) or email domain
+- Conversion metrics:
+  - `totalFree = count where tier = "free"`
+  - `upgradeCandidates = count where upgradeCandidate = true`
+  - `converted = count of tier changes from "free" to paid (from audit logs)`
+  - `inactive = count where lastActivityAt > 90 days ago`
+- Conversion rate visualization with Recharts
+- Sales follow-up tracked via `salesFollowUp: { status, notes, flaggedBy, flaggedAt }` on tenant
 
 ---
 
@@ -761,36 +1114,47 @@ So that I can control platform behavior and roll out features safely.
 ## Story Dependency Graph
 
 ```
-Story 2.1 (PA Auth & 2FA)
+Story 2.0 (NestJS Foundation) ──── CRITICAL FOUNDATION
     │
-    └── Story 2.2 (Dashboard Shell)
-            │
-            ├── Story 2.3 (Tenant List)
-            │       │
-            │       ├── Story 2.4 (Tenant Creation)
-            │       │
-            │       └── Story 2.5 (Tenant Management)
-            │
-            ├── Story 2.6 (Subscription Status)
-            │       │
-            │       └── Story 2.7 (Payment Processing)
-            │
-            ├── Story 2.8 (User Management)
-            │
-            ├── Story 2.9 (Trial Management)
-            │
-            ├── Story 2.10 (System Health)
-            │
-            ├── Story 2.11 (Security Dashboard)
-            │
-            ├── Story 2.12 (Support & Incidents)
-            │
-            └── Story 2.13 (Configuration)
+    ├── Story 2.1 (PA Auth & 2FA)
+    │       │
+    │       └── Story 2.2 (Dashboard Shell)
+    │               │
+    │               ├── Story 2.3 (Tenant List)
+    │               │       │
+    │               │       ├── Story 2.4 (Tenant Creation)
+    │               │       │
+    │               │       └── Story 2.5 (Tenant Management)
+    │               │
+    │               ├── Story 2.10 (System Health)
+    │               │
+    │               ├── Story 2.11 (Security Dashboard)
+    │               │
+    │               ├── Story 2.12 (Support & Incidents)
+    │               │
+    │               └── Story 2.13 (Configuration)
+    │
+    ├── Story 2.6 (Subscription Status) ──── Requires Story 2.0 (billing APIs)
+    │       │
+    │       └── Story 2.7 (Payment Processing) ──── Requires Story 2.0 (Stripe, IntaSend)
+    │
+    ├── Story 2.8 (User Management)
+    │
+    └── Story 2.9 (Trial Management)
 ```
+
+**Implementation Order Recommendation:**
+1. **Story 2.0** (NestJS Foundation) - 3-5 days - **MUST BE FIRST**
+2. Story 2.1 (PA Auth & 2FA) - 1-2 days
+3. Story 2.2 (Dashboard Shell) - 1 day
+4. Stories 2.3-2.5 (Tenant Management) - 2-3 days
+5. Story 2.6-2.7 (Billing) - 3-4 days (payment integration complexity)
+6. Stories 2.8-2.13 (remaining features) - 5-7 days
 
 ## Definition of Done
 
-- [ ] All 13 stories implemented and tested
+- [ ] All 14 stories implemented and tested
+- [ ] Story 2.0: NestJS microservice deployed and operational
 - [ ] Platform Admin portal fully functional
 - [ ] All CRUD operations for tenants working
 - [ ] Payment processing integrated (Stripe, IntaSend, Bank Transfer)

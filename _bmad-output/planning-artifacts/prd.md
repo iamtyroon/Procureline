@@ -125,8 +125,8 @@ The platform features a 4-layer user hierarchy (Platform Admin → Tenant Admin 
 | Metric | Target |
 |--------|--------|
 | Paying Tenants | 5 universities |
-| Trial Signups | 15-25 per quarter |
-| Trial → Paid Conversion | 30%+ |
+| Free Tier Signups | 15-25 per quarter |
+| Free → Paid Conversion | 30%+ |
 | Average Contract Value | KES 1,000,000/year |
 | Year 1 ARR | KES 11.2M |
 
@@ -152,11 +152,11 @@ The platform features a 4-layer user hierarchy (Platform Admin → Tenant Admin 
 ### Measurable Outcomes
 
 **90-Day Validation Metrics:**
-- 3+ universities complete trial signup
-- 1+ university converts to paid subscription
+- 3+ universities complete Free tier signup
+- 1+ university converts to paid subscription (Starter or Professional)
 - PO consolidation time under 4 hours (vs. 2+ weeks baseline)
 - Zero critical bugs in production
-- Trial → first plan creation under 30 minutes
+- Free tier → first plan creation under 30 minutes
 
 **Success Connected to Differentiator:**
 The Blockly interface succeeds when:
@@ -177,7 +177,7 @@ The Blockly interface succeeds when:
 5. **Departmental User Workspace** — Simplified dashboard, plan submission
 6. **Visual Blockly Planning Engine** — Drag-and-drop blocks, real-time calculations, validation
 7. **Excel Integration** — Bidirectional import/export, GOK-compliant templates
-8. **Marketing & Onboarding** — Landing page, 14-day trial, signup flow
+8. **Marketing & Onboarding** — Landing page, Free tier signup, onboarding flow
 
 **MVP Success Gate:**
 - All 4 portals functional and tested
@@ -248,7 +248,7 @@ Before Departmental Users can submit plans, the Procurement Officer must complet
 
 Sarah is a Procurement Officer at Pwani University who has spent the last eight years mastering the art of procurement chaos. Every fiscal year, she sends out Excel templates to 12 department heads, then spends the next three weeks chasing submissions, fixing formula errors, and manually consolidating hundreds of line items into a master plan. Last year, she worked until 11 PM for two straight weeks during consolidation season, missing her daughter's school play.
 
-It's July 1st — the start of a new fiscal year — and Sarah logs into Procureline for the first time after her university signed up for a trial. Instead of emailing Excel templates, she clicks "Create Departments" and sets up all 12 departments in 20 minutes, each with an auto-generated access code. She sends a single email: "Log in with your code. Build your plan. The system handles the rest."
+It's July 1st — the start of a new fiscal year — and Sarah logs into Procureline for the first time after her university signed up on the Free tier. Instead of emailing Excel templates, she clicks "Create Departments" and sets up all 12 departments in 20 minutes, each with an auto-generated access code. She sends a single email: "Log in with your code. Build your plan. The system handles the rest."
 
 Over the next week, Sarah watches her dashboard light up as department plans arrive. No more email attachments. No more "which version is correct?" Each submission is automatically validated — budget limits enforced, quarterly allocations checked, category totals calculated. When Computer Science submits with an over-budget request, the system flags it instantly. Sarah sends it back with one click and a note: "Reduce Q3 laptop allocation by 5 units."
 
@@ -308,7 +308,7 @@ Kevin starts every morning with a coffee and the Platform Admin dashboard. Today
 
 A support ticket appears in his queue with "High" SLA indicator — Kenyatta University can't log in. Kevin checks the SLA timer (4 hours remaining) and opens the tenant record. Subscription status: active, paid through December. He reviews the access logs filtered by authentication failures and spots the issue: their IT team changed the institutional email domain and users are trying old addresses. He updates the allowed domain configuration in tenant settings (the system logs the change with before/after values) and closes the ticket with a resolution note. The system updates the ticket SLA as "Met."
 
-At 2 PM, his phone buzzes with an SMS alert — the system detected an anomaly: trial signups spiked 10x in the last hour. Kevin checks the trial management dashboard and sees multiple signups from the same email domain pattern (spam attempt). The system already rate-limited new signups from that domain. He marks them for review and confirms the abuse detection worked. A legitimate trial also came in: Strathmore University. He reviews their auto-provisioned tenant (the system handled subdomain configuration and infrastructure automatically) and checks engagement metrics — they've already created 3 departments and built a test plan. Great engagement! He flags them "Hot Lead" for sales follow-up using the quick action button.
+At 2 PM, his phone buzzes with an SMS alert — the system detected an anomaly: Free tier signups spiked 10x in the last hour. Kevin checks the Free tier management dashboard and sees multiple signups from the same email domain pattern (spam attempt). The system already rate-limited new signups from that domain. He marks them for review and confirms the abuse detection worked. A legitimate Free tier signup also came in: Strathmore University. He reviews their auto-provisioned tenant (the system handled subdomain configuration and infrastructure automatically) and checks engagement metrics — they've already created 3 departments and built a test plan. Great engagement! He flags them "Hot Lead" for sales follow-up using the quick action button.
 
 Mid-afternoon, Kevin needs to apply a security patch. He schedules a maintenance window for 2 AM Saturday using the announcement system — the system will auto-notify all affected tenants and update the status page. He also tests the announcement preview to make sure it looks right.
 
@@ -346,7 +346,7 @@ Kevin updates the system status page to "All Systems Operational" and logs off. 
 | **Broadcast Messaging** | Dr. Amina (Tenant Admin) |
 | **Multi-tenant Infrastructure** | Kevin (Platform Admin) |
 | **System Health Monitoring** | Kevin (Platform Admin) |
-| **Trial Management** | Kevin (Platform Admin) |
+| **Free Tier Management** | Kevin (Platform Admin) |
 | **Subscription & Billing Ops** | Kevin (Platform Admin) |
 | **Support Ticketing & SLA** | Kevin (Platform Admin) |
 | **Security & Compliance** | Kevin (Platform Admin) |
@@ -405,7 +405,7 @@ The breakthrough isn't any single element — it's the synergy of three componen
 |-------------------|------------------|----------|
 | **User Testing (DU)** | Complete plan in <15 min with zero training | Pre-launch |
 | **User Testing (PO)** | Complete consolidation in <4 hours | Pre-launch |
-| **Trial Conversion** | 30%+ trial-to-paid conversion | 90 days |
+| **Free-to-Paid Conversion** | 30%+ Free tier to paid conversion | 90 days |
 | **Time Savings** | 90%+ reduction in consolidation time | First fiscal cycle |
 | **Error Reduction** | Zero validation errors at submission | Ongoing |
 
@@ -454,11 +454,17 @@ Procureline is a **multi-tenant SaaS B2B platform** serving institutional custom
 | **Configuration** | Per-tenant settings (fiscal year, compliance rules, branding) |
 
 **Tenant Lifecycle:**
-1. **Trial** — 14-day free trial, auto-provisioned on signup
-2. **Active** — Paid subscription, full access
+1. **Free Tier** — Permanent free access with usage limits, auto-provisioned on signup
+2. **Active Paid** — Paid subscription (Starter/Professional/Enterprise), full access based on tier
 3. **Grace Period** — 7 days after failed payment, read-only access
 4. **Suspended** — Payment overdue, no access, data retained 90 days
 5. **Churned** — Subscription cancelled, data archived then deleted
+
+**Free Tier Model:**
+- Permanent (no time limit)
+- Usage-based limits designed for small institutions or pilot usage
+- Upgrade triggered when limits are approached or exceeded
+- No credit card required for signup
 
 ### Role-Based Access Control (RBAC)
 
@@ -506,7 +512,7 @@ Procureline is a **multi-tenant SaaS B2B platform** serving institutional custom
 | Process Refunds | ✓ | - | - | - |
 | Verify Payments | ✓ | - | - | - |
 | Cross-Tenant User Search | ✓ | - | - | - |
-| Manage Trials | ✓ | - | - | - |
+| Manage Free Tier Users | ✓ | - | - | - |
 | Run Data Isolation Check | ✓ | - | - | - |
 | Manage Support Tickets | ✓ | - | - | - |
 | Send Announcements | ✓ | - | - | - |
@@ -517,29 +523,53 @@ Procureline is a **multi-tenant SaaS B2B platform** serving institutional custom
 
 ### Subscription Tiers
 
-**Pricing Structure (Kenya Fiscal Year Aligned):**
+**Freemium Pricing Structure (Kenya Fiscal Year Aligned):**
 
-| Tier | Monthly | Annual | Departments | Users | Storage | Support |
-|------|---------|--------|-------------|-------|---------|---------|
-| **Starter** | KES 41,667 | KES 500,000 | ≤10 | ≤50 | 5GB | Email |
-| **Professional** | KES 100,000 | KES 1,200,000 | ≤25 | ≤150 | 25GB | Priority |
-| **Enterprise** | KES 200,000 | KES 2,400,000 | Unlimited | Unlimited | 100GB | Dedicated |
+| Tier | Monthly | Annual | Model |
+|------|---------|--------|-------|
+| **Free** | KES 0 | KES 0 | Permanent with usage limits |
+| **Starter** | KES 41,667 | KES 500,000 | Small to medium institutions |
+| **Professional** | KES 100,000 | KES 1,200,000 | Large institutions |
+| **Enterprise** | KES 200,000 | KES 2,400,000 | Government agencies, unlimited scale |
+
+**Tier Usage Limits:**
+
+| Resource | Free | Starter | Professional | Enterprise |
+|----------|:----:|:-------:|:------------:|:----------:|
+| **PO Catalog Management** ||||
+| Departments | 10 | 30 | 100 | Unlimited |
+| Categories | 20 | 60 | 200 | Unlimited |
+| Items per Category | 50 | 150 | 500 | Unlimited |
+| Bulk Import | ❌ | 100 rows | 1,000 rows | Unlimited |
+| Catalog Export | ❌ | ❌ | ✓ | ✓ |
+| **DU Blockly Editor** ||||
+| Category Blocks | 5 | 20 | 50 | Unlimited |
+| Items per Block | 15 | 50 | 100 | Unlimited |
+| Total Items per Plan | 75 | 1,000 | 5,000 | Unlimited |
+| **Reports & Exports** ||||
+| Excel Export Rows | 300 | 1,000 | 10,000 | Unlimited |
+| Audit Reports | ❌ | ❌ | ✓ | ✓ |
+| Storage | 1GB | 5GB | 25GB | 100GB |
+| Support | Community | Email | Priority | Dedicated |
 
 **Tier Feature Comparison:**
 
-| Feature | Starter | Professional | Enterprise |
-|---------|:-------:|:------------:|:----------:|
-| Blockly Planning Interface | ✓ | ✓ | ✓ |
-| Excel Import/Export | ✓ | ✓ | ✓ |
-| GOK Compliance Calculations | ✓ | ✓ | ✓ |
-| Consolidation Workspace | ✓ | ✓ | ✓ |
-| Audit Trails | ✓ | ✓ | ✓ |
-| Analytics Dashboard | - | ✓ | ✓ |
-| Multi-year Comparison | - | ✓ | ✓ |
-| API Access | - | - | ✓ |
-| SSO/LDAP Integration | - | - | ✓ |
-| Custom Compliance Modules | - | - | ✓ |
-| Dedicated Account Manager | - | - | ✓ |
+| Feature | Free | Starter | Professional | Enterprise |
+|---------|:----:|:-------:|:------------:|:----------:|
+| Blockly Planning Interface | ✓ | ✓ | ✓ | ✓ |
+| Excel Export (limited) | ✓ | ✓ | ✓ | ✓ |
+| GOK Compliance Calculations | ✓ | ✓ | ✓ | ✓ |
+| Consolidation Workspace | ✓ | ✓ | ✓ | ✓ |
+| Basic Audit Trails | ✓ | ✓ | ✓ | ✓ |
+| Bulk Import/Export | ❌ | Limited | ✓ | ✓ |
+| Catalog Export | ❌ | ❌ | ✓ | ✓ |
+| Audit Reports | ❌ | ❌ | ✓ | ✓ |
+| Analytics Dashboard | ❌ | ❌ | ✓ | ✓ |
+| Multi-year Comparison | ❌ | ❌ | ✓ | ✓ |
+| API Access | ❌ | ❌ | ❌ | ✓ |
+| SSO/LDAP Integration | ❌ | ❌ | ❌ | ✓ |
+| Custom Compliance Modules | ❌ | ❌ | ❌ | ✓ |
+| Dedicated Account Manager | ❌ | ❌ | ❌ | ✓ |
 
 **Payment Methods:**
 - Bank Transfer with LPO (primary for universities)
@@ -659,7 +689,7 @@ Build the multi-tenant foundation with the core Blockly innovation, establishing
 | Plan submission workflow | Critical | DU→PO handoff |
 | Consolidation workspace | Critical | PO "aha moment" |
 | Excel export (GOK format) | Critical | Output requirement |
-| Landing page + trial signup | Critical | Customer acquisition |
+| Landing page + Free tier signup | Critical | Customer acquisition |
 | Basic billing (manual) | High | Revenue enablement |
 | Email notifications | High | Workflow communication |
 | Tenant Admin dashboard | Medium | Visibility for decision-makers |
@@ -722,7 +752,7 @@ Before proceeding to Phase 2, MVP must achieve:
 | **Functional Completeness** | All 4 portals working end-to-end | QA sign-off |
 | **Performance** | Blockly loads in <2s with 10 departments | Load testing |
 | **Scale** | Handles 50 concurrent users per tenant | Stress testing |
-| **User Validation** | 3+ universities complete trial signup | Analytics |
+| **User Validation** | 3+ universities complete Free tier signup | Analytics |
 | **Revenue** | 1+ university converts to paid | Billing system |
 | **Time Savings** | PO consolidation <4 hours | User feedback |
 
@@ -774,7 +804,7 @@ This "Minimum Minimum" could launch in 2-3 months with 2 developers, but would r
 
 ### 1. Authentication & Access Control
 
-- FR1: Users can register for a trial account using email and organization details
+- FR1: Users can register for a Free tier account using email and organization details
 - FR2: Users can log in using email and password
 - FR2a: System displays clear error message for invalid email format
 - FR2b: System displays clear error message for incorrect password
@@ -808,7 +838,7 @@ This "Minimum Minimum" could launch in 2-3 months with 2 developers, but would r
 - FR11: Platform Admin can view system health metrics (API, database, jobs)
 - FR12: Platform Admin can view and manage subscription statuses
 - FR13: Platform Admin can access support ticket activity logs
-- FR14: Platform Admin can monitor trial engagement and conversion metrics
+- FR14: Platform Admin can monitor Free tier engagement and conversion metrics
 
 #### 2a. Authentication & Access
 
@@ -825,8 +855,8 @@ This "Minimum Minimum" could launch in 2-3 months with 2 developers, but would r
 #### 2b. Dashboard & Monitoring
 
 - FR-PA2a: Dashboard displays system health summary (API, DB, jobs, storage)
-- FR-PA2b: Dashboard displays tenant overview (active, trial, suspended, churned counts)
-- FR-PA2c: Dashboard displays key revenue metrics (MRR, ARR, trial conversions)
+- FR-PA2b: Dashboard displays tenant overview (active by tier: Free/Starter/Professional/Enterprise, suspended, churned counts)
+- FR-PA2c: Dashboard displays key revenue metrics (MRR, ARR, Free-to-paid conversions)
 - FR-PA2d: Dashboard displays recent alerts with severity indicators
 - FR-PA2e: System auto-alerts via SMS/email for critical issues (API down, DB errors)
 - FR-PA2f: Dashboard provides quick action buttons (create tenant, view logs, etc.)
@@ -884,18 +914,18 @@ This "Minimum Minimum" could launch in 2-3 months with 2 developers, but would r
 - FR-PA5i: Platform Admin can process GDPR data deletion requests
 - FR-PA5j: System prevents actions that would orphan a tenant (no Tenant Admin)
 
-#### 2f. Trial Management
+#### 2f. Free Tier Management & Usage Monitoring
 
-- FR-PA6a: Platform Admin can view all active trials with engagement metrics
-- FR-PA6b: Platform Admin can view trial-to-paid conversion funnel
-- FR-PA6c: Platform Admin can extend trial (max 2 extensions, 30 days total)
-- FR-PA6d: Platform Admin can flag trials for sales follow-up
-- FR-PA6e: System auto-archives trials with zero engagement after 7 days
-- FR-PA6f: System detects trial abuse (same org, multiple trials)
-- FR-PA6g: Platform Admin can convert trial to specific subscription tier
-- FR-PA6h: System provides read-only access for 7 days after trial expires
-- FR-PA6i: System rate-limits trial signups to prevent spam
-- FR-PA6j: Platform Admin can view expired trials with reasons
+- FR-PA6a: Platform Admin can view all Free tier tenants with usage metrics (departments X/10, categories X/20, items/category max X/50)
+- FR-PA6b: Platform Admin can view Free-to-paid conversion funnel with tier breakdowns
+- FR-PA6c: Platform Admin can view Free tier usage thresholds with color coding (green <70%, yellow 70-90%, red >90%)
+- FR-PA6d: Platform Admin can flag Free tier tenants for sales follow-up
+- FR-PA6e: System auto-flags Free tier tenants with zero engagement after 14 days
+- FR-PA6f: System detects Free tier abuse (same org, multiple accounts)
+- FR-PA6g: Platform Admin can manually upgrade Free tier to specific subscription tier
+- FR-PA6h: System tracks Free tier limit hit events (when users reach tier caps) for sales intelligence
+- FR-PA6i: System rate-limits Free tier signups to prevent spam (max 10 per domain per hour)
+- FR-PA6j: Platform Admin can view Free tier engagement patterns (active, dormant, limit-capped)
 
 #### 2g. System Health
 
@@ -1322,8 +1352,8 @@ This "Minimum Minimum" could launch in 2-3 months with 2 developers, but would r
 
 > **Cross-Reference:** See Section 2d (Platform Admin Subscription & Billing) and Section 3e (Tenant Admin Billing & Subscription) for role-specific billing requirements.
 
-- FR71: System can provision a 14-day free trial on signup
-- FR72: System can display trial expiration countdown
+- FR71: System can provision a Free tier account on signup with usage-based limits (10 departments, 20 categories, 50 items/category)
+- FR72: System can display tier usage meters showing current usage vs. limits (e.g., "5/10 departments")
 - FR73: Tenant Admin can select a subscription tier (Starter/Professional/Enterprise)
 - FR74: Tenant Admin can choose a payment method (Bank Transfer/M-Pesa/Stripe)
 - FR75: System can generate invoices aligned to fiscal year
@@ -1357,7 +1387,7 @@ This "Minimum Minimum" could launch in 2-3 months with 2 developers, but would r
 
 - FR90: Visitors can view a marketing landing page with feature descriptions
 - FR91: Visitors can view pricing tiers and comparison
-- FR92: Visitors can start a trial signup process
+- FR92: Visitors can start a Free tier signup process
 - FR93: New users can complete an onboarding flow after first login
 - FR94: Users can access contextual help within the application
 

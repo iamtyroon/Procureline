@@ -3,7 +3,7 @@ epic: 1
 title: "Project Foundation & Authentication System"
 status: ready
 priority: P0
-totalStories: 8
+totalStories: 9
 frsConvered: ["FR1", "FR2", "FR2a-FR2h", "FR3", "FR4", "FR5", "FR5a-FR5h", "FR6", "FR7"]
 nfrsAddressed: ["NFR-S1", "NFR-S2", "NFR-S3", "NFR-S4", "NFR-S5", "NFR-S6", "NFR-S7", "NFR-S10"]
 dependencies: []
@@ -23,7 +23,7 @@ All four user types (Platform Admin, Tenant Admin, PO, DU) can register, login, 
 ## Requirements Covered
 
 ### Functional Requirements
-- FR1: Users can register for a trial account using email and organization details
+- FR1: Users can register for a Free tier account using email and organization details
 - FR2: Users can log in using email and password
 - FR2a-FR2h: Login error handling, session management, concurrent logins
 - FR3: Users can reset their password via email verification
@@ -47,7 +47,7 @@ All four user types (Platform Admin, Tenant Admin, PO, DU) can register, login, 
 - Use Convex Ents SaaS Starter as foundation
 - Replace Clerk authentication with Convex Auth
 - Implement 4-layer RBAC (Platform Admin, Tenant Admin, PO, DU)
-- Configure Procureline Green theme (#18b969)
+- Configure Procureline Green theme (#18b969) https://tweakcn.com/themes/cmfptwtsz000o04l18powb22i
 
 ## Implementation Notes
 
@@ -55,6 +55,61 @@ All four user types (Platform Admin, Tenant Admin, PO, DU) can register, login, 
 - All authentication flows use Convex Auth with Email OTP for 2FA
 - DU access code authentication is unique to this platform
 - Tenant isolation must be enforced at the database query level via Convex functions
+
+## Tech Stack Validation Results
+
+**Validation Date:** 2026-02-03
+**Status:** ✅ VALIDATED - Convex Ents Starter + Next.js 16 Compatible
+
+### Spike Test Results
+
+A 30-minute validation spike confirmed the upgrade path is clean:
+
+| Component | Baseline | Upgraded | Status |
+|-----------|----------|----------|--------|
+| Next.js | 14.1.0 | 16.1.6 | ✅ Compatible |
+| React | 18.2.0 | 19.2.4 | ✅ Compatible |
+| Convex | 1.13.2 | 1.13.2 | ✅ Works with Next.js 16 |
+| TypeScript | - | - | ✅ Zero compilation errors |
+| Build Time | - | 6.3s | ✅ Turbopack working |
+
+### Key Findings from Spike
+
+1. **No Breaking Changes**
+   - Zero async API errors in starter template
+   - TypeScript compilation clean
+   - Convex integration intact
+   - No manual code changes needed
+
+2. **Codemod Behavior**
+   - `npx @next/codemod@canary upgrade latest` reports "already on target version"
+   - Starter template doesn't use async APIs that need migration
+   - Manual async API usage will be needed when implementing Story 1.2-1.8
+
+3. **Minor Notes**
+   - Middleware convention deprecated → use "proxy" (address in Story 1.1)
+   - Clerk removal already planned (Story 1.1)
+   - 28 npm vulnerabilities in baseline (standard for starter templates)
+
+### Developer Guidance
+
+**Before Starting Story 1.1:**
+- Ensure clean git working directory
+- Node.js 18+ required
+- npm/pnpm/yarn available
+
+**Expected Story 1.1 Duration:**
+- Clone + dependencies: ~5 minutes
+- Clerk removal: ~10 minutes
+- Next.js 16 upgrade: ~5 minutes
+- Convex Auth setup: ~30 minutes
+- Theme configuration: ~15 minutes
+- **Total: ~1-1.5 hours**
+
+**Known Issues (Non-Blockers):**
+- Clerk publishableKey error expected until Convex Auth configured
+- Some peer dependency warnings during upgrade (normal)
+- Browserslist outdated warning (run `npx update-browserslist-db@latest` if needed)
 
 ---
 
@@ -73,7 +128,9 @@ So that we have a solid foundation with authentication, database, and multi-tena
 **Then** the Convex Ents SaaS Starter is cloned and configured
 **And** Clerk packages (@clerk/nextjs, @clerk/clerk-react) are removed
 **And** Convex Auth (@convex-dev/auth) is installed and configured
-**And** Next.js 14+ App Router structure is in place
+**And** Next.js 16 is installed with App Router structure in place
+**And** async API migrations are applied (params, searchParams, cookies, headers are now async)
+**And** all Convex integration points verified working with Next.js 16
 **And** shadcn/ui and Tailwind CSS are configured with Procureline Green theme (#18b969)
 **And** TypeScript strict mode is enabled
 **And** the Convex development environment connects successfully
@@ -87,22 +144,38 @@ git clone https://github.com/get-convex/ents-saas-starter.git procureline
 cd procureline
 npm uninstall @clerk/nextjs @clerk/clerk-react
 npm install @convex-dev/auth
+
+# Upgrade to Next.js 16
+npm install next@16 react@latest react-dom@latest
+
+# Apply Next.js 16 async API migrations
+npx @next/codemod@canary upgrade latest
+
+# Initialize Convex
 npx convex dev
+
+# Verify all integrations working
+npm run dev
 ```
+
+**Breaking Changes in Next.js 16:**
+- `params`, `searchParams`, `cookies()`, `headers()`, `draftMode()` are now async
+- All code accessing these APIs must use `await`
+- Codemod handles most migrations automatically
 
 ---
 
-### Story 1.2: Tenant Admin Registration & Trial Signup
+### Story 1.2: Tenant Admin Registration & Free Tier Signup
 
 As a **prospective customer**,
-I want to register for a trial account using my email and organization details,
-So that I can start using Procureline with a 14-day free trial.
+I want to register for a Free tier account using my email and organization details,
+So that I can start using Procureline with permanent free access and usage-based limits.
 
 **Acceptance Criteria:**
 
 **Given** a visitor on the signup page
 **When** they enter valid email, password, and organization name
-**Then** a new tenant is created with 14-day trial status
+**Then** a new tenant is created with Free tier status
 **And** a Tenant Admin user is created and linked to the tenant
 **And** password meets policy (12+ chars, uppercase, lowercase, number, special)
 **And** email verification is sent
@@ -122,7 +195,7 @@ So that I can start using Procureline with a 14-day free trial.
 **Then** system displays specific password requirements not met
 
 **Technical Notes:**
-- Creates `tenants` table entry with `status: 'trial'`, `trialEndsAt: now + 14 days`
+- Creates `tenants` table entry with `tier: 'free'`, `status: 'active'`
 - Creates `users` table entry with `role: 'tenant_admin'`, `tenantId: tenant._id`
 - Email verification via Convex Auth email provider
 
@@ -380,12 +453,196 @@ So that I can access my department's procurement planning interface without a tr
 - Returning DU: validates code matches existing user's department
 - Track failed attempts in `loginAttempts` table for lockout logic
 
+**Access Code Logic (Security & Tenant Isolation):**
+- Codes are bound to DEPARTMENT, not individual users
+- First login: Creates user record with email stored as permanent identifier
+- Return login: Code + email must match stored email for that user
+- Email changes require PO approval (security audit logged)
+- One code supports multiple DUs (each identified by unique email)
+
+**Session Management:**
+- Each DU can have multiple concurrent sessions (cross-device support per FR2g)
+- Track active sessions per code to detect abuse (alert if >10 concurrent sessions)
+- DU sessions follow same 24-hour inactivity timeout as other roles (NFR-S4)
+
+**Submission Period Grace Handling:**
+- DUs can login up to 30 minutes after period ends (read-only mode)
+- Show countdown warning when <1 hour remains in submission period
+- Auto-logout after grace period expires with clear messaging
+
+**Lockout Strategy (FR5d):**
+- Failed attempts tracked per (email + code) combination
+- Lockout affects only the failing email address, NOT the entire department code
+- 5 attempts → 15-minute lockout for that email, then reset counter
+- Prevents department-wide DOS while maintaining security
+
+---
+
+### Story 1.9: Security Infrastructure & Input Validation
+
+As a **security-conscious development team**,
+I want security infrastructure configured for XSS protection, CORS, input validation, and audit logging,
+So that the platform meets NFR-S7 (input sanitization) and NFR-S10 (CORS restrictions) requirements.
+
+**Acceptance Criteria:**
+
+**Given** the application is deployed
+**When** security infrastructure is configured
+**Then** XSS sanitization is enabled for all user inputs
+**And** CORS is restricted to known domains only (NFR-S10)
+**And** input validation middleware is in place
+**And** audit logging captures security-relevant events
+
+**Given** a user submits a form with HTML/JavaScript in input fields
+**When** the input is processed
+**Then** malicious scripts are sanitized before storage
+**And** output is safely rendered without XSS execution (NFR-S7)
+
+**Given** a request originates from an unauthorized domain
+**When** the request attempts to access the API
+**Then** CORS policy blocks the request
+**And** only configured domains (production, staging, localhost) are allowed
+
+**Given** a user attempts SQL injection via input fields
+**When** the input is processed by Convex
+**Then** parameterized queries prevent SQL injection
+**And** malicious input is logged as a security event (NFR-S7)
+
+**Given** an admin performs a sensitive action (create PO, deactivate user, etc.)
+**When** the action completes
+**Then** the action is logged in the audit trail with: userId, action type, timestamp, tenant context
+
+**Technical Notes:**
+
+**XSS Protection:**
+```typescript
+// Frontend sanitization
+import DOMPurify from 'isomorphic-dompurify';
+
+export function sanitizeInput(input: string): string {
+  return DOMPurify.sanitize(input, {
+    ALLOWED_TAGS: [], // No HTML allowed
+    ALLOWED_ATTR: []
+  });
+}
+```
+
+**CORS Configuration:**
+```typescript
+// convex/http.ts
+import { httpRouter } from "convex/server";
+
+const http = httpRouter();
+
+// Configure CORS for auth endpoints
+http.route({
+  path: "/auth/*",
+  method: "POST",
+  handler: async (request, { runMutation }) => {
+    // CORS headers
+    const origin = request.headers.get("origin");
+    const allowedOrigins = [
+      process.env.NEXT_PUBLIC_APP_URL,
+      "http://localhost:3000",
+      "http://localhost:3001"
+    ];
+
+    if (!allowedOrigins.includes(origin)) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    // ... rest of handler
+  }
+});
+
+export default http;
+```
+
+**Next.js Middleware:**
+```typescript
+// middleware.ts
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+export function middleware(request: NextRequest) {
+  const response = NextResponse.next();
+
+  // Security headers
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline';"
+  );
+
+  return response;
+}
+```
+
+**Convex Input Validation:**
+```typescript
+// convex/_validators.ts
+import { v } from "convex/values";
+
+export const emailValidator = v.string(); // Convex validates format
+export const sanitizedString = v.string(); // Must sanitize on frontend first
+
+// Example mutation with validation
+export const createDepartment = mutation({
+  args: {
+    name: sanitizedString,
+    code: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Additional validation
+    if (args.name.length < 2 || args.name.length > 100) {
+      throw new Error("Department name must be 2-100 characters");
+    }
+
+    // ... rest of handler
+  }
+});
+```
+
+**Audit Logging:**
+```typescript
+// convex/auditLog.ts
+export const logSecurityEvent = internalMutation({
+  args: {
+    userId: v.id("users"),
+    action: v.string(),
+    details: v.optional(v.string()),
+    severity: v.union(v.literal("info"), v.literal("warning"), v.literal("critical")),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.insert("auditLog", {
+      ...args,
+      timestamp: Date.now(),
+      tenantId: (await ctx.db.get(args.userId))?.tenantId,
+    });
+  }
+});
+```
+
+**Security Review Checklist:**
+- [ ] DOMPurify installed and configured
+- [ ] All form inputs sanitized on frontend before submission
+- [ ] CORS configured for development and production domains
+- [ ] Security headers configured in Next.js middleware
+- [ ] Convex validators defined for all mutation inputs
+- [ ] Audit logging implemented for sensitive actions
+- [ ] SQL injection testing performed (Convex handles via parameterization)
+- [ ] XSS testing performed on all input fields
+
 ---
 
 ## Story Dependency Graph
 
 ```
 Story 1.1 (Project Init)
+    │
+    ├── Story 1.9 (Security Infrastructure) ──── Foundation for all stories
     │
     ├── Story 1.2 (Registration) ─────┐
     │                                  │
@@ -398,9 +655,17 @@ Story 1.1 (Project Init)
     └── Story 1.8 (DU Access Codes) ──── Requires 1.6 & 1.7
 ```
 
+**Implementation Order Recommendation:**
+1. Story 1.1 (Project Init with Next.js 16)
+2. Story 1.9 (Security Infrastructure - sets up foundations)
+3. Stories 1.2-1.5 (Authentication flows)
+4. Story 1.6 (RBAC)
+5. Story 1.7 (Tenant Isolation)
+6. Story 1.8 (DU Access Codes)
+
 ## Definition of Done
 
-- [ ] All 8 stories implemented and tested
+- [ ] All 9 stories implemented and tested
 - [ ] Unit tests for all Convex functions
 - [ ] Integration tests for auth flows
 - [ ] Security review completed

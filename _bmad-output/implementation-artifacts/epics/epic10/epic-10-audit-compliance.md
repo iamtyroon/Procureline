@@ -159,7 +159,7 @@ So that I can satisfy internal and external audit requirements.
 
 **Given** an audit report is generated
 **When** downloading the report
-**Then** system provides: PDF (formatted), CSV (raw data), Excel (with sheets)
+**Then** system provides: CSV (raw data), Excel (with formatted sheets)
 
 **Given** a large audit report is requested
 **When** generation takes time
@@ -181,8 +181,8 @@ So that I can satisfy internal and external audit requirements.
 **Then** system provides option to create secure, time-limited link
 
 **Technical Notes:**
-- Report generation via NestJS microservice
-- PDF with proper formatting, CSV/Excel with raw data
+- Report generation via NestJS microservice using ExcelJS
+- CSV for raw data, Excel for formatted reports with sheets
 - Large reports (>10k entries) processed in background
 - Secure links via signed URLs with 72-hour expiration
 - Report includes generation metadata for authenticity

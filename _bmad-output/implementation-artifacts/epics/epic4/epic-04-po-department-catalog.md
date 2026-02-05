@@ -69,8 +69,35 @@ POs (like Sarah Mwangi from the user journey) can complete all preparation work 
 - All catalog operations must maintain audit trail
 - Access codes use format: [FiscalYear]-[DeptInitials]-[RandomChars]
 - Item price changes notify active DU sessions via Convex subscriptions
-- Excel import/export via NestJS microservice using ExcelJS
+- **CRITICAL DEPENDENCY:** Requires Epic 2 Story 2.0 (NestJS Microservice Foundation)
+- Excel import/export via NestJS microservice using ExcelJS (from Story 2.0)
+- Email sending for access codes and reminders via Resend (from Story 2.0)
 - Dashboard uses real-time Convex subscriptions for live updates
+
+## Epic Dependencies
+
+**Epic 1 Prerequisites:**
+- ✅ Epic 1 complete (PO role functional, tenant isolation, access codes)
+- PO authentication working
+- Access code generation pattern established from Story 1.8
+
+**Epic 2 Prerequisites:**
+- ✅ **Epic 2 Story 2.0 MUST be complete** (NestJS Microservice Foundation)
+- Excel generation/import for bulk operations
+- Email sending via Resend for access codes and reminders
+
+**Epic 3 Prerequisites:**
+- ✅ Epic 3 complete (PO accounts created and managed by Tenant Admin)
+- PO onboarding completed
+
+**What You'll Use from Epic 1:**
+- PO role checks and tenant scoping
+- Access code table and generation logic from Story 1.8
+- Security infrastructure for catalog data validation
+
+**What You'll Use from Epic 2 Story 2.0:**
+- Excel import/export for departments, categories, items (Stories 4.4, 4.7, 4.8, 4.9)
+- Email sending for access code distribution and reminders (Stories 4.3, 4.6)
 
 ---
 
@@ -163,6 +190,28 @@ So that I can set up the organizational structure for procurement planning.
 **When** code contains invalid characters or exceeds length
 **Then** system validates: alphanumeric only, max 10 characters (FR23e)
 
+**Given** a Free tier PO attempts to create a department
+**When** they already have 10 departments
+**Then** system blocks creation with modal: "Free tier limit: 10 departments"
+**And** modal displays upgrade options: "Upgrade to Starter (30 departments) or Professional (100 departments)"
+**And** modal includes "View Plans" CTA linking to billing page
+
+**Given** a Starter tier PO attempts to create a department
+**When** they already have 30 departments
+**Then** system blocks creation with modal: "Starter tier limit: 30 departments"
+**And** modal displays: "Upgrade to Professional (100 departments) or Enterprise (unlimited)"
+**And** modal includes "View Plans" CTA linking to billing page
+
+**Given** a Professional tier PO attempts to create a department
+**When** they already have 100 departments
+**Then** system blocks creation with modal: "Professional tier limit: 100 departments"
+**And** modal displays: "Upgrade to Enterprise for unlimited departments"
+**And** modal includes "View Plans" CTA linking to billing page
+
+**Given** an Enterprise tier PO creates a department
+**When** any number of departments exist
+**Then** system allows creation without limits
+
 **Given** a PO edits an existing department
 **When** the department has active plans (draft or submitted)
 **Then** system displays warning: "This department has active plans. Changes may affect DU." (FR24a)
@@ -194,6 +243,13 @@ So that I can set up the organizational structure for procurement planning.
 - Soft delete via `deletedAt` timestamp
 - Budget change notifications via Convex subscriptions to active DU sessions
 - Department code index for uniqueness validation
+- Tier limits enforced via query checking current department count against tenant tier:
+  - Free: 10 departments max
+  - Starter: 30 departments max
+  - Professional: 100 departments max
+  - Enterprise: unlimited
+- Tier check query: `db.query("departments").withIndex("by_tenant", q => q.eq("tenantId", tenantId).eq("isActive", true)).collect()`
+- Upgrade modal component with tier comparison table
 
 ---
 
@@ -402,6 +458,28 @@ So that items can be organized logically for DU planning.
 **Then** system allows assigning color and icon for Blockly visual distinction (FR30b)
 **And** preview shows how category will appear in Blockly toolbox
 
+**Given** a Free tier PO attempts to create a category
+**When** they already have 20 categories
+**Then** system blocks creation with modal: "Free tier limit: 20 categories"
+**And** modal displays upgrade options: "Upgrade to Starter (60 categories) or Professional (200 categories)"
+**And** modal includes "View Plans" CTA linking to billing page
+
+**Given** a Starter tier PO attempts to create a category
+**When** they already have 60 categories
+**Then** system blocks creation with modal: "Starter tier limit: 60 categories"
+**And** modal displays: "Upgrade to Professional (200 categories) or Enterprise (unlimited)"
+**And** modal includes "View Plans" CTA linking to billing page
+
+**Given** a Professional tier PO attempts to create a category
+**When** they already have 200 categories
+**Then** system blocks creation with modal: "Professional tier limit: 200 categories"
+**And** modal displays: "Upgrade to Enterprise for unlimited categories"
+**And** modal includes "View Plans" CTA linking to billing page
+
+**Given** an Enterprise tier PO creates a category
+**When** any number of categories exist
+**Then** system allows creation without limits
+
 **Given** a PO wants to import categories
 **When** they upload an Excel file
 **Then** system bulk imports categories with validation (FR30c)
@@ -433,6 +511,13 @@ So that items can be organized logically for DU planning.
 - Categories stored in `categories` table with `tenantId`, `name`, `description`, `color`, `icon`, `displayOrder`, `isArchived`
 - Color as hex string, icon as emoji or icon name
 - Archive flag filters categories from toolbox query while keeping for existing plans
+- Tier limits enforced via query checking current category count against tenant tier:
+  - Free: 20 categories max
+  - Starter: 60 categories max
+  - Professional: 200 categories max
+  - Enterprise: unlimited
+- Tier check query: `db.query("categories").withIndex("by_tenant", q => q.eq("tenantId", tenantId).eq("isArchived", false)).collect()`
+- Upgrade modal reused from department tier limit component
 
 ---
 
@@ -464,14 +549,64 @@ So that DUs have a complete catalog to build their plans from.
 **When** setting quantity limits
 **Then** system allows setting minimum and maximum quantity per item (FR33d)
 
+**Given** a Free tier PO attempts to add an item to a category
+**When** that category already has 50 items
+**Then** system blocks creation with modal: "Free tier limit: 50 items per category"
+**And** modal displays upgrade options: "Upgrade to Starter (150 items/category) or Professional (500 items/category)"
+**And** modal shows current count: "X/50 items in [Category Name]"
+**And** modal includes "View Plans" CTA linking to billing page
+
+**Given** a Starter tier PO attempts to add an item to a category
+**When** that category already has 150 items
+**Then** system blocks creation with modal: "Starter tier limit: 150 items per category"
+**And** modal displays: "Upgrade to Professional (500 items/category) or Enterprise (unlimited)"
+**And** modal shows current count: "X/150 items in [Category Name]"
+**And** modal includes "View Plans" CTA linking to billing page
+
+**Given** a Professional tier PO attempts to add an item to a category
+**When** that category already has 500 items
+**Then** system blocks creation with modal: "Professional tier limit: 500 items per category"
+**And** modal displays: "Upgrade to Enterprise for unlimited items"
+**And** modal shows current count: "X/500 items in [Category Name]"
+**And** modal includes "View Plans" CTA linking to billing page
+
+**Given** an Enterprise tier PO adds an item to a category
+**When** any number of items exist in that category
+**Then** system allows creation without limits
+
 **Given** a PO creates or edits an item
 **When** configuring compliance
 **Then** system allows flagging as: AGPO eligible, PWD eligible, Local Content eligible (FR33e)
 **And** multiple flags can be selected
 
-**Given** a PO wants to bulk add items
-**When** they upload Excel file
+**Given** a Free tier PO wants to bulk add items
+**When** they attempt to upload Excel file
+**Then** system blocks import with modal: "Bulk import available in Starter tier and above"
+**And** modal displays: "Upgrade to Starter (100 rows), Professional (1,000 rows), or Enterprise (unlimited)"
+**And** modal includes "View Plans" CTA linking to billing page
+
+**Given** a Starter tier PO uploads an Excel file
+**When** the file contains more than 100 rows
+**Then** system blocks import with modal: "Starter tier limit: 100 rows per import"
+**And** modal displays: "Your file has X rows. Upgrade to Professional (1,000 rows) or Enterprise (unlimited)"
+
+**Given** a Starter tier PO uploads an Excel file
+**When** the file contains 100 rows or fewer
 **Then** system bulk imports with template: Name, Category, Unit, Price, Min Qty, Max Qty, AGPO, PWD, Local (FR33f)
+
+**Given** a Professional tier PO uploads an Excel file
+**When** the file contains more than 1,000 rows
+**Then** system blocks import with modal: "Professional tier limit: 1,000 rows per import"
+**And** modal displays: "Your file has X rows. Upgrade to Enterprise for unlimited imports"
+
+**Given** a Professional tier PO uploads an Excel file
+**When** the file contains 1,000 rows or fewer
+**Then** system bulk imports with template: Name, Category, Unit, Price, Min Qty, Max Qty, AGPO, PWD, Local (FR33f)
+
+**Given** an Enterprise tier PO uploads an Excel file
+**When** the file contains any number of rows
+**Then** system bulk imports with template: Name, Category, Unit, Price, Min Qty, Max Qty, AGPO, PWD, Local (FR33f)
+**And** no row limit is enforced
 
 **Given** a PO edits an item price
 **When** DU sessions are active with that item in their plan
@@ -500,6 +635,20 @@ So that DUs have a complete catalog to build their plans from.
 - Price history in `itemPriceHistory` table
 - Compliance flags as JSON array: ["agpo", "pwd", "local"]
 - Item move = update `categoryId` field
+- Tier limits enforced PER CATEGORY via query checking item count within specific category:
+  - Free: 50 items per category max
+  - Starter: 150 items per category max
+  - Professional: 500 items per category max
+  - Enterprise: unlimited
+- Tier check query: `db.query("items").withIndex("by_category", q => q.eq("categoryId", categoryId)).collect()`
+- Upgrade modal displays category name and current item count
+- Bulk import tier restrictions:
+  - Free: Bulk import NOT available (blocked)
+  - Starter: 100 rows per import max
+  - Professional: 1,000 rows per import max
+  - Enterprise: unlimited rows
+- Excel row count validation before calling NestJS import service
+- Import validation includes tier limit check + per-category item count limits
 
 ---
 
@@ -525,16 +674,40 @@ So that I can quickly find items and share the catalog externally.
 **Then** system filters by: category (multi-select), price range (min-max), compliance flags (AGPO/PWD/Local) (FR37-CF)
 **And** filters can be combined
 
-**Given** a PO needs to export the catalog
+**Given** a Free or Starter tier PO attempts to export the catalog
+**When** they click "Export to Excel"
+**Then** system blocks export with modal: "Catalog export available in Professional tier"
+**And** modal displays: "Upgrade to Professional or Enterprise to export your complete item catalog"
+**And** modal includes "View Plans" CTA linking to billing page
+
+**Given** a Professional tier PO exports the catalog
+**When** filtered results exceed 10,000 rows
+**Then** system blocks export with modal: "Professional tier limit: 10,000 rows per export"
+**And** modal displays current filtered count and suggests: "Refine filters or upgrade to Enterprise for unlimited exports"
+
+**Given** a Professional tier PO exports the catalog
+**When** filtered results are 10,000 rows or fewer
+**Then** system generates Excel file with items and current filters applied (FR37-CE)
+**And** export includes: Item Name, Category, Description, Unit, Price, Qty Limits, Compliance Flags
+
+**Given** an Enterprise tier PO exports the catalog
 **When** they click "Export to Excel"
 **Then** system generates Excel file with all items and current filters applied (FR37-CE)
 **And** export includes: Item Name, Category, Description, Unit, Price, Qty Limits, Compliance Flags
+**And** no row limit is enforced
 
 **Technical Notes:**
 - Search via Convex full-text search index on items
 - Filters as query parameters for shareable URLs
 - Export via NestJS microservice using ExcelJS
 - Pagination: 50 items per page default
+- Tier restrictions for catalog export:
+  - Free: Catalog export NOT available (blocked)
+  - Starter: Catalog export NOT available (blocked)
+  - Professional: Catalog export available (10,000 row limit)
+  - Enterprise: Catalog export available (unlimited rows)
+- Export row limit enforced before file generation
+- Row count query checks filtered results against tier limit before calling NestJS service
 
 ---
 

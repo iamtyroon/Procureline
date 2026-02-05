@@ -40,7 +40,7 @@ This document provides the complete epic and story breakdown for Procureline, de
 
 #### 1. Authentication & Access Control (14 FRs)
 
-- FR1: Users can register for a trial account using email and organization details
+- FR1: Users can register for a Free tier account using email and organization details
 - FR2: Users can log in using email and password
 - FR2a: System displays clear error message for invalid email format
 - FR2b: System displays clear error message for incorrect password
@@ -73,7 +73,7 @@ This document provides the complete epic and story breakdown for Procureline, de
 - FR11: Platform Admin can view system health metrics (API, database, jobs)
 - FR12: Platform Admin can view and manage subscription statuses
 - FR13: Platform Admin can access support ticket activity logs
-- FR14: Platform Admin can monitor trial engagement and conversion metrics
+- FR14: Platform Admin can monitor Free tier engagement and conversion metrics
 
 **2a. Authentication & Access (FR-PA1a-PA1j):**
 - FR-PA1a: Platform Admin accesses admin portal via dedicated URL
@@ -88,8 +88,8 @@ This document provides the complete epic and story breakdown for Procureline, de
 
 **2b. Dashboard & Monitoring (FR-PA2a-PA2j):**
 - FR-PA2a: Dashboard displays system health summary (API, DB, jobs, storage)
-- FR-PA2b: Dashboard displays tenant overview (active, trial, suspended, churned counts)
-- FR-PA2c: Dashboard displays key revenue metrics (MRR, ARR, trial conversions)
+- FR-PA2b: Dashboard displays tenant overview (active by tier: Free/Starter/Professional/Enterprise, suspended, churned counts)
+- FR-PA2c: Dashboard displays key revenue metrics (MRR, ARR, Free-to-paid conversions)
 - FR-PA2d: Dashboard displays recent alerts with severity indicators
 - FR-PA2e: System auto-alerts via SMS/email for critical issues (API down, DB errors)
 - FR-PA2f: Dashboard provides quick action buttons (create tenant, view logs, etc.)
@@ -144,17 +144,17 @@ This document provides the complete epic and story breakdown for Procureline, de
 - FR-PA5i: Platform Admin can process GDPR data deletion requests
 - FR-PA5j: System prevents actions that would orphan a tenant (no Tenant Admin)
 
-**2f. Trial Management (FR-PA6a-PA6j):**
-- FR-PA6a: Platform Admin can view all active trials with engagement metrics
-- FR-PA6b: Platform Admin can view trial-to-paid conversion funnel
-- FR-PA6c: Platform Admin can extend trial (max 2 extensions, 30 days total)
-- FR-PA6d: Platform Admin can flag trials for sales follow-up
-- FR-PA6e: System auto-archives trials with zero engagement after 7 days
-- FR-PA6f: System detects trial abuse (same org, multiple trials)
-- FR-PA6g: Platform Admin can convert trial to specific subscription tier
-- FR-PA6h: System provides read-only access for 7 days after trial expires
-- FR-PA6i: System rate-limits trial signups to prevent spam
-- FR-PA6j: Platform Admin can view expired trials with reasons
+**2f. Free Tier Management & Usage Monitoring (FR-PA6a-PA6j):**
+- FR-PA6a: Platform Admin can view all Free tier tenants with usage metrics (departments X/10, categories X/20, items/category max X/50)
+- FR-PA6b: Platform Admin can view Free-to-paid conversion funnel with tier breakdowns
+- FR-PA6c: Platform Admin can view Free tier usage thresholds with color coding (green <70%, yellow 70-90%, red >90%)
+- FR-PA6d: Platform Admin can flag Free tier tenants for sales follow-up
+- FR-PA6e: System auto-flags Free tier tenants with zero engagement after 14 days
+- FR-PA6f: System detects Free tier abuse (same org, multiple accounts)
+- FR-PA6g: Platform Admin can manually upgrade Free tier to specific subscription tier
+- FR-PA6h: System tracks Free tier limit hit events (when users reach tier caps) for sales intelligence
+- FR-PA6i: System rate-limits Free tier signups to prevent spam (max 10 per domain per hour)
+- FR-PA6j: Platform Admin can view Free tier engagement patterns (active, dormant, limit-capped)
 
 **2g. System Health (FR-PA7a-PA7j):**
 - FR-PA7a: Platform Admin can view real-time API metrics (latency, error rates)
@@ -550,7 +550,6 @@ This document provides the complete epic and story breakdown for Procureline, de
 - FR67: PO can export the consolidated plan to GOK-compliant Excel format
 - FR67a: System prevents export until consolidation is finalized
 - FR67b: PO can export single department plan (before consolidation)
-- FR67c: PO can export to PDF format for printing
 - FR67d: System displays progress indicator for large exports
 - FR67e: PO can view export history with download links
 - FR67f: PO can export audit trail report separately
@@ -560,8 +559,8 @@ This document provides the complete epic and story breakdown for Procureline, de
 
 #### 10. Billing & Subscription (9 FRs)
 
-- FR71: System can provision a 14-day free trial on signup
-- FR72: System can display trial expiration countdown
+- FR71: System can provision a Free tier account on signup with usage-based limits (10 departments, 20 categories, 50 items/category)
+- FR72: System can display tier usage meters showing current usage vs. limits (e.g., "5/10 departments")
 - FR73: Tenant Admin can select a subscription tier (Starter/Professional/Enterprise)
 - FR74: Tenant Admin can choose a payment method (Bank Transfer/M-Pesa/Stripe)
 - FR75: System can generate invoices aligned to fiscal year
@@ -595,7 +594,7 @@ This document provides the complete epic and story breakdown for Procureline, de
 
 - FR90: Visitors can view a marketing landing page with feature descriptions
 - FR91: Visitors can view pricing tiers and comparison
-- FR92: Visitors can start a trial signup process
+- FR92: Visitors can start a Free tier signup process
 - FR93: New users can complete an onboarding flow after first login
 - FR94: Users can access contextual help within the application
 
@@ -792,11 +791,15 @@ This document provides the complete epic and story breakdown for Procureline, de
 
 **FRs covered:** FR1, FR2, FR2a-FR2h, FR3, FR4, FR5, FR5a-FR5h, FR6, FR7
 
+**Total Stories:** 9
+
 **Implementation Notes:**
-- Uses Convex Ents SaaS Starter with Clerk→Convex Auth replacement
+- Uses Convex Ents SaaS Starter upgraded to Next.js 16 with async API migrations
+- Convex Auth replaces Clerk for authentication
 - Implements 4-layer RBAC (Platform Admin, Tenant Admin, PO, DU)
-- DU access code authentication flow
-- Addresses NFR-S1 through NFR-S10
+- DU access code authentication flow with OTP verification
+- Story 1.9 implements security infrastructure (XSS protection, CORS, input validation, audit logging)
+- Addresses NFR-S1 through NFR-S10 (NFR-S2/S3 via Convex platform, NFR-S7/S10 via Story 1.9)
 
 ---
 
@@ -902,7 +905,7 @@ This document provides the complete epic and story breakdown for Procureline, de
 
 **Goal:** Tenants can manage their subscriptions and payments to maintain platform access.
 
-**User Outcome:** Tenant Admin can start a 14-day trial, select subscription tiers, pay via Bank Transfer/M-Pesa/Stripe, and manage their billing lifecycle.
+**User Outcome:** Tenant Admin can start on the permanent Free tier, select paid subscription tiers when ready to upgrade, pay via Bank Transfer/M-Pesa/Stripe, and manage their billing lifecycle.
 
 **FRs covered:** FR71-FR79 (9 FRs total)
 
@@ -951,12 +954,12 @@ This document provides the complete epic and story breakdown for Procureline, de
 
 **Goal:** Visitors can discover Procureline and smoothly onboard as new users.
 
-**User Outcome:** Visitors can view the landing page, understand pricing tiers, start a trial, and complete guided onboarding that gets them productive immediately.
+**User Outcome:** Visitors can view the landing page, understand pricing tiers, start using the Free tier, and complete guided onboarding that gets them productive immediately.
 
 **FRs covered:** FR90-FR94 (5 FRs total)
 
 **Implementation Notes:**
 - Marketing landing page with feature descriptions
 - Pricing tier comparison
-- Trial signup flow
+- Free tier signup flow
 - Contextual onboarding (animated hints, zero-training approach)

@@ -56,10 +56,38 @@ Tenant Admins (like Dr. Amina Hassan from the user journey) can onboard, manage 
 ## Implementation Notes
 
 - Tenant Admin portal is separate from PO and DU interfaces
-- Billing integration uses NestJS microservice with Stripe/IntaSend
-- Reports generated via NestJS microservice using ExcelJS
+- **CRITICAL DEPENDENCY:** Requires Epic 2 Story 2.0 (NestJS Microservice Foundation)
+- Billing integration uses NestJS microservice with Stripe/IntaSend (from Story 2.0)
+- Reports generated via NestJS microservice using ExcelJS (from Story 2.0)
+- Email sending via Resend through NestJS (from Story 2.0)
 - Real-time updates via Convex subscriptions throughout dashboard
 - All settings changes are logged with before/after values
+
+## Epic Dependencies
+
+**Epic 1 Prerequisites:**
+- ✅ Epic 1 complete (authentication, RBAC, tenant isolation)
+- Tenant Admin role functional from Story 1.2
+- Email verification working
+
+**Epic 2 Prerequisites:**
+- ✅ **Epic 2 Story 2.0 MUST be complete** (NestJS Microservice Foundation)
+- Payment processing (Stripe, IntaSend, Bank Transfer)
+- Excel generation/import capabilities
+- PDF report generation
+- Email sending via Resend
+
+**What You'll Use from Epic 1:**
+- Tenant Admin authentication and role checks
+- Tenant isolation guards for all data access
+- Email OTP system for PO invitations
+- Security infrastructure and audit logging
+
+**What You'll Use from Epic 2 Story 2.0:**
+- Billing APIs for subscription management (Stories 3.6, 3.7)
+- Excel generation for report exports (Story 3.8)
+- Email sending for notifications and invitations (Stories 3.3, 3.4, 3.10)
+- PDF generation for invoices and reports (Stories 3.6, 3.8)
 
 ---
 
@@ -379,13 +407,34 @@ So that I can ensure uninterrupted service for my organization.
 
 **Given** a Tenant Admin navigates to Billing
 **When** they view the subscription overview
-**Then** system displays: current tier (Starter/Professional/Enterprise), included features, renewal date (FR-TA5a, FR20)
+**Then** system displays: current tier (Free/Starter/Professional/Enterprise), included features, renewal date (FR-TA5a, FR20)
 **And** shows tier comparison if not on highest tier
+**And** displays "Current Plan" badge on active tier
 
 **Given** a Tenant Admin views billing
 **When** they check usage metrics
-**Then** system displays current usage: number of users (FR-TA5b)
-**And** shows usage vs. tier limits with visual indicator
+**Then** system displays current usage with tier limits (FR-TA5b):
+**And** shows "Departments: X/10 used (Free tier)" with progress bar
+**And** shows "Categories: X/20 used (Free tier)" with progress bar
+**And** shows "Items per category: Max X/50 (Free tier)" with progress bar
+**And** shows "DU editor blocks: Max X/5 category blocks, X/15 items per block (Free tier)" with progress bar
+**And** shows "Export limit: 300 rows per export (Free tier)"
+**And** shows "Bulk import: Not available (Free tier)"
+**And** shows "Catalog export: Not available (Free tier)"
+**And** shows "Audit reports: Not available (Free tier)"
+**And** all metrics use color coding: green (<70%), yellow (70-90%), red (>90%)
+
+**Given** a Tenant Admin on Free tier is approaching limits
+**When** any resource exceeds 90% utilization
+**Then** system displays upgrade CTA: "Approaching limit. Upgrade to continue growing"
+**And** CTA links to tier comparison with next tier highlighted
+
+**Given** a Tenant Admin wants to upgrade
+**When** they view tier comparison
+**Then** system displays feature matrix table:
+**And** table shows: Free (10/20/50), Starter (30/60/150), Professional (100/200/500), Enterprise (unlimited)
+**And** table includes: departments, categories, items/category, export rows, bulk import, catalog export, audit reports
+**And** highlights differences between current and target tier
 
 **Given** a Tenant Admin views payment history
 **When** invoices exist
@@ -413,6 +462,22 @@ So that I can ensure uninterrupted service for my organization.
 - Invoice PDF generation via NestJS with ExcelJS/PDFKit
 - Payment method expiration check via cron job
 - Display tier features from static configuration
+- Tier usage metrics calculated via Convex queries:
+  - Departments: `db.query("departments").withIndex("by_tenant", q => q.eq("tenantId", tenantId).eq("isActive", true)).collect().length`
+  - Categories: `db.query("categories").withIndex("by_tenant", q => q.eq("tenantId", tenantId).eq("isArchived", false)).collect().length`
+  - Items per category: Max count from all categories via grouped query
+  - DU editor usage: Tracked via `planBlockCounts` table per plan
+- Tier limit definitions stored in `config/tiers.ts`:
+  ```typescript
+  export const TIER_LIMITS = {
+    free: { departments: 10, categories: 20, itemsPerCategory: 50, exportRows: 300, duCategoryBlocks: 5, duItemsPerBlock: 15 },
+    starter: { departments: 30, categories: 60, itemsPerCategory: 150, exportRows: 1000, duCategoryBlocks: 20, duItemsPerBlock: 50 },
+    professional: { departments: 100, categories: 200, itemsPerCategory: 500, exportRows: 10000, duCategoryBlocks: 50, duItemsPerBlock: 100 },
+    enterprise: { departments: null, categories: null, itemsPerCategory: null, exportRows: null, duCategoryBlocks: null, duItemsPerBlock: null }
+  };
+  ```
+- Color coding thresholds: <70% green, 70-90% yellow, >90% red
+- Upgrade CTA displayed when any metric exceeds 90%
 
 ---
 
@@ -488,12 +553,37 @@ So that I can present data to stakeholders and maintain compliance records.
 
 **Given** a Tenant Admin navigates to Reports
 **When** they select report type
-**Then** system offers: Budget reports, Activity reports, Audit reports (FR-TA6b, FR-TA6c, FR-TA6d)
+**Then** system offers: Activity reports, Audit reports (FR-TA6b, FR-TA6c, FR-TA6d)
 
-**Given** a Tenant Admin generates any report
+**Given** a Free or Starter tier Tenant Admin attempts to generate Audit reports
+**When** they select Audit reports
+**Then** system blocks access with modal: "Audit reports available in Professional tier"
+**And** modal displays: "Upgrade to Professional or Enterprise to access audit reporting"
+**And** modal includes "View Plans" CTA linking to billing page
+
+**Given** a Professional or Enterprise tier Tenant Admin generates any report
 **When** they configure parameters
-**Then** system allows setting: date range, departments (all or selected), format (PDF/Excel) (FR-TA6e)
+**Then** system allows setting: date range, departments (all or selected), format (Excel only) (FR-TA6e)
 **And** shows preview of included data scope
+
+**Given** a Free tier Tenant Admin generates a report
+**When** filtered results exceed 300 rows
+**Then** system blocks export with modal: "Free tier limit: 300 rows per export"
+**And** modal displays current filtered count and suggests: "Refine filters or upgrade to Starter (1,000 rows)"
+
+**Given** a Starter tier Tenant Admin generates a report
+**When** filtered results exceed 1,000 rows
+**Then** system blocks export with modal: "Starter tier limit: 1,000 rows per export"
+**And** modal displays current filtered count and suggests: "Refine filters or upgrade to Professional (10,000 rows)"
+
+**Given** a Professional tier Tenant Admin generates a report
+**When** filtered results exceed 10,000 rows
+**Then** system blocks export with modal: "Professional tier limit: 10,000 rows per export"
+**And** modal displays current filtered count and suggests: "Refine filters or upgrade to Enterprise for unlimited exports"
+
+**Given** an Enterprise tier Tenant Admin generates a report
+**When** they configure parameters
+**Then** system generates report with unlimited rows
 
 **Given** a Tenant Admin generates a large report
 **When** the report will take >30 seconds
@@ -502,7 +592,7 @@ So that I can present data to stakeholders and maintain compliance records.
 
 **Given** a report exceeds 50MB
 **When** generation completes
-**Then** system splits into multiple files (FR-TA6g)
+**Then** system splits into multiple Excel files (FR-TA6g)
 **And** provides ZIP download with all parts
 
 **Given** a Tenant Admin wants regular reports
@@ -526,17 +616,24 @@ So that I can present data to stakeholders and maintain compliance records.
 **And** link includes download count tracking
 **And** expires automatically after 72 hours
 
-**Given** a Tenant Admin wants to print a report
-**When** they select print format
-**Then** system provides print-optimized layout with proper pagination (FR-TA6l)
-**And** includes headers/footers with page numbers
-
 **Technical Notes:**
-- Report generation via NestJS microservice using ExcelJS
+- Report generation via NestJS microservice using ExcelJS (Excel only, NO PDF support)
 - Background processing via Convex scheduled functions
 - Report storage in Convex file storage with expiration
 - Secure links via signed URLs with expiration
 - Scheduled reports via Convex cron jobs
+- Report types available:
+  - Activity reports: All tiers (with row limits)
+  - Audit reports: Professional+ tier only (with row limits)
+  - Budget reports: NOT available (not planned for development)
+  - Submission status exports: NOT available (not planned for development)
+- Tier-based row limits enforced before generation:
+  - Free: 300 rows per export max
+  - Starter: 1,000 rows per export max
+  - Professional: 10,000 rows per export max
+  - Enterprise: unlimited rows
+- Row count validation via filtered query before calling NestJS service
+- Audit report access check: tenant tier must be Professional or Enterprise
 
 ---
 

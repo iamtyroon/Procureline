@@ -35,7 +35,7 @@ POs (like Sarah Mwangi from the user journey) can complete consolidation in hour
 - FR65-FR66e: Quarterly subtotals, finalization, versioning, print view
 
 **Excel Integration (10 FRs):**
-- FR67-FR67f: GOK-compliant export, single department export, PDF, history
+- FR67-FR67f: GOK-compliant export, single department export, export history
 - FR68-FR70: Excel formatting, compliance calculations, item details
 
 ### Non-Functional Requirements
@@ -263,11 +263,6 @@ So that I can submit the official Annual Procurement Plan.
 **Then** system allows exporting single department plan (FR67b)
 **And** export includes department-level compliance calculations
 
-**Given** a PO needs a printable document
-**When** they select PDF export
-**Then** system generates PDF format (FR67c)
-**And** PDF includes all data with proper formatting
-
 **Given** a large export is generating
 **When** processing takes more than 3 seconds
 **Then** system displays progress indicator (FR67d)
@@ -368,7 +363,6 @@ Story 7.1 (Workspace Access)
 - [ ] Consolidation workspace tested with 15+ departments
 - [ ] Compliance calculations verified against manual calculations
 - [ ] Excel export matches GOK template exactly
-- [ ] PDF export renders correctly
 - [ ] Export history accessible and download links work
 - [ ] All FR and NFR acceptance criteria verified
 - [ ] Code reviewed and merged to main branch

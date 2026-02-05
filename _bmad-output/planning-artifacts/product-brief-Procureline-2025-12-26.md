@@ -188,8 +188,15 @@ The Procureline team managing the multi-tenant platform—onboarding universitie
 
 ### Revenue Model
 
-- **Pricing Tiers:** Starter (KES 500K/yr) → Professional (KES 1.2M/yr) → Enterprise (KES 2.4M/yr)
+**Freemium SaaS Model:**
+- **Free Tier:** Permanent access with usage-based limits (10 departments, 20 categories, 50 items/category) — customer acquisition and product validation
+- **Starter Tier:** KES 500K/yr (30 departments, 60 categories, 150 items/category) — small institutions
+- **Professional Tier:** KES 1.2M/yr (100 departments, 200 categories, 500 items/category) — mid-sized universities
+- **Enterprise Tier:** KES 2.4M/yr (unlimited usage, priority support, custom features) — large institutions
+
+**Billing & Conversion:**
 - **Billing Cycle:** Annual, aligned to Kenya fiscal year (July 1 - June 30)
+- **Free-to-Paid Conversion Target:** 30% within first 90 days
 - **Revenue Mix Target:** 55% Professional tier, 25% Starter, 20% Enterprise
 
 ---
@@ -247,8 +254,8 @@ The Procureline team managing the multi-tenant platform—onboarding universitie
 - Formatted output matching government requirements
 
 **8. Marketing & Onboarding**
-- Landing page with features, pricing, and trial signup
-- 14-day trial with full features (export restricted)
+- Landing page with features, pricing, and Free tier signup
+- Free tier with usage-based limits (10 departments, 20 categories, 50 items/category)
 - University onboarding flow
 
 ### Out of Scope for MVP
@@ -271,11 +278,11 @@ The Procureline team managing the multi-tenant platform—onboarding universitie
 - Blockly editor handles 10+ departments × 15+ categories per plan
 - Excel export generates valid GOK-compliant documents
 - Compliance calculations accurate to 2 decimal places
-- Trial signup → first plan creation achievable in under 30 minutes
+- Free tier signup → first plan creation achievable in under 30 minutes
 
 **Validation Metrics (First 90 Days):**
-- 3+ universities complete trial signup
-- 1+ university converts to paid subscription
+- 3+ universities complete Free tier signup
+- 1+ university converts from Free tier to paid subscription
 - PO consolidation time under 4 hours (vs. 2+ weeks baseline)
 - Zero critical bugs in production
 

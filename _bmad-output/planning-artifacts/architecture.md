@@ -42,7 +42,7 @@ The PRD defines 464 functional requirements across 15 capability areas:
 10. **Billing & Subscription** (FR71-FR79) - Trial, tiers, payments, lifecycle
 11. **Notifications & Communication** (FR80-FR84) - Email, in-app, item request notifications
 12. **Audit & Compliance** (FR85-FR89) - Immutable audit trails, compliance documentation
-13. **Marketing & Onboarding** (FR90-FR94) - Landing page, trial signup, onboarding flow
+13. **Marketing & Onboarding** (FR90-FR94) - Landing page, Free tier signup, onboarding flow
 
 **Non-Functional Requirements:**
 39 NFRs organized into 7 categories:
@@ -68,7 +68,7 @@ The PRD defines 464 functional requirements across 15 capability areas:
 ### Technical Constraints & Dependencies
 
 **Pre-decided Technology Stack:**
-- Frontend: Next.js 14+ (App Router), TypeScript strict, shadcn/ui, TailwindCSS
+- Frontend: Next.js 16 (App Router), TypeScript strict, shadcn/ui, TailwindCSS
 - Visual Editor: Google Blockly (core differentiator)
 - Primary Backend: Convex (database, auth, real-time, functions, storage)
 - Integration Service: NestJS microservice (payments, Excel, email)
@@ -156,7 +156,7 @@ npm install
 
 **Language & Runtime:**
 - TypeScript with strict mode
-- Next.js 14+ App Router
+- Next.js 16 App Router
 - Node.js 18+ runtime
 
 **Styling Solution:**
@@ -450,6 +450,280 @@ export function BlocklyWorkspace({ planId }: { planId: string }) {
 - Uptime monitoring: Better Uptime or similar
 - Performance: Vercel Analytics
 - Logging: Convex dashboard + Railway logs
+
+### NestJS Microservice Architecture
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| **Microservice Purpose** | External integrations + heavy processing | Offload payment, file generation, email from Convex |
+| **Communication** | REST API with JWT | Simple, debuggable, preserves user context |
+| **Deployment** | Railway (separate from Next.js) | Independent scaling, separate error boundary |
+| **Authentication** | JWT validation via Convex | Service validates tokens by calling Convex auth endpoint |
+
+**NestJS Service Responsibilities:**
+
+| Module | Responsibility | External Dependencies |
+|--------|---------------|----------------------|
+| **Payments** | Process subscriptions, handle webhooks | Stripe, IntaSend, Bank Transfer verification |
+| **Files** | Generate Excel exports/imports, PDF invoices | ExcelJS, PDFKit |
+| **Emails** | Send transactional emails with templates | Resend, React Email |
+| **Background Jobs** | Queue heavy operations, retry failures | Bull, Redis |
+
+**Service Architecture:**
+```
+NestJS Microservice
+├── Auth Module
+│   ├── JWT Guard (validates Convex tokens)
+│   ├── Tenant Decorator (@TenantId())
+│   └── Role Decorator (@Roles())
+├── Payments Module
+│   ├── Stripe Service
+│   ├── IntaSend Service
+│   ├── Bank Transfer Service
+│   └── Webhooks Controller
+├── Files Module
+│   ├── Excel Service (ExcelJS)
+│   ├── PDF Service (PDFKit)
+│   └── Templates (GOK format)
+└── Emails Module
+    ├── Resend Service
+    └── React Email Templates
+```
+
+**Authentication Flow:**
+```
+1. Convex Action creates JWT with {userId, tenantId, role}
+2. Action calls NestJS endpoint with JWT in Authorization header
+3. NestJS JWT Guard validates token by calling Convex endpoint
+4. If valid, extracts user context and proceeds
+5. Response returns to Convex Action
+```
+
+**Webhook Handling:**
+```
+External Service (Stripe/IntaSend)
+    │
+    │ HTTPS POST with signature
+    │
+    ▼
+NestJS Webhooks Controller
+    │
+    ├── Verify signature
+    ├── Check duplicate event ID (idempotency)
+    ├── Process event
+    │   ├── Update subscription status
+    │   └── Call Convex mutation to sync data
+    └── Return 200 OK (or retry)
+```
+
+**API Response Format:**
+```typescript
+// Success
+{
+  success: true,
+  data: { /* result */ }
+}
+
+// Error
+{
+  success: false,
+  error: {
+    code: "PAYMENT_FAILED",
+    message: "Card declined",
+    details?: { /* optional */ }
+  }
+}
+```
+
+### Freemium Tier Enforcement Architecture
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| **Business Model** | Freemium (NOT trial) | Permanent Free tier, usage-based upgrade triggers |
+| **Tier Storage** | `tier` field on tenant record | Simple, queryable, single source of truth |
+| **Enforcement Location** | Convex query/mutation layer | Catch limits before database writes |
+| **Limit Checks** | Pre-operation count queries | Block creation when at/over limit |
+| **Downgrade Strategy** | Archive excess data as read-only | No data loss, graceful degradation |
+
+**Four-Tier Structure:**
+
+| Feature | Free | Starter | Professional | Enterprise |
+|---------|------|---------|--------------|------------|
+| **PO Catalog Management** ||||
+| Departments | 10 | 30 | 100 | Unlimited |
+| Categories | 20 | 60 | 200 | Unlimited |
+| Items per Category | 50 | 150 | 500 | Unlimited |
+| Bulk Import | ❌ | 100 rows | 1,000 rows | Unlimited |
+| Catalog Export | ❌ | ❌ | ✅ | ✅ |
+| **DU Blockly Editor** ||||
+| Category Blocks | 5 | 20 | 50 | Unlimited |
+| Items per Block | 15 | 50 | 100 | Unlimited |
+| Total Items per Plan | 75 | 1,000 | 5,000 | Unlimited |
+| **Reports & Exports** ||||
+| Excel Export Rows | 300 | 1,000 | 10,000 | Unlimited |
+| Audit Reports | ❌ | ❌ | ✅ | ✅ |
+| PDF Exports | ❌ | ❌ | ❌ | Not planned |
+
+**Tier Limit Configuration:**
+```typescript
+// lib/constants/tier-limits.ts
+export const TIER_LIMITS = {
+  free: {
+    departments: 10,
+    categories: 20,
+    itemsPerCategory: 50,
+    duCategoryBlocks: 5,
+    duItemsPerBlock: 15,
+    exportRows: 300,
+    bulkImport: 0, // disabled
+    catalogExport: false,
+    auditReports: false,
+  },
+  starter: {
+    departments: 30,
+    categories: 60,
+    itemsPerCategory: 150,
+    duCategoryBlocks: 20,
+    duItemsPerBlock: 50,
+    exportRows: 1000,
+    bulkImport: 100,
+    catalogExport: false,
+    auditReports: false,
+  },
+  professional: {
+    departments: 100,
+    categories: 200,
+    itemsPerCategory: 500,
+    duCategoryBlocks: 50,
+    duItemsPerBlock: 100,
+    exportRows: 10000,
+    bulkImport: 1000,
+    catalogExport: true,
+    auditReports: true,
+  },
+  enterprise: {
+    departments: null, // unlimited
+    categories: null,
+    itemsPerCategory: null,
+    duCategoryBlocks: null,
+    duItemsPerBlock: null,
+    exportRows: null,
+    bulkImport: null,
+    catalogExport: true,
+    auditReports: true,
+  },
+} as const;
+```
+
+**Enforcement Pattern in Convex:**
+```typescript
+// convex/functions/departments.ts
+export const create = mutation({
+  args: { name: v.string(), code: v.string(), budget: v.number() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+
+    const tenant = await ctx.db.get(identity.tenantId);
+    const tier = tenant.tier; // "free" | "starter" | "professional" | "enterprise"
+
+    // Check tier limit
+    const limit = TIER_LIMITS[tier].departments;
+    if (limit !== null) {
+      const currentCount = await ctx.db
+        .query("departments")
+        .withIndex("by_tenant", q => q.eq("tenantId", identity.tenantId))
+        .filter(q => q.eq(q.field("isActive"), true))
+        .collect()
+        .length;
+
+      if (currentCount >= limit) {
+        throw new ConvexError({
+          code: "TIER_LIMIT_EXCEEDED",
+          resource: "departments",
+          limit,
+          current: currentCount,
+          tier,
+        });
+      }
+    }
+
+    // Proceed with creation
+    return await ctx.db.insert("departments", {
+      tenantId: identity.tenantId,
+      name: args.name,
+      code: args.code,
+      budget: args.budget,
+      isActive: true,
+    });
+  },
+});
+```
+
+**Frontend Upgrade Modal:**
+```typescript
+// components/shared/UpgradeModal.tsx
+// Triggered when TIER_LIMIT_EXCEEDED error is caught
+// Displays:
+// - Current tier and limit
+// - Usage: "X/10 departments used"
+// - Upgrade options with tier comparison
+// - "View Plans" CTA → billing page
+```
+
+**Downgrade Handling:**
+```
+When tenant downgrades from Professional to Starter:
+1. Check if current usage exceeds new tier limits
+2. If yes, mark excess resources as "archived"
+   - Departments: isArchived = true (read-only, not deletable)
+   - Items: categoryId still valid but cannot edit/delete
+3. Display archived badge in UI
+4. Allow viewing archived data (read-only)
+5. To activate archived data, tenant must upgrade again
+```
+
+**Usage Tracking for Platform Admin:**
+```typescript
+// convex/functions/platformAdmin.ts
+export const getTenantUsage = query({
+  args: { tenantId: v.id("tenants") },
+  handler: async (ctx, args) => {
+    const tenant = await ctx.db.get(args.tenantId);
+    const limits = TIER_LIMITS[tenant.tier];
+
+    const departments = await ctx.db
+      .query("departments")
+      .withIndex("by_tenant", q => q.eq("tenantId", args.tenantId))
+      .filter(q => q.eq(q.field("isActive"), true))
+      .collect();
+
+    const categories = await ctx.db
+      .query("categories")
+      .withIndex("by_tenant", q => q.eq("tenantId", args.tenantId))
+      .filter(q => q.eq(q.field("isArchived"), false))
+      .collect();
+
+    return {
+      tier: tenant.tier,
+      usage: {
+        departments: {
+          current: departments.length,
+          limit: limits.departments,
+          percent: limits.departments ? (departments.length / limits.departments) * 100 : 0,
+        },
+        categories: {
+          current: categories.length,
+          limit: limits.categories,
+          percent: limits.categories ? (categories.length / limits.categories) * 100 : 0,
+        },
+        // ... other resources
+      },
+      upgradeCandidate: tenant.upgradeCandidate ?? false,
+    };
+  },
+});
+```
 
 ### Decision Impact Analysis
 
@@ -1394,7 +1668,7 @@ cd nestjs && npm run build  # NestJS build (Railway)
 
 | Decision Area | Status | Notes |
 |---------------|--------|-------|
-| Next.js 14+ + Convex | ✅ Compatible | Both support React 18/19, TypeScript 5.x |
+| Next.js 16 + Convex | ✅ Compatible | Both support React 18/19, TypeScript 5.x |
 | Convex Auth + Ents | ✅ Compatible | Both from Convex ecosystem, Ents starter includes auth patterns |
 | Convex + NestJS | ✅ Compatible | REST + JWT communication pattern established |
 | shadcn/ui + Tailwind | ✅ Compatible | shadcn/ui built on Tailwind |
@@ -1615,7 +1889,7 @@ npx convex dev
 - 464 FRs + 39 NFRs fully supported by architecture
 
 **📚 AI Agent Implementation Guide**
-- Technology stack with verified versions (Next.js 14+, Convex, NestJS 10.x)
+- Technology stack with verified versions (Next.js 16, Convex, NestJS 10.x)
 - Consistency rules that prevent implementation conflicts
 - Project structure with clear boundaries
 - Integration patterns and communication standards
