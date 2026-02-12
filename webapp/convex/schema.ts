@@ -31,9 +31,8 @@ const schema = defineEntSchema({
     isActive: v.boolean(),
     createdAt: v.number(),
   })
-    .edge("tenant")  // Ents relationship to tenants
-    .index("by_email", ["email"])
-    .index("by_tenant", ["tenantId"]),
+    .edge("tenant")  // Ents relationship to tenants (auto-creates tenantId index)
+    .index("by_email", ["email"]),
 });
 
 export default schema;
