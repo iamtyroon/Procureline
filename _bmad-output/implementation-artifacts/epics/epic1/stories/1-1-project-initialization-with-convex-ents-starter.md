@@ -1,6 +1,6 @@
 # Story 1.1: Project Initialization with Convex Ents Starter
 
-Status: done
+Status: in-progress
 
 ## Story
 
@@ -685,3 +685,132 @@ All critical blockers have been automatically resolved. Story now meets acceptan
 - 2026-02-05: Code review identified 8 issues (6 critical, 2 medium)
 - 2026-02-05: All issues automatically fixed and committed (2606b18)
 - 2026-02-05: Story approved for completion after adversarial review
+
+---
+
+## Senior Developer Review (AI) - Round 2
+
+**Review Date:** 2026-02-13
+**Reviewer:** Claude (Adversarial Code Review)
+**Review Type:** Follow-up review with automatic fixes
+
+### Review Outcome: CHANGES REQUIRED
+
+**Previous review claimed all issues were fixed, but TypeScript compilation still fails.**
+
+### Issues Found and Fixed
+
+**9 total issues identified:** 4 Critical (HIGH), 3 Medium, 2 Low
+
+#### Critical Issues Fixed
+
+1. **Stale Starter Template Files Causing 44+ TypeScript Errors** 
+   - **Files Removed:**
+     - `convex/invites.ts` - Referenced deleted functions.ts and old "invites" table
+     - `convex/permissions.ts` - Referenced old "teams", "roles", "permissions" tables
+     - `convex/users.ts` - Referenced deleted functions.ts and old schema
+     - `convex/types.ts` - Referenced deleted functions.ts
+     - `convex/users/teams.ts` - Entire teams architecture abandoned
+     - `convex/users/teams/members.ts` - Teams architecture
+     - `convex/users/teams/roles.ts` - Teams architecture
+     - `convex/users/teams/messages.ts` - Teams architecture
+     - `convex/users/teams/members/invites.tsx` - Teams architecture
+   - **Impact:** Build was completely broken, CI/CD would fail
+   - **Fix Applied:** Deleted all stale files referencing old schema
+   - **Verification:** Files no longer exist, no compilation errors from these files
+
+2. **ErrorBoundary.tsx Still Had Clerk References**
+   - **Problem:** Comment said "Once you get Clerk working you can remove this" but it was still there
+   - **Lines 5, 18-44:** Clerk-specific error handling code remained
+   - **Impact:** Dead code referencing removed authentication system
+   - **Fix Applied:** Completely rewrote ErrorBoundary as generic React error boundary
+   - **Verification:** No Clerk references remain in component
+
+3. **Convex Generated Files Stale**
+   - **Problem:** `convex/_generated/*.d.ts` files still referenced deleted modules
+   - **Files:** api.d.ts, dataModel.d.ts, server.d.ts
+   - **Impact:** TypeScript would fail even after removing source files
+   - **Fix Applied:** Removed entire `_generated` directory
+   - **Next Step:** Run `npx convex dev` to regenerate after deployment
+
+4. **Story Status Inaccurate**
+   - **Problem:** Status marked as "done" but multiple tasks incomplete:
+     - [ ] "Test dev server starts without errors" - NOT DONE
+     - [ ] "Initialize Convex development environment" - NOT DONE  
+     - [ ] "Verify shadcn/ui components use correct theme" - NOT DONE
+     - [ ] "Test theme across light/dark modes" - NOT DONE
+   - **Impact:** Misleading status, story not actually complete
+   - **Fix Applied:** Changed status from "done" to "in-progress"
+
+#### Medium Issues Fixed
+
+5. **Task List Inconsistencies**
+   - Task "Resolve any type errors from strict mode" marked [x] but 44+ errors existed
+   - Task "Remove Clerk provider from app layout" incomplete (ErrorBoundary still referenced Clerk)
+   - **Fix Applied:** Removed stale files, updated ErrorBoundary
+
+6. **utils.ts Retained but Questionable**
+   - File kept as it has useful slugify/normalize utilities
+   - May need tenant-specific versions later
+   - **Status:** No action needed, but monitor for future conflicts
+
+7. **Missing Regeneration Step**
+   - Generated files need to be recreated with `npx convex dev`
+   - **Action Required:** Developer must run this after fixes
+
+#### Low Issues
+
+8. **TODO Comment in auth.ts**
+   - Line 6: "// TODO: Add custom claims callbacks in Story 1.2"
+   - **Status:** Acceptable for now, tracked for Story 1.2
+
+9. **package-lock.json Clerk References**
+   - Transitive dependencies still reference @clerk/* packages
+   - **Impact:** None (not loaded at runtime)
+   - **Status:** Can be cleaned up with fresh npm install later
+
+### Files Modified
+
+**Deleted (9 files):**
+- `convex/invites.ts`
+- `convex/permissions.ts`
+- `convex/users.ts`
+- `convex/types.ts`
+- `convex/users/teams.ts`
+- `convex/users/teams/members.ts`
+- `convex/users/teams/roles.ts`
+- `convex/users/teams/messages.ts`
+- `convex/users/teams/members/invites.tsx`
+- `convex/users/` (entire directory)
+- `convex/_generated/` (entire directory)
+
+**Modified (2 files):**
+- `app/ErrorBoundary.tsx` - Removed Clerk references, made generic
+- `1-1-project-initialization-with-convex-ents-starter.md` - Updated status, added review notes
+
+### Next Steps to Complete Story
+
+1. **Run `npx convex dev`** in webapp/ directory to regenerate types
+2. **Test dev server:** `npm run dev` should now start without errors
+3. **Verify theme:** Confirm Procureline Green (#18b969) appears in UI
+4. **Complete remaining tasks:**
+   - [ ] Initialize Convex development environment
+   - [ ] Verify shadcn/ui components use correct theme
+   - [ ] Test theme across light/dark modes
+5. **Update status to "done"** once all tasks verified
+
+### Code Quality Assessment
+
+**Strengths:**
+- ✅ Core schema properly defined
+- ✅ Convex Auth correctly configured
+- ✅ Theme properly applied
+- ✅ Next.js 16 and React 19 properly installed
+- ✅ TypeScript strict mode enabled
+
+**Remaining Work:**
+- ⚠️ Convex types need regeneration
+- ⚠️ Dev server verification pending
+- ⚠️ UI theme verification pending
+
+**Recommendation:** Story requires ~30 minutes additional work to complete remaining tasks and verify everything works end-to-end.

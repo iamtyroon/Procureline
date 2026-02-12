@@ -24,6 +24,6 @@ export function se<
     // @ts-expect-error Too complicated for TypeScript
     <Tag ref={ref} className={cn(...classNames, className)} {...props} />
   ));
-  component.displayName = Tag[0].toUpperCase() + Tag.slice(1);
+  component.displayName = Tag[0]!.toUpperCase() + Tag.slice(1);
   return component;
 }
