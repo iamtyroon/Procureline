@@ -1,14 +1,29 @@
 installation:
-  version: 6.0.0-alpha.22
-  installDate: 2026-01-03T13:58:00.423Z
-  lastUpdated: 2026-01-03T13:58:00.423Z
+  version: 6.0.0-Beta.8
+  installDate: 2026-02-12T21:27:37.422Z
+  lastUpdated: 2026-02-12T21:27:37.422Z
 modules:
-  - core
-  - bmb
-  - bmm
-  - cis
+  - name: core
+    version: 6.0.0-Beta.8
+    installDate: 2026-02-12T21:27:37.421Z
+    lastUpdated: 2026-02-12T21:27:37.421Z
+    source: built-in
+    npmPackage: null
+    repoUrl: null
+  - name: bmm
+    version: 6.0.0-Beta.8
+    installDate: 2026-02-12T21:27:37.365Z
+    lastUpdated: 2026-02-12T21:27:37.422Z
+    source: built-in
+    npmPackage: null
+    repoUrl: null
 ides:
   - claude-code
+  - codex
   - cursor
-  - antigravity
   - gemini
+  - github-copilot
+  - antigravity
+  - kilo
+  - qwen
+  - opencode

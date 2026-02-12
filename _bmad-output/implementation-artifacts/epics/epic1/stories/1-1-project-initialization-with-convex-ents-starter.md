@@ -74,7 +74,7 @@ So that we have a solid foundation with authentication, database, and multi-tena
   - [x] Define tenants table with tier and status fields
   - [x] Define users table with role, tenantId, and email fields
   - [x] Add indexes for tenant isolation (by_tenant)
-  - [ ] Verify schema syncs to Convex (requires Convex initialization)
+  - [x] Verify schema syncs to Convex (requires Convex initialization)
 
 - [x] Create environment variables template (AC: 11)
   - [x] Create .env.example with all required variables
