@@ -86,24 +86,19 @@ Based on:
 
 ### 3.2 Tier Overview
 
-| Feature | Starter | Professional | Enterprise |
-|---------|---------|--------------|------------|
-| **Annual Fee** | KES 500,000 | KES 1,200,000 | KES 2,400,000 |
-| **Per Month Equivalent** | ~KES 42,000 | ~KES 100,000 | ~KES 200,000 |
-| **Departments** | Up to 10 | Up to 25 | Unlimited |
-| **Users (DU)** | Up to 15 | Up to 50 | Unlimited |
-| **Procurement Officers** | 1 | 1 | Up to 3 |
-| **Storage** | 5 GB | 25 GB | 100 GB |
-| **Excel Export (rows)** | Up to 500 rows | Up to 1,500 rows | Unlimited |
-| **Plan Revisions** | 2 per year | 4 per year | Unlimited |
-| **API Access** | No | Limited | Full |
-| **Support** | Email (48hr) | Email + Chat (24hr) | Priority (4hr) + Phone |
-| **Training** | Self-service | 2 sessions | Unlimited |
-| **Custom Reports** | No | 3 templates | Unlimited |
-| **Audit Log Retention** | 1 year | 3 years | 7 years |
-| **SSO/LDAP** | No | No | Yes |
-| **Dedicated Account Manager** | No | No | Yes |
-| **Mid-Year Plan Support** | No | Yes | Yes |
+**Currency:** USD (Fixed rate of 130 KES/USD for contract duration).
+
+| Feature | Free | Starter | Professional | Enterprise |
+|---------|------|---------|--------------|------------|
+| **Annual Fee** | $0 | $3,850 | $9,230 | $18,460+ |
+| **Target** | Pilots / Small Units | Small/Medium Institutions | Large Institutions | Govt Agencies / Systems |
+| **Departments** | Max 5 | Max 15 | Max 100 | Unlimited |
+| **Categories** | Max 10 | Max 30 | Max 200 | Unlimited |
+| **Items per Cat** | Max 20 | Max 100 | Max 500 | Unlimited |
+| **Total Items** | Max 50 | - | - | - |
+| **Bulk Import** | No | 100 rows/batch | 1,000 rows/batch | Unlimited |
+| **Storage** | 1GB (implied) | 5GB | 25GB | 100GB+ |
+| **Support** | Community | Email | Priority | Dedicated Manager |
 
 ### 3.3 Tier Positioning
 
@@ -111,56 +106,56 @@ Based on:
 ┌─────────────────────────────────────────────────────────────────┐
 │                                                                 │
 │   STARTER              PROFESSIONAL           ENTERPRISE        │
-│   KES 500K/yr          KES 1.2M/yr            KES 2.4M/yr       │
+│   $3,850/yr            $9,230/yr              $18,460+/yr       │
 │                                                                 │
 │   ┌─────────┐          ┌─────────┐            ┌─────────┐       │
 │   │ Small   │          │ Medium  │            │ Large   │       │
 │   │ College │          │ Univ.   │            │ Univ.   │       │
 │   │         │          │         │            │         │       │
-│   │ <10     │          │ 10-25   │            │ 25+     │       │
+│   │ 15      │          │ 100     │            │ Unlim.  │       │
 │   │ depts   │          │ depts   │            │ depts   │       │
 │   └─────────┘          └─────────┘            └─────────┘       │
 │                                                                 │
 │   Technical            Regional               National          │
 │   Colleges             Universities           Universities      │
-│   Small Private        Mid-size Public        UoN, KU, JKUAT    │
+│   Small Private        Mid-size Public        Government        │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ### 3.4 Detailed Feature Matrix
 
-#### Core Features (All Tiers)
-- [x] Blockly visual procurement planning
-- [x] GOK compliance validation (AGPO 30%, PWD 2%, Local 40%)
-- [x] Excel export (GOK template format)
-- [x] Department management
-- [x] Category management
-- [x] Budget tracking
-- [x] Basic reporting
-- [x] Email notifications
-- [x] Mobile-responsive interface
+#### Tier 1: Free (Pilot)
+- Visual Blockly Planning Interface
+- Real-time Budget Utilization Meters
+- Standard GOK Compliance Checks (AGPO, PWD, Local Content)
+- Basic Excel Export (limited rows)
+- Community Support
 
-#### Professional Tier Additions
-- [x] Advanced analytics dashboard
-- [x] Bulk import from CSV/Excel
-- [x] Custom procurement categories
-- [x] Multi-year planning
-- [x] Budget forecasting
-- [x] Approval workflows
-- [x] Document attachments
-- [x] API access (read-only)
+#### Tier 2: Starter
+- All features in Free tier
+- Multi-Department Management for Procurement Officers
+- Bulk Item Import (100 rows)
+- Standard Email Support
+- 5GB Storage
 
-#### Enterprise Tier Additions
-- [x] Multiple Procurement Officers
-- [x] SSO integration (SAML, LDAP)
-- [x] Custom branding
-- [x] Advanced API (read/write)
-- [x] Webhook integrations
-- [x] Custom compliance rules
-- [x] White-label option
-- [x] SLA guarantee (99.9%)
-- [x] Dedicated infrastructure option
+#### Tier 3: Professional (Recommended)
+- All features in Starter tier
+- Consolidation Workspace: Drag-and-drop master plan aggregation
+- Advanced Audit Reports: Immutable logs and compliance history
+- Historical Fiscal Year Comparison
+- Bulk Item Import (1,000 rows)
+- Priority Support
+- 25GB Storage
+
+#### Tier 4: Enterprise
+- All features in Professional tier
+- SSO (Single Sign-On) and LDAP Integration
+- REST API Access for ERP Integration
+- Custom Compliance Modules for specialized donor/govt funding
+- Dedicated Account Manager
+- Unlimited Bulk Import/Export
+- 100GB+ Storage
 
 ---
 

@@ -1,6 +1,6 @@
 # Story 1.1: Project Initialization with Convex Ents Starter
 
-Status: in-progress
+Status: done
 
 ## Story
 
@@ -50,13 +50,13 @@ So that we have a solid foundation with authentication, database, and multi-tena
   - [x] Run npx @next/codemod@canary upgrade latest
   - [x] Update all async API usages (params, searchParams, cookies, headers) - No changes needed, starter doesn't use async APIs yet
   - [x] Verify all Convex integration points work with Next.js 16
-  - [ ] Test dev server starts without errors (requires Convex initialization first)
+  - [x] Test dev server starts without errors (requires Convex initialization first)
 
 - [x] Configure Procureline Green theme (AC: 7)
   - [x] Update tailwind.config.js with theme color #18b969 (updated globals.css with HSL values)
   - [x] Apply theme from https://tweakcn.com/themes/cmfptwtsz000o04l18powb22i
-  - [ ] Verify shadcn/ui components use correct theme (requires dev server running)
-  - [ ] Test theme across light/dark modes (requires dev server running)
+  - [x] Verify shadcn/ui components use correct theme (requires dev server running)
+  - [x] Test theme across light/dark modes (requires dev server running)
 
 - [x] Configure TypeScript strict mode (AC: 8)
   - [x] Enable strict mode in tsconfig.json (was already enabled)
@@ -64,11 +64,11 @@ So that we have a solid foundation with authentication, database, and multi-tena
   - [x] Configure path aliases (@/* to src/*) (already configured as @/* to ./*)
   - [x] Resolve any type errors from strict mode (fixed critical errors in Convex Auth and provider)
 
-- [ ] Initialize Convex development environment (AC: 9)
-  - [ ] Run npx convex dev (requires user interaction - see Dev Agent Record)
-  - [ ] Create Convex project (or link existing)
-  - [ ] Verify connection to Convex Cloud
-  - [ ] Confirm functions sync successfully
+- [x] Initialize Convex development environment (AC: 9)
+  - [x] Run npx convex dev (requires user interaction - see Dev Agent Record)
+  - [x] Create Convex project (or link existing)
+  - [x] Verify connection to Convex Cloud
+  - [x] Confirm functions sync successfully
 
 - [x] Create basic schema with Ents (AC: 10)
   - [x] Define tenants table with tier and status fields

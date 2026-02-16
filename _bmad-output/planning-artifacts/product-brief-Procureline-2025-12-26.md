@@ -188,14 +188,17 @@ The Procureline team managing the multi-tenant platform—onboarding universitie
 
 ### Revenue Model
 
-**Freemium SaaS Model:**
-- **Free Tier:** Permanent access with usage-based limits (10 departments, 20 categories, 50 items/category) — customer acquisition and product validation
-- **Starter Tier:** KES 500K/yr (30 departments, 60 categories, 150 items/category) — small institutions
-- **Professional Tier:** KES 1.2M/yr (100 departments, 200 categories, 500 items/category) — mid-sized universities
-- **Enterprise Tier:** KES 2.4M/yr (unlimited usage, priority support, custom features) — large institutions
+**SaaS Billing Architecture (Annual USD):**
+- **Billing Cycle:** Annual (Aligned to Kenya Fiscal Year: July 1 – June 30)
+- **Currency:** USD (Fixed rate of 130 KES/USD for contract duration)
+
+**Subscription Tiers:**
+- **Free Tier:** $0/yr (5 Departments, 10 Categories, 20 Items/Cat) — departmental pilots
+- **Starter Tier:** $3,850/yr (15 Departments, 30 Categories, 100 Items/Cat) — small/medium institutions
+- **Professional Tier:** $9,230/yr (100 Departments, 200 Categories, 500 Items/Cat) — large universities
+- **Enterprise Tier:** $18,460+/yr (Unlimited usage, SSO, API, Custom Compliance) — government agencies
 
 **Billing & Conversion:**
-- **Billing Cycle:** Annual, aligned to Kenya fiscal year (July 1 - June 30)
 - **Free-to-Paid Conversion Target:** 30% within first 90 days
 - **Revenue Mix Target:** 55% Professional tier, 25% Starter, 20% Enterprise
 

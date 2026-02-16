@@ -3,6 +3,24 @@
 # project_key: procureline
 # tracking_system: file-system
 # story_location: c:\Users\Tyroon\Downloads\project\Procureline\_bmad-output\implementation-artifacts
+# last_updated: 2026-02-16
+
+# ==============================================================================
+# CURRENT SPRINT FOCUS (Updated 2026-02-16)
+# ==============================================================================
+# SPRINT GOAL: Implement Marketing Landing Page (Story 11.1)
+#
+# COMPLETED:
+#   ✅ Epic 1 Story 1.1 - Project Initialization (Convex Ents + Next.js 16)
+#
+# IN PROGRESS:
+#   🔄 Epic 11 Story 11.1 - Marketing Landing Page (PRIORITY)
+#      Target: webapp/src/app/page.tsx (port from docs/html/landing.html)
+#
+# NEXT UP (after Story 11.1):
+#   ⏳ Epic 1 Story 1.2 - Tenant Admin Registration (hooks into landing CTA)
+#
+# ==============================================================================
 
 # STATUS DEFINITIONS:
 # ==================
@@ -33,7 +51,7 @@
 # - SM typically creates next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
-generated: 2026-02-05
+generated: 2026-02-16
 project: Procureline
 project_key: procureline
 tracking_system: file-system
@@ -42,7 +60,7 @@ story_location: "c:\\Users\\Tyroon\\Downloads\\project\\Procureline\\_bmad-outpu
 development_status:
   epic-1: in-progress
   1-1-project-initialization-with-convex-ents-starter: done
-  1-2-tenant-admin-registration-free-tier-signup: ready-for-dev
+  1-2-tenant-admin-registration-free-tier-signup: backlog
   1-3-user-login-with-email-password: backlog
   1-4-password-reset-via-email: backlog
   1-5-session-management-logout: backlog
@@ -147,8 +165,8 @@ development_status:
   10-3-audit-report-generation: backlog
   epic-10-retrospective: optional
 
-  epic-11: backlog
-  11-1-marketing-landing-page: backlog
+  epic-11: in-progress
+  11-1-marketing-landing-page: ready-for-dev
   11-2-pricing-page-tier-comparison: backlog
   11-3-trial-signup-user-onboarding: backlog
   epic-11-retrospective: optional

@@ -1,13 +1,15 @@
 ---
 epic: 1
 title: "Project Foundation & Authentication System"
-status: ready
+status: in-progress
 priority: P0
 totalStories: 9
+storiesCompleted: ["1.1"]
 frsConvered: ["FR1", "FR2", "FR2a-FR2h", "FR3", "FR4", "FR5", "FR5a-FR5h", "FR6", "FR7"]
 nfrsAddressed: ["NFR-S1", "NFR-S2", "NFR-S3", "NFR-S4", "NFR-S5", "NFR-S6", "NFR-S7", "NFR-S10"]
 dependencies: []
 createdAt: 2026-01-22
+updatedAt: 2026-02-16
 ---
 
 # Epic 1: Project Foundation & Authentication System
@@ -50,6 +52,24 @@ All four user types (Platform Admin, Tenant Admin, PO, DU) can register, login, 
 - Configure Procureline Green theme (#18b969) https://tweakcn.com/themes/cmfptwtsz000o04l18powb22i
 
 ## Implementation Notes
+
+### ✅ CURRENT STATE (Updated 2026-02-16)
+
+**Completed:**
+- ✅ **Story 1.1** - Project Initialization with Convex Ents Starter (Next.js 16 + Convex Auth)
+
+**Next Steps:**
+1. **Epic 11 Story 11.1** - Marketing Landing Page (`webapp/src/app/page.tsx`) - **NEXT**
+2. **Story 1.2** - Tenant Admin Registration (hooks into landing page "Create Free Account" CTA)
+3. Stories 1.3-1.9 - Remaining authentication infrastructure
+
+**Why This Order:**
+- Story 1.1 complete: Backend foundation (Convex Ents + Next.js 16 + Convex Auth) is ready
+- Landing page provides immediate visual validation and marketing presence
+- "Create Free Account" button on landing page routes to Story 1.2 signup form
+- Frontend and backend can now be developed in parallel
+
+---
 
 - This epic establishes the foundational infrastructure for all subsequent epics
 - All authentication flows use Convex Auth with Email OTP for 2FA
@@ -167,11 +187,18 @@ npm run dev
 
 ### Story 1.2: Tenant Admin Registration & Free Tier Signup
 
-As a **prospective customer**,
+**Prerequisite:** Epic 11 Story 11.1 (Landing Page) - "Create Free Account" CTA routes here
+**Target:** `webapp/src/app/(auth)/signup/page.tsx`
+
+As a **prospective tenant customer for an institution/organization**,
 I want to register for a Free tier account using my email and organization details,
 So that I can start using Procureline with permanent free access and usage-based limits.
 
 **Acceptance Criteria:**
+
+**Given** a visitor clicks "Create Free Account" on the landing page (Epic 11 Story 11.1)
+**When** they are routed to the signup page
+**Then** system displays signup form pre-selected for "Free Forever" tier
 
 **Given** a visitor on the signup page
 **When** they enter valid email, password, and organization name
@@ -195,15 +222,17 @@ So that I can start using Procureline with permanent free access and usage-based
 **Then** system displays specific password requirements not met
 
 **Technical Notes:**
+- Entry point: Landing page "Create Free Account" button → `/signup`
 - Creates `tenants` table entry with `tier: 'free'`, `status: 'active'`
 - Creates `users` table entry with `role: 'tenant_admin'`, `tenantId: tenant._id`
 - Email verification via Convex Auth email provider
+- After verification, redirect to onboarding flow (Epic 11 Story 11.3)
 
 ---
 
 ### Story 1.3: User Login with Email & Password
 
-As a **registered user**,
+As a **registered tenant customer for an institution/organization user**,
 I want to log in using my email and password,
 So that I can access my dashboard and perform my role-specific tasks.
 
@@ -655,13 +684,28 @@ Story 1.1 (Project Init)
     └── Story 1.8 (DU Access Codes) ──── Requires 1.6 & 1.7
 ```
 
-**Implementation Order Recommendation:**
-1. Story 1.1 (Project Init with Next.js 16)
+**Implementation Order (Updated 2026-02-16):**
+
+**✅ Phase 1: Backend Foundation (COMPLETE)**
+- ✅ Story 1.1 (Project Init with Next.js 16 + Convex Auth + Ents)
+
+**Phase 2: Visual Foundation (NEXT)**
+1. **Epic 11 Story 11.1** - Marketing Landing Page (`webapp/src/app/page.tsx`)
+   - Port from `docs/html/landing.html`
+   - Provides immediate visual feedback
+   - "Create Free Account" CTA ready for Story 1.2
+
+**Phase 3: Core Infrastructure**
 2. Story 1.9 (Security Infrastructure - sets up foundations)
-3. Stories 1.2-1.5 (Authentication flows)
-4. Story 1.6 (RBAC)
-5. Story 1.7 (Tenant Isolation)
-6. Story 1.8 (DU Access Codes)
+
+**Phase 4: Authentication Flows**
+3. Story 1.2 (Tenant Admin Registration - hooks into landing page CTA)
+4. Stories 1.3-1.5 (Login, Password Reset, Session Management)
+
+**Phase 5: Authorization & Isolation**
+5. Story 1.6 (RBAC)
+6. Story 1.7 (Tenant Isolation)
+7. Story 1.8 (DU Access Codes)
 
 ## Definition of Done
 

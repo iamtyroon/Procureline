@@ -523,33 +523,32 @@ Procureline is a **multi-tenant SaaS B2B platform** serving institutional custom
 
 ### Subscription Tiers
 
-**Freemium Pricing Structure (Kenya Fiscal Year Aligned):**
+**SaaS Billing Architecture (Annual USD):**
+- **Currency:** USD (Fixed rate of 130 KES/USD)
+- **Billing Cycle:** Annual (July 1 - June 30)
 
-| Tier | Monthly | Annual | Model |
-|------|---------|--------|-------|
-| **Free** | KES 0 | KES 0 | Permanent with usage limits |
-| **Starter** | KES 41,667 | KES 500,000 | Small to medium institutions |
-| **Professional** | KES 100,000 | KES 1,200,000 | Large institutions |
-| **Enterprise** | KES 200,000 | KES 2,400,000 | Government agencies, unlimited scale |
+| Tier | Annual Price | Model | Target |
+|------|--------------|-------|--------|
+| **Free** | $0 | Permanent Pilot | Departmental pilots |
+| **Starter** | $3,850 | Subscription | Small/Medium institutions |
+| **Professional** | $9,230 | Subscription | Large universities |
+| **Enterprise** | $18,460+ | Custom Quote | Government agencies |
 
 **Tier Usage Limits:**
 
 | Resource | Free | Starter | Professional | Enterprise |
 |----------|:----:|:-------:|:------------:|:----------:|
 | **PO Catalog Management** ||||
-| Departments | 10 | 30 | 100 | Unlimited |
-| Categories | 20 | 60 | 200 | Unlimited |
-| Items per Category | 50 | 150 | 500 | Unlimited |
+| Departments | 5 | 15 | 100 | Unlimited |
+| Categories | 10 | 30 | 200 | Unlimited |
+| Items per Category | 20 | 100 | 500 | Unlimited |
+| Total Items per Plan | 50 | - | - | - |
 | Bulk Import | ❌ | 100 rows | 1,000 rows | Unlimited |
 | Catalog Export | ❌ | ❌ | ✓ | ✓ |
-| **DU Blockly Editor** ||||
-| Category Blocks | 5 | 20 | 50 | Unlimited |
-| Items per Block | 15 | 50 | 100 | Unlimited |
-| Total Items per Plan | 75 | 1,000 | 5,000 | Unlimited |
 | **Reports & Exports** ||||
-| Excel Export Rows | 300 | 1,000 | 10,000 | Unlimited |
+| Excel Export Rows | Limited | Standard | Extended | Unlimited |
 | Audit Reports | ❌ | ❌ | ✓ | ✓ |
-| Storage | 1GB | 5GB | 25GB | 100GB |
+| Storage | 1GB | 5GB | 25GB | 100GB+ |
 | Support | Community | Email | Priority | Dedicated |
 
 **Tier Feature Comparison:**
@@ -557,24 +556,21 @@ Procureline is a **multi-tenant SaaS B2B platform** serving institutional custom
 | Feature | Free | Starter | Professional | Enterprise |
 |---------|:----:|:-------:|:------------:|:----------:|
 | Blockly Planning Interface | ✓ | ✓ | ✓ | ✓ |
-| Excel Export (limited) | ✓ | ✓ | ✓ | ✓ |
-| GOK Compliance Calculations | ✓ | ✓ | ✓ | ✓ |
-| Consolidation Workspace | ✓ | ✓ | ✓ | ✓ |
-| Basic Audit Trails | ✓ | ✓ | ✓ | ✓ |
-| Bulk Import/Export | ❌ | Limited | ✓ | ✓ |
-| Catalog Export | ❌ | ❌ | ✓ | ✓ |
-| Audit Reports | ❌ | ❌ | ✓ | ✓ |
-| Analytics Dashboard | ❌ | ❌ | ✓ | ✓ |
-| Multi-year Comparison | ❌ | ❌ | ✓ | ✓ |
+| Real-time Budget Meters | ✓ | ✓ | ✓ | ✓ |
+| GOK Compliance Checks | ✓ | ✓ | ✓ | ✓ |
+| Excel Export (Basic) | ✓ | ✓ | ✓ | ✓ |
+| Multi-Dept Management | ❌ | ✓ | ✓ | ✓ |
+| Consolidation Workspace | ❌ | ❌ | ✓ | ✓ |
+| Historical Comparison | ❌ | ❌ | ✓ | ✓ |
 | API Access | ❌ | ❌ | ❌ | ✓ |
 | SSO/LDAP Integration | ❌ | ❌ | ❌ | ✓ |
 | Custom Compliance Modules | ❌ | ❌ | ❌ | ✓ |
 | Dedicated Account Manager | ❌ | ❌ | ❌ | ✓ |
 
 **Payment Methods:**
-- Bank Transfer with LPO (primary for universities)
-- M-Pesa (mobile money)
-- Stripe (card payments)
+- Bank Transfer with LPO
+- M-Pesa
+- Stripe (Card)
 
 ### Integration Requirements
 

@@ -1,13 +1,14 @@
 ---
 epic: 11
 title: "Marketing Landing & User Onboarding"
-status: ready
-priority: P1
+status: in-progress
+priority: P0
 totalStories: 3
 frsConvered: ["FR90-FR94"]
 nfrsAddressed: ["NFR-P5"]
-dependencies: ["Epic 1", "Epic 8"]
+dependencies: ["Epic 1 Story 1.1 - Project initialization complete"]
 createdAt: 2026-01-22
+updatedAt: 2026-02-16
 ---
 
 # Epic 11: Marketing Landing & User Onboarding
@@ -25,6 +26,7 @@ The path from "What is Procureline?" to "I'm using Procureline" is smooth, infor
 ### Functional Requirements
 
 **Marketing & Onboarding (5 FRs):**
+
 - FR90: Marketing landing page with feature descriptions
 - FR91: Pricing tiers and comparison
 - FR92: Free tier signup process
@@ -32,13 +34,25 @@ The path from "What is Procureline?" to "I'm using Procureline" is smooth, infor
 - FR94: Contextual help within application
 
 ### Non-Functional Requirements
+
 - NFR-P5: Dashboard pages load within 1 second
 
 ## Implementation Notes
 
+### ✅ CURRENT STATE (Updated 2026-02-16)
+
+**Prerequisites Complete:**
+- ✅ Epic 1 Story 1.1 - Project initialization complete (Convex Ents + Next.js 16 + Convex Auth)
+
+**Ready to Start:**
+- Story 11.1 can now be implemented with full backend support available
+- Signup form (Epic 1 Story 1.2) can connect to working Convex Auth
+
+---
+
 - Landing page as static Next.js pages for SEO
 - Pricing page with interactive tier comparison
-- Trial signup flow integrated with Epic 1 authentication
+- Free Forever signup flow integrated with Epic 1 authentication
 - Onboarding wizard tracks progress per user
 - Contextual help via tooltip system and help drawer
 
@@ -46,7 +60,11 @@ The path from "What is Procureline?" to "I'm using Procureline" is smooth, infor
 
 ## Stories
 
-### Story 11.1: Marketing Landing Page
+### Story 11.1: Marketing Landing Page ⭐ START HERE
+
+**Priority:** P0 - FIRST STORY TO IMPLEMENT (Frontend-First Strategy)
+**Target:** `webapp/src/app/page.tsx`
+**Source:** Port from `docs/html/landing.html` (already updated with USD billing)
 
 As a **visitor**,
 I want to understand what Procureline offers,
@@ -61,12 +79,15 @@ So that I can decide if it's right for my organization.
 **Given** a visitor views the landing page
 **When** scrolling through content
 **Then** page includes:
+
 - Hero section with value proposition
 - Problem statement (Excel chaos, manual consolidation)
 - Solution overview (Blockly interface, automatic compliance)
 - Feature highlights with visuals
 - Customer testimonials (when available)
-- CTA buttons ("Start Free Trial", "See Pricing")
+- **Pricing section with 4-tier grid** (Free, Starter, Professional, Enterprise in USD)
+- **"Free Forever" trial banner** (not 14-day trial)
+- CTA buttons ("Create Free Account", "View Pricing")
 
 **Given** a visitor views the landing page
 **When** they want to see the product
@@ -80,16 +101,20 @@ So that I can decide if it's right for my organization.
 **When** search engines index it
 **Then** page has proper SEO metadata: title, description, OG tags
 
-**Given** a visitor clicks "Start Free"
+**Given** a visitor clicks "Create Free Account"
 **When** navigating to signup
-**Then** system routes to Free tier signup page
+**Then** system routes to `/signup` (Epic 1 Story 1.2 - Tenant Admin Registration)
 
 **Technical Notes:**
+
+- **Implementation order:** This is the FIRST story - provides immediate visual feedback
+- Port existing `docs/html/landing.html` to Next.js `webapp/src/app/page.tsx`
 - Landing page as Next.js static page for optimal SEO
 - Animations via Framer Motion for engagement
 - Demo content via embedded video or animated images
-- CTA buttons link to `/signup` and `/pricing`
+- CTA buttons link to `/signup` (Epic 1 Story 1.2) and `/pricing`
 - SEO via Next.js metadata API
+- **Billing:** All pricing in USD, annual billing aligned to Kenya Fiscal Year (July 1 - June 30)
 
 ---
 
@@ -133,6 +158,7 @@ So that I can choose the right plan for my organization.
 **Then** FAQ section addresses common pricing questions
 
 **Technical Notes:**
+
 - Pricing page as Next.js static page
 - Tier data from configuration file
 - Currency toggle via client-side state
@@ -162,6 +188,7 @@ So that I can quickly understand how to use Procureline.
 **Given** the onboarding flow
 **When** user progresses through steps
 **Then** flow includes:
+
 - Welcome message with value proposition
 - Role selection (Tenant Admin, PO - determines flow)
 - Quick tour of key features
@@ -181,6 +208,7 @@ So that I can quickly understand how to use Procureline.
 **Given** a user needs more help
 **When** they click help icon in navigation
 **Then** system opens help drawer with:
+
 - Current page documentation
 - Video tutorials (if available)
 - Contact support link
@@ -192,6 +220,7 @@ So that I can quickly understand how to use Procureline.
 **And** resumes from last step on next login
 
 **Technical Notes:**
+
 - Signup form validation with real-time feedback
 - Onboarding state in `userOnboarding` table with step progress
 - Contextual help via tooltip component with help text from content file

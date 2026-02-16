@@ -785,17 +785,21 @@ This document provides the complete epic and story breakdown for Procureline, de
 
 ### Epic 1: Project Foundation & Authentication System
 
+**Status:** `in-progress` (Story 1.1 ✅ COMPLETE)
+
 **Goal:** Users can securely access the platform with role-based permissions and complete tenant isolation.
 
 **User Outcome:** All four user types (Platform Admin, Tenant Admin, PO, DU) can register, login, and access their appropriate dashboards with proper authorization.
 
 **FRs covered:** FR1, FR2, FR2a-FR2h, FR3, FR4, FR5, FR5a-FR5h, FR6, FR7
 
-**Total Stories:** 9
+**Total Stories:** 9 (1 complete, 8 remaining)
 
 **Implementation Notes:**
+- ✅ **COMPLETE:** Story 1.1 (Project Init) - Convex Ents Starter + Next.js 16 + Convex Auth configured
+- **NEXT:** Epic 11 Story 11.1 (Landing Page) - provides visual entry point
+- Story 1.2 (Signup Engine) hooks into landing page's "Create Free Account" CTA button
 - Uses Convex Ents SaaS Starter upgraded to Next.js 16 with async API migrations
-- Convex Auth replaces Clerk for authentication
 - Implements 4-layer RBAC (Platform Admin, Tenant Admin, PO, DU)
 - DU access code authentication flow with OTP verification
 - Story 1.9 implements security infrastructure (XSS protection, CORS, input validation, audit logging)
@@ -952,14 +956,25 @@ This document provides the complete epic and story breakdown for Procureline, de
 
 ### Epic 11: Marketing Landing & User Onboarding
 
+**Status:** `in-progress` (START HERE - Frontend-first implementation strategy)
+
 **Goal:** Visitors can discover Procureline and smoothly onboard as new users.
 
 **User Outcome:** Visitors can view the landing page, understand pricing tiers, start using the Free tier, and complete guided onboarding that gets them productive immediately.
 
 **FRs covered:** FR90-FR94 (5 FRs total)
 
+**Implementation Order (Frontend-First Strategy):**
+1. **Story 11.1** - Marketing Landing Page → `webapp/src/app/page.tsx` (START HERE)
+2. **Epic 1 Story 1.1** - Project Initialization with Convex Ents Starter
+3. **Epic 1 Story 1.2** - Tenant Admin Registration (hooks into landing page CTA)
+4. **Story 11.2** - Pricing Page (if separate from landing page)
+5. **Story 11.3** - Onboarding Flow
+
 **Implementation Notes:**
-- Marketing landing page with feature descriptions
-- Pricing tier comparison
-- Free tier signup flow
+- **STARTING POINT:** Story 11.1 is the FIRST story to implement
+- Landing page provides immediate visual feedback and validates the product concept
+- Landing page "Create Free Account" CTA will route to Epic 1 Story 1.2 (Signup Engine)
+- Pricing tier comparison (now USD-based, annual billing aligned to Kenya Fiscal Year July 1 - June 30)
+- Free Forever tier signup flow (not 14-day trial)
 - Contextual onboarding (animated hints, zero-training approach)

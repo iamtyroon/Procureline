@@ -993,17 +993,30 @@
 
         .pricing-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 32px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
         }
 
         .pricing-card {
             background: white;
             border: 2px solid var(--gray-200);
             border-radius: var(--radius-lg);
-            padding: 32px;
+            padding: 24px;
             position: relative;
             transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pricing-card {
+            background: white;
+            border: 2px solid var(--gray-200);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            position: relative;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
         }
 
         .pricing-card:hover {
@@ -1682,9 +1695,20 @@
             }
 
             .features-grid,
-            .pricing-grid,
             .testimonials-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .pricing-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .steps-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .pricing-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
 
             .steps-grid {
@@ -1744,6 +1768,10 @@
 
             .pricing-card.popular {
                 transform: none;
+            }
+
+            .pricing-grid {
+                grid-template-columns: 1fr;
             }
 
             .trial-banner {
@@ -2271,8 +2299,52 @@
                 <div class="trial-banner-content">
                     <div class="trial-banner-badge">
                         <i class="fas fa-gift"></i>
-                        14-Day Free Trial
+                        Free Forever
                     </div>
+                    <h3 class="trial-banner-title">Start Planning for Free Today</h3>
+                    <p class="trial-banner-desc">Permanent free access for departmental pilots. No credit card required. Upgrade only when you grow.</p>
+                    <div class="trial-features">
+                        <div class="trial-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Up to 5 departments</span>
+                        </div>
+                        <div class="trial-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>10 categories</span>
+                        </div>
+                        <div class="trial-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Complete Blockly planning</span>
+                        </div>
+                        <div class="trial-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>GOK compliance validation</span>
+                        </div>
+                        <div class="trial-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Real-time budget meters</span>
+                        </div>
+                        <div class="trial-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Basic Excel export</span>
+                        </div>
+                        <div class="trial-feature trial-feature-note">
+                            <i class="fas fa-info-circle"></i>
+                            <span>Community support included</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="trial-banner-action">
+                    <button class="btn btn-primary btn-lg" onclick="openDemoModal()">
+                        <i class="fas fa-rocket"></i>
+                        Create Free Account
+                    </button>
+                    <p class="trial-banner-note">
+                        <i class="fas fa-clock"></i>
+                        Takes less than 2 minutes to set up
+                    </p>
+                </div>
+            </div>
                     <h3 class="trial-banner-title">Try Procureline Risk-Free</h3>
                     <p class="trial-banner-desc">Experience the full power of Professional tier features. No credit card required to start.</p>
                     <div class="trial-features">
@@ -2319,154 +2391,172 @@
             </div>
 
             <div class="pricing-grid">
-                <!-- Starter -->
+                <!-- Free Tier -->
                 <div class="pricing-card">
                     <div class="pricing-header">
-                        <h3 class="pricing-name">Starter</h3>
-                        <p class="pricing-description">For small colleges and institutions</p>
+                        <div class="pricing-name">Free</div>
+                        <div class="pricing-description">Departmental pilots</div>
                         <div class="pricing-price">
-                            <span class="pricing-currency">KES</span>
-                            <span class="pricing-amount">500K</span>
-                            <span class="pricing-period">/year</span>
+                            <span class="pricing-currency">$</span>
+                            <span class="pricing-amount">0</span>
                         </div>
+                        <div class="pricing-period">Forever</div>
                     </div>
                     <ul class="pricing-features">
                         <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            Up to 10 departments
+                            <i class="fas fa-check-circle"></i>
+                            <span>5 Departments</span>
                         </li>
                         <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            Up to 15 users
+                            <i class="fas fa-check-circle"></i>
+                            <span>10 Categories</span>
                         </li>
                         <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            1 Procurement Officer
+                            <i class="fas fa-check-circle"></i>
+                            <span>20 Items per Category</span>
                         </li>
                         <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            5 GB storage
+                            <i class="fas fa-check-circle"></i>
+                            <span>Blockly Interface</span>
                         </li>
                         <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            Up to 500 row exports
+                            <i class="fas fa-check-circle"></i>
+                            <span>Real-time Compliance</span>
                         </li>
                         <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            Email support (48hr)
-                        </li>
-                        <li class="pricing-feature disabled">
-                            <i class="fas fa-times"></i>
-                            API Access
-                        </li>
-                        <li class="pricing-feature disabled">
-                            <i class="fas fa-times"></i>
-                            Custom reports
+                            <i class="fas fa-check-circle"></i>
+                            <span>Basic Export</span>
                         </li>
                     </ul>
-                    <button class="btn btn-secondary pricing-cta" onclick="openDemoModal()">
-                        Start Free Trial
-                    </button>
+                    <div class="pricing-cta" style="margin-top: auto;">
+                        <button class="btn btn-secondary" style="width: 100%;" onclick="openDemoModal()">Start Free</button>
+                    </div>
                 </div>
 
-                <!-- Professional -->
+                <!-- Starter Tier -->
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <div class="pricing-name">Starter</div>
+                        <div class="pricing-description">Small to medium institutions</div>
+                        <div class="pricing-price">
+                            <span class="pricing-currency">$</span>
+                            <span class="pricing-amount">3,850</span>
+                        </div>
+                        <div class="pricing-period">per year</div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li class="pricing-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>15 Departments</span>
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>30 Categories</span>
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>100 Items per Category</span>
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Bulk Import (100 rows)</span>
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>5GB Storage</span>
+                        </li>
+                        <li class="pricing-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Email Support</span>
+                        </li>
+                    </ul>
+                    <div class="pricing-cta" style="margin-top: auto;">
+                        <button class="btn btn-primary" style="width: 100%;" onclick="openDemoModal()">Get Starter</button>
+                    </div>
+                </div>
+
+                <!-- Professional Tier -->
                 <div class="pricing-card popular">
                     <div class="pricing-header">
-                        <h3 class="pricing-name">Professional</h3>
-                        <p class="pricing-description">For mid-size universities</p>
+                        <div class="pricing-name">Professional</div>
+                        <div class="pricing-description">Large institutions & universities</div>
                         <div class="pricing-price">
-                            <span class="pricing-currency">KES</span>
-                            <span class="pricing-amount">1.2M</span>
-                            <span class="pricing-period">/year</span>
+                            <span class="pricing-currency">$</span>
+                            <span class="pricing-amount">9,230</span>
                         </div>
+                        <div class="pricing-period">per year</div>
                     </div>
                     <ul class="pricing-features">
                         <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            Up to 25 departments
+                            <i class="fas fa-check-circle"></i>
+                            <span>100 Departments</span>
                         </li>
                         <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            Up to 50 users
+                            <i class="fas fa-check-circle"></i>
+                            <span>200 Categories</span>
                         </li>
                         <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            1 Procurement Officer
+                            <i class="fas fa-check-circle"></i>
+                            <span>500 Items per Category</span>
                         </li>
                         <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            25 GB storage
+                            <i class="fas fa-check-circle"></i>
+                            <span>Bulk Import (1,000 rows)</span>
                         </li>
                         <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            Up to 1,500 row exports
+                            <i class="fas fa-check-circle"></i>
+                            <span>Consolidation Workspace</span>
                         </li>
                         <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            Email + Chat (24hr)
-                        </li>
-                        <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            Limited API Access
-                        </li>
-                        <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            3 custom report templates
+                            <i class="fas fa-check-circle"></i>
+                            <span>Advanced Audit Reports</span>
                         </li>
                     </ul>
-                    <button class="btn btn-primary pricing-cta" onclick="openDemoModal()">
-                        Start Free Trial
-                    </button>
+                    <div class="pricing-cta" style="margin-top: auto;">
+                        <button class="btn btn-primary" style="width: 100%;" onclick="openDemoModal()">Get Professional</button>
+                    </div>
                 </div>
 
-                <!-- Enterprise -->
+                <!-- Enterprise Tier -->
                 <div class="pricing-card">
                     <div class="pricing-header">
-                        <h3 class="pricing-name">Enterprise</h3>
-                        <p class="pricing-description">For large universities</p>
+                        <div class="pricing-name">Enterprise</div>
+                        <div class="pricing-description">Government agencies & scale</div>
                         <div class="pricing-price">
-                            <span class="pricing-currency">KES</span>
-                            <span class="pricing-amount">2.4M</span>
-                            <span class="pricing-period">/year</span>
+                            <span class="pricing-currency">$</span>
+                            <span class="pricing-amount">18,460+</span>
                         </div>
+                        <div class="pricing-period">per year</div>
                     </div>
                     <ul class="pricing-features">
                         <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            Unlimited departments
+                            <i class="fas fa-check-circle"></i>
+                            <span>Unlimited Usage</span>
                         </li>
                         <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            Unlimited users
+                            <i class="fas fa-check-circle"></i>
+                            <span>SSO / LDAP Integration</span>
                         </li>
                         <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            Up to 3 Procurement Officers
+                            <i class="fas fa-check-circle"></i>
+                            <span>REST API Access</span>
                         </li>
                         <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            100 GB storage
+                            <i class="fas fa-check-circle"></i>
+                            <span>Custom Compliance</span>
                         </li>
                         <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            Unlimited exports
+                            <i class="fas fa-check-circle"></i>
+                            <span>Dedicated Account Manager</span>
                         </li>
                         <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            Priority support (4hr) + Phone
-                        </li>
-                        <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            Full API Access
-                        </li>
-                        <li class="pricing-feature">
-                            <i class="fas fa-check"></i>
-                            SSO/LDAP + Custom branding
+                            <i class="fas fa-check-circle"></i>
+                            <span>100GB+ Storage</span>
                         </li>
                     </ul>
-                    <button class="btn btn-secondary pricing-cta" onclick="openDemoModal()">
-                        Request Quote
-                    </button>
+                    <div class="pricing-cta" style="margin-top: auto;">
+                        <button class="btn btn-secondary" style="width: 100%;" onclick="openDemoModal()">Contact Sales</button>
+                    </div>
                 </div>
             </div>
         </div>
