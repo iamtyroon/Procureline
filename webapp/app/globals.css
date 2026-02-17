@@ -4,69 +4,97 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    /* Procureline Green Theme — from tweakcn */
+    /* https://tweakcn.com/themes/cmfptwtsz000o04l18powb22i */
+    --background: oklch(0.9834 0.0042 236.4956);
+    --foreground: oklch(0.3351 0.0331 260.9120);
 
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card: oklch(1.0000 0 0);
+    --card-foreground: oklch(0.3351 0.0331 260.9120);
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
+    --popover: oklch(1.0000 0 0);
+    --popover-foreground: oklch(0.3351 0.0331 260.9120);
 
-    /* Procureline Green Theme #18b969 */
-    --primary: 146 77% 41%;
-    --primary-foreground: 0 0% 100%;
+    --primary: oklch(0.6916 0.1692 154.0327);
+    --primary-foreground: oklch(1.0000 0 0);
 
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
+    --secondary: oklch(0.9588 0.0086 247.9151);
+    --secondary-foreground: oklch(0.5412 0.0838 159.9696);
 
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
+    --muted: oklch(0.9588 0.0086 247.9151);
+    --muted-foreground: oklch(0.5956 0.0381 257.8663);
 
-    --accent: 146 77% 41%;
-    --accent-foreground: 0 0% 100%;
+    --accent: oklch(0.9288 0.0126 255.5078);
+    --accent-foreground: oklch(0.5532 0.1067 157.9886);
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: oklch(0.6137 0.2039 25.5645);
+    --destructive-foreground: oklch(1.0000 0 0);
 
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 146 77% 41%;
+    --border: oklch(0.9288 0.0126 255.5078);
+    --input: oklch(0.9288 0.0126 255.5078);
+    --ring: oklch(0.6342 0.1283 156.1966);
 
     --radius: 0.5rem;
+
+    --chart-1: oklch(0.5532 0.1067 157.9886);
+    --chart-2: oklch(0.6342 0.1283 156.1966);
+    --chart-3: oklch(0.7096 0.1434 154.5316);
+    --chart-4: oklch(0.7860 0.1379 154.5226);
+    --chart-5: oklch(0.8619 0.1028 154.8439);
+
+    --sidebar: oklch(1.0000 0 0);
+    --sidebar-foreground: oklch(0.3351 0.0331 260.9120);
+    --sidebar-primary: oklch(0.5532 0.1067 157.9886);
+    --sidebar-primary-foreground: oklch(1.0000 0 0);
+    --sidebar-accent: oklch(0.9588 0.0086 247.9151);
+    --sidebar-accent-foreground: oklch(0.5532 0.1067 157.9886);
+    --sidebar-border: oklch(0.9288 0.0126 255.5078);
+    --sidebar-ring: oklch(0.6342 0.1283 156.1966);
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --background: 240 10% 3.9%;
-      --foreground: 0 0% 98%;
+  .dark {
+    --background: oklch(0.2433 0.0247 263.9506);
+    --foreground: oklch(0.9288 0.0126 255.5078);
 
-      --card: 240 10% 3.9%;
-      --card-foreground: 0 0% 98%;
+    --card: oklch(0.3351 0.0331 260.9120);
+    --card-foreground: oklch(0.9288 0.0126 255.5078);
 
-      --popover: 240 10% 3.9%;
-      --popover-foreground: 0 0% 98%;
+    --popover: oklch(0.3351 0.0331 260.9120);
+    --popover-foreground: oklch(0.9288 0.0126 255.5078);
 
-      /* Procureline Green Theme - Dark Mode */
-      --primary: 146 77% 45%;
-      --primary-foreground: 240 10% 3.9%;
+    --primary: oklch(0.7096 0.1434 154.5316);
+    --primary-foreground: oklch(0.2433 0.0247 263.9506);
 
-      --secondary: 240 3.7% 15.9%;
-      --secondary-foreground: 0 0% 98%;
+    --secondary: oklch(0.3351 0.0331 260.9120);
+    --secondary-foreground: oklch(0.8619 0.1028 154.8439);
 
-      --muted: 240 3.7% 15.9%;
-      --muted-foreground: 240 5% 64.9%;
+    --muted: oklch(0.3351 0.0331 260.9120);
+    --muted-foreground: oklch(0.7457 0.0304 254.7208);
 
-      --accent: 146 77% 45%;
-      --accent-foreground: 240 10% 3.9%;
+    --accent: oklch(0.4474 0.0343 261.3244);
+    --accent-foreground: oklch(0.8619 0.1028 154.8439);
 
-      --destructive: 0 62.8% 30.6%;
-      --destructive-foreground: 0 0% 98%;
+    --destructive: oklch(0.7421 0.1503 21.3520);
+    --destructive-foreground: oklch(0.2433 0.0247 263.9506);
 
-      --border: 240 3.7% 15.9%;
-      --input: 240 3.7% 15.9%;
-      --ring: 146 77% 45%;
-    }
+    --border: oklch(0.4474 0.0343 261.3244);
+    --input: oklch(0.4474 0.0343 261.3244);
+    --ring: oklch(0.7096 0.1434 154.5316);
+
+    --chart-1: oklch(0.7096 0.1434 154.5316);
+    --chart-2: oklch(0.7860 0.1379 154.5226);
+    --chart-3: oklch(0.8619 0.1028 154.8439);
+    --chart-4: oklch(0.9308 0.0664 154.9048);
+    --chart-5: oklch(0.9859 0.0213 154.1400);
+
+    --sidebar: oklch(0.2433 0.0247 263.9506);
+    --sidebar-foreground: oklch(0.9288 0.0126 255.5078);
+    --sidebar-primary: oklch(0.7096 0.1434 154.5316);
+    --sidebar-primary-foreground: oklch(0.2433 0.0247 263.9506);
+    --sidebar-accent: oklch(0.3351 0.0331 260.9120);
+    --sidebar-accent-foreground: oklch(0.8619 0.1028 154.8439);
+    --sidebar-border: oklch(0.3351 0.0331 260.9120);
+    --sidebar-ring: oklch(0.7096 0.1434 154.5316);
   }
 }
 
@@ -74,8 +102,20 @@
   * {
     @apply border-border;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground min-h-full;
+    font-family: var(--font-inter, "Inter", system-ui, -apple-system, sans-serif);
+    letter-spacing: var(--tracking-normal, normal);
+  }
+
+  /* WCAG AA — visible focus indicators for keyboard navigation */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
   }
 }
 

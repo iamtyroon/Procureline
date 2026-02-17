@@ -1,0 +1,70 @@
+import type { Metadata } from "next";
+import { Navbar } from "@/src/components/marketing/Navbar";
+import { Hero } from "@/src/components/marketing/Hero";
+import { TrustedBy } from "@/src/components/marketing/TrustedBy";
+import { Features } from "@/src/components/marketing/Features";
+import { HowItWorks } from "@/src/components/marketing/HowItWorks";
+import { BlocklyShowcase } from "@/src/components/marketing/BlocklyShowcase";
+import { Pricing } from "@/src/components/marketing/Pricing";
+import { Compliance } from "@/src/components/marketing/Compliance";
+import { Footer } from "@/src/components/marketing/Footer";
+
+export const metadata: Metadata = {
+    title: "Procureline — University Procurement Planning, Simplified",
+    description:
+        "Transform annual procurement planning with visual block-based tools. Create GOK-compliant plans in hours, not weeks. Export ready-to-submit Excel files. Free forever tier available.",
+    keywords: [
+        "procurement",
+        "university",
+        "Kenya",
+        "GOK",
+        "PPRA",
+        "Blockly",
+        "compliance",
+        "procurement planning",
+        "AGPO",
+    ],
+    openGraph: {
+        title: "Procureline — University Procurement Planning, Simplified",
+        description:
+            "Transform annual procurement planning with visual block-based tools. Create GOK-compliant plans in hours, not weeks.",
+        type: "website",
+        url: "https://procureline.co.ke",
+        siteName: "Procureline",
+    },
+    twitter: {
+        card: "summary_large_image",
+        title: "Procureline — University Procurement Planning, Simplified",
+        description:
+            "Transform annual procurement planning with visual block-based tools. Create GOK-compliant plans in hours, not weeks.",
+    },
+    robots: "index, follow",
+};
+
+export default function LandingPage(): JSX.Element {
+    return (
+        <>
+            {/* Skip-to-content link for keyboard users */}
+            <a
+                href="#main-content"
+                className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[9999] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-white focus:outline-none"
+            >
+                Skip to main content
+            </a>
+
+            <Navbar />
+
+            <main id="main-content" tabIndex={-1}>
+                <Hero />
+                <TrustedBy />
+                <Features />
+                <HowItWorks />
+                <BlocklyShowcase />
+                <Compliance />
+                <Pricing />
+            </main>
+
+            <Footer />
+        </>
+    );
+}

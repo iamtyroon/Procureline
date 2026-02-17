@@ -9,6 +9,8 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as seedData from "../seedData.js";
+import type * as subscriptionTiers from "../subscriptionTiers.js";
 import type * as utils from "../utils.js";
 
 import type {
@@ -19,6 +21,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  seedData: typeof seedData;
+  subscriptionTiers: typeof subscriptionTiers;
   utils: typeof utils;
 }>;
 
