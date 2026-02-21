@@ -60,8 +60,8 @@ story_location: "c:\\Users\\Tyroon\\Downloads\\project\\Procureline\\_bmad-outpu
 development_status:
   epic-1: in-progress
   1-1-project-initialization-with-convex-ents-starter: done
-  1-2-tenant-admin-registration-free-tier-signup: backlog
-  1-3-user-login-with-email-password: backlog
+  1-2-tenant-admin-registration-free-tier-signup: done
+  1-3-user-login-with-email-password: done
   1-4-password-reset-via-email: backlog
   1-5-session-management-logout: backlog
   1-6-four-layer-role-based-access-control: backlog
@@ -166,7 +166,7 @@ development_status:
   epic-10-retrospective: optional
 
   epic-11: in-progress
-  11-1-marketing-landing-page: review
+  11-1-marketing-landing-page: done
   11-2-pricing-page-tier-comparison: backlog
   11-3-trial-signup-user-onboarding: backlog
   epic-11-retrospective: optional

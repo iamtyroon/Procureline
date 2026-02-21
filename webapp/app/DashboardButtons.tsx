@@ -9,7 +9,7 @@ export function DashboardButtons() {
   return (
     <ErrorBoundary>
       <div className="flex gap-4">
-        <Link href="/auth/signin">
+        <Link href="/login">
           <Button variant="ghost">Sign in</Button>
         </Link>
         <Link href="/auth/signup">

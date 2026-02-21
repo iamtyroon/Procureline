@@ -61,7 +61,7 @@ export function Navbar(): JSX.Element {
 
                 {/* Desktop actions */}
                 <div className="hidden items-center gap-3 md:flex">
-                    <Link href="/signin">
+                    <Link href="/login">
                         <Button variant="ghost" size="sm" className="text-sm">
                             Sign In
                         </Button>
@@ -109,7 +109,7 @@ export function Navbar(): JSX.Element {
                         ))}
                     </ul>
                     <div className="flex flex-col gap-3">
-                        <Link href="/signin">
+                        <Link href="/login">
                             <Button variant="outline" className="w-full">
                                 Sign In
                             </Button>

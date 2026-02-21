@@ -8,7 +8,12 @@
  * @module
  */
 
+import type * as ResendOTP from "../ResendOTP.js";
 import type * as auth from "../auth.js";
+import type * as functions_tenants from "../functions/tenants.js";
+import type * as functions_users from "../functions/users.js";
+import type * as http from "../http.js";
+import type * as migrations from "../migrations.js";
 import type * as seedData from "../seedData.js";
 import type * as subscriptionTiers from "../subscriptionTiers.js";
 import type * as utils from "../utils.js";
@@ -20,7 +25,12 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  ResendOTP: typeof ResendOTP;
   auth: typeof auth;
+  "functions/tenants": typeof functions_tenants;
+  "functions/users": typeof functions_users;
+  http: typeof http;
+  migrations: typeof migrations;
   seedData: typeof seedData;
   subscriptionTiers: typeof subscriptionTiers;
   utils: typeof utils;

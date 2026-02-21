@@ -1,12 +1,31 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import {
+  convexAuthNextjsMiddleware,
+  createRouteMatcher,
+  nextjsMiddlewareRedirect,
+} from "@convex-dev/auth/nextjs/server";
 
-export function middleware(request: NextRequest) {
-  // Convex Auth handles authentication automatically via ConvexAuthNextjsProvider
-  // Route protection will be added in Story 1.2-1.8 based on role requirements
-  return NextResponse.next();
-}
+const isPublicRoute = createRouteMatcher([
+  "/",
+  "/signup",
+  "/login",
+  "/pricing",
+]);
+
+export default convexAuthNextjsMiddleware(
+  async (request, { convexAuth }) => {
+    // Public routes are always accessible
+    if (isPublicRoute(request)) {
+      return;
+    }
+
+    // Protected routes require authentication
+    if (!(await convexAuth.isAuthenticated())) {
+      // Return them to login if session expires or they attempt to access protected route
+      return nextjsMiddlewareRedirect(request, "/login?reason=session_expired");
+    }
+  },
+);
 
 export const config = {
-  matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
+  matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
 };

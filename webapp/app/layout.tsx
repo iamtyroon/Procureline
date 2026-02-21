@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import { ThemeProvider } from "@/src/components/theme-provider";
 import "./globals.css";
@@ -26,16 +27,18 @@ export default function RootLayout({
     return (
         <html lang="en" className={inter.variable} suppressHydrationWarning>
             <body className="font-sans antialiased">
-                <ConvexClientProvider>
-                    <ThemeProvider
-                        attribute="class"
-                        defaultTheme="system"
-                        enableSystem
-                        disableTransitionOnChange
-                    >
-                        {children}
-                    </ThemeProvider>
-                </ConvexClientProvider>
+                <ConvexAuthNextjsServerProvider>
+                    <ConvexClientProvider>
+                        <ThemeProvider
+                            attribute="class"
+                            defaultTheme="system"
+                            enableSystem
+                            disableTransitionOnChange
+                        >
+                            {children}
+                        </ThemeProvider>
+                    </ConvexClientProvider>
+                </ConvexAuthNextjsServerProvider>
             </body>
         </html>
     );

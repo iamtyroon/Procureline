@@ -1,7 +1,43 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { authTables } from "@convex-dev/auth/server";
 
 export default defineSchema({
+    ...authTables,
+
+    tenants: defineTable({
+        name: v.string(),
+        subdomain: v.string(),
+        tier: v.union(
+            v.literal("free"),
+            v.literal("starter"),
+            v.literal("professional"),
+            v.literal("enterprise"),
+        ),
+        status: v.union(
+            v.literal("active"),
+            v.literal("suspended"),
+            v.literal("cancelled"),
+        ),
+        createdAt: v.number(),
+    })
+        .index("by_subdomain", ["subdomain"])
+        .index("by_status", ["status"]),
+
+    tenantUsers: defineTable({
+        userId: v.id("users"),
+        tenantId: v.id("tenants"),
+        role: v.union(
+            v.literal("tenant_admin"),
+            v.literal("procurement_officer"),
+            v.literal("department_user"),
+        ),
+        isActive: v.boolean(),
+    })
+        .index("by_userId", ["userId"])
+        .index("by_tenantId", ["tenantId"])
+        .index("by_userId_tenantId", ["userId", "tenantId"]),
+
     subscriptionTiers: defineTable({
         tierName: v.string(),
         slug: v.string(),
