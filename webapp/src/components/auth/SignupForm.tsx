@@ -117,7 +117,11 @@ export function SignupForm({ onComplete }: SignupFormProps) {
                     Start your free Procureline account — no credit card required
                 </CardDescription>
             </CardHeader>
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <form
+                onSubmit={(event) => {
+                    void handleSubmit(onSubmit)(event);
+                }}
+            >
                 <CardContent className="space-y-4">
                     {serverError && (
                         <div

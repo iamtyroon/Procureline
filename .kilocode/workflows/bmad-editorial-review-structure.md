@@ -1,6 +1,5 @@
 ---
-description: 'Structural editor that proposes cuts, reorganization, and simplification while preserving comprehension'
-disable-model-invocation: true
+description: 'Structural editor that proposes cuts, reorganization, and simplification while preserving comprehension. Use when user requests structural review or editorial review of structure'
 ---
 
 # Editorial Review - Structure

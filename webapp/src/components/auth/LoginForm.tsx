@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { loginSchema, type LoginFormData } from "@/lib/validators/auth";
+import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,25 +20,26 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import Link from "next/link";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { useRouter, useSearchParams } from "next/navigation";
-export function LoginForm() {
-    const { signIn } = useAuthActions();
-    const router = useRouter();
-    const [serverError, setServerError] = useState<string | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // We fetch the user context to know where to redirect and if they are active
+const AUTH_REASON_MESSAGES: Record<string, string> = {
+    session_expired: "Your session has expired. Please log in again.",
+    account_deactivated: "Account deactivated. Contact your administrator.",
+    subscription_inactive: "Subscription inactive. Contact your administrator.",
+};
+
+export function LoginForm() {
+    const { signIn, signOut } = useAuthActions();
+    const { isAuthenticated } = useConvexAuth();
     const authContext = useQuery(api.functions.users.getAuthContext);
+    const router = useRouter();
     const searchParams = useSearchParams();
     const reason = searchParams.get("reason");
+    const [serverError, setServerError] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const {
         register,
         handleSubmit,
-        setValue,
         formState: { errors },
     } = useForm<LoginFormData>({
         resolver: zodResolver(loginSchema),
@@ -44,40 +49,49 @@ export function LoginForm() {
         },
     });
 
-    // Check if we already logged in and context loaded
     useEffect(() => {
-        if (authContext !== undefined && authContext !== null) {
-            if (authContext.isActive === false) {
-                if (!serverError || serverError !== "Account deactivated. Contact your administrator.") {
-                    setServerError("Account deactivated. Contact your administrator.");
-                }
-            } else if (authContext.tenantStatus !== "active") {
-                if (!serverError || serverError !== "Subscription inactive. Contact your administrator.") {
-                    setServerError("Subscription inactive. Contact your administrator.");
-                }
-            } else {
-                // Role based redirect
-                const role = authContext.role;
-                if (role === "tenant_admin") {
-                    router.push("/tenant-admin");
-                } else if (role === "procurement_officer") {
-                    router.push("/po");
-                } else if (role === "department_user") {
-                    router.push("/du");
-                } else {
-                    router.push("/dashboard");
-                }
-            }
+        if (!isAuthenticated || authContext === undefined || authContext === null) {
+            return;
         }
-    }, [authContext, router, serverError]);
+
+        const currentAuthContext = authContext;
+
+        async function handleAuthenticatedState(): Promise<void> {
+            if (!currentAuthContext.isActive) {
+                await signOut();
+                setIsSubmitting(false);
+                setServerError(
+                    AUTH_REASON_MESSAGES.account_deactivated ??
+                        "Account deactivated. Contact your administrator.",
+                );
+                return;
+            }
+
+            if (currentAuthContext.tenantStatus !== "active") {
+                await signOut();
+                setIsSubmitting(false);
+                setServerError(
+                    AUTH_REASON_MESSAGES.subscription_inactive ??
+                        "Subscription inactive. Contact your administrator.",
+                );
+                return;
+            }
+
+            setIsSubmitting(false);
+            router.replace(currentAuthContext.redirectPath);
+        }
+
+        void handleAuthenticatedState();
+    }, [authContext, isAuthenticated, router, signOut]);
 
     async function onSubmit(data: LoginFormData): Promise<void> {
         setServerError(null);
         setIsSubmitting(true);
 
-        // Check maintenance mode
         if (process.env.NEXT_PUBLIC_MAINTENANCE_MODE === "true") {
-            setServerError("System is currently in maintenance mode. Expected return time: 2 hours. Please try again later.");
+            setServerError(
+                "System is currently in maintenance mode. Expected return time: 2 hours. Please try again later.",
+            );
             setIsSubmitting(false);
             return;
         }
@@ -89,12 +103,16 @@ export function LoginForm() {
             formData.set("flow", "signIn");
 
             await signIn("password", formData);
-            // After successful sign in, the authContext query will update automatically
         } catch (error: unknown) {
             setIsSubmitting(false);
+
             if (error instanceof Error) {
                 const message = error.message;
-                if (message.includes("Invalid credentials") || message.includes("not found") || message.includes("password")) {
+                if (
+                    message.includes("Invalid credentials") ||
+                    message.includes("not found") ||
+                    message.includes("password")
+                ) {
                     setServerError("Invalid email or incorrect password. Please try again.");
                 } else if (message.includes("maintenance")) {
                     setServerError("System is currently in maintenance mode. Please try again later.");
@@ -106,6 +124,15 @@ export function LoginForm() {
             }
         }
     }
+
+    const reasonMessage = reason ? (AUTH_REASON_MESSAGES[reason] ?? null) : null;
+    const isBusy =
+        isSubmitting ||
+        (isAuthenticated &&
+            authContext !== undefined &&
+            authContext !== null &&
+            authContext.isActive &&
+            authContext.tenantStatus === "active");
 
     return (
         <Card className="border-border/50 shadow-lg">
@@ -132,7 +159,11 @@ export function LoginForm() {
                     Enter your email to sign in to your account
                 </CardDescription>
             </CardHeader>
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <form
+                onSubmit={(event) => {
+                    void handleSubmit(onSubmit)(event);
+                }}
+            >
                 <CardContent className="space-y-4">
                     {serverError && (
                         <div
@@ -144,16 +175,15 @@ export function LoginForm() {
                         </div>
                     )}
 
-                    {reason === "session_expired" && !serverError && (
+                    {reasonMessage && !serverError && (
                         <div
                             className="rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary"
                             role="alert"
                         >
-                            Your session has expired. Please log in again.
+                            {reasonMessage}
                         </div>
                     )}
 
-                    {/* Email */}
                     <div className="space-y-2">
                         <Label htmlFor="email">Email address</Label>
                         <Input
@@ -163,9 +193,7 @@ export function LoginForm() {
                             autoComplete="email"
                             {...register("email")}
                             aria-invalid={errors.email ? "true" : undefined}
-                            aria-describedby={
-                                errors.email ? "email-error" : undefined
-                            }
+                            aria-describedby={errors.email ? "email-error" : undefined}
                         />
                         {errors.email && (
                             <p id="email-error" className="text-sm text-destructive">
@@ -174,13 +202,12 @@ export function LoginForm() {
                         )}
                     </div>
 
-                    {/* Password */}
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="password">Password</Label>
-                            <Link href="/forgot-password" className="text-sm font-medium text-primary hover:underline">
-                                Forgot password?
-                            </Link>
+                            <span className="text-sm font-medium text-muted-foreground">
+                                Password reset coming in Story 1.4
+                            </span>
                         </div>
                         <Input
                             id="password"
@@ -203,9 +230,9 @@ export function LoginForm() {
                         id="login-submit"
                         type="submit"
                         className="w-full"
-                        disabled={isSubmitting || (authContext !== undefined && authContext !== null && authContext.isActive === true && authContext.tenantStatus === "active")}
+                        disabled={isBusy}
                     >
-                        {isSubmitting || (authContext !== undefined && authContext !== null && authContext.isActive === true && authContext.tenantStatus === "active") ? (
+                        {isBusy ? (
                             <span className="flex items-center gap-2">
                                 <svg
                                     className="h-4 w-4 animate-spin"
@@ -234,7 +261,7 @@ export function LoginForm() {
                     </Button>
 
                     <p className="text-center text-sm text-muted-foreground">
-                        Don't have an account?{" "}
+                        Don&apos;t have an account?{" "}
                         <Link
                             href="/signup"
                             className="font-medium text-primary hover:underline"

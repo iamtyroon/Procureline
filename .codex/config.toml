@@ -1,0 +1,31 @@
+[mcp_servers.chrome-devtools]
+command = "cmd"
+args = ["/c", "npx", "-y", "chrome-devtools-mcp@latest"]
+
+[mcp_servers.ref]
+url = "https://api.ref.tools/mcp?apiKey=ref-ff484123cbb022ed4cff"
+
+[mcp_servers.next-devtools]
+command = "cmd"
+args = ["/c", "npx", "-y", "next-devtools-mcp@latest"]
+
+[mcp_servers.docfork]
+command = "cmd"
+args = ["/c", "npx", "-y", "docfork"]
+
+[mcp_servers.gemini-cli]
+command = "cmd"
+args = ["/c", "npx", "-y", "gemini-mcp-tool"]
+
+[mcp_servers.convex-mcp]
+command = "cmd"
+args = [
+  "/c",
+  "npx",
+  "-y",
+  "convex@latest",
+  "mcp",
+  "start",
+  "--project-dir",
+  "c:\\Users\\Tyroon\\Downloads\\project\\Procureline",
+]

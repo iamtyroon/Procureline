@@ -7,9 +7,109 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
 
-/** Format limit values that can be number or "Unlimited" string */
-function formatLimit(value: number | string): string {
-    return typeof value === "number" ? value.toLocaleString() : value;
+type DisplayTier = {
+    _id: string;
+    tierName: string;
+    slug: string;
+    priceUSD: number;
+    billingCycle: string;
+    description: string;
+    features: string[];
+    isPopular: boolean;
+    displayOrder: number;
+};
+
+const fallbackTiers: DisplayTier[] = [
+    {
+        _id: "fallback-free",
+        tierName: "Free",
+        slug: "free",
+        priceUSD: 0,
+        billingCycle: "annual",
+        description: "Perfect for pilots and small departments",
+        features: [
+            "10 departments",
+            "20 categories",
+            "50 items per category",
+            "Basic Blockly interface",
+            "Limited Excel export",
+            "Email support (48h response)",
+        ],
+        isPopular: false,
+        displayOrder: 1,
+    },
+    {
+        _id: "fallback-starter",
+        tierName: "Starter",
+        slug: "starter",
+        priceUSD: 3850,
+        billingCycle: "annual",
+        description: "For small to medium universities",
+        features: [
+            "30 departments",
+            "60 categories",
+            "150 items per category",
+            "Full Blockly interface",
+            "Bulk import (100 rows)",
+            "Excel export (GOK templates)",
+            "Email support (24h response)",
+        ],
+        isPopular: false,
+        displayOrder: 2,
+    },
+    {
+        _id: "fallback-professional",
+        tierName: "Professional",
+        slug: "professional",
+        priceUSD: 9230,
+        billingCycle: "annual",
+        description: "For large universities",
+        features: [
+            "100 departments",
+            "200 categories",
+            "500 items per category",
+            "Advanced Blockly features",
+            "Unlimited bulk import",
+            "Custom Excel templates",
+            "Audit trail reports",
+            "Monthly compliance reports",
+        ],
+        isPopular: true,
+        displayOrder: 3,
+    },
+    {
+        _id: "fallback-enterprise",
+        tierName: "Enterprise",
+        slug: "enterprise",
+        priceUSD: 18460,
+        billingCycle: "annual",
+        description: "For government agencies and consortiums",
+        features: [
+            "Unlimited departments",
+            "Unlimited categories",
+            "Unlimited items",
+            "Custom Blockly blocks",
+            "API access",
+            "SSO/LDAP integration",
+            "Dedicated account manager",
+            "24/7 phone support",
+        ],
+        isPopular: false,
+        displayOrder: 4,
+    },
+];
+
+function buildDisplayTiers(liveTiers: DisplayTier[]): DisplayTier[] {
+    if (liveTiers.length === 0) {
+        return fallbackTiers;
+    }
+
+    const liveTiersBySlug = new Map(liveTiers.map((tier) => [tier.slug, tier]));
+
+    return fallbackTiers.map((fallbackTier) => {
+        const liveTier = liveTiersBySlug.get(fallbackTier.slug);
+        return liveTier ? { ...fallbackTier, ...liveTier } : fallbackTier;
+    });
 }
 
 /** Loading skeleton with shimmer effect */
@@ -104,32 +204,6 @@ function PricingOffline(): JSX.Element {
     );
 }
 
-/** Empty state UI */
-function PricingEmpty(): JSX.Element {
-    return (
-        <section id="pricing" aria-label="Pricing plans" className="bg-white px-6 py-24">
-            <div className="mx-auto max-w-2xl text-center">
-                <div className="rounded-2xl border-2 border-yellow-200 bg-yellow-50 p-8">
-                    <div className="mb-4 text-5xl">🔍</div>
-                    <h3 className="mb-2 text-xl font-bold text-gray-900">
-                        Pricing Temporarily Unavailable
-                    </h3>
-                    <p className="text-gray-600">
-                        Our pricing information is currently being updated. Please contact{" "}
-                        <a
-                            href="mailto:support@procureline.co.ke"
-                            className="font-semibold text-primary underline"
-                        >
-                            support@procureline.co.ke
-                        </a>{" "}
-                        for current pricing details.
-                    </p>
-                </div>
-            </div>
-        </section>
-    );
-}
-
 export function Pricing(): JSX.Element {
     const tiers = useQuery(api.subscriptionTiers.listPublicTiers);
     const [loadingTimeout, setLoadingTimeout] = useState(false);
@@ -177,10 +251,7 @@ export function Pricing(): JSX.Element {
         return <PricingSkeleton />;
     }
 
-    // Empty state
-    if (tiers.length === 0) {
-        return <PricingEmpty />;
-    }
+    const displayTiers = buildDisplayTiers(tiers as DisplayTier[]);
 
     return (
         <section id="pricing" aria-label="Pricing plans" className="bg-background px-6 py-24">
@@ -230,7 +301,7 @@ export function Pricing(): JSX.Element {
 
                 {/* Pricing Grid */}
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                    {tiers.map((tier) => (
+                    {displayTiers.map((tier) => (
                         <Card
                             key={tier._id}
                             role="article"
@@ -268,15 +339,21 @@ export function Pricing(): JSX.Element {
                                     ) : (
                                         <>
                                             <span className="text-4xl font-bold text-foreground">
-                                                ${tier.priceUSD.toLocaleString()}
+                                                {tier.slug === "enterprise"
+                                                    ? `$${tier.priceUSD.toLocaleString()}+`
+                                                    : `$${tier.priceUSD.toLocaleString()}`}
                                             </span>
-                                            <span className="text-muted-foreground"> /year</span>
+                                            <span className="text-muted-foreground">
+                                                {tier.billingCycle === "annual"
+                                                    ? " /year"
+                                                    : ` /${tier.billingCycle}`}
+                                            </span>
                                         </>
                                     )}
                                 </div>
 
                                 {/* Feature list */}
-                                {tier.features && tier.features.length > 0 ? (
+                                {tier.features.length > 0 ? (
                                     <ul className="mt-6 flex-1 space-y-3">
                                         {tier.features.map((feature, idx) => (
                                             <li key={idx} className="flex items-start gap-2">

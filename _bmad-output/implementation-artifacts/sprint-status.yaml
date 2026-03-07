@@ -62,7 +62,7 @@ development_status:
   1-1-project-initialization-with-convex-ents-starter: done
   1-2-tenant-admin-registration-free-tier-signup: done
   1-3-user-login-with-email-password: done
-  1-4-password-reset-via-email: backlog
+  1-4-password-reset-via-email: ready-for-dev
   1-5-session-management-logout: backlog
   1-6-four-layer-role-based-access-control: backlog
   1-7-tenant-data-isolation: backlog

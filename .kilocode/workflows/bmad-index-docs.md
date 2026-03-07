@@ -1,6 +1,5 @@
 ---
-description: 'Generates or updates an index.md of all documents in the specified directory'
-disable-model-invocation: true
+description: 'Generates or updates an index.md to reference all docs in the folder. Use if user requests to create or update an index of all files in a specific folder'
 ---
 
 # Index Docs

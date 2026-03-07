@@ -149,6 +149,7 @@ export const getAuthContext = query({
             role: v.string(),
             isActive: v.boolean(),
             tenantStatus: v.string(),
+            redirectPath: v.string(),
         }),
         v.null()
     ),
@@ -162,18 +163,36 @@ export const getAuthContext = query({
             .first();
 
         if (!tenantUser) {
-            // System level admins maybe? No schema defines platform_admin table right now
-            // But if they are just users, we might fallback or return false.
-            return null;
+            // User exists but has no tenant linked (e.g., just signed up)
+            return {
+                role: "user",
+                isActive: true,
+                tenantStatus: "active", // Default to active so they aren't blocked from onboarding/dashboard
+                redirectPath: "/dashboard",
+            };
         }
 
         const tenant = await ctx.db.get(tenantUser.tenantId);
-        if (!tenant) return null;
+        if (!tenant) {
+            return {
+                role: "user",
+                isActive: true,
+                tenantStatus: "active",
+                redirectPath: "/dashboard",
+            };
+        }
+
+        const redirectPathByRole = {
+            tenant_admin: "/tenant-admin",
+            procurement_officer: "/po",
+            department_user: "/du",
+        } as const;
 
         return {
             role: tenantUser.role,
             isActive: tenantUser.isActive,
             tenantStatus: tenant.status,
+            redirectPath: redirectPathByRole[tenantUser.role],
         };
     },
 });

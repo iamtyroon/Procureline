@@ -65,7 +65,7 @@ export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
             try {
                 await registerWithTenant({ organizationName: orgName! });
                 sessionStorage.removeItem("pendingOrgName");
-                router.push("/dashboard");
+                router.push("/tenant-admin");
             } catch (error: unknown) {
                 // If ALREADY_EXISTS, tenant already created — just redirect
                 if (
@@ -73,14 +73,14 @@ export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
                     error.message.includes("already")
                 ) {
                     sessionStorage.removeItem("pendingOrgName");
-                    router.push("/dashboard");
+                    router.push("/tenant-admin");
                     return;
                 }
                 setServerError("Account created but organization setup failed. Please contact support.");
             }
         }
 
-        createTenant();
+        void createTenant();
     }, [isAuthenticated, registerWithTenant, router]);
 
     async function onSubmit(data: OtpFormData): Promise<void> {
@@ -126,14 +126,17 @@ export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
         try {
             const formData = new FormData();
             formData.set("email", email);
-            formData.set("flow", "signUp");
+            formData.set("flow", "email-verification");
 
-            // Re-trigger the sign-up flow to resend the OTP
+            // Trigger a fresh verification email for the pending account.
             await signIn("password", formData);
             setResendCooldown(60);
-        } catch {
-            // Resend may throw but code still sent
-            setResendCooldown(60);
+        } catch (error: unknown) {
+            if (error instanceof Error) {
+                setServerError(error.message || "Unable to resend code right now.");
+            } else {
+                setServerError("Unable to resend code right now.");
+            }
         } finally {
             setIsResending(false);
         }
@@ -166,7 +169,11 @@ export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
                 </CardDescription>
             </CardHeader>
 
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <form
+                onSubmit={(event) => {
+                    void handleSubmit(onSubmit)(event);
+                }}
+            >
                 <CardContent className="space-y-4">
                     {serverError && (
                         <div
@@ -249,7 +256,9 @@ export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
 
                         <button
                             type="button"
-                            onClick={handleResend}
+                            onClick={() => {
+                                void handleResend();
+                            }}
                             disabled={isResending || resendCooldown > 0}
                             className="text-primary hover:underline disabled:text-muted-foreground disabled:no-underline transition-colors"
                         >

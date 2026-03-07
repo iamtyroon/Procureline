@@ -42,7 +42,7 @@ export const ResendOTP: any = {
             throw new Error("AUTH_RESEND_KEY environment variable is not set");
         }
 
-        const fromAddress = (provider?.from as string) || "Procureline <onboarding@resend.dev>";
+        const fromAddress = (provider.from as string) || "Procureline <onboarding@resend.dev>";
         const resend = new ResendAPI(apiKey);
         const { error } = await resend.emails.send({
             from: fromAddress,

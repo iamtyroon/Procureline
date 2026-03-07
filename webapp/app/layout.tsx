@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import { ThemeProvider } from "@/src/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 // Prevent static prerendering — ConvexAuthNextjsProvider needs runtime client
@@ -39,6 +40,7 @@ export default function RootLayout({
                         </ThemeProvider>
                     </ConvexClientProvider>
                 </ConvexAuthNextjsServerProvider>
+                <Toaster richColors position="top-right" />
             </body>
         </html>
     );

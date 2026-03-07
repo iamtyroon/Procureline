@@ -41,6 +41,26 @@ export const metadata: Metadata = {
     robots: "index, follow",
 };
 
+const organizationStructuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+        {
+            "@type": "Organization",
+            name: "Procureline",
+            url: "https://procureline.co.ke",
+            description:
+                "Procureline helps universities build procurement plans with Blockly-based workflows, automated compliance checks, and export-ready outputs.",
+            areaServed: "Kenya",
+            email: "support@procureline.co.ke",
+        },
+        {
+            "@type": "WebSite",
+            name: "Procureline",
+            url: "https://procureline.co.ke",
+        },
+    ],
+};
+
 export default function LandingPage(): JSX.Element {
     return (
         <>
@@ -51,6 +71,13 @@ export default function LandingPage(): JSX.Element {
             >
                 Skip to main content
             </a>
+
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{
+                    __html: JSON.stringify(organizationStructuredData),
+                }}
+            />
 
             <Navbar />
 
