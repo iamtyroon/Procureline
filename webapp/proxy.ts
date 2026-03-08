@@ -3,13 +3,9 @@ import {
   createRouteMatcher,
   nextjsMiddlewareRedirect,
 } from "@convex-dev/auth/nextjs/server";
+import { PUBLIC_ROUTES } from "@/lib/auth/public-routes";
 
-const isPublicRoute = createRouteMatcher([
-  "/",
-  "/signup",
-  "/login",
-  "/pricing",
-]);
+const isPublicRoute = createRouteMatcher([...PUBLIC_ROUTES]);
 
 const proxy = convexAuthNextjsMiddleware(
   async (request, { convexAuth }) => {
@@ -25,6 +21,7 @@ const proxy = convexAuthNextjsMiddleware(
 
 export default proxy;
 export { proxy };
+export { isPublicRoute };
 
 export const config = {
   matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],

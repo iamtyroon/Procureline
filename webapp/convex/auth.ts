@@ -1,6 +1,7 @@
 import { convexAuth } from "@convex-dev/auth/server";
 import { Password } from "@convex-dev/auth/providers/Password";
 import { ResendOTP } from "./ResendOTP";
+import { ResendPasswordReset } from "./ResendPasswordReset";
 
 const PASSWORD_MIN_LENGTH = 12;
 const UPPERCASE_REGEX = /[A-Z]/;
@@ -12,6 +13,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
     Password({
       verify: ResendOTP,
+      reset: ResendPasswordReset,
       validatePasswordRequirements(password: string): void {
         if (password.length < PASSWORD_MIN_LENGTH) {
           throw new Error(

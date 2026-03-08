@@ -9,7 +9,8 @@
     "dev:frontend-only": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "tsc && eslint . --ext .ts,.tsx"
+    "lint": "tsc && eslint . --ext .ts,.tsx",
+    "test": "tsc -p tsconfig.tests.json && node .test-dist/tests/run-tests.js"
   },
   "dependencies": {
     "@auth/core": "^0.37.4",

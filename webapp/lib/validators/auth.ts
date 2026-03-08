@@ -48,3 +48,20 @@ export const loginSchema = z.object({
 });
 
 export type LoginFormData = z.infer<typeof loginSchema>;
+
+export const forgotPasswordSchema = z.object({
+    email: z.string().email("Invalid email format"),
+});
+
+export const resetPasswordSchema = z.object({
+    email: z.string().email("Invalid email format"),
+    code: z
+        .string()
+        .trim()
+        .length(8, "Reset code must be 8 digits")
+        .regex(/^\d+$/, "Reset code must contain only digits"),
+    newPassword: passwordSchema,
+});
+
+export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;

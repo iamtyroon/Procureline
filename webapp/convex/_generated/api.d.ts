@@ -9,7 +9,9 @@
  */
 
 import type * as ResendOTP from "../ResendOTP.js";
+import type * as ResendPasswordReset from "../ResendPasswordReset.js";
 import type * as auth from "../auth.js";
+import type * as functions_auth from "../functions/auth.js";
 import type * as functions_tenants from "../functions/tenants.js";
 import type * as functions_users from "../functions/users.js";
 import type * as http from "../http.js";
@@ -26,7 +28,9 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   ResendOTP: typeof ResendOTP;
+  ResendPasswordReset: typeof ResendPasswordReset;
   auth: typeof auth;
+  "functions/auth": typeof functions_auth;
   "functions/tenants": typeof functions_tenants;
   "functions/users": typeof functions_users;
   http: typeof http;

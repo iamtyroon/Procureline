@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": false,
+    "declaration": false,
+    "incremental": false,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noEmit": false,
+    "outDir": "./.test-dist",
+    "sourceMap": false,
+    "target": "ES2022"
+  },
+  "include": [
+    "tests/**/*.ts",
+    "lib/auth/**/*.ts",
+    "lib/validators/**/*.ts"
+  ]
+}

@@ -5,8 +5,9 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth, useQuery } from "convex/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { PASSWORD_RESET_SUCCESS_MESSAGE } from "@/lib/auth/password-reset";
 import { loginSchema, type LoginFormData } from "@/lib/validators/auth";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -25,15 +26,18 @@ const AUTH_REASON_MESSAGES: Record<string, string> = {
     session_expired: "Your session has expired. Please log in again.",
     account_deactivated: "Account deactivated. Contact your administrator.",
     subscription_inactive: "Subscription inactive. Contact your administrator.",
+    password_reset_success: PASSWORD_RESET_SUCCESS_MESSAGE,
 };
 
-export function LoginForm() {
+interface LoginFormProps {
+    reason?: string | null;
+}
+
+export function LoginForm({ reason }: LoginFormProps) {
     const { signIn, signOut } = useAuthActions();
     const { isAuthenticated } = useConvexAuth();
     const authContext = useQuery(api.functions.users.getAuthContext);
     const router = useRouter();
-    const searchParams = useSearchParams();
-    const reason = searchParams.get("reason");
     const [serverError, setServerError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -205,9 +209,12 @@ export function LoginForm() {
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="password">Password</Label>
-                            <span className="text-sm font-medium text-muted-foreground">
-                                Password reset coming in Story 1.4
-                            </span>
+                            <Link
+                                href="/forgot-password"
+                                className="text-sm font-medium text-primary hover:underline"
+                            >
+                                Forgot password?
+                            </Link>
                         </div>
                         <Input
                             id="password"
