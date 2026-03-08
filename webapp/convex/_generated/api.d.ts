@@ -12,6 +12,7 @@ import type * as ResendOTP from "../ResendOTP.js";
 import type * as ResendPasswordReset from "../ResendPasswordReset.js";
 import type * as auth from "../auth.js";
 import type * as functions_auth from "../functions/auth.js";
+import type * as functions_sessions from "../functions/sessions.js";
 import type * as functions_tenants from "../functions/tenants.js";
 import type * as functions_users from "../functions/users.js";
 import type * as http from "../http.js";
@@ -31,6 +32,7 @@ declare const fullApi: ApiFromModules<{
   ResendPasswordReset: typeof ResendPasswordReset;
   auth: typeof auth;
   "functions/auth": typeof functions_auth;
+  "functions/sessions": typeof functions_sessions;
   "functions/tenants": typeof functions_tenants;
   "functions/users": typeof functions_users;
   http: typeof http;

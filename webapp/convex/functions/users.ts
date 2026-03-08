@@ -1,6 +1,11 @@
 import { mutation, query } from "../_generated/server";
 import { v, ConvexError } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import {
+    ACCOUNT_DEACTIVATED_REASON,
+    SUBSCRIPTION_INACTIVE_REASON,
+} from "../../lib/auth/session";
+import { loadCurrentSessionState } from "./sessions";
 
 /**
  * Register a new user by creating a tenantUser record and a tenant.
@@ -150,12 +155,39 @@ export const getAuthContext = query({
             isActive: v.boolean(),
             tenantStatus: v.string(),
             redirectPath: v.string(),
+            isSessionValid: v.boolean(),
+            sessionStatus: v.union(
+                v.literal("active"),
+                v.literal("expired"),
+                v.literal("revoked"),
+                v.literal("logged_out"),
+            ),
+            redirectReason: v.optional(v.string()),
+            rememberMe: v.boolean(),
         }),
         v.null()
     ),
     handler: async (ctx) => {
         const userId = await getAuthUserId(ctx);
         if (!userId) return null;
+
+        const currentSession = await loadCurrentSessionState(ctx);
+        if (!currentSession) {
+            return null;
+        }
+
+        if (!currentSession.state.isValid) {
+            return {
+                role: "user",
+                isActive: true,
+                tenantStatus: "active",
+                redirectPath: "/login",
+                isSessionValid: false,
+                sessionStatus: currentSession.state.status,
+                redirectReason: currentSession.state.redirectReason ?? undefined,
+                rememberMe: currentSession.state.rememberMe,
+            };
+        }
 
         const tenantUser = await ctx.db
             .query("tenantUsers")
@@ -169,6 +201,10 @@ export const getAuthContext = query({
                 isActive: true,
                 tenantStatus: "active", // Default to active so they aren't blocked from onboarding/dashboard
                 redirectPath: "/dashboard",
+                isSessionValid: true,
+                sessionStatus: currentSession.state.status,
+                redirectReason: undefined,
+                rememberMe: currentSession.state.rememberMe,
             };
         }
 
@@ -179,6 +215,10 @@ export const getAuthContext = query({
                 isActive: true,
                 tenantStatus: "active",
                 redirectPath: "/dashboard",
+                isSessionValid: true,
+                sessionStatus: currentSession.state.status,
+                redirectReason: undefined,
+                rememberMe: currentSession.state.rememberMe,
             };
         }
 
@@ -193,6 +233,15 @@ export const getAuthContext = query({
             isActive: tenantUser.isActive,
             tenantStatus: tenant.status,
             redirectPath: redirectPathByRole[tenantUser.role],
+            isSessionValid: true,
+            sessionStatus: currentSession.state.status,
+            redirectReason:
+                !tenantUser.isActive
+                    ? ACCOUNT_DEACTIVATED_REASON
+                    : tenant.status !== "active"
+                        ? SUBSCRIPTION_INACTIVE_REASON
+                        : undefined,
+            rememberMe: currentSession.state.rememberMe,
         };
     },
 });

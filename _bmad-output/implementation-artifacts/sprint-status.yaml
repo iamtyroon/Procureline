@@ -63,8 +63,8 @@ development_status:
   1-2-tenant-admin-registration-free-tier-signup: done
   1-3-user-login-with-email-password: done
   1-4-password-reset-via-email: done
-  1-5-session-management-logout: backlog
-  1-6-four-layer-role-based-access-control: backlog
+  1-5-session-management-logout: done
+  1-6-four-layer-role-based-access-control: ready-for-dev
   1-7-tenant-data-isolation: backlog
   1-8-du-access-code-authentication: backlog
   1-9-security-infrastructure-input-validation: backlog

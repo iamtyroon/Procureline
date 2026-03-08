@@ -2,9 +2,10 @@
 
 import { useEffect } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useConvexAuth, useQuery } from "convex/react";
-import { useRouter } from "next/navigation";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { usePathname, useRouter } from "next/navigation";
 import { api } from "@/convex/_generated/api";
+import { Button } from "@/components/ui/button";
 
 export default function AppLayout({
     children,
@@ -17,7 +18,12 @@ export default function AppLayout({
         api.functions.users.getAuthContext,
         isAuthenticated ? {} : "skip",
     );
+    const markCurrentSessionLoggedOut = useMutation(
+        api.functions.sessions.markCurrentSessionLoggedOut,
+    );
+    const touchCurrentSession = useMutation(api.functions.sessions.touchCurrentSession);
     const router = useRouter();
+    const pathname = usePathname();
 
     useEffect(() => {
         if (authLoading) {
@@ -36,26 +42,85 @@ export default function AppLayout({
         const currentAuthContext = authContext;
 
         async function validateSession(): Promise<void> {
-            if (currentAuthContext === null) {
+            if (
+                currentAuthContext === null ||
+                !currentAuthContext.isSessionValid
+            ) {
+                try {
+                    await markCurrentSessionLoggedOut({});
+                } catch {
+                    // Best-effort cleanup before sign-out.
+                }
                 await signOut();
-                router.replace("/login?reason=session_expired");
+                router.replace(
+                    `/login?reason=${currentAuthContext?.redirectReason ?? "session_expired"}`,
+                );
                 return;
             }
 
             if (!currentAuthContext.isActive) {
                 await signOut();
-                router.replace("/login?reason=account_deactivated");
+                router.replace(
+                    `/login?reason=${currentAuthContext.redirectReason ?? "account_deactivated"}`,
+                );
                 return;
             }
 
             if (currentAuthContext.tenantStatus !== "active") {
                 await signOut();
-                router.replace("/login?reason=subscription_inactive");
+                router.replace(
+                    `/login?reason=${currentAuthContext.redirectReason ?? "subscription_inactive"}`,
+                );
             }
         }
 
         void validateSession();
     }, [authContext, authLoading, isAuthenticated, router, signOut]);
+
+    useEffect(() => {
+        if (
+            authLoading ||
+            !isAuthenticated ||
+            authContext === undefined ||
+            authContext === null ||
+            !authContext.isSessionValid ||
+            !authContext.isActive ||
+            authContext.tenantStatus !== "active"
+        ) {
+            return;
+        }
+
+        async function recordActivity(): Promise<void> {
+            const result = await touchCurrentSession({});
+
+            if (result && result.sessionStatus !== "active") {
+                await signOut();
+                router.replace(`/login?reason=${result.redirectReason}`);
+            }
+        }
+
+        void recordActivity();
+    }, [
+        authContext,
+        authLoading,
+        isAuthenticated,
+        pathname,
+        router,
+        signOut,
+        touchCurrentSession,
+    ]);
+
+    async function handleLogout(): Promise<void> {
+        try {
+            await markCurrentSessionLoggedOut({});
+        } catch {
+            // Sign-out still needs to proceed even if metadata cleanup fails.
+        }
+
+        await signOut();
+        router.replace("/login");
+        router.refresh();
+    }
 
     if (authLoading || authContext === undefined) {
         return (
@@ -89,11 +154,31 @@ export default function AppLayout({
     if (
         !isAuthenticated ||
         authContext === null ||
+        !authContext.isSessionValid ||
         !authContext.isActive ||
         authContext.tenantStatus !== "active"
     ) {
         return null;
     }
 
-    return <>{children}</>;
+    return (
+        <div className="min-h-screen bg-background">
+            <header className="border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+                <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
+                            Procureline Workspace
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                            Signed in as {authContext.role.replaceAll("_", " ")}
+                        </p>
+                    </div>
+                    <Button type="button" variant="outline" onClick={() => void handleLogout()}>
+                        Log out
+                    </Button>
+                </div>
+            </header>
+            <main>{children}</main>
+        </div>
+    );
 }

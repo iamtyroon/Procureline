@@ -1,5 +1,6 @@
 import { convexAuth } from "@convex-dev/auth/server";
 import { Password } from "@convex-dev/auth/providers/Password";
+import { REMEMBER_ME_SESSION_WINDOW_MS } from "../lib/auth/session";
 import { ResendOTP } from "./ResendOTP";
 import { ResendPasswordReset } from "./ResendPasswordReset";
 
@@ -10,6 +11,10 @@ const DIGIT_REGEX = /[0-9]/;
 const SPECIAL_REGEX = /[^A-Za-z0-9]/;
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
+  session: {
+    totalDurationMs: REMEMBER_ME_SESSION_WINDOW_MS,
+    inactiveDurationMs: REMEMBER_ME_SESSION_WINDOW_MS,
+  },
   providers: [
     Password({
       verify: ResendOTP,

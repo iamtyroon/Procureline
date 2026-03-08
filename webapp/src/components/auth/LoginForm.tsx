@@ -2,15 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useConvexAuth, useQuery } from "convex/react";
-import { useForm } from "react-hook-form";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PASSWORD_RESET_SUCCESS_MESSAGE } from "@/lib/auth/password-reset";
+import {
+    clearRememberMeBootstrapValue,
+    readRememberMeBootstrapValue,
+    writeRememberMeBootstrapValue,
+} from "@/lib/auth/session";
 import { loginSchema, type LoginFormData } from "@/lib/validators/auth";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -36,12 +42,19 @@ interface LoginFormProps {
 export function LoginForm({ reason }: LoginFormProps) {
     const { signIn, signOut } = useAuthActions();
     const { isAuthenticated } = useConvexAuth();
-    const authContext = useQuery(api.functions.users.getAuthContext);
+    const authContext = useQuery(
+        api.functions.users.getAuthContext,
+        isAuthenticated ? {} : "skip",
+    );
+    const ensureCurrentSessionMetadata = useMutation(
+        api.functions.sessions.ensureCurrentSessionMetadata,
+    );
     const router = useRouter();
     const [serverError, setServerError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const {
+        control,
         register,
         handleSubmit,
         formState: { errors },
@@ -50,6 +63,7 @@ export function LoginForm({ reason }: LoginFormProps) {
         defaultValues: {
             email: "",
             password: "",
+            rememberMe: false,
         },
     });
 
@@ -61,8 +75,22 @@ export function LoginForm({ reason }: LoginFormProps) {
         const currentAuthContext = authContext;
 
         async function handleAuthenticatedState(): Promise<void> {
+            if (!currentAuthContext.isSessionValid) {
+                await signOut();
+                clearRememberMeBootstrapValue();
+                setIsSubmitting(false);
+                setServerError(
+                    AUTH_REASON_MESSAGES[
+                        currentAuthContext.redirectReason ?? "session_expired"
+                    ] ??
+                        "Your session has expired. Please log in again.",
+                );
+                return;
+            }
+
             if (!currentAuthContext.isActive) {
                 await signOut();
+                clearRememberMeBootstrapValue();
                 setIsSubmitting(false);
                 setServerError(
                     AUTH_REASON_MESSAGES.account_deactivated ??
@@ -73,6 +101,7 @@ export function LoginForm({ reason }: LoginFormProps) {
 
             if (currentAuthContext.tenantStatus !== "active") {
                 await signOut();
+                clearRememberMeBootstrapValue();
                 setIsSubmitting(false);
                 setServerError(
                     AUTH_REASON_MESSAGES.subscription_inactive ??
@@ -81,12 +110,36 @@ export function LoginForm({ reason }: LoginFormProps) {
                 return;
             }
 
-            setIsSubmitting(false);
-            router.replace(currentAuthContext.redirectPath);
+            try {
+                const bootstrapRememberMe = readRememberMeBootstrapValue();
+
+                await ensureCurrentSessionMetadata(
+                    bootstrapRememberMe === undefined
+                        ? {}
+                        : { rememberMe: bootstrapRememberMe },
+                );
+
+                clearRememberMeBootstrapValue();
+                setIsSubmitting(false);
+                router.replace(currentAuthContext.redirectPath);
+            } catch {
+                clearRememberMeBootstrapValue();
+                await signOut();
+                setIsSubmitting(false);
+                setServerError(
+                    "We could not initialize your session. Please sign in again.",
+                );
+            }
         }
 
         void handleAuthenticatedState();
-    }, [authContext, isAuthenticated, router, signOut]);
+    }, [
+        authContext,
+        ensureCurrentSessionMetadata,
+        isAuthenticated,
+        router,
+        signOut,
+    ]);
 
     async function onSubmit(data: LoginFormData): Promise<void> {
         setServerError(null);
@@ -101,6 +154,8 @@ export function LoginForm({ reason }: LoginFormProps) {
         }
 
         try {
+            writeRememberMeBootstrapValue(data.rememberMe);
+
             const formData = new FormData();
             formData.set("email", data.email.toLowerCase().trim());
             formData.set("password", data.password);
@@ -109,6 +164,7 @@ export function LoginForm({ reason }: LoginFormProps) {
             await signIn("password", formData);
         } catch (error: unknown) {
             setIsSubmitting(false);
+            clearRememberMeBootstrapValue();
 
             if (error instanceof Error) {
                 const message = error.message;
@@ -135,6 +191,7 @@ export function LoginForm({ reason }: LoginFormProps) {
         (isAuthenticated &&
             authContext !== undefined &&
             authContext !== null &&
+            authContext.isSessionValid &&
             authContext.isActive &&
             authContext.tenantStatus === "active");
 
@@ -229,6 +286,34 @@ export function LoginForm({ reason }: LoginFormProps) {
                                 {errors.password.message}
                             </p>
                         )}
+                    </div>
+
+                    <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-3">
+                        <Controller
+                            control={control}
+                            name="rememberMe"
+                            render={({ field }) => (
+                                <Checkbox
+                                    id="remember-me"
+                                    checked={field.value}
+                                    onCheckedChange={(checked) =>
+                                        field.onChange(checked === true)
+                                    }
+                                    aria-describedby="remember-me-help"
+                                />
+                            )}
+                        />
+                        <div className="space-y-1">
+                            <Label htmlFor="remember-me" className="cursor-pointer">
+                                Remember me
+                            </Label>
+                            <p
+                                id="remember-me-help"
+                                className="text-sm text-muted-foreground"
+                            >
+                                Keep this browser signed in for up to 30 days.
+                            </p>
+                        </div>
                     </div>
                 </CardContent>
 

@@ -10,7 +10,7 @@ export function RoleDashboardPlaceholder({
     description,
 }: RoleDashboardPlaceholderProps) {
     return (
-        <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center">
+        <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center gap-4 p-8 text-center">
             <div className="inline-flex items-center rounded-full bg-primary/10 px-4 py-2 text-sm font-semibold text-primary">
                 Procureline Workspace
             </div>

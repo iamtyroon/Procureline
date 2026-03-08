@@ -38,6 +38,19 @@ export default defineSchema({
         .index("by_tenantId", ["tenantId"])
         .index("by_userId_tenantId", ["userId", "tenantId"]),
 
+    sessionMetadata: defineTable({
+        sessionId: v.id("authSessions"),
+        userId: v.id("users"),
+        rememberMe: v.boolean(),
+        lastActivityAt: v.number(),
+        createdAt: v.number(),
+        revokedAt: v.optional(v.number()),
+        loggedOutAt: v.optional(v.number()),
+    })
+        .index("by_sessionId", ["sessionId"])
+        .index("by_userId", ["userId"])
+        .index("by_userId_sessionId", ["userId", "sessionId"]),
+
     subscriptionTiers: defineTable({
         tierName: v.string(),
         slug: v.string(),

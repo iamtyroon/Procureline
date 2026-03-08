@@ -12,9 +12,9 @@ createdAt: 2026-01-22
 updatedAt: 2026-02-16
 ---
 
-# Epic 1: Project Foundation & Authentication System
+## Epic 1: Project Foundation & Authentication System
 
-## Epic Goal
+### Epic Goal
 
 Users can securely access the platform with role-based permissions and complete tenant isolation.
 
