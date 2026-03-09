@@ -4,8 +4,8 @@ import { internalMutation, mutation, query } from "../_generated/server";
 import {
     authContextValidator,
     getAuthorizationContext,
-    requireTenantRole,
 } from "./_roleGuard";
+import { getCurrentTenantUserMembership } from "./_tenantGuard";
 
 /**
  * Register a new user by creating a tenantUser record and a tenant.
@@ -117,13 +117,7 @@ export const getCurrentUserTenant = query({
         isActive: v.boolean(),
     }),
     handler: async (ctx) => {
-        const authContext = await requireTenantRole(ctx);
-        const tenantUser = await ctx.db
-            .query("tenantUsers")
-            .withIndex("by_userId_tenantId", (q) =>
-                q.eq("userId", authContext.userId).eq("tenantId", authContext.tenantId),
-            )
-            .first();
+        const tenantUser = await getCurrentTenantUserMembership(ctx);
 
         if (!tenantUser) {
             throw new ConvexError({

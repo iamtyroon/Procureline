@@ -1,6 +1,6 @@
 # Story 1.7: Tenant Data Isolation
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -21,44 +21,44 @@ so that my organization's data is never visible to other organizations.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Define the canonical tenant-isolation model and current table classification (AC: 1, 3, 5)
-  - [ ] Identify which current tables are tenant-scoped, platform-scoped, or global-only in `webapp/convex/schema.ts`; at minimum treat `tenantUsers` as tenant-scoped, `platformUsers` as platform-scoped, and `sessionMetadata` / `subscriptionTiers` as non-tenant tables that must not be forced into fake tenant ownership.
-  - [ ] Introduce a single tenant-isolation helper surface such as `webapp/convex/functions/_tenantGuard.ts` that builds on Story 1.6's auth context and becomes the only approved backend entry point for tenant-owned data access.
-  - [ ] Define the MVP rule that all future tenant-owned tables must include a real `tenantId` field plus a canonical tenant index and must be accessed through the tenant-guard helper layer.
+- [x] Task 1: Define the canonical tenant-isolation model and current table classification (AC: 1, 3, 5)
+  - [x] Identify which current tables are tenant-scoped, platform-scoped, or global-only in `webapp/convex/schema.ts`; at minimum treat `tenantUsers` as tenant-scoped, `platformUsers` as platform-scoped, and `sessionMetadata` / `subscriptionTiers` as non-tenant tables that must not be forced into fake tenant ownership.
+  - [x] Introduce a single tenant-isolation helper surface such as `webapp/convex/functions/_tenantGuard.ts` that builds on Story 1.6's auth context and becomes the only approved backend entry point for tenant-owned data access.
+  - [x] Define the MVP rule that all future tenant-owned tables must include a real `tenantId` field plus a canonical tenant index and must be accessed through the tenant-guard helper layer.
 
-- [ ] Task 2: Implement backend tenant-guard and not-found semantics (AC: 1, 2, 3, 4)
-  - [ ] Reuse `requireTenantRole`, `requirePlatformAdmin`, and `getAuthorizationContext` from Story 1.6 instead of introducing a parallel auth/tenant state model.
-  - [ ] Add helper functions that distinguish tenant-only access, explicit platform-admin bypass access, and safe not-found responses for cross-tenant probes.
-  - [ ] Ensure tenant-only helper paths hard-fail for platform-admin contexts unless a platform-admin-specific bypass helper is used intentionally.
-  - [ ] Fail closed when a supposedly tenant-owned record has no `tenantId`, an invalid `tenantId`, or tenant ownership metadata that cannot be verified against the current auth context.
-  - [ ] Apply the same tenant-isolation rules to collection and aggregate paths such as list queries, multi-ID loads, counts, and existence checks so those paths cannot leak cross-tenant presence indirectly.
-  - [ ] Centralize the "404-style, do not enumerate tenant existence" behavior so future route handlers and page loaders can reuse the same outcome instead of mixing `403` and `404` inconsistently.
+- [x] Task 2: Implement backend tenant-guard and not-found semantics (AC: 1, 2, 3, 4)
+  - [x] Reuse `requireTenantRole`, `requirePlatformAdmin`, and `getAuthorizationContext` from Story 1.6 instead of introducing a parallel auth/tenant state model.
+  - [x] Add helper functions that distinguish tenant-only access, explicit platform-admin bypass access, and safe not-found responses for cross-tenant probes.
+  - [x] Ensure tenant-only helper paths hard-fail for platform-admin contexts unless a platform-admin-specific bypass helper is used intentionally.
+  - [x] Fail closed when a supposedly tenant-owned record has no `tenantId`, an invalid `tenantId`, or tenant ownership metadata that cannot be verified against the current auth context.
+  - [x] Apply the same tenant-isolation rules to collection and aggregate paths such as list queries, multi-ID loads, counts, and existence checks so those paths cannot leak cross-tenant presence indirectly.
+  - [x] Centralize the "404-style, do not enumerate tenant existence" behavior so future route handlers and page loaders can reuse the same outcome instead of mixing `403` and `404` inconsistently.
 
-- [ ] Task 3: Harden the current Convex data-access surface without inventing future domains (AC: 1, 2, 3, 4, 5, 6)
-  - [ ] Update `webapp/convex/functions/tenants.ts#getById` so callers cannot read arbitrary tenant records by supplying another tenant's ID.
-  - [ ] For tenant-owned tables covered by this story, ban direct raw `ctx.db.get(id)` access from feature functions unless the read first passes through a tenant-guard helper that validates ownership or applies explicit platform-admin read bypass rules.
-  - [ ] Review current tenant-aware queries and mutations in `webapp/convex/functions/users.ts`, `webapp/convex/functions/sessions.ts`, and related helpers to confirm they derive tenant context from the server-side auth path and not from client input.
-  - [ ] If a current or future mutation accepts arrays, nested objects, or multiple tenant-owned IDs, require validation of every referenced tenant-owned identifier rather than only checking the top-level auth context once.
-  - [ ] Preserve public registration and pre-role flows such as `registerWithTenant` and `isEmailVerified`; they run before a tenant role exists and must not be broken by the new guard layer.
-  - [ ] Do not fabricate departments, categories, items, plans, or billing entities in this story just to demonstrate tenant isolation. Establish the guardrails on the tables and functions that already exist.
+- [x] Task 3: Harden the current Convex data-access surface without inventing future domains (AC: 1, 2, 3, 4, 5, 6)
+  - [x] Update `webapp/convex/functions/tenants.ts#getById` so callers cannot read arbitrary tenant records by supplying another tenant's ID.
+  - [x] For tenant-owned tables covered by this story, ban direct raw `ctx.db.get(id)` access from feature functions unless the read first passes through a tenant-guard helper that validates ownership or applies explicit platform-admin read bypass rules.
+  - [x] Review current tenant-aware queries and mutations in `webapp/convex/functions/users.ts`, `webapp/convex/functions/sessions.ts`, and related helpers to confirm they derive tenant context from the server-side auth path and not from client input.
+  - [x] If a current or future mutation accepts arrays, nested objects, or multiple tenant-owned IDs, require validation of every referenced tenant-owned identifier rather than only checking the top-level auth context once.
+  - [x] Preserve public registration and pre-role flows such as `registerWithTenant` and `isEmailVerified`; they run before a tenant role exists and must not be broken by the new guard layer.
+  - [x] Do not fabricate departments, categories, items, plans, or billing entities in this story just to demonstrate tenant isolation. Establish the guardrails on the tables and functions that already exist.
 
-- [ ] Task 4: Add minimal auditability for isolation-sensitive access paths (AC: 2, 4)
-  - [ ] Introduce the smallest append-only audit/security event mechanism needed to record blocked cross-tenant probes and allowed platform-admin cross-tenant reads.
-  - [ ] Use stable event names and a minimum event payload that includes actor user ID, actor role, source tenant context when applicable, target tenant context when known, table or entity type, record identifier when known, attempted action, outcome, and timestamp, while keeping the scope narrow to tenant-isolation events in this story.
-  - [ ] Ensure audit writes do not leak the protected target back to tenant users in the response path.
-  - [ ] Define failure behavior for audit writes: blocked cross-tenant probes must still deny access even if logging fails, and explicit platform-admin bypass reads must not silently proceed without the configured audit trail.
+- [x] Task 4: Add minimal auditability for isolation-sensitive access paths (AC: 2, 4)
+  - [x] Introduce the smallest append-only audit/security event mechanism needed to record blocked cross-tenant probes and allowed platform-admin cross-tenant reads.
+  - [x] Use stable event names and a minimum event payload that includes actor user ID, actor role, source tenant context when applicable, target tenant context when known, table or entity type, record identifier when known, attempted action, outcome, and timestamp, while keeping the scope narrow to tenant-isolation events in this story.
+  - [x] Ensure audit writes do not leak the protected target back to tenant users in the response path.
+  - [x] Define failure behavior for audit writes: blocked cross-tenant probes must still deny access even if logging fails, and explicit platform-admin bypass reads must not silently proceed without the configured audit trail.
 
-- [ ] Task 5: Establish index and helper patterns that prevent unscoped tenant queries (AC: 1, 3, 5)
-  - [ ] Add or normalize canonical tenant indexes for the current tenant-scoped tables without breaking existing callers; preserve any still-used legacy index names during migration.
-  - [ ] Prefer helper functions that require tenant context up front and internally issue `withIndex(...)` queries, rather than exposing raw table-query patterns everywhere.
-  - [ ] Where "TypeScript compilation fails if tenantId filter is missing" is claimed, scope that guarantee to the helper API introduced in this story and back it with compile-checked tests or fixtures instead of relying on code review alone.
-  - [ ] Make the typed helper surface strong enough that tenant-owned resource access uses branded or wrapper-mediated types instead of plain raw document IDs wherever this story introduces new helper APIs.
+- [x] Task 5: Establish index and helper patterns that prevent unscoped tenant queries (AC: 1, 3, 5)
+  - [x] Add or normalize canonical tenant indexes for the current tenant-scoped tables without breaking existing callers; preserve any still-used legacy index names during migration.
+  - [x] Prefer helper functions that require tenant context up front and internally issue `withIndex(...)` queries, rather than exposing raw table-query patterns everywhere.
+  - [x] Where "TypeScript compilation fails if tenantId filter is missing" is claimed, scope that guarantee to the helper API introduced in this story and back it with compile-checked tests or fixtures instead of relying on code review alone.
+  - [x] Make the typed helper surface strong enough that tenant-owned resource access uses branded or wrapper-mediated types instead of plain raw document IDs wherever this story introduces new helper APIs.
 
-- [ ] Task 6: Add regression coverage for tenant isolation, platform bypass, and not-found behavior (AC: 1, 2, 3, 4, 5, 6)
-  - [ ] Add backend-first tests covering same-tenant access, cross-tenant access denial, platform-admin bypass, inactive/misconfigured auth contexts, and unchanged session behavior from Story 1.5.
-  - [ ] Add tests proving that blocked cross-tenant reads produce safe not-found semantics while unauthenticated or wrong-role requests still produce unauthorized behavior.
-  - [ ] Add compile-checked coverage for the new helper API so unsupported unscoped tenant access patterns fail the test/build pipeline.
-  - [ ] Add explicit regression cases for corrupted or missing `tenantId` values on tenant-owned records and for tenant membership being revoked between two otherwise valid protected requests.
+- [x] Task 6: Add regression coverage for tenant isolation, platform bypass, and not-found behavior (AC: 1, 2, 3, 4, 5, 6)
+  - [x] Add backend-first tests covering same-tenant access, cross-tenant access denial, platform-admin bypass, inactive/misconfigured auth contexts, and unchanged session behavior from Story 1.5.
+  - [x] Add tests proving that blocked cross-tenant reads produce safe not-found semantics while unauthenticated or wrong-role requests still produce unauthorized behavior.
+  - [x] Add compile-checked coverage for the new helper API so unsupported unscoped tenant access patterns fail the test/build pipeline.
+  - [x] Add explicit regression cases for corrupted or missing `tenantId` values on tenant-owned records and for tenant membership being revoked between two otherwise valid protected requests.
 
 ## Dev Notes
 
@@ -266,9 +266,9 @@ gpt-5-codex
 
 ### Debug Log References
 
-- Skill workflow: `_bmad/bmm/workflows/4-implementation/create-story/workflow.yaml`
+- Skill workflow: `_bmad/bmm/workflows/4-implementation/dev-story/workflow.yaml`
 - Workflow engine: `_bmad/core/tasks/workflow.xml`
-- Validation checklist: `_bmad/bmm/workflows/4-implementation/create-story/checklist.md`
+- Validation checklist: `_bmad/bmm/workflows/4-implementation/dev-story/checklist.md`
 - Sprint source: `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - Epic source: `_bmad-output/implementation-artifacts/epics/epic1/epic-01-foundation-authentication.md`
 - Previous story source: `_bmad-output/implementation-artifacts/1-6-four-layer-role-based-access-control.md`
@@ -281,29 +281,54 @@ gpt-5-codex
   - `webapp/package.json`
   - `webapp/convex/schema.ts`
   - `webapp/convex/functions/_roleGuard.ts`
+  - `webapp/convex/functions/_tenantGuard.ts`
   - `webapp/convex/functions/users.ts`
   - `webapp/convex/functions/sessions.ts`
   - `webapp/convex/functions/tenants.ts`
   - `webapp/lib/auth/roles.ts`
+  - `webapp/lib/auth/tenant-isolation.ts`
   - `webapp/tests/rbac.test.ts`
+  - `webapp/tests/tenant-isolation.test.ts`
+  - `webapp/tests/tenant-isolation.types.test.ts`
 - Recent git context:
   - `git log -5 --pretty=format:"%h %ad %s" --date=short`
   - `git show --stat --oneline -1 a0b0b5f`
   - `git show --stat --oneline -1 fa83609`
-- External validation sources:
-  - Next.js official docs
-  - Convex official docs
-  - Convex Auth official docs
+- Validation commands:
+  - `cmd /c npm test`
+  - `cmd /c npm run lint`
+  - `cmd /c npm run build`
+
+### Implementation Plan
+
+- Centralize tenant-isolation policy in `webapp/lib/auth/tenant-isolation.ts` so runtime guards and compile-checked tests use the same decision logic.
+- Add `webapp/convex/functions/_tenantGuard.ts` as the backend-only guard surface for same-tenant reads, explicit platform-admin bypass reads, current-tenant membership lookups, and batch tenant-ID validation.
+- Normalize canonical tenant indexes and add a narrow append-only `tenantIsolationEvents` table before hardening the existing `tenants.ts` and `users.ts` access paths.
+- Back the helper surface with runtime assertion tests, branded-ID compile checks, and full repo validation via test, lint, and build.
 
 ### Completion Notes List
 
-- Created a backend-led story that treats tenant isolation as a direct extension of Story 1.6's canonical auth/role context rather than a new parallel guard system.
-- Anchored the story in the current codebase by identifying the main existing isolation gap: `webapp/convex/functions/tenants.ts#getById` trusts arbitrary tenant IDs while `users.ts#getCurrentUserTenant` already follows the safer tenant-derived pattern.
-- Scoped the story to current repo reality: the broader procurement tables do not exist yet, so this story establishes reusable tenant-guard, audit, index, and test patterns without inventing future domains.
-- Included explicit guidance for safe not-found semantics, auditable platform-admin bypasses, and compile-checked helper patterns so the future dev agent does not rely on ad hoc filtering or code review alone.
-- Validated the story manually against the BMAD checklist because the workflow-referenced `_bmad/core/tasks/validate-workflow.xml` task file is not present in this repository.
+- Added canonical tenant-isolation table classification, event naming, collection/count/existence helpers, and branded-ID compile contracts in `webapp/lib/auth/tenant-isolation.ts`.
+- Added `webapp/convex/functions/_tenantGuard.ts` to centralize same-tenant reads, explicit audited platform-admin bypass reads, current membership lookups, and multi-ID tenant validation on top of Story 1.6's auth context.
+- Hardened `webapp/convex/functions/tenants.ts#getById` to stop arbitrary tenant reads and introduced an explicit platform-admin bypass read path that writes audit events before returning cross-tenant data.
+- Normalized canonical tenant indexes on `tenantUsers`, added append-only `tenantIsolationEvents`, and switched `users.ts#getCurrentUserTenant` to the new helper-backed membership lookup.
+- Added regression coverage for same-tenant access, cross-tenant masking, missing metadata, platform bypass, stale membership, collection semantics, and branded-ID compile failures.
+- Verified the implementation with `cmd /c npm test`, `cmd /c npm run lint`, and `cmd /c npm run build`.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/1-7-tenant-data-isolation.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `webapp/convex/schema.ts`
+- `webapp/convex/_generated/api.d.ts`
+- `webapp/convex/functions/_tenantGuard.ts`
+- `webapp/convex/functions/tenants.ts`
+- `webapp/convex/functions/users.ts`
+- `webapp/lib/auth/tenant-isolation.ts`
+- `webapp/tests/run-tests.ts`
+- `webapp/tests/tenant-isolation.test.ts`
+- `webapp/tests/tenant-isolation.types.test.ts`
+
+### Change Log
+
+- 2026-03-09: Implemented Story 1.7 tenant-isolation guardrails, audited platform-admin bypass reads, canonical tenant indexes, and regression coverage; promoted story status to `review`.

@@ -1,5 +1,28 @@
-import { mutation, query } from "../_generated/server";
 import { v, ConvexError } from "convex/values";
+import { internalMutation, mutation, query } from "../_generated/server";
+import {
+    readTenantByIdForCurrentTenant,
+    readTenantByIdWithPlatformAdminBypass,
+} from "./_tenantGuard";
+
+const tenantRecordValidator = v.object({
+    _id: v.id("tenants"),
+    _creationTime: v.number(),
+    name: v.string(),
+    subdomain: v.string(),
+    tier: v.union(
+        v.literal("free"),
+        v.literal("starter"),
+        v.literal("professional"),
+        v.literal("enterprise"),
+    ),
+    status: v.union(
+        v.literal("active"),
+        v.literal("suspended"),
+        v.literal("cancelled"),
+    ),
+    createdAt: v.number(),
+});
 
 /**
  * Generate a URL-safe subdomain from organization name.
@@ -15,8 +38,12 @@ function generateSubdomain(name: string): string {
 /**
  * Create a new tenant with Free tier status.
  * Validates subdomain uniqueness to prevent collisions.
+ *
+ * Internal-only: public tenant creation is handled through
+ * `registerWithTenant` in `users.ts`, which authenticates the caller
+ * and creates the tenant + tenantUser atomically.
  */
-export const create = mutation({
+export const create = internalMutation({
     args: {
         name: v.string(),
     },
@@ -77,33 +104,23 @@ export const create = mutation({
     },
 });
 
-/** Get tenant by ID */
+/**
+ * Get tenant by ID for the current authenticated tenant user.
+ *
+ * Query-safe: enforces same-tenant isolation without writing audit events.
+ * Cross-tenant probes return `null` (safe not-found semantics).
+ */
 export const getById = query({
     args: { tenantId: v.id("tenants") },
-    returns: v.union(
-        v.object({
-            _id: v.id("tenants"),
-            _creationTime: v.number(),
-            name: v.string(),
-            subdomain: v.string(),
-            tier: v.union(
-                v.literal("free"),
-                v.literal("starter"),
-                v.literal("professional"),
-                v.literal("enterprise"),
-            ),
-            status: v.union(
-                v.literal("active"),
-                v.literal("suspended"),
-                v.literal("cancelled"),
-            ),
-            createdAt: v.number(),
-        }),
-        v.null(),
-    ),
-    handler: async (ctx, args) => {
-        return await ctx.db.get(args.tenantId);
-    },
+    returns: v.union(tenantRecordValidator, v.null()),
+    handler: async (ctx, args) =>
+        await readTenantByIdForCurrentTenant(ctx, args.tenantId),
 });
 
-
+/** Read a tenant by ID through the explicit audited platform-admin bypass path */
+export const getByIdForPlatformAdmin = mutation({
+    args: { tenantId: v.id("tenants") },
+    returns: v.union(tenantRecordValidator, v.null()),
+    handler: async (ctx, args) =>
+        await readTenantByIdWithPlatformAdminBypass(ctx, args.tenantId),
+});

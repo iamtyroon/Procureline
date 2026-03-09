@@ -81,4 +81,34 @@ export default defineSchema({
     })
         .index("by_slug", ["slug"])
         .index("by_display_order", ["displayOrder", "isActive"]),
+
+    tenantIsolationEvents: defineTable({
+        action: v.string(),
+        actorRole: v.union(
+            v.literal("platform_admin"),
+            v.literal("tenant_admin"),
+            v.literal("procurement_officer"),
+            v.literal("department_user"),
+        ),
+        actorUserId: v.id("users"),
+        entityType: v.string(),
+        event: v.union(
+            v.literal("tenant.probe_blocked"),
+            v.literal("tenant.platform_read_allowed"),
+        ),
+        outcome: v.union(
+            v.literal("allowed_platform_bypass"),
+            v.literal("blocked_missing_metadata"),
+            v.literal("blocked_not_found"),
+        ),
+        recordId: v.optional(v.string()),
+        sourceTenantId: v.optional(v.id("tenants")),
+        tableName: v.string(),
+        targetTenantId: v.optional(v.id("tenants")),
+        timestamp: v.number(),
+    })
+        .index("by_actorUserId", ["actorUserId", "timestamp"])
+        .index("by_event", ["event", "timestamp"])
+        .index("by_targetTenantId", ["targetTenantId", "timestamp"])
+        .index("by_timestamp", ["timestamp"]),
 });
