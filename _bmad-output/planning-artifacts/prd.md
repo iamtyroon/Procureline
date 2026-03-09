@@ -185,6 +185,26 @@ The Blockly interface succeeds when:
 - GOK compliance calculations accurate to 2 decimal places
 - End-to-end flow completable in under 30 minutes
 
+### Canonical Onboarding Model
+
+Procureline uses role-specific onboarding paths. The system must not rely on a reusable tenant-wide or institution-wide shared secret for onboarding.
+
+| Role | Primary Entry Path | Provisioning Model |
+|------|--------------------|--------------------|
+| **Tenant Admin** | Public landing/auth flow | Self-serve signup for **Free, Starter, and Professional** tiers |
+| **Procurement Officer (PO)** | Public auth entry page | Tenant Admin issues invitation with link and one-time activation code |
+| **Departmental User (DU)** | Public auth entry page | PO issues department-scoped access code, followed by email verification |
+| **Platform Admin** | Internal/admin-only | Provisioned internally, never public self-signup |
+
+**Commercial rule:** Enterprise is not self-serve. Enterprise onboarding always uses Contact Sales / manual provisioning.
+
+**Secondary/manual path:** Platform Admin may provision a Tenant Admin directly for enterprise/manual onboarding, migrations, or assisted rollout. This is an exception flow, not the default customer onboarding path.
+
+**Security rule:** Shared tenant-wide onboarding keys are prohibited. Onboarding credentials must be scoped and revocable:
+- PO onboarding codes are one-time, person-specific, and tenant-scoped
+- DU access codes are department-scoped
+- Platform Admin credentials are internal-only
+
 ### Growth Features (Post-MVP)
 
 | Feature | Business Value |
@@ -992,16 +1012,17 @@ This "Minimum Minimum" could launch in 2-3 months with 2 developers, but would r
 
 #### 3a. Onboarding & Registration
 
-- FR-TA1a: System sends invitation email when Platform Admin creates Tenant Admin
-- FR-TA1b: Invitation links expire after 72 hours with resend option
-- FR-TA1c: System validates password against policy (12+ chars, uppercase, number, special)
-- FR-TA1d: System requires email verification before account activation
-- FR-TA1e: Email verification links expire after 24 hours with auto-resend (max 3)
-- FR-TA1f: System blocks dashboard access until organization profile is complete
-- FR-TA1g: Organization profile requires: name, logo, primary contact, fiscal year config
-- FR-TA1h: System prevents duplicate Tenant Admin emails across all tenants
-- FR-TA1i: System shows "Contact Support" if tenant is deactivated during onboarding
-- FR-TA1j: System supports forgot password flow using invitation email
+- FR-TA1a: System supports self-serve Tenant Admin signup from the public landing/auth flow for Free, Starter, and Professional tiers
+- FR-TA1b: System supports Platform Admin-created Tenant Admin invitation as a secondary/manual provisioning path for enterprise or assisted onboarding
+- FR-TA1c: Invitation links expire after 72 hours with resend option
+- FR-TA1d: System validates password against policy (12+ chars, uppercase, number, special)
+- FR-TA1e: System requires email verification before account activation
+- FR-TA1f: Email verification links expire after 24 hours with auto-resend (max 3)
+- FR-TA1g: System blocks dashboard access until organization profile is complete
+- FR-TA1h: Organization profile requires: name, logo, primary contact, fiscal year config
+- FR-TA1i: System prevents duplicate Tenant Admin emails across all tenants
+- FR-TA1j: System shows "Contact Support" if tenant is deactivated during onboarding
+- FR-TA1k: System supports forgot password flow for both self-serve and invited Tenant Admin onboarding paths
 
 #### 3b. Dashboard
 
@@ -1020,7 +1041,7 @@ This "Minimum Minimum" could launch in 2-3 months with 2 developers, but would r
 
 - FR-TA3a: Tenant Admin can view list of all POs with status indicators
 - FR-TA3b: Tenant Admin can add new PO with name, email, phone
-- FR-TA3c: System sends invitation email to new PO
+- FR-TA3c: System sends invitation email to new PO and generates a one-time activation code that Tenant Admin can share manually
 - FR-TA3d: System allows same email as PO in different tenants
 - FR-TA3e: System rejects duplicate PO email within same tenant
 - FR-TA3f: System notifies Tenant Admin if PO invitation email bounces
@@ -1383,7 +1404,9 @@ This "Minimum Minimum" could launch in 2-3 months with 2 developers, but would r
 
 - FR90: Visitors can view a marketing landing page with feature descriptions
 - FR91: Visitors can view pricing tiers and comparison
-- FR92: Visitors can start a Free tier signup process
+- FR92: Visitors can start a self-serve signup process for Free, Starter, or Professional tiers
+- FR92a: Enterprise tier routes to Contact Sales / manual provisioning instead of self-serve signup
+- FR92b: Visitors can access a public role-aware auth entry page that clearly routes Tenant Admins, POs, and DUs to the correct onboarding or login flow
 - FR93: New users can complete an onboarding flow after first login
 - FR94: Users can access contextual help within the application
 
@@ -1470,4 +1493,3 @@ This "Minimum Minimum" could launch in 2-3 months with 2 developers, but would r
 | NFR-D3 | Data deletion on tenant request within 90 days of subscription end | Process verification | High |
 | NFR-D4 | All data stored in African or European data centers | Infrastructure audit | High |
 | NFR-D5 | No data shared with third parties without explicit tenant consent | Privacy policy; audit | Critical |
-

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { isKnownPublicRoute, PUBLIC_ROUTES } from "../lib/auth/public-routes";
+import { getProtectedRouteRole } from "../lib/auth/roles";
 import {
     PROTECTED_ROUTE_CACHE_HEADERS,
     SESSION_EXPIRED_REDIRECT_PATH,
@@ -17,12 +18,23 @@ export function runProxyRouteTests(): string[] {
     assert.equal(isKnownPublicRoute("/dashboard"), false);
     completedTests.push("dashboard route is not public");
 
+    assert.equal(isKnownPublicRoute("/platform-admin"), false);
+    assert.equal(isKnownPublicRoute("/tenant-admin"), false);
+    assert.equal(isKnownPublicRoute("/po"), false);
+    assert.equal(isKnownPublicRoute("/du"), false);
+    completedTests.push("role dashboards remain protected and are never classified as public routes");
+
     assert.deepEqual(
         PUBLIC_ROUTES.filter((route) => route.includes("password")),
         ["/forgot-password", "/reset-password"],
     );
     completedTests.push(
         "public route registry includes the reset flow entry points",
+    );
+
+    assert.equal(PUBLIC_ROUTES.every((route) => getProtectedRouteRole(route) === null), true);
+    completedTests.push(
+        "proxy public routes stay separate from the centralized role-based route map",
     );
 
     assert.equal(

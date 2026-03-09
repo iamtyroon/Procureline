@@ -63,6 +63,18 @@ This epic implements the **core innovation** of Procureline: using Google's Bloc
 
 ---
 
+## Story Delivery Map
+
+- `Story 5.1` achieves a DU-ready entry point before plan editing starts. Delivery should surface budget context, plan state, deadline awareness, and empty-state guidance so the DU understands whether planning is possible and what to do next.
+- `Story 5.2` achieves the core Blockly authoring surface. Delivery should load the workspace efficiently, render the planning canvas and toolbox, and establish the basic interactions that every later validation and persistence rule depends on.
+- `Story 5.3` achieves guardrails that keep the visual plan valid while it is being built. Delivery should encode hierarchy rules, block constraints, and user feedback so invalid structures are prevented instead of discovered too late.
+- `Story 5.4` achieves confidence that DU work will not be lost. Delivery should synchronize local draft persistence with server-side storage, recover from crashes or disconnects, and resolve draft state in a user-comprehensible way.
+- `Story 5.5` achieves DU escalation when the catalog is incomplete. Delivery should let DUs request missing items or categories from inside the planning workflow and track request outcomes without forcing them out of context.
+- `Story 5.6` achieves instant budget awareness during planning. Delivery should calculate plan totals in real time, compare them to department allocation, and render feedback that helps users self-correct before submission.
+- `Story 5.7` achieves a maintainable and scalable editing experience as catalogs grow. Delivery should manage toolbox content, block lifecycle, and workspace organization so larger plans remain usable and performant.
+
+---
+
 ## Stories
 
 ### Story 5.1: DU Dashboard & Plan Status

@@ -11,7 +11,7 @@ date: 2026-01-22
 author: Tyroon
 status: complete
 totalEpics: 11
-totalStories: 64
+totalStories: 81
 epicDocuments:
   - epic-01-foundation-authentication.md
   - epic-02-platform-administration.md
@@ -958,9 +958,9 @@ This document provides the complete epic and story breakdown for Procureline, de
 
 **Status:** `in-progress` (START HERE - Frontend-first implementation strategy)
 
-**Goal:** Visitors can discover Procureline and smoothly onboard as new users.
+**Goal:** Visitors can discover Procureline, understand pricing tiers, and reach the correct public onboarding or access path for their role.
 
-**User Outcome:** Visitors can view the landing page, understand pricing tiers, start using the Free tier, and complete guided onboarding that gets them productive immediately.
+**User Outcome:** Visitors can view the landing page, understand pricing tiers, self-serve institution signup for eligible tiers, or reach the correct PO and DU access paths before completing guided onboarding.
 
 **FRs covered:** FR90-FR94 (5 FRs total)
 
@@ -969,12 +969,14 @@ This document provides the complete epic and story breakdown for Procureline, de
 2. **Epic 1 Story 1.1** - Project Initialization with Convex Ents Starter
 3. **Epic 1 Story 1.2** - Tenant Admin Registration (hooks into landing page CTA)
 4. **Story 11.2** - Pricing Page (if separate from landing page)
-5. **Story 11.3** - Onboarding Flow
+5. **Story 11.3** - Public Role-Based Auth Entry
+6. **Story 11.4** - First-Login Onboarding & Contextual Help
 
 **Implementation Notes:**
 - **STARTING POINT:** Story 11.1 is the FIRST story to implement
 - Landing page provides immediate visual feedback and validates the product concept
-- Landing page "Create Free Account" CTA will route to Epic 1 Story 1.2 (Signup Engine)
+- Landing page exposes both "Create Free Account" and "Sign In / Join" paths
 - Pricing tier comparison (now USD-based, annual billing aligned to Kenya Fiscal Year July 1 - June 30)
-- Free Forever tier signup flow (not 14-day trial)
+- Free, Starter, and Professional are public self-serve signup tiers; Enterprise remains contact-sales/manual
+- PO onboarding uses invitation link or one-time activation code; DU onboarding uses department access code
 - Contextual onboarding (animated hints, zero-training approach)

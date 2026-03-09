@@ -3,23 +3,23 @@ epic: 11
 title: "Marketing Landing & User Onboarding"
 status: in-progress
 priority: P0
-totalStories: 3
+totalStories: 4
 frsConvered: ["FR90-FR94"]
 nfrsAddressed: ["NFR-P5"]
 dependencies: ["Epic 1 Story 1.1 - Project initialization complete"]
 createdAt: 2026-01-22
-updatedAt: 2026-02-16
+updatedAt: 2026-03-09
 ---
 
 # Epic 11: Marketing Landing & User Onboarding
 
 ## Epic Goal
 
-Visitors can learn about Procureline, understand pricing tiers, and start using the Free tier seamlessly. New users receive guided onboarding for quick time-to-value.
+Visitors can learn about Procureline, understand pricing tiers, and reach the correct public onboarding or access path for their role. New users receive guided onboarding for quick time-to-value.
 
 ## User Outcome
 
-The path from "What is Procureline?" to "I'm using Procureline" is smooth, informative, and friction-free. Users understand the value proposition, can compare tiers, and get productive quickly after signup.
+The path from "What is Procureline?" to "I'm using Procureline" is smooth, informative, and friction-free. Users understand the value proposition, can compare tiers, and can reach the right auth path for institution signup, Procurement Officer access, or Department User access.
 
 ## Requirements Covered
 
@@ -29,7 +29,7 @@ The path from "What is Procureline?" to "I'm using Procureline" is smooth, infor
 
 - FR90: Marketing landing page with feature descriptions
 - FR91: Pricing tiers and comparison
-- FR92: Free tier signup process
+- FR92: Public self-serve signup process for Free, Starter, and Professional tiers
 - FR93: Onboarding flow after first login
 - FR94: Contextual help within application
 
@@ -46,15 +46,31 @@ The path from "What is Procureline?" to "I'm using Procureline" is smooth, infor
 
 **Ready to Start:**
 - Story 11.1 can now be implemented with full backend support available
-- Signup form (Epic 1 Story 1.2) can connect to working Convex Auth
+- Public auth entry and signup flows can connect to working Convex Auth
 
 ---
 
 - Landing page as static Next.js pages for SEO
 - Pricing page with interactive tier comparison
-- Free Forever signup flow integrated with Epic 1 authentication
+- Public auth entry flow integrated with Epic 1 authentication
 - Onboarding wizard tracks progress per user
 - Contextual help via tooltip system and help drawer
+
+Onboarding model for this epic:
+- Tenant Admin: public self-serve signup for Free, Starter, or Professional tiers
+- Procurement Officer: public-facing access flow using invitation link or one-time activation code issued by a Tenant Admin
+- Department User: public-facing access flow using a department-scoped access code issued by a Procurement Officer
+- Platform Admin: internal-only, not part of public onboarding
+- Enterprise: manual contact-sales or assisted provisioning path, not public self-serve signup
+
+---
+
+## Story Delivery Map
+
+- `Story 11.1` achieves first-contact understanding of the product. Delivery should convert the marketing narrative, pricing cues, and core calls to action into a polished landing page that makes the next step obvious.
+- `Story 11.2` achieves pricing clarity and self-selection. Delivery should turn plan definitions into a comparison surface that routes self-serve tiers to signup and Enterprise prospects to a manual sales path.
+- `Story 11.3` achieves clean public entry into the right auth path. Delivery should present role-aware choices, explain prerequisites for PO and DU access, and route users into the correct downstream authentication flows without exposing unsafe signup paths.
+- `Story 11.4` achieves guided activation after account access is established. Delivery should tailor onboarding copy, help surfaces, and progress persistence so each role can become productive quickly after first login.
 
 ---
 
@@ -87,7 +103,7 @@ So that I can decide if it's right for my organization.
 - Customer testimonials (when available)
 - **Pricing section with 4-tier grid** (Free, Starter, Professional, Enterprise in USD)
 - **"Free Forever" trial banner** (not 14-day trial)
-- CTA buttons ("Create Free Account", "View Pricing")
+- CTA buttons ("Create Free Account", "View Pricing", "Sign In / Join")
 
 **Given** a visitor views the landing page
 **When** they want to see the product
@@ -105,6 +121,11 @@ So that I can decide if it's right for my organization.
 **When** navigating to signup
 **Then** system routes to `/signup` (Epic 1 Story 1.2 - Tenant Admin Registration)
 
+**Given** a visitor clicks "Sign In / Join"
+**When** navigating to authentication entry
+**Then** system routes to a public auth entry page
+**And** that page offers distinct paths for institution signup, Procurement Officer access, Department User access, and standard sign-in
+
 **Technical Notes:**
 
 - **Implementation order:** This is the FIRST story - provides immediate visual feedback
@@ -112,7 +133,7 @@ So that I can decide if it's right for my organization.
 - Landing page as Next.js static page for optimal SEO
 - Animations via Framer Motion for engagement
 - Demo content via embedded video or animated images
-- CTA buttons link to `/signup` (Epic 1 Story 1.2) and `/pricing`
+- CTA buttons link to `/signup` (Epic 1 Story 1.2), `/pricing`, and the public auth entry page
 - SEO via Next.js metadata API
 - **Billing:** All pricing in USD, annual billing aligned to Kenya Fiscal Year (July 1 - June 30)
 
@@ -132,7 +153,7 @@ So that I can choose the right plan for my organization.
 
 **Given** a visitor views pricing
 **When** reviewing tiers
-**Then** page displays three tiers: Starter, Professional, Enterprise
+**Then** page displays four tiers: Free, Starter, Professional, Enterprise
 **And** each tier shows: price, user limits, features included
 
 **Given** a visitor views pricing
@@ -145,7 +166,7 @@ So that I can choose the right plan for my organization.
 **Then** prices shown in KES with optional USD toggle
 **And** annual pricing with monthly equivalent shown
 
-**Given** a visitor selects a tier
+**Given** a visitor selects the Free, Starter, or Professional tier
 **When** clicking "Get Started" on a tier
 **Then** system routes to signup with tier pre-selected
 
@@ -167,20 +188,67 @@ So that I can choose the right plan for my organization.
 
 ---
 
-### Story 11.3: Trial Signup & User Onboarding
+### Story 11.3: Public Role-Based Auth Entry
 
-As a **new user**,
+As a **public visitor who needs access**,
+I want a clear role-based auth entry page,
+So that I can choose the correct path to create or access my account without confusion.
+
+**Acceptance Criteria:**
+
+**Given** a visitor navigates to the public auth entry page
+**When** the page loads
+**Then** system displays clear access choices for:
+
+- Create Institution Account
+- Procurement Officer Access
+- Department User Access
+- Sign In
+
+**Given** a visitor selects "Create Institution Account"
+**When** they continue
+**Then** system routes them to the tenant signup flow
+**And** signup supports Free, Starter, and Professional tier self-serve institution creation
+
+**Given** a visitor selects "Procurement Officer Access"
+**When** they view that path
+**Then** system explains they must have either:
+
+- an invitation link from their Tenant Admin
+- a one-time activation code issued by their Tenant Admin
+
+**Given** a visitor selects "Department User Access"
+**When** they view that path
+**Then** system explains they need a department access code from their Procurement Officer
+**And** they are routed toward the DU access-code login flow defined in Epic 1
+
+**Given** a visitor selects "Sign In"
+**When** they continue
+**Then** system routes them to the standard email/password login flow for existing eligible accounts
+
+**Given** a visitor attempts to join without the required credential
+**When** they are on the PO or DU path
+**Then** system does not offer public self-signup for those roles
+**And** instead explains the prerequisite invite or access-code requirement
+
+**Technical Notes:**
+
+- This story owns the public routing and explanatory UX, not the downstream auth mechanics
+- PO onboarding credentials must be tenant-scoped and person-specific
+- DU access must remain department-scoped
+- The public auth entry must not introduce or imply a tenant-wide shared onboarding key
+
+---
+
+### Story 11.4: First-Login Onboarding & Contextual Help
+
+As a **newly authenticated user**,
 I want a guided onboarding experience,
 So that I can quickly understand how to use Procureline.
 
 **Acceptance Criteria:**
 
-**Given** a visitor wants to start using the Free tier
-**When** they access the signup page
-**Then** system displays Free tier signup process (FR92)
-**And** form collects: email, password, organization name, role
-
-**Given** a user completes signup
+**Given** a user completes signup or account activation
 **When** they log in for the first time
 **Then** system displays onboarding flow (FR93)
 **And** flow guides through initial setup
@@ -190,7 +258,7 @@ So that I can quickly understand how to use Procureline.
 **Then** flow includes:
 
 - Welcome message with value proposition
-- Role selection (Tenant Admin, PO - determines flow)
+- Role-aware onboarding copy based on the authenticated user's role
 - Quick tour of key features
 - First action prompt (e.g., "Create your first department")
 - Success celebration
@@ -221,7 +289,6 @@ So that I can quickly understand how to use Procureline.
 
 **Technical Notes:**
 
-- Signup form validation with real-time feedback
 - Onboarding state in `userOnboarding` table with step progress
 - Contextual help via tooltip component with help text from content file
 - Help drawer component with content loaded from MDX or API
@@ -239,9 +306,18 @@ Story 11.1 (Landing Page)
             └── Story 11.3 (Signup & Onboarding)
 ```
 
+## Revised Dependency Graph
+
+```
+Story 11.1 (Landing Page)
+  -> Story 11.2 (Pricing)
+    -> Story 11.3 (Public Auth Entry)
+      -> Story 11.4 (Onboarding & Help)
+```
+
 ## Definition of Done
 
-- [ ] All 3 stories implemented and tested
+- [ ] All 4 stories implemented and tested
 - [ ] Landing page loads quickly (<2s)
 - [ ] SEO metadata verified with testing tools
 - [ ] Pricing page accurate and responsive

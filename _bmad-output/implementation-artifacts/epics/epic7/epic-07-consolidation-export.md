@@ -54,6 +54,17 @@ POs (like Sarah Mwangi from the user journey) can complete consolidation in hour
 
 ---
 
+## Story Delivery Map
+
+- `Story 7.1` achieves controlled entry into the consolidation phase. Delivery should ensure only the right PO and the right plan states can open the consolidation workspace, with enough context to understand what is ready.
+- `Story 7.2` achieves the actual assembly of approved departmental plans into one institutional view. Delivery should support drag-and-drop or equivalent composition mechanics while preserving traceability back to source plans.
+- `Story 7.3` achieves trustworthy compliance and financial totals during consolidation. Delivery should centralize calculations, surface threshold breaches immediately, and avoid duplicating business logic across UI and export layers.
+- `Story 7.4` achieves a formal handoff from editable consolidation to frozen versioned output. Delivery should introduce explicit finalization rules, revision history, and safeguards against silent post-finalization changes.
+- `Story 7.5` achieves exportability of the consolidated plan. Delivery should orchestrate export jobs, progress feedback, and secure retrieval of generated files without blocking the main user workflow.
+- `Story 7.6` achieves standards-compliant Excel output instead of a raw data dump. Delivery should shape workbook structure, formatting, formulas, and required content so the output is acceptable to downstream government processes.
+
+---
+
 ## Stories
 
 ### Story 7.1: Consolidation Workspace Access

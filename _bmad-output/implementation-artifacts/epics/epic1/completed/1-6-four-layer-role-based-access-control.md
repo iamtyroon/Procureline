@@ -1,6 +1,6 @@
 # Story 1.6: Four-Layer Role-Based Access Control
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -23,52 +23,52 @@ so that users can only access features and data appropriate to their role.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Establish the canonical role model and storage strategy (AC: 1, 2, 3, 4, 5)
-  - [ ] Add a shared role module such as `webapp/lib/auth/roles.ts` that defines canonical role keys, labels, home routes, and allowed route prefixes.
-  - [ ] Preserve the existing tenant role values already stored in the database: `tenant_admin`, `procurement_officer`, and `department_user`.
-  - [ ] Introduce an app-owned global-role table for Platform Admins, e.g. `platformUsers`, keyed by `userId` with `isActive` and `createdAt`; do not fake a tenant record to represent a platform admin.
-  - [ ] Define and enforce the MVP invariant for role assignment: exactly one active application role context per authenticated user at a time; if conflicting role records exist, fail closed.
-  - [ ] Do not attempt to modify Convex Auth's generated `users` schema directly for role storage; keep role data in app-owned tables.
-  - [ ] If a bootstrap path is needed for local/dev validation, add an internal-only mutation or seed mechanism for assigning `platform_admin`; do not expose platform-role assignment as a public mutation in this story.
+- [x] Task 1: Establish the canonical role model and storage strategy (AC: 1, 2, 3, 4, 5)
+  - [x] Add a shared role module such as `webapp/lib/auth/roles.ts` that defines canonical role keys, labels, home routes, and allowed route prefixes.
+  - [x] Preserve the existing tenant role values already stored in the database: `tenant_admin`, `procurement_officer`, and `department_user`.
+  - [x] Introduce an app-owned global-role table for Platform Admins, e.g. `platformUsers`, keyed by `userId` with `isActive` and `createdAt`; do not fake a tenant record to represent a platform admin.
+  - [x] Define and enforce the MVP invariant for role assignment: exactly one active application role context per authenticated user at a time; if conflicting role records exist, fail closed.
+  - [x] Do not attempt to modify Convex Auth's generated `users` schema directly for role storage; keep role data in app-owned tables.
+  - [x] If a bootstrap path is needed for local/dev validation, add an internal-only mutation or seed mechanism for assigning `platform_admin`; do not expose platform-role assignment as a public mutation in this story.
 
-- [ ] Task 2: Build secure backend authorization context and guard helpers (AC: 1, 2, 3, 4, 5, 6, 7, 8)
-  - [ ] Add a dedicated Convex authorization helper such as `webapp/convex/functions/_roleGuard.ts` that resolves the current user's authorization context from `getAuthUserId`, `getAuthSessionId`, the app-owned role tables, and the existing session-validity checks.
-  - [ ] Extend or refactor `webapp/convex/functions/users.ts#getAuthContext` so it can return platform-admin and tenant-role contexts from a single canonical source.
-  - [ ] Normalize the returned authorization context to include at minimum: `role`, `homePath`, `scope` (`platform` or `tenant`), `isActive`, `isSessionValid`, and any tenant identifier only when applicable.
-  - [ ] Add deny-by-default helpers such as `requireAuthenticatedUser`, `requireAnyRole`, and tenant-role assertion helpers so future Convex queries/mutations can reuse the same enforcement path.
-  - [ ] Ensure authenticated-but-wrong-role requests produce consistent unauthorized behavior and do not silently fall through as generic authenticated success.
-  - [ ] Explicitly handle and test these backend edge states: no role record, duplicate active role records, inactive role record, unknown role value, and platform-admin records accidentally combined with tenant-role records.
-  - [ ] Ensure tenant-only helpers hard-fail when invoked for a platform admin or for an auth context with no tenant scope.
+- [x] Task 2: Build secure backend authorization context and guard helpers (AC: 1, 2, 3, 4, 5, 6, 7, 8)
+  - [x] Add a dedicated Convex authorization helper such as `webapp/convex/functions/_roleGuard.ts` that resolves the current user's authorization context from `getAuthUserId`, `getAuthSessionId`, the app-owned role tables, and the existing session-validity checks.
+  - [x] Extend or refactor `webapp/convex/functions/users.ts#getAuthContext` so it can return platform-admin and tenant-role contexts from a single canonical source.
+  - [x] Normalize the returned authorization context to include at minimum: `role`, `homePath`, `scope` (`platform` or `tenant`), `isActive`, `isSessionValid`, and any tenant identifier only when applicable.
+  - [x] Add deny-by-default helpers such as `requireAuthenticatedUser`, `requireAnyRole`, and tenant-role assertion helpers so future Convex queries/mutations can reuse the same enforcement path.
+  - [x] Ensure authenticated-but-wrong-role requests produce consistent unauthorized behavior and do not silently fall through as generic authenticated success.
+  - [x] Explicitly handle and test these backend edge states: no role record, duplicate active role records, inactive role record, unknown role value, and platform-admin records accidentally combined with tenant-role records.
+  - [x] Ensure tenant-only helpers hard-fail when invoked for a platform admin or for an auth context with no tenant scope.
 
-- [ ] Task 3: Apply RBAC to protected app routing and dashboard entry points (AC: 2, 3, 4, 5, 6, 7, 8)
-  - [ ] Add a protected `/platform-admin` page placeholder alongside the existing `/tenant-admin`, `/po`, and `/du` routes.
-  - [ ] Add a shared frontend role guard, or page-level guard pattern, that uses the centralized role map to protect role-specific routes and display a clear forbidden-access notice when redirecting to the correct dashboard.
-  - [ ] Convert `webapp/app/(app)/dashboard/page.tsx` into a neutral role-resolution entry point that redirects authenticated users to their canonical home route instead of rendering tenant-only fallback content.
-  - [ ] Update the authenticated app shell so wrong-role navigation is handled explicitly and does not rely on placeholder pages rendering for the wrong user.
-  - [ ] Keep `webapp/proxy.ts` focused on authentication and cache-header shaping; do not turn Proxy into the sole source of truth for role authorization.
-  - [ ] Match protected routes by full path segment boundaries, not naive string prefix checks, so `/po` does not accidentally authorize `/portal`-style paths.
-  - [ ] Add a safe fallback for impossible redirect states so users do not get trapped in redirect loops when the computed home route is missing or forbidden.
+- [x] Task 3: Apply RBAC to protected app routing and dashboard entry points (AC: 2, 3, 4, 5, 6, 7, 8)
+  - [x] Add a protected `/platform-admin` page placeholder alongside the existing `/tenant-admin`, `/po`, and `/du` routes.
+  - [x] Add a shared frontend role guard, or page-level guard pattern, that uses the centralized role map to protect role-specific routes and display a clear forbidden-access notice when redirecting to the correct dashboard.
+  - [x] Convert `webapp/app/(app)/dashboard/page.tsx` into a neutral role-resolution entry point that redirects authenticated users to their canonical home route instead of rendering tenant-only fallback content.
+  - [x] Update the authenticated app shell so wrong-role navigation is handled explicitly and does not rely on placeholder pages rendering for the wrong user.
+  - [x] Keep `webapp/proxy.ts` focused on authentication and cache-header shaping; do not turn Proxy into the sole source of truth for role authorization.
+  - [x] Match protected routes by full path segment boundaries, not naive string prefix checks, so `/po` does not accidentally authorize `/portal`-style paths.
+  - [x] Add a safe fallback for impossible redirect states so users do not get trapped in redirect loops when the computed home route is missing or forbidden.
 
-- [ ] Task 4: Fix onboarding and post-auth redirects to use centralized role resolution (AC: 1, 2, 3, 4, 5, 7, 8)
-  - [ ] Update `webapp/src/components/auth/VerifyEmailForm.tsx` so it no longer hardcodes `/tenant-admin` after verification.
-  - [ ] Ensure login and post-verification redirects read from the same canonical auth/authorization context used everywhere else.
-  - [ ] Preserve Story 1.5's session-management behavior, including remember-me handling and invalid-session cleanup, while layering RBAC on top.
-  - [ ] Add a user-facing forbidden-access message path that is distinct from `session_expired`, `account_deactivated`, and `subscription_inactive`.
-  - [ ] Define the UX and backend behavior for authenticated users with no assigned application role yet: either a dedicated pending-access screen or a deterministic safe redirect, but never silent access to a protected dashboard.
+- [x] Task 4: Fix onboarding and post-auth redirects to use centralized role resolution (AC: 1, 2, 3, 4, 5, 7, 8)
+  - [x] Update `webapp/src/components/auth/VerifyEmailForm.tsx` so it no longer hardcodes `/tenant-admin` after verification.
+  - [x] Ensure login and post-verification redirects read from the same canonical auth/authorization context used everywhere else.
+  - [x] Preserve Story 1.5's session-management behavior, including remember-me handling and invalid-session cleanup, while layering RBAC on top.
+  - [x] Add a user-facing forbidden-access message path that is distinct from `session_expired`, `account_deactivated`, and `subscription_inactive`.
+  - [x] Define the UX and backend behavior for authenticated users with no assigned application role yet: either a dedicated pending-access screen or a deterministic safe redirect, but never silent access to a protected dashboard.
 
-- [ ] Task 5: Wire RBAC into the current data-access surface without overreaching scope (AC: 2, 3, 4, 5, 6, 7, 8)
-  - [ ] Apply the new authorization helpers to the existing auth-context and dashboard entry flows so the role model is enforced immediately for current protected routes.
-  - [ ] Return `ConvexError`-based unauthorized errors from secure backend paths; page-level redirects are for UX, not the only security layer.
-  - [ ] Keep department-level data constraints extensible but do not fabricate department tables or fake `departmentId` references in this story before the department domain exists.
-  - [ ] Do not add billing, reporting, procurement CRUD, or tenant-isolation data filters beyond what is needed to establish the RBAC foundation for future stories.
-  - [ ] Make authorization decisions read latest database state on each protected request so role removals/deactivations take effect without requiring fresh login.
+- [x] Task 5: Wire RBAC into the current data-access surface without overreaching scope (AC: 2, 3, 4, 5, 6, 7, 8)
+  - [x] Apply the new authorization helpers to the existing auth-context and dashboard entry flows so the role model is enforced immediately for current protected routes.
+  - [x] Return `ConvexError`-based unauthorized errors from secure backend paths; page-level redirects are for UX, not the only security layer.
+  - [x] Keep department-level data constraints extensible but do not fabricate department tables or fake `departmentId` references in this story before the department domain exists.
+  - [x] Do not add billing, reporting, procurement CRUD, or tenant-isolation data filters beyond what is needed to establish the RBAC foundation for future stories.
+  - [x] Make authorization decisions read latest database state on each protected request so role removals/deactivations take effect without requiring fresh login.
 
-- [ ] Task 6: Add automated and backend-first coverage for role resolution and denial paths (AC: 1, 2, 3, 4, 5, 6, 7, 8)
-  - [ ] Add unit-style tests for role constants, route-permission mapping, home-route selection, and forbidden redirect behavior.
-  - [ ] Add tests for the authorization-context resolution logic covering `platform_admin`, `tenant_admin`, `procurement_officer`, `department_user`, and no-role edge cases.
-  - [ ] Extend current auth/proxy tests to confirm public routes remain public, protected routes stay auth-gated, and Proxy does not become a database-backed role checker.
-  - [ ] Add explicit automated cases for: conflicting role records, inactive role records, unknown role strings from corrupted data, route-segment matching boundaries, redirect-loop prevention, and role revocation after session establishment.
-  - [ ] If browser testing is unavailable, replace manual validation with deterministic backend/component tests plus a documented test matrix of expected redirects and authorization outcomes for each role-path combination.
+- [x] Task 6: Add automated and backend-first coverage for role resolution and denial paths (AC: 1, 2, 3, 4, 5, 6, 7, 8)
+  - [x] Add unit-style tests for role constants, route-permission mapping, home-route selection, and forbidden redirect behavior.
+  - [x] Add tests for the authorization-context resolution logic covering `platform_admin`, `tenant_admin`, `procurement_officer`, `department_user`, and no-role edge cases.
+  - [x] Extend current auth/proxy tests to confirm public routes remain public, protected routes stay auth-gated, and Proxy does not become a database-backed role checker.
+  - [x] Add explicit automated cases for: conflicting role records, inactive role records, unknown role strings from corrupted data, route-segment matching boundaries, redirect-loop prevention, and role revocation after session establishment.
+  - [x] If browser testing is unavailable, replace manual validation with deterministic backend/component tests plus a documented test matrix of expected redirects and authorization outcomes for each role-path combination.
 
 ## Dev Notes
 
@@ -291,20 +291,25 @@ gpt-5-codex
   - `webapp/package.json`
   - `webapp/convex/schema.ts`
   - `webapp/convex/auth.ts`
+  - `webapp/convex/functions/_roleGuard.ts`
   - `webapp/convex/functions/users.ts`
   - `webapp/convex/functions/sessions.ts`
   - `webapp/app/(app)/layout.tsx`
   - `webapp/app/(app)/dashboard/page.tsx`
+  - `webapp/app/(app)/platform-admin/page.tsx`
   - `webapp/app/(app)/tenant-admin/page.tsx`
   - `webapp/app/(app)/po/page.tsx`
   - `webapp/app/(app)/du/page.tsx`
   - `webapp/src/components/auth/LoginForm.tsx`
+  - `webapp/src/components/auth/RoleGuard.tsx`
   - `webapp/src/components/auth/SignupForm.tsx`
   - `webapp/src/components/auth/VerifyEmailForm.tsx`
+  - `webapp/lib/auth/roles.ts`
   - `webapp/lib/auth/session.ts`
   - `webapp/lib/auth/proxy.ts`
   - `webapp/lib/auth/public-routes.ts`
   - `webapp/lib/validators/auth.ts`
+  - `webapp/tests/rbac.test.ts`
   - `webapp/tests/proxy.test.ts`
   - `webapp/tests/session-management.test.ts`
 - Recent git context: last 5 commits on `main`
@@ -314,11 +319,41 @@ gpt-5-codex
 
 ### Completion Notes List
 
-- Story context created from the current epic, planning artifacts, and the live `webapp` implementation state.
-- RBAC guidance reflects the real codebase gap: three tenant roles currently exist, while `platform_admin` and centralized authorization do not.
-- Story is ready for implementation and intentionally preserves Story 1.5 session-management patterns.
-- Sprint status should be advanced to `ready-for-dev` for `1-6-four-layer-role-based-access-control`.
+- Added a canonical RBAC model in `webapp/lib/auth/roles.ts` with four role keys, home routes, segment-aware route matching, forbidden redirect fallbacks, and fail-closed role-record resolution.
+- Added the app-owned `platformUsers` table plus an internal-only `assignPlatformAdmin` bootstrap mutation, preserving tenant role storage in `tenantUsers`.
+- Centralized backend authorization in `webapp/convex/functions/_roleGuard.ts` and refactored `webapp/convex/functions/users.ts#getAuthContext` to return one normalized auth context for platform and tenant roles.
+- Updated the protected app shell and neutral dashboard entry so wrong-role navigation redirects with a forbidden notice, pending/misconfigured users land on a safe dashboard state, and post-login/post-verification flows resolve from the same auth context.
+- Hardened the current data-access surface by making tenant-only lookups fail with `ConvexError` authorization semantics instead of silently returning cross-scope results.
+- Added backend-first RBAC coverage in `webapp/tests/rbac.test.ts` and extended `webapp/tests/proxy.test.ts`; `npm test`, `npm run lint`, `npx convex codegen`, and `npm run build` all passed.
+- Follow-up after live browser verification: added explicit login-page metadata so `/login` now reports the correct browser title instead of inheriting the auth layout signup title.
+
+### Change Log
+
+- 2026-03-09: Implemented four-layer RBAC foundations across Convex auth context resolution, protected route guarding, role-aware redirects, platform-admin bootstrap support, and deterministic authorization test coverage.
+- 2026-03-09: Corrected `/login` page metadata after browser verification exposed the inherited signup title in the auth layout.
+- 2026-03-09: Code review fixes — hardened `assignPlatformAdmin` to reject duplicate inactive records; added guard-coverage doc comment on `getAuthorizationContext`; added 6 new RBAC edge-case and happy-path tests; extracted shared `Spinner` component from duplicated inline SVGs; documented the `tenantId` type cast safety.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/1-6-four-layer-role-based-access-control.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `webapp/.test-dist/lib/auth/roles.js`
+- `webapp/.test-dist/tests/proxy.test.js`
+- `webapp/.test-dist/tests/rbac.test.js`
+- `webapp/.test-dist/tests/run-tests.js`
+- `webapp/app/(auth)/login/page.tsx`
+- `webapp/app/(app)/dashboard/page.tsx`
+- `webapp/app/(app)/layout.tsx`
+- `webapp/app/(app)/platform-admin/page.tsx`
+- `webapp/convex/_generated/api.d.ts`
+- `webapp/convex/functions/_roleGuard.ts`
+- `webapp/convex/functions/users.ts`
+- `webapp/convex/schema.ts`
+- `webapp/lib/auth/roles.ts`
+- `webapp/src/components/auth/LoginForm.tsx`
+- `webapp/src/components/auth/RoleGuard.tsx`
+- `webapp/src/components/auth/VerifyEmailForm.tsx`
+- `webapp/tests/proxy.test.ts`
+- `webapp/tests/rbac.test.ts`
+- `webapp/tests/run-tests.ts`
+- `webapp/src/components/ui/Spinner.tsx`

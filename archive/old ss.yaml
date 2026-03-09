@@ -4,6 +4,27 @@
 # tracking_system: file-system
 # story_location: c:\Users\Tyroon\Downloads\project\Procureline\_bmad-output\implementation-artifacts
 # last_updated: 2026-03-09
+
+# ==============================================================================
+# CURRENT SPRINT FOCUS (Updated 2026-03-09)
+# ==============================================================================
+# SPRINT GOAL: Continue from completed landing page into aligned auth and onboarding work
+#
+# COMPLETED:
+#   Epic 11 Story 11.1 - Marketing Landing Page
+#   ✅ Epic 1 Story 1.1 - Project Initialization (Convex Ents + Next.js 16)
+#
+# IN PROGRESS:
+#   Epic 1 Story 1.6 - Four-Layer Role-Based Access Control (ready for dev)
+#   🔄 Epic 11 Story 11.1 - Marketing Landing Page (PRIORITY)
+#      Target: webapp/src/app/page.tsx (port from docs/html/landing.html)
+#
+# NEXT UP:
+#   Epic 11 Story 11.2 - Pricing Page & Tier Comparison
+#   Epic 11 Story 11.3 - Public Role-Based Auth Entry
+#   Epic 11 Story 11.4 - First-Login Onboarding & Contextual Help
+#   ⏳ Epic 1 Story 1.2 - Tenant Admin Registration (hooks into landing CTA)
+#
 # ==============================================================================
 
 # STATUS DEFINITIONS:
@@ -43,85 +64,21 @@ story_location: "c:\\Users\\Tyroon\\Downloads\\project\\Procureline\\_bmad-outpu
 
 development_status:
   epic-1: in-progress
-  epic-11: in-progress
-  epic-2: backlog
-  epic-3: backlog
-  epic-4: backlog
-  epic-5: backlog
-  epic-6: backlog
-  epic-7: backlog
-  epic-8: backlog
-  epic-9: backlog
-  epic-10: backlog
-
   1-1-project-initialization-with-convex-ents-starter: done
   1-2-tenant-admin-registration-free-tier-signup: done
   1-3-user-login-with-email-password: done
   1-4-password-reset-via-email: done
   1-5-session-management-logout: done
-  1-6-four-layer-role-based-access-control: done
-  1-7-tenant-data-isolation: ready-for-dev
-  1-9-security-infrastructure-input-validation: backlog
-  2-0-nestjs-microservice-foundation-external-services: backlog
-
-  11-1-marketing-landing-page: done
-  11-2-pricing-page-tier-comparison: backlog
-  11-3-public-role-based-auth-entry: backlog
+  1-6-four-layer-role-based-access-control: ready-for-dev
+  1-7-tenant-data-isolation: backlog
   1-8-du-access-code-authentication: backlog
-  11-4-first-login-onboarding-contextual-help: backlog
+  1-9-security-infrastructure-input-validation: backlog
+  epic-1-retrospective: optional
 
-  3-2-tenant-admin-dashboard: backlog
-  4-1-po-dashboard-onboarding-wizard: backlog
-  5-1-du-dashboard-plan-status: backlog
+  epic-2: backlog
+  2-0-nestjs-microservice-foundation-external-services: backlog
   2-1-platform-admin-authentication-2fa: backlog
   2-2-platform-admin-dashboard-shell: backlog
-  3-1-tenant-admin-institution-setup-flow: backlog
-  3-3-po-management-add-invite: backlog
-  4-2-department-crud-operations: backlog
-  4-3-access-code-generation-management: backlog
-  4-5-submission-deadline-management: backlog
-
-  5-2-blockly-workspace-core: backlog
-  5-6-budget-meter-calculations: backlog
-  5-7-blockly-toolbox-block-management: backlog
-  5-3-blockly-validation-constraints: backlog
-  5-4-plan-persistence-recovery: backlog
-  4-7-category-management: backlog
-  4-8-item-catalog-management: backlog
-  4-9-catalog-search-export: backlog
-  5-5-item-category-requests-du-side: backlog
-  4-10-item-category-request-processing: backlog
-
-  6-3-po-submission-queue: backlog
-  6-4-plan-review-interface: backlog
-  6-7-submission-status-tracking: backlog
-  6-2-pre-submission-validation: backlog
-  6-1-plan-submission-flow: backlog
-  6-5-plan-approval-rejection: backlog
-  6-6-du-revision-flow: backlog
-  4-6-submission-monitoring-reminders: backlog
-  3-9-cross-institutional-visibility: backlog
-
-  7-1-consolidation-workspace-access: backlog
-  7-2-drag-and-drop-department-consolidation: backlog
-  7-3-compliance-calculations-totals: backlog
-  7-4-finalization-versioning: backlog
-  7-5-excel-export: backlog
-  7-6-excel-formatting-content: backlog
-  3-8-report-generation-system: backlog
-
-  8-1-free-tier-provisioning-usage-monitoring: backlog
-  8-2-subscription-tier-selection: backlog
-  8-3-payment-processing: backlog
-  8-4-invoice-management: backlog
-  8-5-subscription-lifecycle-management: backlog
-  9-1-plan-workflow-notifications: backlog
-  9-2-deadline-reminder-notifications: backlog
-  9-3-billing-notifications: backlog
-  9-4-item-request-custom-notifications: backlog
-  10-1-comprehensive-action-logging: backlog
-  10-2-audit-log-viewing: backlog
-  10-3-audit-report-generation: backlog
   2-3-tenant-list-overview: backlog
   2-4-tenant-creation-provisioning: backlog
   2-5-tenant-configuration-management: backlog
@@ -133,25 +90,91 @@ development_status:
   2-11-security-dashboard-compliance: backlog
   2-12-support-tickets-incidents: backlog
   2-13-system-configuration-feature-flags: backlog
+  epic-2-retrospective: optional
+
+  epic-3: backlog
+  3-1-tenant-admin-institution-setup-flow: backlog
+  3-2-tenant-admin-dashboard: backlog
+  3-3-po-management-add-invite: backlog
   3-4-po-management-lifecycle-activity: backlog
   3-5-institutional-settings-configuration: backlog
   3-6-billing-dashboard-payment-methods: backlog
   3-7-subscription-lifecycle-management: backlog
+  3-8-report-generation-system: backlog
+  3-9-cross-institutional-visibility: backlog
   3-10-notification-system: backlog
   3-11-security-session-management: backlog
   3-12-account-lifecycle-admin-transfer: backlog
-  4-4-budget-allocation-department-import: backlog
-
-  epic-1-retrospective: optional
-  epic-2-retrospective: optional
   epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-po-dashboard-onboarding-wizard: backlog
+  4-2-department-crud-operations: backlog
+  4-3-access-code-generation-management: backlog
+  4-4-budget-allocation-department-import: backlog
+  4-5-submission-deadline-management: backlog
+  4-6-submission-monitoring-reminders: backlog
+  4-7-category-management: backlog
+  4-8-item-catalog-management: backlog
+  4-9-catalog-search-export: backlog
+  4-10-item-category-request-processing: backlog
   epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-1-du-dashboard-plan-status: backlog
+  5-2-blockly-workspace-core: backlog
+  5-3-blockly-validation-constraints: backlog
+  5-4-plan-persistence-recovery: backlog
+  5-5-item-category-requests-du-side: backlog
+  5-6-budget-meter-calculations: backlog
+  5-7-blockly-toolbox-block-management: backlog
   epic-5-retrospective: optional
+
+  epic-6: backlog
+  6-1-plan-submission-flow: backlog
+  6-2-pre-submission-validation: backlog
+  6-3-po-submission-queue: backlog
+  6-4-plan-review-interface: backlog
+  6-5-plan-approval-rejection: backlog
+  6-6-du-revision-flow: backlog
+  6-7-submission-status-tracking: backlog
   epic-6-retrospective: optional
+
+  epic-7: backlog
+  7-1-consolidation-workspace-access: backlog
+  7-2-drag-and-drop-department-consolidation: backlog
+  7-3-compliance-calculations-totals: backlog
+  7-4-finalization-versioning: backlog
+  7-5-excel-export: backlog
+  7-6-excel-formatting-content: backlog
   epic-7-retrospective: optional
+
+  epic-8: backlog
+  8-1-free-tier-provisioning-usage-monitoring: backlog
+  8-2-subscription-tier-selection: backlog
+  8-3-payment-processing: backlog
+  8-4-invoice-management: backlog
+  8-5-subscription-lifecycle-management: backlog
   epic-8-retrospective: optional
+
+  epic-9: backlog
+  9-1-plan-workflow-notifications: backlog
+  9-2-deadline-reminder-notifications: backlog
+  9-3-billing-notifications: backlog
+  9-4-item-request-custom-notifications: backlog
   epic-9-retrospective: optional
+
+  epic-10: backlog
+  10-1-comprehensive-action-logging: backlog
+  10-2-audit-log-viewing: backlog
+  10-3-audit-report-generation: backlog
   epic-10-retrospective: optional
+
+  epic-11: in-progress
+  11-1-marketing-landing-page: done
+  11-2-pricing-page-tier-comparison: backlog
+  11-3-public-role-based-auth-entry: backlog
+  11-4-first-login-onboarding-contextual-help: backlog
   epic-11-retrospective: optional
 
 # STORY SURFACE DEFINITIONS:
@@ -290,7 +313,6 @@ recommended_execution_sequence:
       - 3-2-tenant-admin-dashboard
       - 4-1-po-dashboard-onboarding-wizard
       - 5-1-du-dashboard-plan-status
-      - 2-1-platform-admin-authentication-2fa
       - 2-2-platform-admin-dashboard-shell
       - 3-1-tenant-admin-institution-setup-flow
       - 3-3-po-management-add-invite

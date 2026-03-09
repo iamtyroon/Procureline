@@ -38,6 +38,14 @@ export default defineSchema({
         .index("by_tenantId", ["tenantId"])
         .index("by_userId_tenantId", ["userId", "tenantId"]),
 
+    platformUsers: defineTable({
+        userId: v.id("users"),
+        isActive: v.boolean(),
+        createdAt: v.number(),
+    })
+        .index("by_userId", ["userId"])
+        .index("by_userId_isActive", ["userId", "isActive"]),
+
     sessionMetadata: defineTable({
         sessionId: v.id("authSessions"),
         userId: v.id("users"),

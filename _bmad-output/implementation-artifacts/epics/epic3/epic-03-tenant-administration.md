@@ -18,7 +18,7 @@ Tenant Admins can fully manage their institution including PO management, billin
 
 ## User Outcome
 
-Tenant Admins (like Dr. Amina Hassan from the user journey) can onboard, manage POs, configure institutional settings, handle billing, generate reports, and maintain security for their organization.
+Tenant Admins (like Dr. Amina Hassan from the user journey) can complete institution setup after signup or manual provisioning, manage POs, configure institutional settings, handle billing, generate reports, and maintain security for their organization.
 
 ## Requirements Covered
 
@@ -80,7 +80,7 @@ Tenant Admins (like Dr. Amina Hassan from the user journey) can onboard, manage 
 **What You'll Use from Epic 1:**
 - Tenant Admin authentication and role checks
 - Tenant isolation guards for all data access
-- Email OTP system for PO invitations
+- Email/password and verification infrastructure for invited users
 - Security infrastructure and audit logging
 
 **What You'll Use from Epic 2 Story 2.0:**
@@ -91,29 +91,52 @@ Tenant Admins (like Dr. Amina Hassan from the user journey) can onboard, manage 
 
 ---
 
+## Story Delivery Map
+
+- `Story 3.1` achieves the point where a new institution admin becomes operational. Delivery should bridge self-serve signup or manual provisioning into verified account state, required institution-profile completion, and controlled first access to the tenant dashboard.
+- `Story 3.2` achieves a tenant-wide operating view for the institution admin. Delivery should combine the dashboard shell with aggregated metrics, real-time updates, onboarding cues, and period-aware summaries.
+- `Story 3.3` achieves controlled PO onboarding. Delivery should provide PO creation UI plus invitation issuance through both email links and one-time activation codes so admins can onboard users even when email behavior is unreliable.
+- `Story 3.4` achieves safe PO lifecycle control after onboarding. Delivery should cover deactivation, reactivation, account unlock, and activity visibility while preserving auditability and avoiding accidental loss of tenant coverage.
+- `Story 3.5` achieves institution-specific rule configuration. Delivery should turn fiscal-year settings, branding, compliance defaults, and organization metadata into validated tenant settings with safe update constraints.
+- `Story 3.6` achieves billing visibility and payment-method control for tenant admins. Delivery should surface current subscription state, invoices, payment methods, and warnings while relying on the external billing services already established.
+- `Story 3.7` achieves tenant-side subscription lifecycle actions. Delivery should handle upgrade, downgrade, grace-period, and suspension behavior with clear plan-impact messaging and usage-limit checks.
+- `Story 3.8` achieves self-service report generation for tenant leadership. Delivery should provide report selection UI, parameter handling, asynchronous generation, and secure access to generated outputs.
+- `Story 3.9` achieves institutional oversight across departments and POs. Delivery should aggregate department progress, allow filtering and drill-down, and preserve read-only boundaries where direct editing is not intended.
+- `Story 3.10` achieves tenant-facing notification control. Delivery should expose notification preferences, in-app inbox behavior, and outbound communication actions without letting noise overwhelm the admin experience.
+- `Story 3.11` achieves tenant-admin security visibility and session control. Delivery should provide login history, 2FA management, active session handling, and suspicious-access reporting within the tenant scope.
+- `Story 3.12` achieves safe account lifecycle transitions for the tenant admin role itself. Delivery should support profile changes, transfer of tenant ownership duties, and safeguards against leaving a tenant without an accountable admin.
+
+---
+
 ## Stories
 
-### Story 3.1: Tenant Admin Onboarding Flow
+### Story 3.1: Tenant Admin Institution Setup Flow
 
-As a **newly invited Tenant Admin**,
-I want to complete my account setup through a guided onboarding process,
+As a **new Tenant Admin**,
+I want to complete my account and institution setup through a guided onboarding process,
 So that I can start managing my institution on Procureline.
 
 **Acceptance Criteria:**
 
-**Given** a Platform Admin creates a new tenant with a Tenant Admin email
-**When** the tenant is provisioned
-**Then** system sends invitation email to the Tenant Admin (FR-TA1a)
-**And** the invitation link expires after 72 hours (FR-TA1b)
-**And** Tenant Admin can request a resend if link expires
+**Given** a Tenant Admin signs up through the public self-serve flow
+**When** their account is created
+**Then** system sends email verification to the Tenant Admin (FR-TA1a)
+**And** the verification link expires after 24 hours (FR-TA1b)
+**And** Tenant Admin can request a resend if the verification link expires
 
-**Given** a Tenant Admin clicks the invitation link
+**Given** a Platform Admin provisions a Tenant Admin through the assisted/manual path
+**When** the tenant is provisioned
+**Then** system sends invitation email to the Tenant Admin
+**And** the invitation link expires after 72 hours
+**And** Tenant Admin can request a resend if the invitation link expires
+
+**Given** a manually provisioned Tenant Admin clicks the invitation link
 **When** they set their password
 **Then** system validates password meets policy (12+ chars, uppercase, number, special) (FR-TA1c)
 **And** displays specific validation errors for unmet requirements
 
-**Given** a Tenant Admin completes password setup
-**When** account is created
+**Given** a Tenant Admin completes account creation or password setup
+**When** the account becomes ready for verification
 **Then** system sends email verification link (FR-TA1d)
 **And** verification link expires after 24 hours (FR-TA1e)
 **And** system auto-resends verification (max 3 times) if not verified
@@ -139,10 +162,12 @@ So that I can start managing my institution on Procureline.
 
 **Given** a Tenant Admin forgets their password before completing onboarding
 **When** they use the forgot password flow
-**Then** system supports password reset using the invitation email (FR-TA1j)
+**Then** system supports password reset using the onboarding email address (FR-TA1j)
 
 **Technical Notes:**
-- Create `tenantAdminInvitations` table with `tenantId`, `email`, `token`, `expiresAt`, `status`
+- Public self-serve signup remains the default path for Free, Starter, and Professional tiers
+- Platform Admin-created Tenant Admin onboarding is a secondary/manual provisioning path
+- Create `tenantAdminInvitations` table with `tenantId`, `email`, `token`, `expiresAt`, `status` for the manual provisioning path
 - Organization profile stored in `tenants` table with `profileComplete: boolean`
 - Use Convex Auth for email verification flow
 - Implement `completeOnboarding` mutation that checks all requirements
@@ -233,6 +258,8 @@ So that they can manage departments and procurement activities.
 **Given** a Tenant Admin submits a new PO
 **When** the PO is created
 **Then** system sends invitation email to the PO (FR-TA3c, FR16)
+**And** system generates a one-time activation code for the same invitation
+**And** Tenant Admin can copy and share the activation code manually
 **And** invitation includes organization name and setup instructions
 
 **Given** a Tenant Admin adds a PO
@@ -255,11 +282,23 @@ So that they can manage departments and procurement activities.
 **And** system notifies Tenant Admin that invitation expired
 **And** Tenant Admin can resend invitation
 
+**Given** a PO receives either the invitation link or activation code
+**When** they complete onboarding through the public auth entry path
+**Then** system activates only the invited PO account for that tenant
+**And** invitation acceptance is logged for audit purposes
+
+**Given** a Tenant Admin resends a pending PO invitation
+**When** new invitation credentials are issued
+**Then** the previous pending link and activation code are invalidated
+**And** only the most recent pending invitation remains valid
+
 **Technical Notes:**
-- Create `poInvitations` table with `tenantId`, `email`, `token`, `expiresAt`, `status`
+- Create `poInvitations` table with `tenantId`, `email`, `tokenHash`, `activationCodeHash`, `expiresAt`, `status`, `createdBy`
 - Email sending via Resend API through NestJS microservice
 - Bounce detection via Resend webhook integration
 - Cron job to check expired invitations and notify
+- Activation code must be one-time use, tenant-scoped, and person-specific
+- PO onboarding must not rely on a reusable tenant-wide institution key
 
 ---
 

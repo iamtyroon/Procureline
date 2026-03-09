@@ -82,6 +82,25 @@ Platform Admin has complete visibility and control over all tenants, subscriptio
 
 ---
 
+## Story Delivery Map
+
+- `Story 2.0` establishes the external-services backbone that later epics depend on. Delivery should stand up the NestJS service boundary, secure service-to-service authentication, and expose stable modules for payments, email, file generation, and heavy background work.
+- `Story 2.1` achieves high-trust access for platform operators. Delivery should add the dedicated admin entry path, stronger authentication controls such as 2FA and suspicious-login checks, and tighter session policies than ordinary tenant users receive.
+- `Story 2.2` achieves the shell for the platform-admin workspace. Delivery should create the protected layout, navigation, widget containers, and initial real-time data hooks that later platform stories plug into.
+- `Story 2.3` achieves cross-tenant visibility at list level. Delivery should build a searchable tenant index, summarize operational health and tier status, and support the filters admins need before drilling into detail.
+- `Story 2.4` achieves controlled tenant provisioning from the platform side. Delivery should combine tenant-creation UI, backend provisioning orchestration, uniqueness checks, and rollback behavior when partial setup fails.
+- `Story 2.5` achieves post-provisioning tenant administration. Delivery should surface editable tenant settings, guard dangerous changes, and log every platform-level override or lifecycle action.
+- `Story 2.6` achieves direct platform control over subscription state. Delivery should expose current billing state, allow authorized overrides, and keep platform actions in sync with tenant-access consequences.
+- `Story 2.7` achieves payment-state correctness across payment channels. Delivery should connect webhook-driven automation with manual verification tooling so the platform can process Stripe, IntaSend, and bank-transfer workflows consistently.
+- `Story 2.8` achieves cross-tenant user operations for support and security cases. Delivery should provide search, unlock, forced logout, and password-reset triggers while protecting against orphaning or breaking tenant ownership rules.
+- `Story 2.9` achieves insight into free-tier health and conversion pressure. Delivery should aggregate free-tier usage metrics, limit-hit events, abuse signals, and upgrade opportunities into an actionable monitoring view.
+- `Story 2.10` achieves operational awareness of platform health. Delivery should join infrastructure metrics, job status, and alerting behavior into a dashboard that supports fast diagnosis rather than passive reporting.
+- `Story 2.11` achieves the compliance and threat-visibility surface for platform operators. Delivery should expose tenant-isolation verification, suspicious access attempts, and immutable audit evidence in a form that supports investigation.
+- `Story 2.12` achieves formal support and incident handling. Delivery should provide queue management, escalation controls, incident records, and outbound announcement tools that keep platform operations coordinated during failures.
+- `Story 2.13` achieves centralized system configuration without uncontrolled code edits. Delivery should add safe configuration editing, feature-flag rollout controls, version history, and rollback paths for platform-wide changes.
+
+---
+
 ## Stories
 
 ### Story 2.0: NestJS Microservice Foundation & External Services

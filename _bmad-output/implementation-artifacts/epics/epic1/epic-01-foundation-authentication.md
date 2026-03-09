@@ -20,7 +20,7 @@ Users can securely access the platform with role-based permissions and complete 
 
 ## User Outcome
 
-All four user types (Platform Admin, Tenant Admin, PO, DU) can register, login, and access their appropriate dashboards with proper authorization.
+Tenant Admins can self-register for eligible tiers, Procurement Officers and Departmental Users can access the platform through provisioned role-appropriate entry paths, and all four user types can log in and access their appropriate dashboards with proper authorization.
 
 ## Requirements Covered
 
@@ -130,6 +130,20 @@ A 30-minute validation spike confirmed the upgrade path is clean:
 - Clerk publishableKey error expected until Convex Auth configured
 - Some peer dependency warnings during upgrade (normal)
 - Browserslist outdated warning (run `npx update-browserslist-db@latest` if needed)
+
+---
+
+## Story Delivery Map
+
+- `Story 1.1` establishes the technical baseline for every later story. Delivery should replace the starter auth stack, wire Convex Auth, validate the upgraded Next.js runtime, and leave a buildable multi-tenant foundation with the minimum schema in place.
+- `Story 1.2` achieves self-serve tenant creation for institution admins. Delivery should combine public signup UI, tenant and user creation mutations, default tier assignment, password policy enforcement, and email-verification gating before first access.
+- `Story 1.3` achieves shared email/password access for existing accounts. Delivery should unify the login flow, perform account and subscription checks before session creation, and send users to the correct role-specific destination after authentication.
+- `Story 1.4` achieves secure account recovery without support intervention. Delivery should handle reset request generation, safe token expiry behavior, password update validation, and forced session invalidation after the reset completes.
+- `Story 1.5` achieves predictable session behavior across devices and idle time. Delivery should define cookie/session storage rules, remember-me duration, logout invalidation, and how expired sessions are surfaced to protected routes.
+- `Story 1.6` achieves the authorization spine for the whole platform. Delivery should resolve a canonical role from auth context, enforce route and function guards, fail closed on ambiguous role state, and separate authorization from onboarding.
+- `Story 1.7` achieves hard tenant boundaries in the data layer. Delivery should centralize tenant guard helpers, require tenant-scoped indexes and queries, and ensure cross-tenant probes return safe not-found style behavior with audit logging.
+- `Story 1.8` achieves DU access without normal tenant-admin signup. Delivery should start from the public DU entry path, validate department-scoped access codes, bind verified identities to departments, and enforce lockout and submission-window rules.
+- `Story 1.9` achieves the baseline security controls expected by later epics. Delivery should centralize input validation, sanitization, CORS restrictions, and audit logging so later mutations and admin actions inherit consistent protection.
 
 ---
 
@@ -243,6 +257,10 @@ So that I can access my dashboard and perform my role-specific tasks.
 **Then** they are authenticated and redirected to their role-appropriate dashboard
 **And** a session is created
 
+**Given** a user reaches login from the public auth entry page or directly via `/login`
+**When** they are eligible for standard email/password authentication
+**Then** system uses the same standard login flow for existing accounts
+
 **Given** a user enters invalid email format
 **When** they attempt to login
 **Then** system displays "Invalid email format" error (FR2a)
@@ -271,6 +289,7 @@ So that I can access my dashboard and perform my role-specific tasks.
 - Role-based redirect: Platform Admin → /platform-admin, Tenant Admin → /tenant-admin, PO → /po, DU → /du
 - Check tenant.status before allowing login
 - Check user.isActive before allowing login
+- Public role selection and onboarding guidance are owned by Epic 11; this story covers the shared email/password login mechanics for existing eligible accounts
 
 ---
 
@@ -393,6 +412,7 @@ So that users can only access features and data appropriate to their role.
 - Create `RoleGuard` React component for frontend protection
 - Create Next.js middleware for route protection
 - DU also has `departmentId` field linking to their department
+- This story defines authorization after the user account or role context has been resolved; it does not define the onboarding mechanism for each role
 
 ---
 
@@ -441,7 +461,7 @@ So that I can access my department's procurement planning interface without a tr
 **Acceptance Criteria:**
 
 **Given** a DU with a valid access code
-**When** they enter the access code on the DU login page
+**When** they reach the DU path from the public auth entry page and enter the access code on the DU login page
 **Then** system validates the code
 **And** prompts for email verification (OTP)
 **And** upon OTP verification, DU is logged in and linked to their department (FR5)
@@ -481,6 +501,7 @@ So that I can access my department's procurement planning interface without a tr
 - First-time DU: creates user record linked to department
 - Returning DU: validates code matches existing user's department
 - Track failed attempts in `loginAttempts` table for lockout logic
+- Public auth entry and DU path selection are owned by Epic 11; this story covers DU-specific access-code authentication behavior once the user chooses that path
 
 **Access Code Logic (Security & Tenant Isolation):**
 - Codes are bound to DEPARTMENT, not individual users

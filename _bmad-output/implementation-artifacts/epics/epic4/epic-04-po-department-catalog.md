@@ -101,6 +101,21 @@ POs (like Sarah Mwangi from the user journey) can complete all preparation work 
 
 ---
 
+## Story Delivery Map
+
+- `Story 4.1` achieves the PO control center for the preparation phase. Delivery should combine a role-specific dashboard, readiness checklist, and onboarding prompts so the PO knows which setup tasks remain before DUs can plan.
+- `Story 4.2` achieves the departmental structure the rest of the tenant workflow depends on. Delivery should provide CRUD operations, ownership rules, status visibility, and data integrity checks for departments before planning begins.
+- `Story 4.3` achieves DU access enablement at department level. Delivery should generate, rotate, revoke, and monitor department-scoped access codes without leaking tenant-wide secrets or weakening auditability.
+- `Story 4.4` achieves the budget baseline for every department. Delivery should support manual allocation and bulk import, validate totals against institutional limits, and preserve enough traceability for later review.
+- `Story 4.5` achieves controlled submission windows. Delivery should let the PO define deadlines and period settings that downstream DU access, submission, and reminder behavior can rely on consistently.
+- `Story 4.6` achieves visibility into department readiness before and during collection. Delivery should aggregate submission state, surface lagging departments, and trigger reminders without forcing the PO to inspect each department manually.
+- `Story 4.7` achieves governed category structure for the tenant catalog. Delivery should support category CRUD, ordering, validation, and lifecycle constraints so category misuse does not break downstream planning.
+- `Story 4.8` achieves the catalog content DUs actually plan against. Delivery should provide item creation, validation, import, and maintenance workflows while preserving category alignment, pricing integrity, and tenant scope.
+- `Story 4.9` achieves operational usability of large catalogs. Delivery should add search, filtering, export, and performance-safe browsing so the PO can work efficiently once category and item counts grow.
+- `Story 4.10` achieves the governance loop between DUs and the PO. Delivery should route DU category and item requests into a review queue with approve or deny outcomes that update the catalog and notify requestors.
+
+---
+
 ## Stories
 
 ### Story 4.1: PO Dashboard & Onboarding Wizard

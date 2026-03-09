@@ -46,6 +46,16 @@ Organizations can start with a permanent Free tier, choose appropriate subscript
 
 ---
 
+## Story Delivery Map
+
+- `Story 8.1` achieves operational free-tier provisioning and limit awareness. Delivery should create or update the tenant's free-tier state, track usage metrics, and surface approaching limits before they become confusing blockers.
+- `Story 8.2` achieves tenant-controlled movement from free to paid plans. Delivery should provide clear tier comparison, eligibility checks, and selection flows that connect the tenant-admin UX to the billing backend.
+- `Story 8.3` achieves actual payment capture and verification. Delivery should combine provider-specific payment workflows, callback handling, and subscription-state updates so billing events change tenant access correctly.
+- `Story 8.4` achieves invoice visibility and retrieval. Delivery should surface invoice history, downloadable documents, and payment-state clarity in a way tenant admins can use for internal finance processes.
+- `Story 8.5` achieves safe subscription state transitions over time. Delivery should encode grace periods, suspension, recovery, and renewal effects so access-control behavior matches billing reality without manual cleanup.
+
+---
+
 ## Stories
 
 ### Story 8.1: Free Tier Provisioning & Usage Monitoring

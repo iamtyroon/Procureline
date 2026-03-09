@@ -13,6 +13,7 @@ import {
     readRememberMeBootstrapValue,
     writeRememberMeBootstrapValue,
 } from "@/lib/auth/session";
+import { shouldTerminateAuthenticatedSession } from "@/lib/auth/roles";
 import { loginSchema, type LoginFormData } from "@/lib/validators/auth";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -88,24 +89,14 @@ export function LoginForm({ reason }: LoginFormProps) {
                 return;
             }
 
-            if (!currentAuthContext.isActive) {
+            if (shouldTerminateAuthenticatedSession(currentAuthContext)) {
                 await signOut();
                 clearRememberMeBootstrapValue();
                 setIsSubmitting(false);
                 setServerError(
-                    AUTH_REASON_MESSAGES.account_deactivated ??
-                        "Account deactivated. Contact your administrator.",
-                );
-                return;
-            }
-
-            if (currentAuthContext.tenantStatus !== "active") {
-                await signOut();
-                clearRememberMeBootstrapValue();
-                setIsSubmitting(false);
-                setServerError(
-                    AUTH_REASON_MESSAGES.subscription_inactive ??
-                        "Subscription inactive. Contact your administrator.",
+                    AUTH_REASON_MESSAGES[
+                        currentAuthContext.redirectReason ?? "session_expired"
+                    ] ?? "Your account cannot access Procureline right now.",
                 );
                 return;
             }
@@ -191,9 +182,7 @@ export function LoginForm({ reason }: LoginFormProps) {
         (isAuthenticated &&
             authContext !== undefined &&
             authContext !== null &&
-            authContext.isSessionValid &&
-            authContext.isActive &&
-            authContext.tenantStatus === "active");
+            authContext.isSessionValid);
 
     return (
         <Card className="border-border/50 shadow-lg">

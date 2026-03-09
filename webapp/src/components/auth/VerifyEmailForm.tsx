@@ -65,7 +65,7 @@ export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
             try {
                 await registerWithTenant({ organizationName: orgName! });
                 sessionStorage.removeItem("pendingOrgName");
-                router.push("/tenant-admin");
+                router.push("/dashboard");
             } catch (error: unknown) {
                 // If ALREADY_EXISTS, tenant already created — just redirect
                 if (
@@ -73,7 +73,7 @@ export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
                     error.message.includes("already")
                 ) {
                     sessionStorage.removeItem("pendingOrgName");
-                    router.push("/tenant-admin");
+                    router.push("/dashboard");
                     return;
                 }
                 setServerError("Account created but organization setup failed. Please contact support.");

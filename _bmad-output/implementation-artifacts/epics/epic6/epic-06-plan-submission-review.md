@@ -51,6 +51,18 @@ The submission and review process is streamlined: DUs get immediate feedback and
 
 ---
 
+## Story Delivery Map
+
+- `Story 6.1` achieves the moment a DU turns a draft into a formal submission. Delivery should provide clear submission UX, immutable state transition rules, and confirmation records that the PO queue can trust.
+- `Story 6.2` achieves pre-flight enforcement before a plan can be submitted. Delivery should consolidate completeness, budget, and structural validation into one place so invalid plans are stopped before they enter review.
+- `Story 6.3` achieves the PO's working queue for incoming plans. Delivery should aggregate submissions by status and urgency, give enough context for prioritization, and support efficient navigation into review.
+- `Story 6.4` achieves a usable PO review workspace. Delivery should render submitted plans in a way that preserves hierarchy, highlights issues, and supports review actions without corrupting the original DU submission.
+- `Story 6.5` achieves decisive review outcomes. Delivery should encode approval, rejection, and return-for-revision transitions along with required comments, notifications, and audit entries.
+- `Story 6.6` achieves the DU correction loop after PO feedback. Delivery should reopen the right plan state, preserve the review context, and help the DU address issues without rebuilding the plan from scratch.
+- `Story 6.7` achieves transparent status visibility after submission. Delivery should expose end-to-end status history, timestamps, and next-step messaging so DUs and POs can track progress without manual follow-up.
+
+---
+
 ## Stories
 
 ### Story 6.1: Plan Submission Flow

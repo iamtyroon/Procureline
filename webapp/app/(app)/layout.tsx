@@ -3,9 +3,16 @@
 import { useEffect } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
+import {
+    getAuthNoticeMessage,
+    getRoleLabel,
+    shouldTerminateAuthenticatedSession,
+} from "@/lib/auth/roles";
+import { RoleGuard } from "@/src/components/auth/RoleGuard";
+import { Spinner } from "@/src/components/ui/Spinner";
 
 export default function AppLayout({
     children,
@@ -24,6 +31,7 @@ export default function AppLayout({
     const touchCurrentSession = useMutation(api.functions.sessions.touchCurrentSession);
     const router = useRouter();
     const pathname = usePathname();
+    const searchParams = useSearchParams();
 
     useEffect(() => {
         if (authLoading) {
@@ -42,10 +50,7 @@ export default function AppLayout({
         const currentAuthContext = authContext;
 
         async function validateSession(): Promise<void> {
-            if (
-                currentAuthContext === null ||
-                !currentAuthContext.isSessionValid
-            ) {
+            if (currentAuthContext === null || !currentAuthContext.isSessionValid) {
                 try {
                     await markCurrentSessionLoggedOut({});
                 } catch {
@@ -58,24 +63,23 @@ export default function AppLayout({
                 return;
             }
 
-            if (!currentAuthContext.isActive) {
+            if (shouldTerminateAuthenticatedSession(currentAuthContext)) {
                 await signOut();
                 router.replace(
-                    `/login?reason=${currentAuthContext.redirectReason ?? "account_deactivated"}`,
-                );
-                return;
-            }
-
-            if (currentAuthContext.tenantStatus !== "active") {
-                await signOut();
-                router.replace(
-                    `/login?reason=${currentAuthContext.redirectReason ?? "subscription_inactive"}`,
+                    `/login?reason=${currentAuthContext.redirectReason ?? "session_expired"}`,
                 );
             }
         }
 
         void validateSession();
-    }, [authContext, authLoading, isAuthenticated, router, signOut]);
+    }, [
+        authContext,
+        authLoading,
+        isAuthenticated,
+        markCurrentSessionLoggedOut,
+        router,
+        signOut,
+    ]);
 
     useEffect(() => {
         if (
@@ -83,9 +87,7 @@ export default function AppLayout({
             !isAuthenticated ||
             authContext === undefined ||
             authContext === null ||
-            !authContext.isSessionValid ||
-            !authContext.isActive ||
-            authContext.tenantStatus !== "active"
+            shouldTerminateAuthenticatedSession(authContext)
         ) {
             return;
         }
@@ -126,26 +128,8 @@ export default function AppLayout({
         return (
             <div className="flex min-h-screen items-center justify-center">
                 <div className="flex flex-col items-center gap-3">
-                    <svg
-                        className="h-8 w-8 animate-spin text-primary"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                    >
-                        <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                        />
-                        <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                        />
-                    </svg>
-                    <p className="text-sm text-muted-foreground">Validating session…</p>
+                    <Spinner />
+                    <p className="text-sm text-muted-foreground">Validating session...</p>
                 </div>
             </div>
         );
@@ -154,12 +138,12 @@ export default function AppLayout({
     if (
         !isAuthenticated ||
         authContext === null ||
-        !authContext.isSessionValid ||
-        !authContext.isActive ||
-        authContext.tenantStatus !== "active"
+        shouldTerminateAuthenticatedSession(authContext)
     ) {
         return null;
     }
+
+    const noticeMessage = getAuthNoticeMessage(searchParams.get("reason"));
 
     return (
         <div className="min-h-screen bg-background">
@@ -170,15 +154,25 @@ export default function AppLayout({
                             Procureline Workspace
                         </p>
                         <p className="text-sm text-muted-foreground">
-                            Signed in as {authContext.role.replaceAll("_", " ")}
+                            Signed in as {getRoleLabel(authContext.role)}
                         </p>
                     </div>
                     <Button type="button" variant="outline" onClick={() => void handleLogout()}>
                         Log out
                     </Button>
                 </div>
+                {noticeMessage ? (
+                    <div
+                        className="border-t border-border/60 bg-amber-50/80 px-4 py-3 text-sm text-amber-900 sm:px-6"
+                        role="status"
+                    >
+                        <div className="mx-auto max-w-6xl">{noticeMessage}</div>
+                    </div>
+                ) : null}
             </header>
-            <main>{children}</main>
+            <main>
+                <RoleGuard authContext={authContext}>{children}</RoleGuard>
+            </main>
         </div>
     );
 }

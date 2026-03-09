@@ -45,6 +45,15 @@ No important events are missed: submissions are acknowledged, deadlines are remi
 
 ---
 
+## Story Delivery Map
+
+- `Story 9.1` achieves notification coverage for core plan-state changes. Delivery should connect submission and review events to template-driven email and in-app messages with enough context for recipients to act.
+- `Story 9.2` achieves deadline awareness before users miss a window. Delivery should schedule reminder triggers, respect tenant-configured timelines, and present countdown messaging in a way that supports action rather than noise.
+- `Story 9.3` achieves reliable communication around billing state. Delivery should tie invoice, payment, grace-period, and suspension events to the correct tenant-admin channels so financial state changes are not silent.
+- `Story 9.4` achieves the conversational layer around custom requests and PO-to-DU communication. Delivery should support targeted notifications, approval or denial outcomes, and custom messages without creating untraceable side channels.
+
+---
+
 ## Stories
 
 ### Story 9.1: Plan Workflow Notifications

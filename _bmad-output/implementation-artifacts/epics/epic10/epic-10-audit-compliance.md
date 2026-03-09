@@ -45,6 +45,14 @@ Organizations have full visibility into all platform activities for internal gov
 
 ---
 
+## Story Delivery Map
+
+- `Story 10.1` achieves platform-wide accountability for sensitive actions. Delivery should define the audit event model, wrap high-value mutations and transitions, and guarantee logs are written consistently and immutably.
+- `Story 10.2` achieves usable access to audit evidence for authorized roles. Delivery should provide searchable, filterable audit views that preserve tenant boundaries while still supporting investigation.
+- `Story 10.3` achieves formal compliance reporting from the audit trail. Delivery should transform logged activity into exportable reports with the right filtering, formatting, and time-bounded snapshots for governance use.
+
+---
+
 ## Stories
 
 ### Story 10.1: Comprehensive Action Logging
