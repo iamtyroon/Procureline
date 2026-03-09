@@ -44,7 +44,7 @@ story_location: "c:\\Users\\Tyroon\\Downloads\\project\\Procureline\\_bmad-outpu
 development_status:
   epic-1: in-progress
   epic-11: in-progress
-  epic-2: backlog
+  epic-2: in-progress
   epic-3: backlog
   epic-4: backlog
   epic-5: backlog
@@ -60,9 +60,9 @@ development_status:
   1-4-password-reset-via-email: done
   1-5-session-management-logout: done
   1-6-four-layer-role-based-access-control: done
-  1-7-tenant-data-isolation: review
-  1-9-security-infrastructure-input-validation: ready-for-dev
-  2-0-nestjs-microservice-foundation-external-services: backlog
+  1-7-tenant-data-isolation: done 
+  1-9-security-infrastructure-input-validation: done
+  2-0-nestjs-microservice-foundation-external-services: ready-for-dev
 
   11-1-marketing-landing-page: done
   11-2-pricing-page-tier-comparison: backlog

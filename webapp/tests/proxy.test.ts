@@ -3,6 +3,7 @@ import { isKnownPublicRoute, PUBLIC_ROUTES } from "../lib/auth/public-routes";
 import { getProtectedRouteRole } from "../lib/auth/roles";
 import {
     PROTECTED_ROUTE_CACHE_HEADERS,
+    PROTECTED_ROUTE_SECURITY_HEADERS,
     SESSION_EXPIRED_REDIRECT_PATH,
 } from "../lib/auth/proxy";
 
@@ -53,6 +54,19 @@ export function runProxyRouteTests(): string[] {
     assert.equal(PROTECTED_ROUTE_CACHE_HEADERS.Expires, "0");
     completedTests.push(
         "protected route cache headers disable replay of authenticated content",
+    );
+
+    assert.equal(PROTECTED_ROUTE_SECURITY_HEADERS["X-Frame-Options"], "DENY");
+    assert.equal(
+        PROTECTED_ROUTE_SECURITY_HEADERS["X-Content-Type-Options"],
+        "nosniff",
+    );
+    assert.equal(
+        PROTECTED_ROUTE_SECURITY_HEADERS["Referrer-Policy"],
+        "same-origin",
+    );
+    completedTests.push(
+        "protected route security headers apply baseline clickjacking, sniffing, and referrer hardening",
     );
 
     return completedTests;

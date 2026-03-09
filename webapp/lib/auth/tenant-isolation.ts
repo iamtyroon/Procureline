@@ -1,3 +1,5 @@
+import { AUDIT_EVENT_NAMES } from "../security/audit";
+
 export const TENANT_SCOPED_TABLES = ["tenantUsers"] as const;
 export const TENANT_ROOT_TABLES = ["tenants"] as const;
 export const PLATFORM_SCOPED_TABLES = ["platformUsers"] as const;
@@ -20,8 +22,8 @@ export type TenantIsolationTableClassification =
     | "global";
 
 export const TENANT_ISOLATION_EVENT_NAMES = {
-    blockedProbe: "tenant.probe_blocked",
-    platformBypassRead: "tenant.platform_read_allowed",
+    blockedProbe: AUDIT_EVENT_NAMES.tenantProbeBlocked,
+    platformBypassRead: AUDIT_EVENT_NAMES.tenantPlatformReadAllowed,
 } as const;
 
 export type TenantIsolationEventName =

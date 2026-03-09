@@ -101,7 +101,7 @@ You will systematically re-do the entire story creation process, but with a crit
 
 #### **2.3 Previous Story Intelligence (if applicable)**
 
-- If `story_num > 1`, load the previous story file
+- If a lower-numbered story exists in the same epic, load the previous story file
 - Extract **actionable intelligence**:
   - Dev notes and learnings
   - Review feedback and corrections needed

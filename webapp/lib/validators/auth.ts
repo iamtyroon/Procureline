@@ -1,30 +1,94 @@
 import { z } from "zod";
+import {
+    AUTH_INPUT_LIMITS,
+    PASSWORD_MIN_LENGTH,
+    PASSWORD_PATTERNS,
+    validateEmailInput,
+    validateOneTimeCodeInput,
+    validateOrganizationNameInput,
+    validatePasswordLength,
+} from "../security/input";
+
+function validateWithSharedResult(
+    result:
+        | { ok: true }
+        | {
+            ok: false;
+            issue: {
+                message: string;
+            };
+        },
+    ctx: z.RefinementCtx,
+): void {
+    if (result.ok) {
+        return;
+    }
+
+    ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: result.issue.message,
+    });
+}
+
+const emailSchema = z.string().superRefine((value, ctx) => {
+    validateWithSharedResult(validateEmailInput(value), ctx);
+});
+
+const organizationNameSchema = z.string().superRefine((value, ctx) => {
+    validateWithSharedResult(validateOrganizationNameInput(value), ctx);
+});
+
+const verificationCodeSchema = z.string().superRefine((value, ctx) => {
+    validateWithSharedResult(
+        validateOneTimeCodeInput(value, {
+            field: "code",
+            label: "Verification code",
+        }),
+        ctx,
+    );
+});
+
+const resetCodeSchema = z.string().superRefine((value, ctx) => {
+    validateWithSharedResult(
+        validateOneTimeCodeInput(value, {
+            field: "code",
+            label: "Reset code",
+        }),
+        ctx,
+    );
+});
 
 export const passwordSchema = z
     .string()
-    .min(12, "Password must be at least 12 characters")
-    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-    .regex(/[0-9]/, "Password must contain at least one number")
+    .min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`)
     .regex(
-        /[^A-Za-z0-9]/,
+        PASSWORD_PATTERNS.uppercase,
+        "Password must contain at least one uppercase letter",
+    )
+    .regex(
+        PASSWORD_PATTERNS.lowercase,
+        "Password must contain at least one lowercase letter",
+    )
+    .regex(
+        PASSWORD_PATTERNS.digit,
+        "Password must contain at least one number",
+    )
+    .regex(
+        PASSWORD_PATTERNS.special,
         "Password must contain at least one special character",
-    );
+    )
+    .superRefine((value, ctx) => {
+        validateWithSharedResult(validatePasswordLength(value), ctx);
+    });
 
 export const signupSchema = z.object({
-    email: z.string().email("Invalid email format"),
+    email: emailSchema,
     password: passwordSchema,
-    organizationName: z
-        .string()
-        .min(2, "Organization name must be at least 2 characters")
-        .max(100, "Organization name must be less than 100 characters"),
+    organizationName: organizationNameSchema,
 });
 
 export const otpSchema = z.object({
-    code: z
-        .string()
-        .length(8, "Verification code must be 8 digits")
-        .regex(/^\d+$/, "Verification code must contain only digits"),
+    code: verificationCodeSchema,
 });
 
 export type SignupFormData = z.infer<typeof signupSchema>;
@@ -43,24 +107,26 @@ export const passwordRequirements = [
 ] as const;
 
 export const loginSchema = z.object({
-    email: z.string().email("Invalid email format"),
-    password: z.string().min(1, "Password is required").max(256, "Password must not exceed 256 characters"),
+    email: emailSchema,
+    password: z
+        .string()
+        .min(1, "Password is required")
+        .max(
+            AUTH_INPUT_LIMITS.password,
+            `Password must not exceed ${AUTH_INPUT_LIMITS.password} characters`,
+        ),
     rememberMe: z.boolean(),
 });
 
 export type LoginFormData = z.infer<typeof loginSchema>;
 
 export const forgotPasswordSchema = z.object({
-    email: z.string().email("Invalid email format"),
+    email: emailSchema,
 });
 
 export const resetPasswordSchema = z.object({
-    email: z.string().email("Invalid email format"),
-    code: z
-        .string()
-        .trim()
-        .length(8, "Reset code must be 8 digits")
-        .regex(/^\d+$/, "Reset code must contain only digits"),
+    email: emailSchema,
+    code: resetCodeSchema,
     newPassword: passwordSchema,
 });
 

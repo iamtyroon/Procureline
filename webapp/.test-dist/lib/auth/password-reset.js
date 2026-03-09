@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.isMaskedPasswordResetRequestError = exports.matchesInitialPasswordResetAttempt = exports.isPasswordResetLinkExpired = exports.parsePasswordResetExpiresAt = exports.buildPasswordResetLink = exports.getSingleSearchParam = exports.buildPasswordResetRedirectTo = exports.normalizeAuthEmail = exports.PASSWORD_RESET_EXPIRES_AT_PARAM = exports.PASSWORD_RESET_TOO_MANY_ATTEMPTS_MESSAGE = exports.PASSWORD_RESET_INVALID_MESSAGE = exports.PASSWORD_RESET_EXPIRED_MESSAGE = exports.PASSWORD_RESET_SUCCESS_MESSAGE = exports.PASSWORD_RESET_REQUEST_ERROR_MESSAGE = exports.PASSWORD_RESET_REQUEST_MESSAGE = exports.PASSWORD_RESET_SUCCESS_REASON = void 0;
+const input_1 = require("../security/input");
 exports.PASSWORD_RESET_SUCCESS_REASON = "password_reset_success";
 exports.PASSWORD_RESET_REQUEST_MESSAGE = "If an account exists for that email, a password reset link has been sent.";
 exports.PASSWORD_RESET_REQUEST_ERROR_MESSAGE = "We couldn't send a password reset email right now. Please try again.";
@@ -10,7 +11,7 @@ exports.PASSWORD_RESET_INVALID_MESSAGE = "Invalid reset link or code. Please req
 exports.PASSWORD_RESET_TOO_MANY_ATTEMPTS_MESSAGE = "Too many attempts. Please request a new reset email and try again.";
 exports.PASSWORD_RESET_EXPIRES_AT_PARAM = "expiresAt";
 function normalizeAuthEmail(email) {
-    return email.trim().toLowerCase();
+    return (0, input_1.normalizeAuthEmail)(email);
 }
 exports.normalizeAuthEmail = normalizeAuthEmail;
 function buildPasswordResetRedirectTo(email) {

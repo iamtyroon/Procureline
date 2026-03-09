@@ -1,3 +1,5 @@
+import { normalizeAuthEmail as normalizeSecurityEmail } from "../security/input";
+
 export const PASSWORD_RESET_SUCCESS_REASON = "password_reset_success";
 export const PASSWORD_RESET_REQUEST_MESSAGE =
     "If an account exists for that email, a password reset link has been sent.";
@@ -14,7 +16,7 @@ export const PASSWORD_RESET_TOO_MANY_ATTEMPTS_MESSAGE =
 export const PASSWORD_RESET_EXPIRES_AT_PARAM = "expiresAt";
 
 export function normalizeAuthEmail(email: string): string {
-    return email.trim().toLowerCase();
+    return normalizeSecurityEmail(email);
 }
 
 export function buildPasswordResetRedirectTo(email: string): string {

@@ -1,5 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { internalMutation, mutation, query } from "../_generated/server";
+import { validateOrganizationNameInput } from "../../lib/security/input";
 import {
     readTenantByIdForCurrentTenant,
     readTenantByIdWithPlatformAdminBypass,
@@ -25,17 +26,6 @@ const tenantRecordValidator = v.object({
 });
 
 /**
- * Generate a URL-safe subdomain from organization name.
- * Lowercases, replaces non-alphanumeric runs with hyphens, trims hyphens.
- */
-function generateSubdomain(name: string): string {
-    return name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "");
-}
-
-/**
  * Create a new tenant with Free tier status.
  * Validates subdomain uniqueness to prevent collisions.
  *
@@ -49,34 +39,19 @@ export const create = internalMutation({
     },
     returns: v.id("tenants"),
     handler: async (ctx, args) => {
-        const trimmedName = args.name.trim();
-
-        if (trimmedName.length < 2) {
+        const organizationNameResult = validateOrganizationNameInput(args.name);
+        if (!organizationNameResult.ok) {
             throw new ConvexError({
                 code: "VALIDATION_FAILED",
-                field: "organizationName",
-                message: "Organization name must be at least 2 characters",
+                field: organizationNameResult.issue.field,
+                message: organizationNameResult.issue.message,
             });
         }
 
-        if (trimmedName.length > 100) {
-            throw new ConvexError({
-                code: "VALIDATION_FAILED",
-                field: "organizationName",
-                message: "Organization name must be less than 100 characters",
-            });
-        }
-
-        const subdomain = generateSubdomain(trimmedName);
-
-        if (subdomain.length === 0) {
-            throw new ConvexError({
-                code: "VALIDATION_FAILED",
-                field: "organizationName",
-                message:
-                    "Organization name must contain at least one letter or number",
-            });
-        }
+        const {
+            normalized: trimmedName,
+            subdomain,
+        } = organizationNameResult.value;
 
         // Check subdomain uniqueness
         const existing = await ctx.db

@@ -1,6 +1,6 @@
 # Story 1.9: Security Infrastructure & Input Validation
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -25,44 +25,44 @@ so that the platform meets NFR-S7 (input sanitization) and NFR-S10 (CORS restric
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Define the canonical Story 1.9 security surface and scope boundaries (AC: 1, 3, 4, 5, 6, 7)
-  - [ ] Inventory current security-related modules in `webapp/convex/auth.ts`, `webapp/convex/http.ts`, `webapp/proxy.ts`, `webapp/lib/validators/auth.ts`, `webapp/convex/functions/_roleGuard.ts`, and the tenant-isolation helpers so Story 1.9 extends the real baseline instead of the earlier aspirational architecture diagrams.
-  - [ ] Explicitly list which current request surfaces are in scope for origin enforcement, starting with the browser-callable routes mounted from `webapp/convex/http.ts`, and which paths are out of scope because they are same-origin-only or non-HTTP Convex functions.
-  - [ ] Define which inputs are plain-text-only and should be normalized/rejected, versus which future fields may legitimately need HTML sanitization, so the implementation does not blindly run DOM sanitization over every string without intent.
-  - [ ] Keep NFR-S7 and NFR-S10 in scope; do not expand this story into rate limiting, WAF setup, full SIEM export, or non-existent procurement-domain CRUD.
+- [x] Task 1: Define the canonical Story 1.9 security surface and scope boundaries (AC: 1, 3, 4, 5, 6, 7)
+  - [x] Inventory current security-related modules in `webapp/convex/auth.ts`, `webapp/convex/http.ts`, `webapp/proxy.ts`, `webapp/lib/validators/auth.ts`, `webapp/convex/functions/_roleGuard.ts`, and the tenant-isolation helpers so Story 1.9 extends the real baseline instead of the earlier aspirational architecture diagrams.
+  - [x] Explicitly list which current request surfaces are in scope for origin enforcement, starting with the browser-callable routes mounted from `webapp/convex/http.ts`, and which paths are out of scope because they are same-origin-only or non-HTTP Convex functions.
+  - [x] Define which inputs are plain-text-only and should be normalized/rejected, versus which future fields may legitimately need HTML sanitization, so the implementation does not blindly run DOM sanitization over every string without intent.
+  - [x] Keep NFR-S7 and NFR-S10 in scope; do not expand this story into rate limiting, WAF setup, full SIEM export, or non-existent procurement-domain CRUD.
 
-- [ ] Task 2: Create shared validation and input-security utilities (AC: 1, 2, 6, 7)
-  - [ ] Introduce a reusable security-input module for string normalization, length bounds, plain-text enforcement, and any SSR-safe sanitization wrapper needed for future rich-text fields.
-  - [ ] Refactor existing auth-facing validation so `webapp/lib/validators/auth.ts` remains the client-form schema source while backend mutations/functions reuse aligned normalization and server-side validation rules instead of trusting frontend Zod alone.
-  - [ ] Preserve the current email normalization pattern (`trim().toLowerCase()`) and password requirements already enforced in `SignupForm`, `LoginForm`, password-reset helpers, and `webapp/convex/auth.ts`.
-  - [ ] Make the current plain-text rule explicit in code and tests: auth/tenant text fields are rejected or normalized to safe plain text, not passed through a generic HTML sanitizer and stored.
-  - [ ] Ensure expected failures use the repo's current `ConvexError` pattern with precise but non-leaky error codes/messages.
+- [x] Task 2: Create shared validation and input-security utilities (AC: 1, 2, 6, 7)
+  - [x] Introduce a reusable security-input module for string normalization, length bounds, plain-text enforcement, and any SSR-safe sanitization wrapper needed for future rich-text fields.
+  - [x] Refactor existing auth-facing validation so `webapp/lib/validators/auth.ts` remains the client-form schema source while backend mutations/functions reuse aligned normalization and server-side validation rules instead of trusting frontend Zod alone.
+  - [x] Preserve the current email normalization pattern (`trim().toLowerCase()`) and password requirements already enforced in `SignupForm`, `LoginForm`, password-reset helpers, and `webapp/convex/auth.ts`.
+  - [x] Make the current plain-text rule explicit in code and tests: auth/tenant text fields are rejected or normalized to safe plain text, not passed through a generic HTML sanitizer and stored.
+  - [x] Ensure expected failures use the repo's current `ConvexError` pattern with precise but non-leaky error codes/messages.
 
-- [ ] Task 3: Generalize append-only audit logging without breaking Story 1.7 (AC: 6, 7, 9, 10)
-  - [ ] Add a canonical audit/security event storage strategy in `webapp/convex/schema.ts` and a shared Convex helper module so sensitive actions and security events use one stable write path.
-  - [ ] Either extend the current `tenantIsolationEvents` approach or introduce a broader `auditLogs`/`securityEvents` table with an adapter plan, but do not strand Story 1.7 on a dead-end event format.
-  - [ ] Existing Story 1.7 tests and consumers must keep working unchanged or through a thin compatibility adapter; Story 1.9 must not require a broad caller rewrite just to preserve existing tenant-isolation events.
-  - [ ] Use project-standard dot-notation event names and include actor user ID, actor role, tenant context when applicable, entity type, action, outcome, metadata, and timestamp.
-  - [ ] Implement the minimum required Story 1.9 event set explicitly: one event for rejected malicious input, one event for blocked origin requests, and compatibility for the existing tenant-isolation bypass/block events.
-  - [ ] Define how blocked-origin and similar unauthenticated security events are stored when no authenticated actor exists, using an explicit anonymous actor shape instead of skipping the audit record.
-  - [ ] Keep audit data append-only in public behavior: no user-facing delete/update surface and no silent success when audit persistence is required for a sensitive operation.
+- [x] Task 3: Generalize append-only audit logging without breaking Story 1.7 (AC: 6, 7, 9, 10)
+  - [x] Add a canonical audit/security event storage strategy in `webapp/convex/schema.ts` and a shared Convex helper module so sensitive actions and security events use one stable write path.
+  - [x] Either extend the current `tenantIsolationEvents` approach or introduce a broader `auditLogs`/`securityEvents` table with an adapter plan, but do not strand Story 1.7 on a dead-end event format.
+  - [x] Existing Story 1.7 tests and consumers must keep working unchanged or through a thin compatibility adapter; Story 1.9 must not require a broad caller rewrite just to preserve existing tenant-isolation events.
+  - [x] Use project-standard dot-notation event names and include actor user ID, actor role, tenant context when applicable, entity type, action, outcome, metadata, and timestamp.
+  - [x] Implement the minimum required Story 1.9 event set explicitly: one event for rejected malicious input, one event for blocked origin requests, and compatibility for the existing tenant-isolation bypass/block events.
+  - [x] Define how blocked-origin and similar unauthenticated security events are stored when no authenticated actor exists, using an explicit anonymous actor shape instead of skipping the audit record.
+  - [x] Keep audit data append-only in public behavior: no user-facing delete/update surface and no silent success when audit persistence is required for a sensitive operation.
 
-- [ ] Task 4: Apply security infrastructure to the actual current entry points (AC: 1, 2, 3, 4, 5, 7, 8, 10)
-  - [ ] Add explicit origin/CORS handling to the HTTP entry points that actually exist now, starting with `webapp/convex/http.ts` and any auth/webhook-facing routes this repo exposes.
-  - [ ] Introduce a single server-side config helper for allowed origins, for example `ALLOWED_ORIGINS=https://app.procureline.example,https://staging.procureline.example,http://localhost:3000`, plus explicit localhost defaults in development if needed, and make tests assert that contract.
-  - [ ] Fail closed on missing allowlist configuration outside development. Production-like environments must not silently run with an empty or undefined allowed-origin set.
-  - [ ] Define explicit handling for requests with no `Origin` header so same-origin and trusted server-to-server behavior is intentional and testable.
-  - [ ] Update `webapp/proxy.ts` only for response-header concerns that belong at the Next.js edge layer; do not move backend authorization or data validation into Proxy.
-  - [ ] Treat security-header work in this story as baseline hardening only. Do not expand into a full CSP redesign unless the existing routes cannot be protected safely without it.
-  - [ ] Thread shared input normalization/validation into the current auth and tenant mutations/queries that accept user-controlled strings, including `webapp/convex/functions/users.ts` and `webapp/convex/functions/tenants.ts`.
-  - [ ] Keep plain-text fields such as organization names, emails, and auth inputs safe without introducing unsafe HTML rendering patterns or `dangerouslySetInnerHTML`.
+- [x] Task 4: Apply security infrastructure to the actual current entry points (AC: 1, 2, 3, 4, 5, 7, 8, 10)
+  - [x] Add explicit origin/CORS handling to the HTTP entry points that actually exist now, starting with `webapp/convex/http.ts` and any auth/webhook-facing routes this repo exposes.
+  - [x] Introduce a single server-side config helper for allowed origins, for example `ALLOWED_ORIGINS=https://app.procureline.example,https://staging.procureline.example,http://localhost:3000`, plus explicit localhost defaults in development if needed, and make tests assert that contract.
+  - [x] Fail closed on missing allowlist configuration outside development. Production-like environments must not silently run with an empty or undefined allowed-origin set.
+  - [x] Define explicit handling for requests with no `Origin` header so same-origin and trusted server-to-server behavior is intentional and testable.
+  - [x] Update `webapp/proxy.ts` only for response-header concerns that belong at the Next.js edge layer; do not move backend authorization or data validation into Proxy.
+  - [x] Treat security-header work in this story as baseline hardening only. Do not expand into a full CSP redesign unless the existing routes cannot be protected safely without it.
+  - [x] Thread shared input normalization/validation into the current auth and tenant mutations/queries that accept user-controlled strings, including `webapp/convex/functions/users.ts` and `webapp/convex/functions/tenants.ts`.
+  - [x] Keep plain-text fields such as organization names, emails, and auth inputs safe without introducing unsafe HTML rendering patterns or `dangerouslySetInnerHTML`.
 
-- [ ] Task 5: Add focused regression coverage and developer guardrails (AC: 2, 4, 5, 6, 7, 8, 9, 10)
-  - [ ] Add backend/unit coverage in the existing `webapp/tests` harness for malicious-input normalization/rejection, audit-event payload shape, and origin allowlist decisions.
-  - [ ] Define and test a required malicious-payload matrix at minimum covering HTML tags, encoded script-like input, oversized strings, control-character input, and malformed origin headers.
-  - [ ] Add tests for missing production allowlist config, missing-`Origin` requests, and anonymous blocked-origin audit events.
-  - [ ] Preserve and rerun the current auth/session/RBAC/tenant-isolation tests so Story 1.9 proves compatibility with Stories 1.2 through 1.7.
-  - [ ] Add tests or fixtures that prove shared validators are reused by current flows instead of duplicating regex/normalization logic across components and Convex functions.
+- [x] Task 5: Add focused regression coverage and developer guardrails (AC: 2, 4, 5, 6, 7, 8, 9, 10)
+  - [x] Add backend/unit coverage in the existing `webapp/tests` harness for malicious-input normalization/rejection, audit-event payload shape, and origin allowlist decisions.
+  - [x] Define and test a required malicious-payload matrix at minimum covering HTML tags, encoded script-like input, oversized strings, control-character input, and malformed origin headers.
+  - [x] Add tests for missing production allowlist config, missing-`Origin` requests, and anonymous blocked-origin audit events.
+  - [x] Preserve and rerun the current auth/session/RBAC/tenant-isolation tests so Story 1.9 proves compatibility with Stories 1.2 through 1.7.
+  - [x] Add tests or fixtures that prove shared validators are reused by current flows instead of duplicating regex/normalization logic across components and Convex functions.
 
 ## In-Scope Fields
 
@@ -301,6 +301,11 @@ so that the platform meets NFR-S7 (input sanitization) and NFR-S10 (CORS restric
 - [DOMPurify Upstream](https://github.com/cure53/DOMPurify)
 - [isomorphic-dompurify Runtime Requirements](https://github.com/kkomelin/isomorphic-dompurify)
 
+## Change Log
+
+- 2026-03-09: Added shared security policy, input-validation, origin-policy, and audit helper modules; generalized append-only audit persistence with tenant-isolation compatibility; hardened proxy origin handling and auth/tenant validation reuse; added an internal proxy audit bridge route; expanded the lightweight test harness; regenerated Convex bindings.
+- 2026-03-09: Completed a final third security audit, closed the remaining auth-audit and blocked-origin audit gaps, and confirmed the story is ready to enter the BMAD review workflow.
+
 ## Dev Agent Record
 
 ### Agent Model Used
@@ -351,13 +356,67 @@ gpt-5-codex
   - `https://docs.convex.dev/functions/error-handling/`
   - `https://github.com/cure53/DOMPurify`
   - `https://github.com/kkomelin/isomorphic-dompurify`
+- 2026-03-09 implementation plan:
+  - inventory current auth, tenant, HTTP, proxy, validator, and tenant-isolation modules against the live codebase
+  - add shared security helpers for input normalization/rejection, canonical origin policy parsing, and append-only audit logging
+  - thread shared validation into auth and tenant entry points without changing existing UX-facing validator ownership
+  - preserve tenant-isolation event compatibility while introducing broader security/audit events
+  - expand the lightweight TypeScript harness with malicious-input, origin-policy, audit-shape, and validator-reuse coverage
 
 ### Completion Notes List
 
 - 2026-03-09: Story created in `ready-for-dev` state with implementation guidance anchored to the current Next.js 16, Convex Auth, and tenant-isolation baseline.
 - 2026-03-09: Manual checklist validation used because `_bmad/core/tasks/validate-workflow.xml` is not present in this repo even though the workflow references it.
+- 2026-03-09: Added `webapp/lib/security/*` as the canonical Story 1.9 surface for plain-text validation, origin allowlisting, audit event formatting, and scope metadata.
+- 2026-03-09: Generalized append-only auditing with `auditLogs`, preserved Story 1.7 compatibility by dual-writing tenant-isolation events through the shared audit path, and added a proxy-to-Convex audit bridge for blocked origin events.
+- 2026-03-09: Reused shared normalization and validation in auth schemas, Convex auth profile validation, tenant registration/creation flows, and current auth UI form submissions.
+- 2026-03-09: Validation complete: `cmd /c npx convex codegen`, `cmd /c npm test`, `cmd /c npm run lint`, and `cmd /c npm run build` all passed in `webapp/`.
+- 2026-03-09: Final review fixes applied, `npm test` passed, and Story 1.9 was moved to `done`.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/1-9-security-infrastructure-input-validation.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `webapp/.test-dist/lib/auth/password-reset.js`
+- `webapp/.test-dist/lib/auth/proxy.js`
+- `webapp/.test-dist/lib/auth/tenant-isolation.js`
+- `webapp/.test-dist/lib/security/audit.js`
+- `webapp/.test-dist/lib/security/input.js`
+- `webapp/.test-dist/lib/security/origins.js`
+- `webapp/.test-dist/lib/security/policy.js`
+- `webapp/.test-dist/lib/validators/auth.js`
+- `webapp/.test-dist/tests/proxy.test.js`
+- `webapp/.test-dist/tests/run-tests.js`
+- `webapp/.test-dist/tests/security-infrastructure.test.js`
+- `webapp/convex/_generated/api.d.ts`
+- `webapp/convex/auth.ts`
+- `webapp/convex/functions/_audit.ts`
+- `webapp/convex/functions/_tenantGuard.ts`
+- `webapp/convex/functions/auditLogs.ts`
+- `webapp/convex/functions/securityAudit.ts`
+- `webapp/convex/functions/tenants.ts`
+- `webapp/convex/functions/users.ts`
+- `webapp/convex/http.ts`
+- `webapp/convex/schema.ts`
+- `webapp/lib/auth/password-reset.ts`
+- `webapp/lib/auth/proxy.ts`
+- `webapp/lib/auth/tenant-isolation.ts`
+- `webapp/lib/security/audit.ts`
+- `webapp/lib/security/input.ts`
+- `webapp/lib/security/origins.ts`
+- `webapp/lib/security/policy.ts`
+- `webapp/lib/validators/auth.ts`
+- `webapp/proxy.ts`
+- `webapp/src/components/auth/LoginForm.tsx`
+- `webapp/src/components/auth/SignupForm.tsx`
+- `webapp/src/components/auth/VerifyEmailForm.tsx`
+- `webapp/app/api/internal/security-events/origin-blocked/route.ts`
+- `webapp/tests/proxy.test.ts`
+- `webapp/tests/run-tests.ts`
+- `webapp/tests/security-infrastructure.test.ts`
+- `webapp/tsconfig.tests.json`
+- `webapp/.test-dist/lib/security/audit.js`
+- `webapp/.test-dist/lib/security/input.js`
+- `webapp/.test-dist/lib/security/origins.js`
+- `webapp/.test-dist/lib/security/policy.js`
+- `webapp/.test-dist/tests/security-infrastructure.test.js`

@@ -2,6 +2,12 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 import { internalMutation, mutation, query } from "../_generated/server";
 import {
+    buildSecurityInputRejectedEvent,
+    createAuthenticatedAuditActor,
+} from "../../lib/security/audit";
+import { validateOrganizationNameInput } from "../../lib/security/input";
+import { appendAuditLogBestEffort } from "./_audit";
+import {
     authContextValidator,
     getAuthorizationContext,
 } from "./_roleGuard";
@@ -54,20 +60,36 @@ export const registerWithTenant = mutation({
             });
         }
 
-        const trimmedName = args.organizationName.trim();
-        const subdomain = trimmedName
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-|-$/g, "");
+        const organizationNameResult = validateOrganizationNameInput(
+            args.organizationName,
+        );
+        if (!organizationNameResult.ok) {
+            await appendAuditLogBestEffort(
+                ctx,
+                buildSecurityInputRejectedEvent({
+                    actor: createAuthenticatedAuditActor({
+                        role: "unassigned",
+                        userId: String(userId),
+                    }),
+                    field: organizationNameResult.issue.field,
+                    flow: "registerWithTenant",
+                    outcome: organizationNameResult.issue.outcome,
+                    path: "functions.users.registerWithTenant",
+                    reason: organizationNameResult.issue.reason,
+                }),
+            );
 
-        if (subdomain.length === 0) {
             throw new ConvexError({
                 code: "VALIDATION_FAILED",
-                field: "organizationName",
-                message:
-                    "Organization name must contain at least one letter or number",
+                field: organizationNameResult.issue.field,
+                message: organizationNameResult.issue.message,
             });
         }
+
+        const {
+            normalized: trimmedName,
+            subdomain,
+        } = organizationNameResult.value;
 
         const existingTenant = await ctx.db
             .query("tenants")

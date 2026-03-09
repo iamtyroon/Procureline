@@ -3,30 +3,23 @@
   <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
   <critical>Communicate all responses in {communication_language} and generate all documents in {document_output_language}</critical>
 
-  <critical>🔥 CRITICAL MISSION: You are creating the ULTIMATE story context engine that prevents LLM developer mistakes, omissions or
-    disasters! 🔥</critical>
-  <critical>Your purpose is NOT to copy from epics - it's to create a comprehensive, optimized story file that gives the DEV agent
-    EVERYTHING needed for flawless implementation</critical>
-  <critical>COMMON LLM MISTAKES TO PREVENT: reinventing wheels, wrong libraries, wrong file locations, breaking regressions, ignoring UX,
-    vague implementations, lying about completion, not learning from past work</critical>
-  <critical>🚨 EXHAUSTIVE ANALYSIS REQUIRED: You must thoroughly analyze ALL artifacts to extract critical context - do NOT be lazy or skim!
-    This is the most important function in the entire development process!</critical>
-  <critical>🔬 UTILIZE SUBPROCESSES AND SUBAGENTS: Use research subagents, subprocesses or parallel processing if available to thoroughly
-    analyze different artifacts simultaneously and thoroughly</critical>
-  <critical>❓ SAVE QUESTIONS: If you think of questions or clarifications during analysis, save them for the end after the complete story is
-    written</critical>
-  <critical>🎯 ZERO USER INTERVENTION: Process should be fully automated except for initial epic/story selection or missing documents</critical>
+  <critical>CRITICAL MISSION: Create the strongest possible implementation-ready story context.</critical>
+  <critical>Your purpose is NOT to copy from epics. Your purpose is to create a comprehensive story file that gives the DEV agent everything needed for correct implementation.</critical>
+  <critical>COMMON LLM MISTAKES TO PREVENT: reinventing wheels, wrong libraries, wrong file locations, breaking regressions, ignoring UX, vague implementation steps, and ignoring prior work.</critical>
+  <critical>EXHAUSTIVE ANALYSIS REQUIRED: Thoroughly analyze all relevant artifacts. Do not skim.</critical>
+  <critical>ZERO USER INTERVENTION: Process should be fully automated except for initial story selection or genuinely missing documents.</critical>
 
   <step n="1" goal="Determine target story">
     <check if="{{story_path}} is provided by user or user provided the epic and story number such as 2-4 or 1.6 or epic 1 story 5">
       <action>Parse user-provided story path: extract epic_num, story_num, story_title from format like "1-2-user-auth"</action>
       <action>Set {{epic_num}}, {{story_num}}, {{story_key}} from user input</action>
+      <action>Set {{story_id}} = "{{epic_num}}.{{story_num}}"</action>
       <action>GOTO step 2a</action>
     </check>
 
     <action>Check if {{sprint_status}} file exists for auto discover</action>
     <check if="sprint status file does NOT exist">
-      <output>🚫 No sprint status file found and no story specified</output>
+      <output>No sprint status file found and no story specified.</output>
       <output>
         **Required Options:**
         1. Run `sprint-planning` to initialize sprint tracking (recommended)
@@ -47,6 +40,7 @@
       <check if="user provides epic-story number">
         <action>Parse user input: extract epic_num, story_num, story_title</action>
         <action>Set {{epic_num}}, {{story_num}}, {{story_key}} from user input</action>
+        <action>Set {{story_id}} = "{{epic_num}}.{{story_num}}"</action>
         <action>GOTO step 2a</action>
       </check>
 
@@ -56,7 +50,6 @@
       </check>
     </check>
 
-    <!-- Auto-discover from sprint status only if no user input -->
     <check if="no user input provided">
       <critical>MUST read COMPLETE {sprint_status} file from start to end to preserve order</critical>
       <action>Load the FULL file: {{sprint_status}}</action>
@@ -70,7 +63,7 @@
       </action>
 
       <check if="no backlog story found">
-        <output>📋 No backlog stories found in sprint-status.yaml
+        <output>No backlog stories found in sprint-status.yaml.
 
           All stories are either already created, in progress, or done.
 
@@ -90,15 +83,15 @@
       <action>Set {{story_id}} = "{{epic_num}}.{{story_num}}"</action>
       <action>Store story_key for later use (e.g., "1-2-user-authentication")</action>
 
-      <!-- Mark epic as in-progress if this is first story -->
-      <action>Check if this is the first story in epic {{epic_num}} by looking for {{epic_num}}-1-* pattern</action>
+      <action>Determine the LOWEST story number present in sprint_status for keys matching {{epic_num}}-*-*</action>
+      <action>Check if {{story_num}} equals that lowest discovered story number. This MUST support epics that start at 0, 1, or another explicit number.</action>
       <check if="this is first story in epic {{epic_num}}">
         <action>Load {{sprint_status}} and check epic-{{epic_num}} status</action>
-        <action>If epic status is "backlog" → update to "in-progress"</action>
-        <action>If epic status is "contexted" (legacy status) → update to "in-progress" (backward compatibility)</action>
-        <action>If epic status is "in-progress" → no change needed</action>
+        <action>If epic status is "backlog" then update to "in-progress"</action>
+        <action>If epic status is "contexted" then update to "in-progress" for backward compatibility</action>
+        <action>If epic status is "in-progress" then no change is needed</action>
         <check if="epic status is 'done'">
-          <output>🚫 ERROR: Cannot create story in completed epic</output>
+          <output>ERROR: Cannot create story in completed epic.</output>
           <output>Epic {{epic_num}} is marked as 'done'. All stories are complete.</output>
           <output>If you need to add more work, either:</output>
           <output>1. Manually change epic status back to 'in-progress' in sprint-status.yaml</output>
@@ -106,107 +99,60 @@
           <action>HALT - Cannot proceed</action>
         </check>
         <check if="epic status is not one of: backlog, contexted, in-progress, done">
-          <output>🚫 ERROR: Invalid epic status '{{epic_status}}'</output>
-          <output>Epic {{epic_num}} has invalid status. Expected: backlog, in-progress, or done</output>
-          <output>Please fix sprint-status.yaml manually or run sprint-planning to regenerate</output>
+          <output>ERROR: Invalid epic status '{{epic_status}}'</output>
+          <output>Epic {{epic_num}} has invalid status. Expected: backlog, in-progress, or done.</output>
+          <output>Please fix sprint-status.yaml manually or run sprint-planning to regenerate.</output>
           <action>HALT - Cannot proceed</action>
         </check>
-        <output>📊 Epic {{epic_num}} status updated to in-progress</output>
+        <output>Epic {{epic_num}} status updated to in-progress.</output>
       </check>
 
       <action>GOTO step 2a</action>
     </check>
-    <action>Load the FULL file: {{sprint_status}}</action>
-    <action>Read ALL lines from beginning to end - do not skip any content</action>
-    <action>Parse the development_status section completely</action>
-
-    <action>Find the FIRST story (by reading in order from top to bottom) where:
-      - Key matches pattern: number-number-name (e.g., "1-2-user-auth")
-      - NOT an epic key (epic-X) or retrospective (epic-X-retrospective)
-      - Status value equals "backlog"
-    </action>
-
-    <check if="no backlog story found">
-      <output>📋 No backlog stories found in sprint-status.yaml
-
-        All stories are either already created, in progress, or done.
-
-        **Options:**
-        1. Run sprint-planning to refresh story tracking
-        2. Load PM agent and run correct-course to add more stories
-        3. Check if current sprint is complete and run retrospective
-      </output>
-      <action>HALT</action>
-    </check>
-
-    <action>Extract from found story key (e.g., "1-2-user-authentication"):
-      - epic_num: first number before dash (e.g., "1")
-      - story_num: second number after first dash (e.g., "2")
-      - story_title: remainder after second dash (e.g., "user-authentication")
-    </action>
-    <action>Set {{story_id}} = "{{epic_num}}.{{story_num}}"</action>
-    <action>Store story_key for later use (e.g., "1-2-user-authentication")</action>
-
-    <!-- Mark epic as in-progress if this is first story -->
-    <action>Check if this is the first story in epic {{epic_num}} by looking for {{epic_num}}-1-* pattern</action>
-    <check if="this is first story in epic {{epic_num}}">
-      <action>Load {{sprint_status}} and check epic-{{epic_num}} status</action>
-      <action>If epic status is "backlog" → update to "in-progress"</action>
-      <action>If epic status is "contexted" (legacy status) → update to "in-progress" (backward compatibility)</action>
-      <action>If epic status is "in-progress" → no change needed</action>
-      <check if="epic status is 'done'">
-        <output>🚫 ERROR: Cannot create story in completed epic</output>
-        <output>Epic {{epic_num}} is marked as 'done'. All stories are complete.</output>
-        <output>If you need to add more work, either:</output>
-        <output>1. Manually change epic status back to 'in-progress' in sprint-status.yaml</output>
-        <output>2. Create a new epic for additional work</output>
-        <action>HALT - Cannot proceed</action>
-      </check>
-      <check if="epic status is not one of: backlog, contexted, in-progress, done">
-        <output>🚫 ERROR: Invalid epic status '{{epic_status}}'</output>
-        <output>Epic {{epic_num}} has invalid status. Expected: backlog, in-progress, or done</output>
-        <output>Please fix sprint-status.yaml manually or run sprint-planning to regenerate</output>
-        <action>HALT - Cannot proceed</action>
-      </check>
-      <output>📊 Epic {{epic_num}} status updated to in-progress</output>
-    </check>
-
-    <action>GOTO step 2a</action>
   </step>
 
   <step n="2" goal="Load and analyze core artifacts">
-    <critical>🔬 EXHAUSTIVE ARTIFACT ANALYSIS - This is where you prevent future developer fuckups!</critical>
+    <critical>EXHAUSTIVE ARTIFACT ANALYSIS: This is where you prevent future developer mistakes.</critical>
 
-    <!-- Load all available content through discovery protocol -->
-    <invoke-protocol
-      name="discover_inputs" />
-    <note>Available content: {epics_content}, {prd_content}, {architecture_content}, {ux_content},
-    {project_context}</note>
+    <invoke-protocol name="discover_inputs" />
+    <note>Available content: {epics_content}, {prd_content}, {architecture_content}, {ux_content}, {project_context}</note>
 
-    <!-- Analyze epics file for story foundation -->
-    <action>From {epics_content}, extract Epic {{epic_num}} complete context:</action> **EPIC ANALYSIS:** - Epic
-    objectives and business value - ALL stories in this epic for cross-story context - Our specific story's requirements, user story
-    statement, acceptance criteria - Technical requirements and constraints - Dependencies on other stories/epics - Source hints pointing to
-    original documents <!-- Extract specific story requirements -->
-    <action>Extract our story ({{epic_num}}-{{story_num}}) details:</action> **STORY FOUNDATION:** - User story statement
-    (As a, I want, so that) - Detailed acceptance criteria (already BDD formatted) - Technical requirements specific to this story -
-    Business context and value - Success criteria <!-- Previous story analysis for context continuity -->
-    <check if="story_num > 1">
-      <action>Find {{previous_story_num}}: scan {implementation_artifacts} for the story file in epic {{epic_num}} with the highest story number less than {{story_num}}</action>
-      <action>Load previous story file: {implementation_artifacts}/{{epic_num}}-{{previous_story_num}}-*.md</action> **PREVIOUS STORY INTELLIGENCE:** -
-    Dev notes and learnings from previous story - Review feedback and corrections needed - Files that were created/modified and their
-    patterns - Testing approaches that worked/didn't work - Problems encountered and solutions found - Code patterns established <action>Extract
-    all learnings that could impact current story implementation</action>
+    <action>From {epics_content}, extract Epic {{epic_num}} complete context:</action>
+    **EPIC ANALYSIS:**
+    - Epic objectives and business value
+    - ALL stories in this epic for cross-story context
+    - Our specific story's requirements, user story statement, and acceptance criteria
+    - Technical requirements and constraints
+    - Dependencies on other stories or epics
+    - Source hints pointing to original documents
+
+    <action>Extract our story ({{epic_num}}-{{story_num}}) details:</action>
+    **STORY FOUNDATION:**
+    - User story statement
+    - Detailed acceptance criteria
+    - Technical requirements specific to this story
+    - Business context and value
+    - Success criteria
+
+    <check if="a lower-numbered story exists in epic {{epic_num}}">
+      <action>Find {{previous_story_num}}: scan {implementation_artifacts} for the story file in epic {{epic_num}} with the highest story number less than {{story_num}}. This MUST support 0-based and non-sequential numbering.</action>
+      <action>Load previous story file: {implementation_artifacts}/{{epic_num}}-{{previous_story_num}}-*.md</action>
+      **PREVIOUS STORY INTELLIGENCE:**
+      - Dev notes and learnings from previous story
+      - Review feedback and corrections needed
+      - Files that were created or modified and their patterns
+      - Testing approaches that worked or did not work
+      - Problems encountered and solutions found
+      - Code patterns established
+      <action>Extract all learnings that could impact current story implementation</action>
     </check>
 
-    <!-- Git intelligence for previous work patterns -->
-    <check
-      if="previous story exists AND git repository detected">
+    <check if="previous story exists AND git repository detected">
       <action>Get last 5 commit titles to understand recent work patterns</action>
       <action>Analyze 1-5 most recent commits for relevance to current story:
-        - Files created/modified
+        - Files created or modified
         - Code patterns and conventions used
-        - Library dependencies added/changed
+        - Library dependencies added or changed
         - Architecture decisions implemented
         - Testing approaches used
       </action>
@@ -215,40 +161,47 @@
   </step>
 
   <step n="3" goal="Architecture analysis for developer guardrails">
-    <critical>🏗️ ARCHITECTURE INTELLIGENCE - Extract everything the developer MUST follow!</critical> **ARCHITECTURE DOCUMENT ANALYSIS:** <action>Systematically
-    analyze architecture content for story-relevant requirements:</action>
+    <critical>ARCHITECTURE INTELLIGENCE: Extract everything the developer MUST follow.</critical>
+    **ARCHITECTURE DOCUMENT ANALYSIS:**
+    <action>Systematically analyze architecture content for story-relevant requirements</action>
 
-    <!-- Load architecture - single file or sharded -->
     <check if="architecture file is single file">
       <action>Load complete {architecture_content}</action>
     </check>
     <check if="architecture is sharded to folder">
       <action>Load architecture index and scan all architecture files</action>
-    </check> **CRITICAL ARCHITECTURE EXTRACTION:** <action>For
-    each architecture section, determine if relevant to this story:</action> - **Technical Stack:** Languages, frameworks, libraries with
-    versions - **Code Structure:** Folder organization, naming conventions, file patterns - **API Patterns:** Service structure, endpoint
-    patterns, data contracts - **Database Schemas:** Tables, relationships, constraints relevant to story - **Security Requirements:**
-    Authentication patterns, authorization rules - **Performance Requirements:** Caching strategies, optimization patterns - **Testing
-    Standards:** Testing frameworks, coverage expectations, test patterns - **Deployment Patterns:** Environment configurations, build
-    processes - **Integration Patterns:** External service integrations, data flows <action>Extract any story-specific requirements that the
-    developer MUST follow</action>
+    </check>
+
+    **CRITICAL ARCHITECTURE EXTRACTION:**
+    <action>For each architecture section, determine if relevant to this story</action>
+    - Technical stack: languages, frameworks, libraries with versions
+    - Code structure: folder organization, naming conventions, file patterns
+    - API patterns: service structure, endpoint patterns, data contracts
+    - Database schemas: tables, relationships, constraints relevant to story
+    - Security requirements: authentication patterns, authorization rules
+    - Performance requirements: caching strategies, optimization patterns
+    - Testing standards: testing frameworks, coverage expectations, test patterns
+    - Deployment patterns: environment configurations, build processes
+    - Integration patterns: external service integrations, data flows
+    <action>Extract any story-specific requirements that the developer MUST follow</action>
     <action>Identify any architectural decisions that override previous patterns</action>
   </step>
 
   <step n="4" goal="Web research for latest technical specifics">
-    <critical>🌐 ENSURE LATEST TECH KNOWLEDGE - Prevent outdated implementations!</critical> **WEB INTELLIGENCE:** <action>Identify specific
-    technical areas that require latest version knowledge:</action>
+    <critical>ENSURE LATEST TECH KNOWLEDGE: Prevent outdated implementations.</critical>
+    **WEB INTELLIGENCE:**
+    <action>Identify specific technical areas that require latest version knowledge</action>
 
-    <!-- Check for libraries/frameworks mentioned in architecture -->
-    <action>From architecture analysis, identify specific libraries, APIs, or
-    frameworks</action>
+    <action>From architecture analysis, identify specific libraries, APIs, or frameworks</action>
     <action>For each critical technology, research latest stable version and key changes:
       - Latest API documentation and breaking changes
       - Security vulnerabilities or updates
       - Performance improvements or deprecations
       - Best practices for current version
     </action>
-    **EXTERNAL CONTEXT INCLUSION:** <action>Include in story any critical latest information the developer needs:
+
+    **EXTERNAL CONTEXT INCLUSION:**
+    <action>Include in story any critical latest information the developer needs:
       - Specific library versions and why chosen
       - API endpoints with parameters and authentication
       - Recent security patches or considerations
@@ -258,63 +211,41 @@
   </step>
 
   <step n="5" goal="Create comprehensive story file">
-    <critical>📝 CREATE ULTIMATE STORY FILE - The developer's master implementation guide!</critical>
+    <critical>CREATE THE STORY FILE: This is the developer's master implementation guide.</critical>
 
-    <action>Initialize from template.md:
-    {default_output_file}</action>
+    <action>Initialize from template.md: {default_output_file}</action>
     <template-output file="{default_output_file}">story_header</template-output>
-
-    <!-- Story foundation from epics analysis -->
-    <template-output
-      file="{default_output_file}">story_requirements</template-output>
-
-    <!-- Developer context section - MOST IMPORTANT PART -->
-    <template-output file="{default_output_file}">
-    developer_context_section</template-output> **DEV AGENT GUARDRAILS:** <template-output file="{default_output_file}">
-    technical_requirements</template-output>
+    <template-output file="{default_output_file}">story_requirements</template-output>
+    <template-output file="{default_output_file}">developer_context_section</template-output>
+    <template-output file="{default_output_file}">technical_requirements</template-output>
     <template-output file="{default_output_file}">architecture_compliance</template-output>
-    <template-output
-      file="{default_output_file}">library_framework_requirements</template-output>
-    <template-output file="{default_output_file}">
-    file_structure_requirements</template-output>
+    <template-output file="{default_output_file}">library_framework_requirements</template-output>
+    <template-output file="{default_output_file}">file_structure_requirements</template-output>
     <template-output file="{default_output_file}">testing_requirements</template-output>
 
-    <!-- Previous story intelligence -->
-    <check
-      if="previous story learnings available">
+    <check if="previous story learnings available">
       <template-output file="{default_output_file}">previous_story_intelligence</template-output>
     </check>
 
-    <!-- Git intelligence -->
-    <check
-      if="git analysis completed">
+    <check if="git analysis completed">
       <template-output file="{default_output_file}">git_intelligence_summary</template-output>
     </check>
 
-    <!-- Latest technical specifics -->
     <check if="web research completed">
       <template-output file="{default_output_file}">latest_tech_information</template-output>
     </check>
 
-    <!-- Project context reference -->
-    <template-output
-      file="{default_output_file}">project_context_reference</template-output>
+    <template-output file="{default_output_file}">project_context_reference</template-output>
+    <template-output file="{default_output_file}">story_completion_status</template-output>
 
-    <!-- Final status update -->
-    <template-output file="{default_output_file}">
-    story_completion_status</template-output>
-
-    <!-- CRITICAL: Set status to ready-for-dev -->
     <action>Set story Status to: "ready-for-dev"</action>
-    <action>Add completion note: "Ultimate
-    context engine analysis completed - comprehensive developer guide created"</action>
+    <action>Add completion note: "Ultimate context engine analysis completed - comprehensive developer guide created"</action>
   </step>
 
   <step n="6" goal="Update sprint status and finalize">
     <invoke-task>Validate against checklist at {installed_path}/checklist.md using _bmad/core/tasks/validate-workflow.xml</invoke-task>
     <action>Save story document unconditionally</action>
 
-    <!-- Update sprint status -->
     <check if="sprint status file exists">
       <action>Update {{sprint_status}}</action>
       <action>Load the FULL file and read all development_status entries</action>
@@ -325,7 +256,7 @@
     </check>
 
     <action>Report completion</action>
-    <output>**🎯 ULTIMATE BMad Method STORY CONTEXT CREATED, {user_name}!**
+    <output>**ULTIMATE BMad Method STORY CONTEXT CREATED, {user_name}!**
 
       **Story Details:**
       - Story ID: {{story_id}}
@@ -339,7 +270,7 @@
       3. Run `code-review` when complete (auto-marks done)
       4. Optional: If Test Architect module installed, run `/bmad:tea:automate` after `dev-story` to generate guardrail tests
 
-      **The developer now has everything needed for flawless implementation!**
+      **The developer now has everything needed for implementation.**
     </output>
   </step>
 

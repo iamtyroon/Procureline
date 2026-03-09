@@ -14,6 +14,7 @@ import {
     writeRememberMeBootstrapValue,
 } from "@/lib/auth/session";
 import { shouldTerminateAuthenticatedSession } from "@/lib/auth/roles";
+import { normalizeAuthEmail } from "@/lib/security/input";
 import { loginSchema, type LoginFormData } from "@/lib/validators/auth";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -146,9 +147,10 @@ export function LoginForm({ reason }: LoginFormProps) {
 
         try {
             writeRememberMeBootstrapValue(data.rememberMe);
+            const normalizedEmail = normalizeAuthEmail(data.email);
 
             const formData = new FormData();
-            formData.set("email", data.email.toLowerCase().trim());
+            formData.set("email", normalizedEmail);
             formData.set("password", data.password);
             formData.set("flow", "signIn");
 

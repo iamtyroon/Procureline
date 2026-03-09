@@ -1,13 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.hasAccessibleTenantOwnedRecord = exports.countAccessibleTenantOwnedRecords = exports.sanitizeTenantOwnedRecordsForActor = exports.resolveTenantRecordAccess = exports.toVerifiedTenantRecordId = exports.getCanonicalTenantIndex = exports.classifyTenantIsolationTable = exports.TENANT_ISOLATION_EVENT_NAMES = exports.GLOBAL_ONLY_TABLES = exports.PLATFORM_SCOPED_TABLES = exports.TENANT_ROOT_TABLES = exports.TENANT_SCOPED_TABLES = void 0;
+const audit_1 = require("../security/audit");
 exports.TENANT_SCOPED_TABLES = ["tenantUsers"];
 exports.TENANT_ROOT_TABLES = ["tenants"];
 exports.PLATFORM_SCOPED_TABLES = ["platformUsers"];
 exports.GLOBAL_ONLY_TABLES = ["sessionMetadata", "subscriptionTiers"];
 exports.TENANT_ISOLATION_EVENT_NAMES = {
-    blockedProbe: "tenant.probe_blocked",
-    platformBypassRead: "tenant.platform_read_allowed",
+    blockedProbe: audit_1.AUDIT_EVENT_NAMES.tenantProbeBlocked,
+    platformBypassRead: audit_1.AUDIT_EVENT_NAMES.tenantPlatformReadAllowed,
 };
 const CURRENT_TABLE_CLASSIFICATIONS = {
     platformUsers: "platform_scoped",

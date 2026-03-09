@@ -13,6 +13,14 @@ import {
     type TenantScopedTableName,
     type VerifiedTenantRecordId,
 } from "../../lib/auth/tenant-isolation";
+import {
+    createAuthenticatedAuditActor,
+    type AuditEventEntry,
+} from "../../lib/security/audit";
+import {
+    appendAuditLogBestEffort,
+    appendAuditLogRequired,
+} from "./_audit";
 import { getAuthorizationContext, requireTenantRole } from "./_roleGuard";
 
 export {
@@ -66,6 +74,24 @@ async function appendTenantIsolationEvent(
     });
 }
 
+function toAuditLogEntry(event: TenantIsolationAuditEvent): AuditEventEntry {
+    return {
+        action: event.action,
+        actor: createAuthenticatedAuditActor({
+            role: event.actorRole,
+            userId: event.actorUserId,
+        }),
+        entityType: event.entityType,
+        event: event.event,
+        outcome: event.outcome,
+        recordId: event.recordId,
+        sourceTenantId: event.sourceTenantId,
+        tableName: event.tableName,
+        targetTenantId: event.targetTenantId,
+        timestamp: event.timestamp,
+    };
+}
+
 async function persistDecisionAudit(
     ctx: MutationCtx,
     decision: ReturnType<typeof resolveTenantRecordAccess>,
@@ -76,6 +102,7 @@ async function persistDecisionAudit(
 
     try {
         await appendTenantIsolationEvent(ctx, decision.auditEvent);
+        await appendAuditLogBestEffort(ctx, toAuditLogEntry(decision.auditEvent));
     } catch (_error: unknown) {
         // Blocked cross-tenant probes must still fail closed even if audit
         // persistence is temporarily unavailable.
@@ -92,6 +119,7 @@ async function persistPlatformBypassAudit(
 
     try {
         await appendTenantIsolationEvent(ctx, decision.auditEvent);
+        await appendAuditLogRequired(ctx, toAuditLogEntry(decision.auditEvent));
     } catch (error: unknown) {
         // Platform-admin bypass reads must not proceed without the audit
         // trail. Re-throw a deterministic error so the caller never silently
@@ -340,6 +368,7 @@ export async function loadTenantUsersByIdsForCurrentTenantWithAudit(
         sanitized.auditEvents.map(async (event) => {
             try {
                 await appendTenantIsolationEvent(ctx, event);
+                await appendAuditLogBestEffort(ctx, toAuditLogEntry(event));
             } catch (_error: unknown) {
                 // Batch validation still fails closed even if audit persistence is unavailable.
             }

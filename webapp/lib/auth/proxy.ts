@@ -6,3 +6,10 @@ export const PROTECTED_ROUTE_CACHE_HEADERS = {
     Pragma: "no-cache",
     Expires: "0",
 } as const;
+
+export const PROTECTED_ROUTE_SECURITY_HEADERS = {
+    "Permissions-Policy": "camera=(), geolocation=(), microphone=()",
+    "Referrer-Policy": "same-origin",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+} as const;

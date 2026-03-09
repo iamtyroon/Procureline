@@ -31,6 +31,10 @@ function runProxyRouteTests() {
     strict_1.default.equal(proxy_1.PROTECTED_ROUTE_CACHE_HEADERS.Pragma, "no-cache");
     strict_1.default.equal(proxy_1.PROTECTED_ROUTE_CACHE_HEADERS.Expires, "0");
     completedTests.push("protected route cache headers disable replay of authenticated content");
+    strict_1.default.equal(proxy_1.PROTECTED_ROUTE_SECURITY_HEADERS["X-Frame-Options"], "DENY");
+    strict_1.default.equal(proxy_1.PROTECTED_ROUTE_SECURITY_HEADERS["X-Content-Type-Options"], "nosniff");
+    strict_1.default.equal(proxy_1.PROTECTED_ROUTE_SECURITY_HEADERS["Referrer-Policy"], "same-origin");
+    completedTests.push("protected route security headers apply baseline clickjacking, sniffing, and referrer hardening");
     return completedTests;
 }
 exports.runProxyRouteTests = runProxyRouteTests;

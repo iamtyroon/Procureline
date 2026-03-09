@@ -6,6 +6,7 @@ import { useConvexAuth, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { normalizeAuthEmail, normalizePlainText } from "@/lib/security/input";
 import { otpSchema, type OtpFormData } from "@/lib/validators/auth";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -60,10 +61,13 @@ export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
             router.push("/dashboard");
             return;
         }
+        const normalizedOrganizationName = normalizePlainText(orgName);
 
         async function createTenant(): Promise<void> {
             try {
-                await registerWithTenant({ organizationName: orgName! });
+                await registerWithTenant({
+                    organizationName: normalizedOrganizationName,
+                });
                 sessionStorage.removeItem("pendingOrgName");
                 router.push("/dashboard");
             } catch (error: unknown) {
@@ -89,8 +93,8 @@ export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
 
         try {
             const formData = new FormData();
-            formData.set("email", email);
-            formData.set("code", data.code);
+            formData.set("email", normalizeAuthEmail(email));
+            formData.set("code", data.code.trim());
             formData.set("flow", "email-verification");
 
             await signIn("password", formData);
@@ -125,7 +129,7 @@ export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
 
         try {
             const formData = new FormData();
-            formData.set("email", email);
+            formData.set("email", normalizeAuthEmail(email));
             formData.set("flow", "email-verification");
 
             // Trigger a fresh verification email for the pending account.

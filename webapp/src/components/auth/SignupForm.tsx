@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { normalizeAuthEmail, normalizePlainText } from "@/lib/security/input";
 import { signupSchema, type SignupFormData, passwordRequirements } from "@/lib/validators/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,9 +49,14 @@ export function SignupForm({ onComplete }: SignupFormProps) {
         setIsSubmitting(true);
 
         try {
+            const normalizedEmail = normalizeAuthEmail(data.email);
+            const normalizedOrganizationName = normalizePlainText(
+                data.organizationName,
+            );
+
             // Create FormData for Convex Auth signIn
             const formData = new FormData();
-            formData.set("email", data.email.toLowerCase().trim());
+            formData.set("email", normalizedEmail);
             formData.set("password", data.password);
             formData.set("flow", "signUp");
 
@@ -59,10 +65,10 @@ export function SignupForm({ onComplete }: SignupFormProps) {
             await signIn("password", formData);
 
             // Store org name in sessionStorage for after verification
-            sessionStorage.setItem("pendingOrgName", data.organizationName.trim());
+            sessionStorage.setItem("pendingOrgName", normalizedOrganizationName);
 
             // Move to verify step
-            onComplete(data.email.toLowerCase().trim());
+            onComplete(normalizedEmail);
         } catch (error: unknown) {
             if (error instanceof Error) {
                 const message = error.message;
@@ -77,9 +83,9 @@ export function SignupForm({ onComplete }: SignupFormProps) {
                     // This is actually success — user needs to enter OTP
                     sessionStorage.setItem(
                         "pendingOrgName",
-                        data.organizationName.trim(),
+                        normalizePlainText(data.organizationName),
                     );
-                    onComplete(data.email.toLowerCase().trim());
+                    onComplete(normalizeAuthEmail(data.email));
                     return;
                 } else {
                     setServerError(message || "An unexpected error occurred. Please try again.");

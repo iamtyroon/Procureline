@@ -1,0 +1,43 @@
+<task id="_bmad/core/tasks/validate-workflow.xml" name="Validate Workflow Output"
+  description="Validate a workflow-generated artifact against its checklist and report gaps before completion.">
+  <objective>Review a generated artifact against the current workflow checklist and produce a concise validation summary.</objective>
+
+  <llm critical="true">
+    <i>MANDATORY: Execute ALL steps in the flow section IN EXACT ORDER</i>
+    <i>DO NOT skip steps or change the sequence</i>
+    <i>Use the current workflow context when available</i>
+    <i>If a required file is missing, clearly report that and continue only when the remaining validation is still meaningful</i>
+    <i>Be specific about failed, partial, or unverifiable checklist items</i>
+  </llm>
+
+  <flow>
+    <step n="1" title="Resolve Inputs">
+      <action>Load the checklist referenced by the calling workflow when available</action>
+      <action>Load the target artifact referenced by the calling workflow when available, preferring the workflow output file or story file from current context</action>
+      <action>If either checklist or target artifact is unavailable, report which input is missing and halt validation</action>
+    </step>
+
+    <step n="2" title="Review Checklist">
+      <action>Read the checklist completely</action>
+      <action>Identify each checklist item or validation requirement that can be evaluated against the target artifact</action>
+    </step>
+
+    <step n="3" title="Validate Artifact">
+      <action>Compare the target artifact against every checklist item</action>
+      <action>Classify each item as PASS, PARTIAL, FAIL, or UNVERIFIABLE</action>
+      <action>Capture concrete reasons for every non-PASS result</action>
+    </step>
+
+    <step n="4" title="Report Results">
+      <action>Produce a concise validation summary</action>
+      <action>List failed, partial, or unverifiable items first</action>
+      <action>If all evaluated items pass, state that explicitly</action>
+    </step>
+  </flow>
+
+  <halt-conditions>
+    <condition>HALT if the checklist file cannot be found</condition>
+    <condition>HALT if the target artifact cannot be found</condition>
+  </halt-conditions>
+
+</task>
