@@ -51,7 +51,7 @@ The path from "What is Procureline?" to "I'm using Procureline" is smooth, infor
 ---
 
 - Landing page as static Next.js pages for SEO
-- Pricing page with interactive tier comparison
+- Landing-page pricing experience with interactive tier comparison
 - Public auth entry flow integrated with Epic 1 authentication
 - Onboarding wizard tracks progress per user
 - Contextual help via tooltip system and help drawer
@@ -139,7 +139,7 @@ So that I can decide if it's right for my organization.
 
 ---
 
-### Story 11.2: Pricing Page & Tier Comparison
+### Story 11.2: Pricing Experience & Tier Comparison
 
 As a **visitor**,
 I want to see pricing options and compare tiers,
@@ -147,9 +147,10 @@ So that I can choose the right plan for my organization.
 
 **Acceptance Criteria:**
 
-**Given** a visitor navigates to Pricing
-**When** the page loads
-**Then** system displays pricing tiers and comparison (FR91)
+**Given** a visitor navigates to `/pricing`
+**When** the route resolves
+**Then** system deep-links the visitor to the landing page pricing section (`/#pricing`)
+**And** displays pricing tiers and comparison (FR91)
 
 **Given** a visitor views pricing
 **When** reviewing tiers
@@ -157,34 +158,42 @@ So that I can choose the right plan for my organization.
 **And** each tier shows: price, user limits, features included
 
 **Given** a visitor views pricing
-**When** comparing features
-**Then** page includes feature comparison matrix
-**And** clearly indicates what's included/excluded per tier
+**When** comparing tiers
+**Then** the pricing surface clearly indicates plan differences (limits and features)
+**And** comparison can be represented as card-based side-by-side tiers
 
 **Given** pricing is displayed
 **When** visitor views amounts
-**Then** prices shown in KES with optional USD toggle
-**And** annual pricing with monthly equivalent shown
+**Then** prices are shown in USD with annual billing context
+**And** fiscal-year alignment is communicated
 
 **Given** a visitor selects the Free, Starter, or Professional tier
 **When** clicking "Get Started" on a tier
 **Then** system routes to signup with tier pre-selected
+**And** selected tier is preserved through verification and applied during tenant creation
 
 **Given** Enterprise tier
 **When** visitor clicks "Get Started"
-**Then** system shows "Contact Sales" form instead of signup
+**Then** system shows an in-app "Contact Sales" form instead of signup
+**And** form submission creates a `salesInquiry` record
 
 **Given** a visitor has questions
-**When** viewing pricing page
+**When** viewing the pricing section
 **Then** FAQ section addresses common pricing questions
+
+**Given** invalid or unsupported tier query params
+**When** signup flow continues
+**Then** system safely falls back to Free tier
 
 **Technical Notes:**
 
-- Pricing page as Next.js static page
+- Pricing section rendered on landing page
+- `/pricing` route redirects/deep-links to `/#pricing`
 - Tier data from configuration file
-- Currency toggle via client-side state
+- Currency toggle is optional and can be deferred
 - FAQ section with accordion component
 - Contact Sales creates `salesInquiry` record
+- Tier preselection from pricing CTA must persist across signup and verification workflows
 
 ---
 
@@ -320,7 +329,7 @@ Story 11.1 (Landing Page)
 - [ ] All 4 stories implemented and tested
 - [ ] Landing page loads quickly (<2s)
 - [ ] SEO metadata verified with testing tools
-- [ ] Pricing page accurate and responsive
+- [ ] Pricing experience accurate and responsive (landing section + `/pricing` deep-link)
 - [ ] Signup flow tested end-to-end
 - [ ] Onboarding tour completes smoothly
 - [ ] Contextual help renders correctly

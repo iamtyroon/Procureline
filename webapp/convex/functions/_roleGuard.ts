@@ -79,6 +79,7 @@ export const authContextValidator = v.object({
     ),
     tenantId: v.optional(v.id("tenants")),
     tenantStatus: tenantStatusValidator,
+    userId: v.id("users"),
     redirectReason: v.optional(authNavigationReasonValidator),
 });
 

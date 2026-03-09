@@ -15,6 +15,7 @@
     "tests/**/*.ts",
     "lib/auth/**/*.ts",
     "lib/security/**/*.ts",
+    "lib/services/**/*.ts",
     "lib/validators/**/*.ts"
   ]
 }

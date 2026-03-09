@@ -67,7 +67,7 @@ function evaluateOriginPolicy(args) {
         if (requestIsAllowlisted) {
             return {
                 allowed: true,
-                normalizedOrigin: normalizedRequestOrigin ?? undefined,
+                normalizedOrigin: normalizedRequestOrigin,
                 reason: "allowed_missing_origin_allowlisted_request",
             };
         }

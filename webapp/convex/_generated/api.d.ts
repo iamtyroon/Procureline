@@ -10,12 +10,18 @@
 
 import type * as ResendOTP from "../ResendOTP.js";
 import type * as ResendPasswordReset from "../ResendPasswordReset.js";
+import type * as actions__helpers from "../actions/_helpers.js";
+import type * as actions_email from "../actions/email.js";
+import type * as actions_files from "../actions/files.js";
+import type * as actions_payments from "../actions/payments.js";
 import type * as auth from "../auth.js";
+import type * as externalServicesHttp from "../externalServicesHttp.js";
 import type * as functions__audit from "../functions/_audit.js";
 import type * as functions__roleGuard from "../functions/_roleGuard.js";
 import type * as functions__tenantGuard from "../functions/_tenantGuard.js";
 import type * as functions_auditLogs from "../functions/auditLogs.js";
 import type * as functions_auth from "../functions/auth.js";
+import type * as functions_externalServices from "../functions/externalServices.js";
 import type * as functions_securityAudit from "../functions/securityAudit.js";
 import type * as functions_sessions from "../functions/sessions.js";
 import type * as functions_tenants from "../functions/tenants.js";
@@ -35,12 +41,18 @@ import type {
 declare const fullApi: ApiFromModules<{
   ResendOTP: typeof ResendOTP;
   ResendPasswordReset: typeof ResendPasswordReset;
+  "actions/_helpers": typeof actions__helpers;
+  "actions/email": typeof actions_email;
+  "actions/files": typeof actions_files;
+  "actions/payments": typeof actions_payments;
   auth: typeof auth;
+  externalServicesHttp: typeof externalServicesHttp;
   "functions/_audit": typeof functions__audit;
   "functions/_roleGuard": typeof functions__roleGuard;
   "functions/_tenantGuard": typeof functions__tenantGuard;
   "functions/auditLogs": typeof functions_auditLogs;
   "functions/auth": typeof functions_auth;
+  "functions/externalServices": typeof functions_externalServices;
   "functions/securityAudit": typeof functions_securityAudit;
   "functions/sessions": typeof functions_sessions;
   "functions/tenants": typeof functions_tenants;

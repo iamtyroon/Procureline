@@ -140,4 +140,32 @@ export default defineSchema({
         .index("by_actorUserId", ["actorUserId", "timestamp"])
         .index("by_event", ["event", "timestamp"])
         .index("by_timestamp", ["timestamp"]),
+
+    externalServiceSyncEvents: defineTable({
+        actorRole: v.optional(v.string()),
+        actorTenantId: v.optional(v.string()),
+        actorUserId: v.optional(v.string()),
+        claimedAt: v.number(),
+        durableChanges: v.array(v.any()),
+        eventKey: v.string(),
+        eventType: v.string(),
+        lastError: v.optional(v.object({
+            code: v.string(),
+            message: v.string(),
+        })),
+        metadata: v.any(),
+        payloadHash: v.string(),
+        processedAt: v.optional(v.number()),
+        provider: v.string(),
+        result: v.optional(v.any()),
+        status: v.union(
+            v.literal("claimed"),
+            v.literal("completed"),
+            v.literal("failed"),
+        ),
+        updatedAt: v.number(),
+    })
+        .index("by_eventKey", ["eventKey"])
+        .index("by_provider_status", ["provider", "status", "updatedAt"])
+        .index("by_status", ["status", "updatedAt"]),
 });

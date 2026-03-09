@@ -2,15 +2,17 @@ import { runPasswordResetTests } from "./password-reset.test";
 import { runProxyRouteTests } from "./proxy.test";
 import { runRbacTests } from "./rbac.test";
 import { runSecurityInfrastructureTests } from "./security-infrastructure.test";
+import { runServiceBridgeTests } from "./service-bridge.test";
 import { runSessionManagementTests } from "./session-management.test";
 import { runTenantIsolationTests } from "./tenant-isolation.test";
 
-function main(): void {
+async function main(): Promise<void> {
     const completedTests = [
         ...runPasswordResetTests(),
         ...runProxyRouteTests(),
         ...runRbacTests(),
         ...runSecurityInfrastructureTests(),
+        ...(await runServiceBridgeTests()),
         ...runSessionManagementTests(),
         ...runTenantIsolationTests(),
     ];
@@ -22,4 +24,4 @@ function main(): void {
     console.log(`Completed ${completedTests.length} assertions.`);
 }
 
-main();
+void main();
