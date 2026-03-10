@@ -1,5 +1,12 @@
 import { redirect } from "next/navigation";
+import { buildPricingRedirectTarget } from "@/lib/marketing/pricing";
 
-export default function PricingPage(): never {
-    redirect("/#pricing");
+interface PricingPageProps {
+    searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export default async function PricingPage({
+    searchParams,
+}: PricingPageProps): Promise<never> {
+    redirect(buildPricingRedirectTarget(await searchParams));
 }

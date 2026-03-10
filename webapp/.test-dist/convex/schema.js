@@ -64,4 +64,76 @@ exports.default = (0, server_1.defineSchema)({
     })
         .index("by_slug", ["slug"])
         .index("by_display_order", ["displayOrder", "isActive"]),
+    salesInquiries: (0, server_1.defineTable)({
+        contactName: values_1.v.string(),
+        email: values_1.v.string(),
+        message: values_1.v.string(),
+        organizationName: values_1.v.string(),
+        organizationNameKey: values_1.v.optional(values_1.v.string()),
+        requestedTier: values_1.v.literal("enterprise"),
+        source: values_1.v.literal("pricing_page"),
+        status: values_1.v.union(values_1.v.literal("new"), values_1.v.literal("contacted"), values_1.v.literal("closed")),
+        createdAt: values_1.v.number(),
+    })
+        .index("by_email", ["email", "createdAt"])
+        .index("by_organizationNameKey", ["organizationNameKey", "createdAt"])
+        .index("by_status", ["status", "createdAt"]),
+    tenantIsolationEvents: (0, server_1.defineTable)({
+        action: values_1.v.string(),
+        actorRole: values_1.v.union(values_1.v.literal("platform_admin"), values_1.v.literal("tenant_admin"), values_1.v.literal("procurement_officer"), values_1.v.literal("department_user")),
+        actorUserId: values_1.v.id("users"),
+        entityType: values_1.v.string(),
+        event: values_1.v.union(values_1.v.literal("tenant.probe_blocked"), values_1.v.literal("tenant.platform_read_allowed")),
+        outcome: values_1.v.union(values_1.v.literal("allowed_platform_bypass"), values_1.v.literal("blocked_missing_metadata"), values_1.v.literal("blocked_not_found")),
+        recordId: values_1.v.optional(values_1.v.string()),
+        sourceTenantId: values_1.v.optional(values_1.v.id("tenants")),
+        tableName: values_1.v.string(),
+        targetTenantId: values_1.v.optional(values_1.v.id("tenants")),
+        timestamp: values_1.v.number(),
+    })
+        .index("by_actorUserId", ["actorUserId", "timestamp"])
+        .index("by_event", ["event", "timestamp"])
+        .index("by_targetTenantId", ["targetTenantId", "timestamp"])
+        .index("by_timestamp", ["timestamp"]),
+    auditLogs: (0, server_1.defineTable)({
+        action: values_1.v.string(),
+        actorRole: values_1.v.union(values_1.v.literal("anonymous"), values_1.v.literal("platform_admin"), values_1.v.literal("tenant_admin"), values_1.v.literal("procurement_officer"), values_1.v.literal("department_user"), values_1.v.literal("unassigned")),
+        actorState: values_1.v.union(values_1.v.literal("anonymous"), values_1.v.literal("authenticated")),
+        actorUserId: values_1.v.optional(values_1.v.id("users")),
+        entityType: values_1.v.string(),
+        event: values_1.v.string(),
+        metadata: values_1.v.any(),
+        outcome: values_1.v.string(),
+        recordId: values_1.v.optional(values_1.v.string()),
+        sourceTenantId: values_1.v.optional(values_1.v.id("tenants")),
+        tableName: values_1.v.optional(values_1.v.string()),
+        targetTenantId: values_1.v.optional(values_1.v.id("tenants")),
+        timestamp: values_1.v.number(),
+    })
+        .index("by_actorUserId", ["actorUserId", "timestamp"])
+        .index("by_event", ["event", "timestamp"])
+        .index("by_timestamp", ["timestamp"]),
+    externalServiceSyncEvents: (0, server_1.defineTable)({
+        actorRole: values_1.v.optional(values_1.v.string()),
+        actorTenantId: values_1.v.optional(values_1.v.string()),
+        actorUserId: values_1.v.optional(values_1.v.string()),
+        claimedAt: values_1.v.number(),
+        durableChanges: values_1.v.array(values_1.v.any()),
+        eventKey: values_1.v.string(),
+        eventType: values_1.v.string(),
+        lastError: values_1.v.optional(values_1.v.object({
+            code: values_1.v.string(),
+            message: values_1.v.string(),
+        })),
+        metadata: values_1.v.any(),
+        payloadHash: values_1.v.string(),
+        processedAt: values_1.v.optional(values_1.v.number()),
+        provider: values_1.v.string(),
+        result: values_1.v.optional(values_1.v.any()),
+        status: values_1.v.union(values_1.v.literal("claimed"), values_1.v.literal("completed"), values_1.v.literal("failed")),
+        updatedAt: values_1.v.number(),
+    })
+        .index("by_eventKey", ["eventKey"])
+        .index("by_provider_status", ["provider", "status", "updatedAt"])
+        .index("by_status", ["status", "updatedAt"]),
 });

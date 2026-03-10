@@ -91,12 +91,13 @@ function validateEmailInput(value, field = "email") {
 exports.validateEmailInput = validateEmailInput;
 function validatePlainTextInput(value, args) {
     const normalized = normalizePlainText(value);
+    const label = args.label ?? "Value";
     const unsafeReason = detectUnsafePlainTextReason(normalized);
     if (unsafeReason) {
         return createIssue({
             code: "UNSAFE_PLAIN_TEXT",
             field: args.field,
-            message: "Value must not contain markup or control characters",
+            message: `${label} must not contain markup or control characters`,
             outcome: audit_1.AUDIT_OUTCOMES.rejectedUnsafePlainText,
             reason: unsafeReason,
         });
@@ -105,7 +106,7 @@ function validatePlainTextInput(value, args) {
         return createIssue({
             code: "REQUIRED",
             field: args.field,
-            message: `Organization name must be at least ${args.minLength} characters`,
+            message: `${label} must be at least ${args.minLength} characters`,
             outcome: audit_1.AUDIT_OUTCOMES.rejectedInvalidCode,
             reason: "plain_text_below_min_length",
         });
@@ -114,7 +115,7 @@ function validatePlainTextInput(value, args) {
         return createIssue({
             code: "TOO_LONG",
             field: args.field,
-            message: `Organization name must be less than ${args.maxLength + 1} characters`,
+            message: `${label} must be less than ${args.maxLength + 1} characters`,
             outcome: audit_1.AUDIT_OUTCOMES.rejectedTooLong,
             reason: "plain_text_exceeds_max_length",
         });

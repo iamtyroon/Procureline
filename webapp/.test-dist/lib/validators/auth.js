@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resetPasswordSchema = exports.forgotPasswordSchema = exports.loginSchema = exports.passwordRequirements = exports.otpSchema = exports.signupSchema = exports.passwordSchema = void 0;
+exports.resetPasswordSchema = exports.forgotPasswordSchema = exports.loginSchema = exports.passwordRequirements = exports.otpSchema = exports.organizationSetupSchema = exports.signupSchema = exports.passwordSchema = void 0;
 const zod_1 = require("zod");
 const input_1 = require("../security/input");
 function validateWithSharedResult(result, ctx) {
@@ -43,6 +43,9 @@ exports.passwordSchema = zod_1.z
 exports.signupSchema = zod_1.z.object({
     email: emailSchema,
     password: exports.passwordSchema,
+    organizationName: organizationNameSchema,
+});
+exports.organizationSetupSchema = zod_1.z.object({
     organizationName: organizationNameSchema,
 });
 exports.otpSchema = zod_1.z.object({

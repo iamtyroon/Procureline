@@ -5,6 +5,7 @@ import {
     buildSecurityInputRejectedEvent,
     createAuthenticatedAuditActor,
 } from "../../lib/security/audit";
+import { resolveTenantRegistrationTier } from "../../lib/marketing/pricing";
 import { validateOrganizationNameInput } from "../../lib/security/input";
 import { appendAuditLogBestEffort } from "./_audit";
 import {
@@ -20,6 +21,13 @@ import { getCurrentTenantUserMembership } from "./_tenantGuard";
 export const registerWithTenant = mutation({
     args: {
         organizationName: v.string(),
+        selectedTier: v.optional(
+            v.union(
+                v.literal("free"),
+                v.literal("starter"),
+                v.literal("professional"),
+            ),
+        ),
     },
     returns: v.object({
         tenantId: v.id("tenants"),
@@ -107,7 +115,7 @@ export const registerWithTenant = mutation({
         const tenantId = await ctx.db.insert("tenants", {
             name: trimmedName,
             subdomain,
-            tier: "free",
+            tier: resolveTenantRegistrationTier(args.selectedTier),
             status: "active",
             createdAt: Date.now(),
         });

@@ -82,6 +82,25 @@ export default defineSchema({
         .index("by_slug", ["slug"])
         .index("by_display_order", ["displayOrder", "isActive"]),
 
+    salesInquiries: defineTable({
+        contactName: v.string(),
+        email: v.string(),
+        message: v.string(),
+        organizationName: v.string(),
+        organizationNameKey: v.optional(v.string()),
+        requestedTier: v.literal("enterprise"),
+        source: v.literal("pricing_page"),
+        status: v.union(
+            v.literal("new"),
+            v.literal("contacted"),
+            v.literal("closed"),
+        ),
+        createdAt: v.number(),
+    })
+        .index("by_email", ["email", "createdAt"])
+        .index("by_organizationNameKey", ["organizationNameKey", "createdAt"])
+        .index("by_status", ["status", "createdAt"]),
+
     tenantIsolationEvents: defineTable({
         action: v.string(),
         actorRole: v.union(

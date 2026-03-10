@@ -1,11 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+    PENDING_ORG_NAME_STORAGE_KEY,
+    PENDING_SELECTED_TIER_STORAGE_KEY,
+    PENDING_TENANT_SETUP_RETRY_STORAGE_KEY,
+    PENDING_VERIFICATION_EMAIL_STORAGE_KEY,
+} from "@/lib/auth/signup-flow";
+import {
+    resolveVerificationSelectedTier,
+    type SelfServeTier,
+} from "@/lib/marketing/pricing";
+import {
+    getPublicVerificationErrorMessage,
+    isExistingRoleAssignmentError,
+    isOrganizationNameConflictError,
+} from "@/lib/errors/convex";
 import { normalizeAuthEmail, normalizePlainText } from "@/lib/security/input";
 import { otpSchema, type OtpFormData } from "@/lib/validators/auth";
 import { api } from "@/convex/_generated/api";
@@ -23,10 +38,21 @@ import {
 
 interface VerifyEmailFormProps {
     email: string;
-    onBack: () => void;
+    onBack: (options?: { retryTenantSetup?: boolean }) => void;
+    selectedTier: SelfServeTier;
 }
 
-export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
+const TIER_LABELS: Record<SelfServeTier, string> = {
+    free: "Free",
+    professional: "Professional",
+    starter: "Starter",
+};
+
+export function VerifyEmailForm({
+    email,
+    onBack,
+    selectedTier,
+}: VerifyEmailFormProps): JSX.Element {
     const { signIn } = useAuthActions();
     const { isAuthenticated } = useConvexAuth();
     const registerWithTenant = useMutation(api.functions.users.registerWithTenant);
@@ -34,6 +60,8 @@ export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
     const [serverError, setServerError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isResending, setIsResending] = useState(false);
+    const [requiresOrganizationRetry, setRequiresOrganizationRetry] =
+        useState(false);
     const [resendCooldown, setResendCooldown] = useState(0);
 
     const {
@@ -45,50 +73,84 @@ export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
         defaultValues: { code: "" },
     });
 
-    // Cooldown timer for resend
     useEffect(() => {
-        if (resendCooldown <= 0) return;
-        const timer = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
+        if (resendCooldown <= 0) {
+            return;
+        }
+
+        const timer = setTimeout(() => setResendCooldown((current) => current - 1), 1000);
         return () => clearTimeout(timer);
     }, [resendCooldown]);
 
-    // After successful verification, register tenant
     useEffect(() => {
-        if (!isAuthenticated) return;
-
-        const orgName = sessionStorage.getItem("pendingOrgName");
-        if (!orgName) {
-            router.push("/dashboard");
+        if (!isAuthenticated) {
             return;
         }
+
+        const orgName = sessionStorage.getItem(PENDING_ORG_NAME_STORAGE_KEY);
+        const storedTier = resolveVerificationSelectedTier(
+            sessionStorage.getItem(PENDING_SELECTED_TIER_STORAGE_KEY),
+            selectedTier,
+        );
+
+        if (!orgName) {
+            sessionStorage.setItem(PENDING_TENANT_SETUP_RETRY_STORAGE_KEY, "true");
+            sessionStorage.removeItem(PENDING_VERIFICATION_EMAIL_STORAGE_KEY);
+            onBack({ retryTenantSetup: true });
+            return;
+        }
+
+        if (storedTier.shouldWarn) {
+            console.warn(
+                "[signup] Pending selected tier was invalid during verification; defaulting to free.",
+            );
+        }
+
         const normalizedOrganizationName = normalizePlainText(orgName);
 
         async function createTenant(): Promise<void> {
+            sessionStorage.removeItem(PENDING_TENANT_SETUP_RETRY_STORAGE_KEY);
+
             try {
                 await registerWithTenant({
                     organizationName: normalizedOrganizationName,
+                    selectedTier: storedTier.tier,
                 });
-                sessionStorage.removeItem("pendingOrgName");
+                sessionStorage.removeItem(PENDING_ORG_NAME_STORAGE_KEY);
+                sessionStorage.removeItem(PENDING_SELECTED_TIER_STORAGE_KEY);
+                sessionStorage.removeItem(PENDING_VERIFICATION_EMAIL_STORAGE_KEY);
                 router.push("/dashboard");
             } catch (error: unknown) {
-                // If ALREADY_EXISTS, tenant already created — just redirect
-                if (
-                    error instanceof Error &&
-                    error.message.includes("already")
-                ) {
-                    sessionStorage.removeItem("pendingOrgName");
+                if (isExistingRoleAssignmentError(error)) {
+                    sessionStorage.removeItem(PENDING_ORG_NAME_STORAGE_KEY);
+                    sessionStorage.removeItem(PENDING_SELECTED_TIER_STORAGE_KEY);
+                    sessionStorage.removeItem(PENDING_VERIFICATION_EMAIL_STORAGE_KEY);
                     router.push("/dashboard");
                     return;
                 }
+
+                if (isOrganizationNameConflictError(error)) {
+                    sessionStorage.setItem(
+                        PENDING_TENANT_SETUP_RETRY_STORAGE_KEY,
+                        "true",
+                    );
+                    sessionStorage.removeItem(PENDING_VERIFICATION_EMAIL_STORAGE_KEY);
+                    setRequiresOrganizationRetry(true);
+                    setServerError(getPublicVerificationErrorMessage(error));
+                    return;
+                }
+
+                setRequiresOrganizationRetry(false);
                 setServerError("Account created but organization setup failed. Please contact support.");
             }
         }
 
         void createTenant();
-    }, [isAuthenticated, registerWithTenant, router]);
+    }, [isAuthenticated, onBack, registerWithTenant, router, selectedTier]);
 
     async function onSubmit(data: OtpFormData): Promise<void> {
         setServerError(null);
+        setRequiresOrganizationRetry(false);
         setIsSubmitting(true);
 
         try {
@@ -98,49 +160,35 @@ export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
             formData.set("flow", "email-verification");
 
             await signIn("password", formData);
-            // If signIn succeeds, the isAuthenticated useEffect above handles tenant creation
         } catch (error: unknown) {
-            if (error instanceof Error) {
-                if (
-                    error.message.includes("invalid") ||
-                    error.message.includes("code") ||
-                    error.message.includes("expired")
-                ) {
-                    setServerError(
-                        "Invalid or expired verification code. Please try again.",
-                    );
-                } else {
-                    setServerError(
-                        error.message || "Verification failed. Please try again.",
-                    );
-                }
-            } else {
-                setServerError("Verification failed. Please try again.");
-            }
+            setServerError(getPublicVerificationErrorMessage(error));
         } finally {
             setIsSubmitting(false);
         }
     }
 
     async function handleResend(): Promise<void> {
-        if (resendCooldown > 0) return;
+        if (resendCooldown > 0) {
+            return;
+        }
+
         setIsResending(true);
         setServerError(null);
+        setRequiresOrganizationRetry(false);
 
         try {
             const formData = new FormData();
             formData.set("email", normalizeAuthEmail(email));
             formData.set("flow", "email-verification");
-
-            // Trigger a fresh verification email for the pending account.
             await signIn("password", formData);
             setResendCooldown(60);
         } catch (error: unknown) {
-            if (error instanceof Error) {
-                setServerError(error.message || "Unable to resend code right now.");
-            } else {
-                setServerError("Unable to resend code right now.");
-            }
+            setServerError(
+                getPublicVerificationErrorMessage(error) ===
+                    "Invalid or expired verification code. Please try again."
+                    ? "Unable to resend code right now."
+                    : getPublicVerificationErrorMessage(error),
+            );
         } finally {
             setIsResending(false);
         }
@@ -171,6 +219,9 @@ export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
                     We sent an 8-digit code to{" "}
                     <span className="font-medium text-foreground">{email}</span>
                 </CardDescription>
+                <div className="mx-auto inline-flex rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
+                    Selected plan: {TIER_LABELS[selectedTier]}
+                </div>
             </CardHeader>
 
             <form
@@ -179,7 +230,7 @@ export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
                 }}
             >
                 <CardContent className="space-y-4">
-                    {serverError && (
+                    {serverError ? (
                         <div
                             className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
                             role="alert"
@@ -187,7 +238,7 @@ export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
                         >
                             {serverError}
                         </div>
-                    )}
+                    ) : null}
 
                     <div className="space-y-2">
                         <Label htmlFor="code">Verification code</Label>
@@ -202,15 +253,13 @@ export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
                             className="text-center text-lg font-mono tracking-[0.3em]"
                             {...register("code")}
                             aria-invalid={errors.code ? "true" : undefined}
-                            aria-describedby={
-                                errors.code ? "code-error" : undefined
-                            }
+                            aria-describedby={errors.code ? "code-error" : undefined}
                         />
-                        {errors.code && (
+                        {errors.code ? (
                             <p id="code-error" className="text-sm text-destructive">
                                 {errors.code.message}
                             </p>
-                        )}
+                        ) : null}
                     </div>
                 </CardContent>
 
@@ -242,20 +291,28 @@ export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
                                         d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
                                     />
                                 </svg>
-                                Verifying…
+                                Verifying...
                             </span>
                         ) : (
                             "Verify email"
                         )}
                     </Button>
 
-                    <div className="flex items-center justify-between w-full text-sm">
+                    <div className="flex w-full items-center justify-between text-sm">
                         <button
                             type="button"
-                            onClick={onBack}
-                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={() => {
+                                onBack(
+                                    requiresOrganizationRetry
+                                        ? { retryTenantSetup: true }
+                                        : undefined,
+                                );
+                            }}
+                            className="text-muted-foreground transition-colors hover:text-foreground"
                         >
-                            ← Back
+                            {requiresOrganizationRetry
+                                ? "Choose another name"
+                                : "Back"}
                         </button>
 
                         <button
@@ -264,12 +321,12 @@ export function VerifyEmailForm({ email, onBack }: VerifyEmailFormProps) {
                                 void handleResend();
                             }}
                             disabled={isResending || resendCooldown > 0}
-                            className="text-primary hover:underline disabled:text-muted-foreground disabled:no-underline transition-colors"
+                            className="text-primary transition-colors hover:underline disabled:text-muted-foreground disabled:no-underline"
                         >
                             {resendCooldown > 0
                                 ? `Resend in ${resendCooldown}s`
                                 : isResending
-                                    ? "Sending…"
+                                    ? "Sending..."
                                     : "Resend code"}
                         </button>
                     </div>

@@ -133,17 +133,19 @@ export function validatePlainTextInput(
     value: string,
     args: {
         field: string;
+        label?: string;
         maxLength: number;
         minLength?: number;
     },
 ): SecurityValidationResult<string> {
     const normalized = normalizePlainText(value);
+    const label = args.label ?? "Value";
     const unsafeReason = detectUnsafePlainTextReason(normalized);
     if (unsafeReason) {
         return createIssue({
             code: "UNSAFE_PLAIN_TEXT",
             field: args.field,
-            message: "Value must not contain markup or control characters",
+            message: `${label} must not contain markup or control characters`,
             outcome: AUDIT_OUTCOMES.rejectedUnsafePlainText,
             reason: unsafeReason,
         });
@@ -153,7 +155,7 @@ export function validatePlainTextInput(
         return createIssue({
             code: "REQUIRED",
             field: args.field,
-            message: `Organization name must be at least ${args.minLength} characters`,
+            message: `${label} must be at least ${args.minLength} characters`,
             outcome: AUDIT_OUTCOMES.rejectedInvalidCode,
             reason: "plain_text_below_min_length",
         });
@@ -163,7 +165,7 @@ export function validatePlainTextInput(
         return createIssue({
             code: "TOO_LONG",
             field: args.field,
-            message: `Organization name must be less than ${args.maxLength + 1} characters`,
+            message: `${label} must be less than ${args.maxLength + 1} characters`,
             outcome: AUDIT_OUTCOMES.rejectedTooLong,
             reason: "plain_text_exceeds_max_length",
         });

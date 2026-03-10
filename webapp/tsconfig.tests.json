@@ -11,9 +11,11 @@
     "sourceMap": false,
     "target": "ES2022"
   },
-  "include": [
+    "include": [
     "tests/**/*.ts",
     "lib/auth/**/*.ts",
+    "lib/errors/**/*.ts",
+    "lib/marketing/**/*.ts",
     "lib/security/**/*.ts",
     "lib/services/**/*.ts",
     "lib/validators/**/*.ts"

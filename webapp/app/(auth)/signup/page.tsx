@@ -1,26 +1,23 @@
-"use client";
+import { resolveSelfServeTier } from "@/lib/marketing/pricing";
+import { SignupFlow } from "@/src/components/auth/SignupFlow";
 
-import { useState } from "react";
-import { SignupForm } from "@/src/components/auth/SignupForm";
-import { VerifyEmailForm } from "@/src/components/auth/VerifyEmailForm";
+interface SignupPageProps {
+    searchParams: Promise<{
+        tier?: string | string[] | undefined;
+    }>;
+}
 
-export default function SignupPage() {
-    const [step, setStep] = useState<"signup" | "verify">("signup");
-    const [email, setEmail] = useState("");
+export default async function SignupPage({
+    searchParams,
+}: SignupPageProps): Promise<JSX.Element> {
+    const resolvedSearchParams = await searchParams;
+    const selectedTier = resolveSelfServeTier(resolvedSearchParams.tier);
 
-    function handleSignupComplete(submittedEmail: string): void {
-        setEmail(submittedEmail);
-        setStep("verify");
-    }
-
-    if (step === "verify") {
-        return (
-            <VerifyEmailForm
-                email={email}
-                onBack={() => setStep("signup")}
-            />
+    if (selectedTier.shouldWarn) {
+        console.warn(
+            "[signup] Unsupported tier query parameter received; defaulting to free.",
         );
     }
 
-    return <SignupForm onComplete={handleSignupComplete} />;
+    return <SignupFlow selectedTier={selectedTier.tier} />;
 }

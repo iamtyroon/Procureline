@@ -1,11 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { useConvexAuth, useMutation } from "convex/react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+    createPendingSignupState,
+    PENDING_ORG_NAME_STORAGE_KEY,
+    PENDING_SELECTED_TIER_STORAGE_KEY,
+    PENDING_TENANT_SETUP_RETRY_STORAGE_KEY,
+    PENDING_VERIFICATION_EMAIL_STORAGE_KEY,
+} from "@/lib/auth/signup-flow";
+import {
+    resolveVerificationSelectedTier,
+    type SelfServeTier,
+} from "@/lib/marketing/pricing";
+import {
+    getPublicVerificationErrorMessage,
+    isExistingRoleAssignmentError,
+    isOrganizationNameConflictError,
+} from "@/lib/errors/convex";
 import { normalizeAuthEmail, normalizePlainText } from "@/lib/security/input";
-import { signupSchema, type SignupFormData, passwordRequirements } from "@/lib/validators/auth";
+import {
+    organizationSetupSchema,
+    passwordRequirements,
+    signupSchema,
+    type OrganizationSetupFormData,
+    type SignupFormData,
+} from "@/lib/validators/auth";
+import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,13 +45,29 @@ import {
 import Link from "next/link";
 
 interface SignupFormProps {
+    mode?: "signup" | "tenant-retry";
     onComplete: (email: string) => void;
+    selectedTier: SelfServeTier;
 }
 
-export function SignupForm({ onComplete }: SignupFormProps) {
+const TIER_LABELS: Record<SelfServeTier, string> = {
+    free: "Free",
+    professional: "Professional",
+    starter: "Starter",
+};
+
+export function SignupForm({
+    mode = "signup",
+    onComplete,
+    selectedTier,
+}: SignupFormProps): JSX.Element {
     const { signIn } = useAuthActions();
+    const { isAuthenticated } = useConvexAuth();
+    const registerWithTenant = useMutation(api.functions.users.registerWithTenant);
+    const router = useRouter();
     const [serverError, setServerError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const isRecoveryMode = mode === "tenant-retry";
 
     const {
         register,
@@ -41,8 +82,30 @@ export function SignupForm({ onComplete }: SignupFormProps) {
             organizationName: "",
         },
     });
+    const {
+        register: registerOrganization,
+        handleSubmit: handleRecoverySubmit,
+        reset: resetOrganizationForm,
+        formState: { errors: organizationErrors },
+    } = useForm<OrganizationSetupFormData>({
+        resolver: zodResolver(organizationSetupSchema),
+        defaultValues: {
+            organizationName: "",
+        },
+    });
 
     const passwordValue = watch("password");
+
+    useEffect(() => {
+        if (!isRecoveryMode) {
+            return;
+        }
+
+        resetOrganizationForm({
+            organizationName:
+                sessionStorage.getItem(PENDING_ORG_NAME_STORAGE_KEY) ?? "",
+        });
+    }, [isRecoveryMode, resetOrganizationForm]);
 
     async function onSubmit(data: SignupFormData): Promise<void> {
         setServerError(null);
@@ -54,21 +117,33 @@ export function SignupForm({ onComplete }: SignupFormProps) {
                 data.organizationName,
             );
 
-            // Create FormData for Convex Auth signIn
             const formData = new FormData();
             formData.set("email", normalizedEmail);
             formData.set("password", data.password);
             formData.set("flow", "signUp");
 
-            // signIn returns void on success, throws on error
-            // When verify (ResendOTP) is configured, signIn triggers email verification
             await signIn("password", formData);
 
-            // Store org name in sessionStorage for after verification
-            sessionStorage.setItem("pendingOrgName", normalizedOrganizationName);
+            const pendingSignupState = createPendingSignupState({
+                email: normalizedEmail,
+                organizationName: normalizedOrganizationName,
+                selectedTier,
+            });
 
-            // Move to verify step
-            onComplete(normalizedEmail);
+            sessionStorage.setItem(
+                PENDING_ORG_NAME_STORAGE_KEY,
+                pendingSignupState.organizationName,
+            );
+            sessionStorage.setItem(
+                PENDING_SELECTED_TIER_STORAGE_KEY,
+                pendingSignupState.selectedTier,
+            );
+            sessionStorage.setItem(
+                PENDING_VERIFICATION_EMAIL_STORAGE_KEY,
+                pendingSignupState.email,
+            );
+            sessionStorage.removeItem(PENDING_TENANT_SETUP_RETRY_STORAGE_KEY);
+            onComplete(pendingSignupState.email);
         } catch (error: unknown) {
             if (error instanceof Error) {
                 const message = error.message;
@@ -78,21 +153,80 @@ export function SignupForm({ onComplete }: SignupFormProps) {
                     message.includes("registered")
                 ) {
                     setServerError("Email already registered. Try signing in instead.");
-                } else if (message.includes("verify") || message.includes("code")) {
-                    // Password provider with verify triggers email verification
-                    // This is actually success — user needs to enter OTP
-                    sessionStorage.setItem(
-                        "pendingOrgName",
-                        normalizePlainText(data.organizationName),
-                    );
-                    onComplete(normalizeAuthEmail(data.email));
-                    return;
                 } else {
-                    setServerError(message || "An unexpected error occurred. Please try again.");
+                    setServerError("We could not complete your request right now. Please try again.");
                 }
             } else {
-                setServerError("An unexpected error occurred. Please try again.");
+                setServerError("We could not complete your request right now. Please try again.");
             }
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
+    async function onSubmitRecovery(
+        data: OrganizationSetupFormData,
+    ): Promise<void> {
+        setServerError(null);
+        setIsSubmitting(true);
+
+        try {
+            if (!isAuthenticated) {
+                setServerError("Please verify your email again to finish setting up your organization.");
+                return;
+            }
+
+            const normalizedOrganizationName = normalizePlainText(
+                data.organizationName,
+            );
+            const storedTier = resolveVerificationSelectedTier(
+                sessionStorage.getItem(PENDING_SELECTED_TIER_STORAGE_KEY),
+                selectedTier,
+            );
+
+            if (storedTier.shouldWarn) {
+                console.warn(
+                    "[signup] Pending selected tier was invalid during organization setup retry; defaulting to free.",
+                );
+            }
+
+            sessionStorage.setItem(
+                PENDING_ORG_NAME_STORAGE_KEY,
+                normalizedOrganizationName,
+            );
+            sessionStorage.setItem(
+                PENDING_SELECTED_TIER_STORAGE_KEY,
+                storedTier.tier,
+            );
+
+            await registerWithTenant({
+                organizationName: normalizedOrganizationName,
+                selectedTier: storedTier.tier,
+            });
+
+            sessionStorage.removeItem(PENDING_ORG_NAME_STORAGE_KEY);
+            sessionStorage.removeItem(PENDING_SELECTED_TIER_STORAGE_KEY);
+            sessionStorage.removeItem(PENDING_TENANT_SETUP_RETRY_STORAGE_KEY);
+            sessionStorage.removeItem(PENDING_VERIFICATION_EMAIL_STORAGE_KEY);
+            router.push("/dashboard");
+        } catch (error: unknown) {
+            if (isExistingRoleAssignmentError(error)) {
+                sessionStorage.removeItem(PENDING_ORG_NAME_STORAGE_KEY);
+                sessionStorage.removeItem(PENDING_SELECTED_TIER_STORAGE_KEY);
+                sessionStorage.removeItem(PENDING_TENANT_SETUP_RETRY_STORAGE_KEY);
+                sessionStorage.removeItem(PENDING_VERIFICATION_EMAIL_STORAGE_KEY);
+                router.push("/dashboard");
+                return;
+            }
+
+            if (isOrganizationNameConflictError(error)) {
+                setServerError(getPublicVerificationErrorMessage(error));
+                return;
+            }
+
+            setServerError(
+                "Account verified but organization setup failed. Please try a different name or contact support.",
+            );
         } finally {
             setIsSubmitting(false);
         }
@@ -117,19 +251,31 @@ export function SignupForm({ onComplete }: SignupFormProps) {
                     </svg>
                 </div>
                 <CardTitle className="text-2xl font-bold">
-                    Create your account
+                    {isRecoveryMode
+                        ? "Finish organization setup"
+                        : "Create your account"}
                 </CardTitle>
                 <CardDescription>
-                    Start your free Procureline account — no credit card required
+                    {isRecoveryMode
+                        ? `Your account is verified. Choose a different organization name to finish your ${TIER_LABELS[selectedTier]} setup.`
+                        : `Start your ${TIER_LABELS[selectedTier]} Procureline account with annual July to June billing. No monthly billing is implied here.`}
                 </CardDescription>
+                <div className="mx-auto inline-flex rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
+                    Selected plan: {TIER_LABELS[selectedTier]}
+                </div>
             </CardHeader>
             <form
                 onSubmit={(event) => {
+                    if (isRecoveryMode) {
+                        void handleRecoverySubmit(onSubmitRecovery)(event);
+                        return;
+                    }
+
                     void handleSubmit(onSubmit)(event);
                 }}
             >
                 <CardContent className="space-y-4">
-                    {serverError && (
+                    {serverError ? (
                         <div
                             className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
                             role="alert"
@@ -137,9 +283,8 @@ export function SignupForm({ onComplete }: SignupFormProps) {
                         >
                             {serverError}
                         </div>
-                    )}
+                    ) : null}
 
-                    {/* Organization Name */}
                     <div className="space-y-2">
                         <Label htmlFor="organizationName">Organization name</Label>
                         <Input
@@ -147,112 +292,141 @@ export function SignupForm({ onComplete }: SignupFormProps) {
                             type="text"
                             placeholder="University of Nairobi"
                             autoComplete="organization"
-                            {...register("organizationName")}
-                            aria-invalid={errors.organizationName ? "true" : undefined}
+                            {...(isRecoveryMode
+                                ? registerOrganization("organizationName")
+                                : register("organizationName"))}
+                            aria-invalid={
+                                isRecoveryMode
+                                    ? organizationErrors.organizationName
+                                        ? "true"
+                                        : undefined
+                                    : errors.organizationName
+                                        ? "true"
+                                        : undefined
+                            }
                             aria-describedby={
-                                errors.organizationName
-                                    ? "organizationName-error"
-                                    : undefined
+                                isRecoveryMode
+                                    ? organizationErrors.organizationName
+                                        ? "organizationName-error"
+                                        : undefined
+                                    : errors.organizationName
+                                        ? "organizationName-error"
+                                        : undefined
                             }
                         />
-                        {errors.organizationName && (
+                        {isRecoveryMode ? (
+                            organizationErrors.organizationName ? (
+                                <p
+                                    id="organizationName-error"
+                                    className="text-sm text-destructive"
+                                >
+                                    {organizationErrors.organizationName.message}
+                                </p>
+                            ) : null
+                        ) : errors.organizationName ? (
                             <p
                                 id="organizationName-error"
                                 className="text-sm text-destructive"
                             >
                                 {errors.organizationName.message}
                             </p>
-                        )}
+                        ) : null}
                     </div>
 
-                    {/* Email */}
-                    <div className="space-y-2">
-                        <Label htmlFor="email">Email address</Label>
-                        <Input
-                            id="email"
-                            type="email"
-                            placeholder="admin@university.ac.ke"
-                            autoComplete="email"
-                            {...register("email")}
-                            aria-invalid={errors.email ? "true" : undefined}
-                            aria-describedby={
-                                errors.email ? "email-error" : undefined
-                            }
-                        />
-                        {errors.email && (
-                            <p id="email-error" className="text-sm text-destructive">
-                                {errors.email.message}
-                            </p>
-                        )}
-                    </div>
+                    {isRecoveryMode ? (
+                        <div className="rounded-lg border border-border/60 bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+                            Your email is already verified. Updating the organization
+                            name will retry tenant creation without creating another
+                            account.
+                        </div>
+                    ) : (
+                        <>
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email address</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    placeholder="admin@university.ac.ke"
+                                    autoComplete="email"
+                                    {...register("email")}
+                                    aria-invalid={errors.email ? "true" : undefined}
+                                    aria-describedby={errors.email ? "email-error" : undefined}
+                                />
+                                {errors.email ? (
+                                    <p id="email-error" className="text-sm text-destructive">
+                                        {errors.email.message}
+                                    </p>
+                                ) : null}
+                            </div>
 
-                    {/* Password */}
-                    <div className="space-y-2">
-                        <Label htmlFor="password">Password</Label>
-                        <Input
-                            id="password"
-                            type="password"
-                            placeholder="••••••••••••"
-                            autoComplete="new-password"
-                            {...register("password")}
-                            aria-invalid={errors.password ? "true" : undefined}
-                            aria-describedby="password-requirements"
-                        />
-                        {errors.password && (
-                            <p className="text-sm text-destructive">
-                                {errors.password.message}
-                            </p>
-                        )}
+                            <div className="space-y-2">
+                                <Label htmlFor="password">Password</Label>
+                                <Input
+                                    id="password"
+                                    type="password"
+                                    placeholder="Create a strong password"
+                                    autoComplete="new-password"
+                                    {...register("password")}
+                                    aria-invalid={errors.password ? "true" : undefined}
+                                    aria-describedby="password-requirements"
+                                />
+                                {errors.password ? (
+                                    <p className="text-sm text-destructive">
+                                        {errors.password.message}
+                                    </p>
+                                ) : null}
 
-                        {/* Password strength checklist */}
-                        <ul
-                            id="password-requirements"
-                            className="mt-2 space-y-1 text-xs"
-                            aria-label="Password requirements"
-                        >
-                            {passwordRequirements.map((req) => {
-                                const met = req.test(passwordValue || "");
-                                return (
-                                    <li
-                                        key={req.label}
-                                        className={`flex items-center gap-1.5 ${met
-                                            ? "text-primary"
-                                            : "text-muted-foreground"
-                                            }`}
-                                    >
-                                        <span className="flex-shrink-0">
-                                            {met ? (
-                                                <svg
-                                                    className="h-3.5 w-3.5"
-                                                    fill="none"
-                                                    viewBox="0 0 24 24"
-                                                    stroke="currentColor"
-                                                    strokeWidth={3}
-                                                >
-                                                    <path
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                        d="M5 13l4 4L19 7"
-                                                    />
-                                                </svg>
-                                            ) : (
-                                                <svg
-                                                    className="h-3.5 w-3.5"
-                                                    fill="none"
-                                                    viewBox="0 0 24 24"
-                                                    stroke="currentColor"
-                                                    strokeWidth={2}
-                                                >
-                                                    <circle cx="12" cy="12" r="9" />
-                                                </svg>
-                                            )}
-                                        </span>
-                                        {req.label}
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    </div>
+                                <ul
+                                    id="password-requirements"
+                                    className="mt-2 space-y-1 text-xs"
+                                    aria-label="Password requirements"
+                                >
+                                    {passwordRequirements.map((requirement) => {
+                                        const met = requirement.test(passwordValue || "");
+                                        return (
+                                            <li
+                                                key={requirement.label}
+                                                className={`flex items-center gap-1.5 ${
+                                                    met
+                                                        ? "text-primary"
+                                                        : "text-muted-foreground"
+                                                }`}
+                                            >
+                                                <span className="flex-shrink-0">
+                                                    {met ? (
+                                                        <svg
+                                                            className="h-3.5 w-3.5"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
+                                                            strokeWidth={3}
+                                                        >
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                d="M5 13l4 4L19 7"
+                                                            />
+                                                        </svg>
+                                                    ) : (
+                                                        <svg
+                                                            className="h-3.5 w-3.5"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
+                                                            strokeWidth={2}
+                                                        >
+                                                            <circle cx="12" cy="12" r="9" />
+                                                        </svg>
+                                                    )}
+                                                </span>
+                                                {requirement.label}
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            </div>
+                        </>
+                    )}
                 </CardContent>
 
                 <CardFooter className="flex flex-col gap-4">
@@ -283,10 +457,14 @@ export function SignupForm({ onComplete }: SignupFormProps) {
                                         d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
                                     />
                                 </svg>
-                                Creating account…
+                                {isRecoveryMode
+                                    ? "Completing setup..."
+                                    : "Creating account..."}
                             </span>
                         ) : (
-                            "Create free account"
+                            isRecoveryMode
+                                ? "Complete organization setup"
+                                : `Continue with ${TIER_LABELS[selectedTier]}`
                         )}
                     </Button>
 

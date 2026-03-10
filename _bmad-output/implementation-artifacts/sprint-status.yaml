@@ -3,7 +3,7 @@
 # project_key: procureline
 # tracking_system: file-system
 # story_location: c:\Users\Tyroon\Downloads\project\Procureline\_bmad-output\implementation-artifacts
-# last_updated: 2026-03-09
+# last_updated: 2026-03-10
 # ==============================================================================
 
 # STATUS DEFINITIONS:
@@ -35,7 +35,7 @@
 # - SM typically creates next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
-generated: 2026-03-09
+generated: 2026-03-10
 project: Procureline
 project_key: procureline
 tracking_system: file-system
@@ -65,7 +65,7 @@ development_status:
   2-0-nestjs-microservice-foundation-external-services: done
 
   11-1-marketing-landing-page: done
-  11-2-pricing-page-tier-comparison: ready-for-dev
+  11-2-pricing-page-tier-comparison: done
   11-3-public-role-based-auth-entry: backlog
   1-8-du-access-code-authentication: backlog
   11-4-first-login-onboarding-contextual-help: backlog
@@ -259,7 +259,7 @@ story_surfaces:
 
   epic-11:
     11-1-marketing-landing-page: frontend-led
-    11-2-pricing-page-tier-comparison: frontend-led
+    11-2-pricing-page-tier-comparison: full-stack
     11-3-public-role-based-auth-entry: frontend-led
     11-4-first-login-onboarding-contextual-help: frontend-led
 

@@ -86,12 +86,16 @@ export const signupSchema = z.object({
     password: passwordSchema,
     organizationName: organizationNameSchema,
 });
+export const organizationSetupSchema = z.object({
+    organizationName: organizationNameSchema,
+});
 
 export const otpSchema = z.object({
     code: verificationCodeSchema,
 });
 
 export type SignupFormData = z.infer<typeof signupSchema>;
+export type OrganizationSetupFormData = z.infer<typeof organizationSetupSchema>;
 export type OtpFormData = z.infer<typeof otpSchema>;
 
 /** Password requirement checklist for real-time UI feedback */
