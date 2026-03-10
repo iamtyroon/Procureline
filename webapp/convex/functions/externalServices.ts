@@ -4,8 +4,8 @@ import { internalMutation } from "../_generated/server";
 export const claimSyncEvent = internalMutation({
   args: {
     actorRole: v.optional(v.string()),
-    actorTenantId: v.optional(v.string()),
-    actorUserId: v.optional(v.string()),
+    actorTenantId: v.optional(v.id("tenants")),
+    actorUserId: v.optional(v.id("users")),
     eventKey: v.string(),
     eventType: v.string(),
     metadata: v.any(),

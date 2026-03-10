@@ -109,8 +109,6 @@ export function VerifyEmailForm({
         const normalizedOrganizationName = normalizePlainText(orgName);
 
         async function createTenant(): Promise<void> {
-            sessionStorage.removeItem(PENDING_TENANT_SETUP_RETRY_STORAGE_KEY);
-
             try {
                 await registerWithTenant({
                     organizationName: normalizedOrganizationName,
@@ -118,12 +116,16 @@ export function VerifyEmailForm({
                 });
                 sessionStorage.removeItem(PENDING_ORG_NAME_STORAGE_KEY);
                 sessionStorage.removeItem(PENDING_SELECTED_TIER_STORAGE_KEY);
+                sessionStorage.removeItem(PENDING_TENANT_SETUP_RETRY_STORAGE_KEY);
                 sessionStorage.removeItem(PENDING_VERIFICATION_EMAIL_STORAGE_KEY);
                 router.push("/dashboard");
             } catch (error: unknown) {
                 if (isExistingRoleAssignmentError(error)) {
                     sessionStorage.removeItem(PENDING_ORG_NAME_STORAGE_KEY);
                     sessionStorage.removeItem(PENDING_SELECTED_TIER_STORAGE_KEY);
+                    sessionStorage.removeItem(
+                        PENDING_TENANT_SETUP_RETRY_STORAGE_KEY,
+                    );
                     sessionStorage.removeItem(PENDING_VERIFICATION_EMAIL_STORAGE_KEY);
                     router.push("/dashboard");
                     return;

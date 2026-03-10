@@ -1,3 +1,4 @@
+import type { Id } from "./_generated/dataModel";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { resolveProcurelineConvexSyncSecret } from "../lib/services/procureline-service-auth";
@@ -75,8 +76,8 @@ export const handleExternalServiceSync = httpAction(async (ctx, request) => {
   if (body.command === "claim") {
     const result = await ctx.runMutation(internal.functions.externalServices.claimSyncEvent, {
       actorRole: body.actor?.role,
-      actorTenantId: body.actor?.tenantId,
-      actorUserId: body.actor?.userId,
+      actorTenantId: body.actor?.tenantId as Id<"tenants"> | undefined,
+      actorUserId: body.actor?.userId as Id<"users"> | undefined,
       eventKey: body.eventKey,
       eventType: body.eventType,
       metadata: body.metadata ?? {},
@@ -114,4 +115,3 @@ export const handleExternalServiceSync = httpAction(async (ctx, request) => {
     data: result,
   });
 });
-

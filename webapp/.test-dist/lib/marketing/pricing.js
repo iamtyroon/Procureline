@@ -179,7 +179,7 @@ function resolveVerificationSelectedTier(storedTier, selectedTier) {
 }
 exports.resolveVerificationSelectedTier = resolveVerificationSelectedTier;
 function resolveTenantRegistrationTier(selectedTier) {
-    return selectedTier ?? "free";
+    return resolveSelfServeTier(selectedTier ?? undefined).tier;
 }
 exports.resolveTenantRegistrationTier = resolveTenantRegistrationTier;
 function convertUsdToKes(amountUSD) {

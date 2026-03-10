@@ -4,6 +4,7 @@ import {
     contactSalesSchema,
     createEnterpriseInquiryRecord,
     ENTERPRISE_INQUIRY_COOLDOWN_MS,
+    getEnterpriseInquiryCooldownMessage,
     getMostRecentEnterpriseInquiryCreatedAt,
     isEnterpriseInquiryRateLimited,
 } from "../../lib/validators/sales";
@@ -75,8 +76,9 @@ export const submitEnterpriseInquiry = mutation({
         ) {
             throw new ConvexError({
                 code: "RATE_LIMITED",
-                message:
-                    "You've recently submitted an enterprise inquiry. Please wait 10 minutes before sending another.",
+                message: getEnterpriseInquiryCooldownMessage(
+                    ENTERPRISE_INQUIRY_COOLDOWN_MS,
+                ),
             });
         }
 

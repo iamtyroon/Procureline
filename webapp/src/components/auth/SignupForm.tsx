@@ -368,10 +368,17 @@ export function SignupForm({
                                     autoComplete="new-password"
                                     {...register("password")}
                                     aria-invalid={errors.password ? "true" : undefined}
-                                    aria-describedby="password-requirements"
+                                    aria-describedby={
+                                        errors.password
+                                            ? "password-requirements password-error"
+                                            : "password-requirements"
+                                    }
                                 />
                                 {errors.password ? (
-                                    <p className="text-sm text-destructive">
+                                    <p
+                                        id="password-error"
+                                        className="text-sm text-destructive"
+                                    >
                                         {errors.password.message}
                                     </p>
                                 ) : null}

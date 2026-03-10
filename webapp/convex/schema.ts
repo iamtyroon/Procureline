@@ -162,8 +162,8 @@ export default defineSchema({
 
     externalServiceSyncEvents: defineTable({
         actorRole: v.optional(v.string()),
-        actorTenantId: v.optional(v.string()),
-        actorUserId: v.optional(v.string()),
+        actorTenantId: v.optional(v.id("tenants")),
+        actorUserId: v.optional(v.id("users")),
         claimedAt: v.number(),
         durableChanges: v.array(v.any()),
         eventKey: v.string(),

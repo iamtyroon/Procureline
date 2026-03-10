@@ -250,9 +250,9 @@ export function resolveVerificationSelectedTier(
 }
 
 export function resolveTenantRegistrationTier(
-    selectedTier: SelfServeTier | undefined,
+    selectedTier: string | null | undefined,
 ): SelfServeTier {
-    return selectedTier ?? "free";
+    return resolveSelfServeTier(selectedTier ?? undefined).tier;
 }
 
 export function convertUsdToKes(amountUSD: number): number {

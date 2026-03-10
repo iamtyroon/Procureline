@@ -115,8 +115,8 @@ exports.default = (0, server_1.defineSchema)({
         .index("by_timestamp", ["timestamp"]),
     externalServiceSyncEvents: (0, server_1.defineTable)({
         actorRole: values_1.v.optional(values_1.v.string()),
-        actorTenantId: values_1.v.optional(values_1.v.string()),
-        actorUserId: values_1.v.optional(values_1.v.string()),
+        actorTenantId: values_1.v.optional(values_1.v.id("tenants")),
+        actorUserId: values_1.v.optional(values_1.v.id("users")),
         claimedAt: values_1.v.number(),
         durableChanges: values_1.v.array(values_1.v.any()),
         eventKey: values_1.v.string(),

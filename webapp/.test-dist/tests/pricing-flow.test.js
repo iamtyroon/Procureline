@@ -48,6 +48,7 @@ function runPricingFlowTests() {
     strict_1.default.equal((0, pricing_1.resolveTenantRegistrationTier)(undefined), "free");
     strict_1.default.equal((0, pricing_1.resolveTenantRegistrationTier)("starter"), "starter");
     strict_1.default.equal((0, pricing_1.resolveTenantRegistrationTier)("professional"), "professional");
+    strict_1.default.equal((0, pricing_1.resolveTenantRegistrationTier)("enterprise"), "free");
     completedTests.push("signup tier resolution keeps the self-serve allowlist, restores the chosen tier through verification, and defaults tenant registration safely to free when needed");
     strict_1.default.deepEqual((0, pricing_1.sortPricingTiers)([
         { displayOrder: 99, slug: "enterprise" },

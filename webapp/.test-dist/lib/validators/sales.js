@@ -1,9 +1,27 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.isEnterpriseInquiryRateLimited = exports.createEnterpriseInquiryRecord = exports.getMostRecentEnterpriseInquiryCreatedAt = exports.normalizeEnterpriseInquiryOrganizationKey = exports.normalizeEnterpriseInquiryEmail = exports.contactSalesSchema = exports.ENTERPRISE_INQUIRY_COOLDOWN_MS = void 0;
+exports.isEnterpriseInquiryRateLimited = exports.createEnterpriseInquiryRecord = exports.getMostRecentEnterpriseInquiryCreatedAt = exports.normalizeEnterpriseInquiryOrganizationKey = exports.normalizeEnterpriseInquiryEmail = exports.contactSalesSchema = exports.getEnterpriseInquiryCooldownMessage = exports.formatEnterpriseInquiryCooldown = exports.ENTERPRISE_INQUIRY_COOLDOWN_MS = void 0;
 const zod_1 = require("zod");
 const input_1 = require("../security/input");
 exports.ENTERPRISE_INQUIRY_COOLDOWN_MS = 10 * 60 * 1000;
+function formatEnterpriseInquiryCooldown(cooldownMs = exports.ENTERPRISE_INQUIRY_COOLDOWN_MS) {
+    const totalSeconds = Math.max(1, Math.ceil(cooldownMs / 1000));
+    if (totalSeconds % 60 === 0) {
+        const minutes = totalSeconds / 60;
+        return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+    }
+    if (totalSeconds > 60) {
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${minutes} minute${minutes === 1 ? "" : "s"} ${seconds} second${seconds === 1 ? "" : "s"}`;
+    }
+    return `${totalSeconds} second${totalSeconds === 1 ? "" : "s"}`;
+}
+exports.formatEnterpriseInquiryCooldown = formatEnterpriseInquiryCooldown;
+function getEnterpriseInquiryCooldownMessage(cooldownMs = exports.ENTERPRISE_INQUIRY_COOLDOWN_MS) {
+    return `You've recently submitted an enterprise inquiry. Please wait ${formatEnterpriseInquiryCooldown(cooldownMs)} before sending another.`;
+}
+exports.getEnterpriseInquiryCooldownMessage = getEnterpriseInquiryCooldownMessage;
 function validateWithSharedResult(result, ctx) {
     if (result.ok) {
         return;

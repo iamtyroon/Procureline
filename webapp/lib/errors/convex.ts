@@ -1,9 +1,11 @@
+import { getEnterpriseInquiryCooldownMessage } from "../validators/sales";
+
 const GENERIC_PUBLIC_ERROR_MESSAGE =
     "We could not complete your request right now. Please try again.";
 const GENERIC_PUBLIC_INQUIRY_ERROR_MESSAGE =
     "We could not submit your request right now. Please try again.";
 const PUBLIC_INQUIRY_RATE_LIMIT_MESSAGE =
-    "You've recently submitted an enterprise inquiry. Please wait 10 minutes before sending another.";
+    getEnterpriseInquiryCooldownMessage();
 const SAFE_PUBLIC_INQUIRY_VALIDATION_PATTERNS = [
     /^contact name must /i,
     /^organization name must /i,
@@ -68,7 +70,7 @@ export function getPublicInquirySubmissionErrorMessage(error: unknown): string {
     }
 
     if (
-        includesNormalized(message, "wait 10 minutes before sending another") ||
+        includesNormalized(message, "before sending another") ||
         includesNormalized(message, "recently submitted an enterprise inquiry") ||
         includesNormalized(message, "rate limit")
     ) {

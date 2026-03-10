@@ -71,6 +71,7 @@ export function runPricingFlowTests(): string[] {
     assert.equal(resolveTenantRegistrationTier(undefined), "free");
     assert.equal(resolveTenantRegistrationTier("starter"), "starter");
     assert.equal(resolveTenantRegistrationTier("professional"), "professional");
+    assert.equal(resolveTenantRegistrationTier("enterprise"), "free");
     completedTests.push(
         "signup tier resolution keeps the self-serve allowlist, restores the chosen tier through verification, and defaults tenant registration safely to free when needed",
     );

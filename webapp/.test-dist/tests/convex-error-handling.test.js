@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.runConvexErrorHandlingTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
 const convex_1 = require("../lib/errors/convex");
+const sales_1 = require("../lib/validators/sales");
 function runConvexErrorHandlingTests() {
     const completedTests = [];
     const roleAssignmentError = new Error("You already have an application role assignment");
@@ -22,7 +23,7 @@ function runConvexErrorHandlingTests() {
     strict_1.default.equal((0, convex_1.getPublicVerificationErrorMessage)(new Error("[CONVEX] Request ID: abc Server Error")), "We could not complete your request right now. Please try again.");
     completedTests.push("verification error mapping only rewrites actual code failures and keeps unrelated backend issues generic");
     strict_1.default.equal((0, convex_1.getPublicInquirySubmissionErrorMessage)(new Error("[CONVEX M(functions/salesInquiries:submitEnterpriseInquiry)] [Request ID: abc] Server Error")), "We could not submit your request right now. Please try again.");
-    strict_1.default.equal((0, convex_1.getPublicInquirySubmissionErrorMessage)(new Error("You've recently submitted an enterprise inquiry. Please wait 10 minutes before sending another.")), "You've recently submitted an enterprise inquiry. Please wait 10 minutes before sending another.");
+    strict_1.default.equal((0, convex_1.getPublicInquirySubmissionErrorMessage)(new Error((0, sales_1.getEnterpriseInquiryCooldownMessage)())), (0, sales_1.getEnterpriseInquiryCooldownMessage)());
     strict_1.default.equal((0, convex_1.getPublicInquirySubmissionErrorMessage)(new Error("Email must not exceed 254 characters")), "Email must not exceed 254 characters");
     strict_1.default.equal((0, convex_1.getPublicInquirySubmissionErrorMessage)(new Error("Server error while syncing email delivery pipeline")), "We could not submit your request right now. Please try again.");
     completedTests.push("enterprise inquiry errors are sanitized for the public UI while preserving safe cooldown messaging");

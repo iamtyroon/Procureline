@@ -8,6 +8,31 @@ import {
 
 export const ENTERPRISE_INQUIRY_COOLDOWN_MS = 10 * 60 * 1000;
 
+export function formatEnterpriseInquiryCooldown(
+    cooldownMs: number = ENTERPRISE_INQUIRY_COOLDOWN_MS,
+): string {
+    const totalSeconds = Math.max(1, Math.ceil(cooldownMs / 1000));
+
+    if (totalSeconds % 60 === 0) {
+        const minutes = totalSeconds / 60;
+        return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+    }
+
+    if (totalSeconds > 60) {
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${minutes} minute${minutes === 1 ? "" : "s"} ${seconds} second${seconds === 1 ? "" : "s"}`;
+    }
+
+    return `${totalSeconds} second${totalSeconds === 1 ? "" : "s"}`;
+}
+
+export function getEnterpriseInquiryCooldownMessage(
+    cooldownMs: number = ENTERPRISE_INQUIRY_COOLDOWN_MS,
+): string {
+    return `You've recently submitted an enterprise inquiry. Please wait ${formatEnterpriseInquiryCooldown(cooldownMs)} before sending another.`;
+}
+
 function validateWithSharedResult(
     result:
         | { ok: true }

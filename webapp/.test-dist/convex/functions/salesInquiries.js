@@ -50,7 +50,7 @@ exports.submitEnterpriseInquiry = (0, server_1.mutation)({
         })) {
             throw new values_1.ConvexError({
                 code: "RATE_LIMITED",
-                message: "You've recently submitted an enterprise inquiry. Please wait 10 minutes before sending another.",
+                message: (0, sales_1.getEnterpriseInquiryCooldownMessage)(sales_1.ENTERPRISE_INQUIRY_COOLDOWN_MS),
             });
         }
         const inquiryId = await ctx.db.insert("salesInquiries", {

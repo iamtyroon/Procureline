@@ -6,6 +6,7 @@ import {
     isExistingRoleAssignmentError,
     isOrganizationNameConflictError,
 } from "../lib/errors/convex";
+import { getEnterpriseInquiryCooldownMessage } from "../lib/validators/sales";
 
 export function runConvexErrorHandlingTests(): string[] {
     const completedTests: string[] = [];
@@ -63,11 +64,9 @@ export function runConvexErrorHandlingTests(): string[] {
     );
     assert.equal(
         getPublicInquirySubmissionErrorMessage(
-            new Error(
-                "You've recently submitted an enterprise inquiry. Please wait 10 minutes before sending another.",
-            ),
+            new Error(getEnterpriseInquiryCooldownMessage()),
         ),
-        "You've recently submitted an enterprise inquiry. Please wait 10 minutes before sending another.",
+        getEnterpriseInquiryCooldownMessage(),
     );
     assert.equal(
         getPublicInquirySubmissionErrorMessage(
