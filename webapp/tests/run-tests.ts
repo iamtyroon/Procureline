@@ -1,6 +1,7 @@
 import { runConvexErrorHandlingTests } from "./convex-error-handling.test";
 import { runPasswordResetTests } from "./password-reset.test";
 import { runPricingFlowTests } from "./pricing-flow.test";
+import { runPublicAuthEntryTests } from "./public-auth-entry.test";
 import { runProxyRouteTests } from "./proxy.test";
 import { runRbacTests } from "./rbac.test";
 import { runSalesInquiryTests } from "./sales-inquiries.test";
@@ -15,6 +16,7 @@ async function main(): Promise<void> {
         ...runConvexErrorHandlingTests(),
         ...runPasswordResetTests(),
         ...runPricingFlowTests(),
+        ...runPublicAuthEntryTests(),
         ...runProxyRouteTests(),
         ...runRbacTests(),
         ...runSalesInquiryTests(),

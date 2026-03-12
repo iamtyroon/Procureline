@@ -8,6 +8,7 @@ import { BlocklyShowcase } from "@/src/components/marketing/BlocklyShowcase";
 import { Pricing } from "@/src/components/marketing/Pricing";
 import { Compliance } from "@/src/components/marketing/Compliance";
 import { Footer } from "@/src/components/marketing/Footer";
+import { HomepagePublicAccessExperience } from "@/src/components/marketing/HomepagePublicAccessExperience";
 
 export const metadata: Metadata = {
     title: "Procureline — University Procurement Planning, Simplified",
@@ -61,7 +62,15 @@ const organizationStructuredData = {
     ],
 };
 
-export default function LandingPage(): JSX.Element {
+interface LandingPageProps {
+    searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export default async function LandingPage({
+    searchParams,
+}: LandingPageProps): Promise<JSX.Element> {
+    const resolvedSearchParams = await searchParams;
+
     return (
         <>
             {/* Skip-to-content link for keyboard users */}
@@ -83,6 +92,7 @@ export default function LandingPage(): JSX.Element {
 
             <main id="main-content" tabIndex={-1}>
                 <Hero />
+                <HomepagePublicAccessExperience searchParams={resolvedSearchParams} />
                 <TrustedBy />
                 <Features />
                 <HowItWorks />

@@ -14,6 +14,12 @@ function runProxyRouteTests() {
     completedTests.push("forgot-password route is public");
     strict_1.default.equal((0, public_routes_1.isKnownPublicRoute)("/reset-password"), true);
     completedTests.push("reset-password route is public");
+    strict_1.default.equal((0, public_routes_1.isKnownPublicRoute)("/access"), true);
+    completedTests.push("access hub route is public");
+    strict_1.default.equal((0, public_routes_1.isKnownPublicRoute)("/access/procurement-officer"), true);
+    completedTests.push("procurement-officer placeholder route is public");
+    strict_1.default.equal((0, public_routes_1.isKnownPublicRoute)("/access/department-user"), true);
+    completedTests.push("department-user continuation route is public");
     strict_1.default.equal((0, public_routes_1.isKnownPublicRoute)("/dashboard"), false);
     completedTests.push("dashboard route is not public");
     strict_1.default.equal((0, public_routes_1.isKnownPublicRoute)("/platform-admin"), false);
@@ -23,6 +29,10 @@ function runProxyRouteTests() {
     completedTests.push("role dashboards remain protected and are never classified as public routes");
     strict_1.default.deepEqual(public_routes_1.PUBLIC_ROUTES.filter((route) => route.includes("password")), ["/forgot-password", "/reset-password"]);
     completedTests.push("public route registry includes the reset flow entry points");
+    strict_1.default.equal(public_routes_1.PUBLIC_ROUTES.includes("/access"), true);
+    strict_1.default.equal(public_routes_1.PUBLIC_ROUTES.includes("/access/procurement-officer"), true);
+    strict_1.default.equal(public_routes_1.PUBLIC_ROUTES.includes("/access/department-user"), true);
+    completedTests.push("public route registry includes the role-aware access hub plus the reserved PO and DU role-entry surfaces without broadening protected role prefixes");
     strict_1.default.equal(public_routes_1.PUBLIC_ROUTES.every((route) => (0, roles_1.getProtectedRouteRole)(route) === null), true);
     completedTests.push("proxy public routes stay separate from the centralized role-based route map");
     strict_1.default.equal(proxy_1.SESSION_EXPIRED_REDIRECT_PATH, "/login?reason=session_expired");

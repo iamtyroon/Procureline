@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MARKETING_ACCESS_CTA } from "@/lib/auth/public-entry";
 
 interface FooterLink {
     label: string;
@@ -14,10 +15,10 @@ const columns: FooterColumn[] = [
     {
         title: "Product",
         links: [
-            { label: "Features", href: "#features" },
-            { label: "How It Works", href: "#how-it-works" },
-            { label: "Pricing", href: "#pricing" },
-            { label: "Compliance", href: "#compliance" },
+            { label: "Features", href: "/#features" },
+            { label: "How It Works", href: "/#how-it-works" },
+            { label: "Pricing", href: "/#pricing" },
+            { label: "Compliance", href: "/#compliance" },
         ],
     },
     {
@@ -67,9 +68,9 @@ export function Footer(): JSX.Element {
                             Streamline university procurement planning with visual block-based
                             tools. GOK compliant. Excel-ready. Free forever tier available.
                         </p>
-                        <Link href="/signup">
+                        <Link href={MARKETING_ACCESS_CTA.href}>
                             <span className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-emerald-600">
-                                Create Free Account →
+                                {MARKETING_ACCESS_CTA.label} →
                             </span>
                         </Link>
                     </div>

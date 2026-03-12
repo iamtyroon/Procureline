@@ -1,15 +1,17 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { MARKETING_ACCESS_CTA } from "@/lib/auth/public-entry";
+import { cn } from "@/lib/utils";
 import { ModeToggle } from "@/src/components/mode-toggle";
-import { useState, useEffect } from "react";
 
 const navLinks = [
-    { href: "#features", label: "Features" },
-    { href: "#how-it-works", label: "How It Works" },
-    { href: "#pricing", label: "Pricing" },
-    { href: "#compliance", label: "Compliance" },
+    { href: "/#features", label: "Features" },
+    { href: "/#how-it-works", label: "How It Works" },
+    { href: "/#pricing", label: "Pricing" },
+    { href: "/#compliance", label: "Compliance" },
 ];
 
 export function Navbar(): JSX.Element {
@@ -33,8 +35,12 @@ export function Navbar(): JSX.Element {
     return (
         <nav
             aria-label="Main navigation"
-            className={`fixed left-0 right-0 top-0 z-50 transition-all duration-300 ${isScrolled ? "bg-white/95 shadow-sm backdrop-blur-sm dark:bg-gray-900/95 dark:border-b dark:border-border" : "bg-transparent"
-                }`}
+            className={cn(
+                "fixed left-0 right-0 top-0 z-50 transition-all duration-300",
+                isScrolled
+                    ? "bg-white/95 shadow-sm backdrop-blur-sm dark:border-b dark:border-border dark:bg-gray-900/95"
+                    : "bg-transparent",
+            )}
         >
             <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
                 {/* Brand */}
@@ -61,19 +67,18 @@ export function Navbar(): JSX.Element {
 
                 {/* Desktop actions */}
                 <div className="hidden items-center gap-3 md:flex">
-                    <Link href="/login">
-                        <Button variant="ghost" size="sm" className="text-sm">
-                            Sign In
-                        </Button>
-                    </Link>
-                    <Link href="/signup">
-                        <Button
-                            size="sm"
-                            className="bg-primary text-sm text-primary-foreground shadow-md hover:bg-primary/90"
-                        >
-                            🏛️ Register University
-                        </Button>
-                    </Link>
+                    <Button asChild variant="ghost" size="sm" className="text-sm">
+                        <Link href={MARKETING_ACCESS_CTA.href}>
+                            {MARKETING_ACCESS_CTA.label}
+                        </Link>
+                    </Button>
+                    <Button
+                        asChild
+                        size="sm"
+                        className="bg-primary text-sm text-primary-foreground shadow-md hover:bg-primary/90"
+                    >
+                        <Link href="/signup">Register University</Link>
+                    </Button>
                     <ModeToggle />
                 </div>
 
@@ -84,11 +89,7 @@ export function Navbar(): JSX.Element {
                     aria-label={isMobileOpen ? "Close navigation menu" : "Open navigation menu"}
                     aria-expanded={isMobileOpen}
                 >
-                    {isMobileOpen ? (
-                        <span className="text-xl">✕</span>
-                    ) : (
-                        <span className="text-xl">≡</span>
-                    )}
+                    <span className="text-xl">{isMobileOpen ? "x" : "="}</span>
                 </button>
             </div>
 
@@ -109,16 +110,22 @@ export function Navbar(): JSX.Element {
                         ))}
                     </ul>
                     <div className="flex flex-col gap-3">
-                        <Link href="/login">
-                            <Button variant="outline" className="w-full">
-                                Sign In
-                            </Button>
-                        </Link>
-                        <Link href="/signup">
-                            <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
-                                🏛️ Register University
-                            </Button>
-                        </Link>
+                        <Button asChild variant="outline" className="w-full">
+                            <Link
+                                href={MARKETING_ACCESS_CTA.href}
+                                onClick={handleNavClick}
+                            >
+                                {MARKETING_ACCESS_CTA.label}
+                            </Link>
+                        </Button>
+                        <Button
+                            asChild
+                            className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                        >
+                            <Link href="/signup" onClick={handleNavClick}>
+                                Register University
+                            </Link>
+                        </Button>
                         <div className="flex justify-center pt-2">
                             <ModeToggle />
                         </div>

@@ -1,5 +1,8 @@
 export const PUBLIC_ROUTES = [
     "/",
+    "/access",
+    "/access/procurement-officer",
+    "/access/department-user",
     "/signup",
     "/login",
     "/forgot-password",

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { MARKETING_ACCESS_CTA } from "@/lib/auth/public-entry";
 
 export function Hero(): JSX.Element {
     return (
@@ -36,24 +37,30 @@ export function Hero(): JSX.Element {
                     </p>
 
                     <div className="mb-12 flex flex-wrap items-center gap-4">
-                        <Link href="/signup">
-                            <Button
-                                size="lg"
-                                className="rounded-lg bg-primary px-8 py-6 text-base font-semibold text-primary-foreground transition-all hover:-translate-y-0.5 hover:bg-primary/90"
-                            >
-                                Create Free Account
-                            </Button>
-                        </Link>
-                        <a href="#pricing">
-                            <Button
-                                variant="outline"
-                                size="lg"
-                                className="rounded-lg px-8 py-6 text-base font-semibold"
-                            >
-                                View Pricing
-                            </Button>
-                        </a>
+                        <Button
+                            asChild
+                            size="lg"
+                            className="rounded-lg bg-primary px-8 py-6 text-base font-semibold text-primary-foreground transition-all hover:-translate-y-0.5 hover:bg-primary/90"
+                        >
+                            <Link href={MARKETING_ACCESS_CTA.href}>
+                                {MARKETING_ACCESS_CTA.label}
+                            </Link>
+                        </Button>
+                        <Button
+                            asChild
+                            variant="outline"
+                            size="lg"
+                            className="rounded-lg px-8 py-6 text-base font-semibold"
+                        >
+                            <a href="#pricing">View Pricing</a>
+                        </Button>
                     </div>
+
+                    <p className="mb-12 max-w-xl text-sm text-muted-foreground">
+                        Institutions can still self-serve on Free, Starter, and
+                        Professional. Procurement Officers and Department Users
+                        should start from the shared role-aware access path.
+                    </p>
 
                     {/* Stats */}
                     <div className="flex gap-12">

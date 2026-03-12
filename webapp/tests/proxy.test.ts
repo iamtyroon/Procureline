@@ -16,6 +16,15 @@ export function runProxyRouteTests(): string[] {
     assert.equal(isKnownPublicRoute("/reset-password"), true);
     completedTests.push("reset-password route is public");
 
+    assert.equal(isKnownPublicRoute("/access"), true);
+    completedTests.push("access hub route is public");
+
+    assert.equal(isKnownPublicRoute("/access/procurement-officer"), true);
+    completedTests.push("procurement-officer placeholder route is public");
+
+    assert.equal(isKnownPublicRoute("/access/department-user"), true);
+    completedTests.push("department-user continuation route is public");
+
     assert.equal(isKnownPublicRoute("/dashboard"), false);
     completedTests.push("dashboard route is not public");
 
@@ -31,6 +40,13 @@ export function runProxyRouteTests(): string[] {
     );
     completedTests.push(
         "public route registry includes the reset flow entry points",
+    );
+
+    assert.equal(PUBLIC_ROUTES.includes("/access"), true);
+    assert.equal(PUBLIC_ROUTES.includes("/access/procurement-officer"), true);
+    assert.equal(PUBLIC_ROUTES.includes("/access/department-user"), true);
+    completedTests.push(
+        "public route registry includes the role-aware access hub plus the reserved PO and DU role-entry surfaces without broadening protected role prefixes",
     );
 
     assert.equal(PUBLIC_ROUTES.every((route) => getProtectedRouteRole(route) === null), true);
