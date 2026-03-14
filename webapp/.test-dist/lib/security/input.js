@@ -1,8 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.validatePasswordLength = exports.validateOneTimeCodeInput = exports.validateOrganizationNameInput = exports.validatePlainTextInput = exports.validateEmailInput = exports.detectUnsafePlainTextReason = exports.generateTenantSubdomain = exports.normalizePlainText = exports.normalizeAuthEmail = exports.PASSWORD_PATTERNS = exports.PASSWORD_MIN_LENGTH = exports.AUTH_INPUT_LIMITS = void 0;
+exports.validateDepartmentUserAccessCodeInput = exports.validatePasswordLength = exports.validateOneTimeCodeInput = exports.validateOrganizationNameInput = exports.validatePlainTextInput = exports.validateEmailInput = exports.detectUnsafePlainTextReason = exports.generateTenantSubdomain = exports.normalizePlainText = exports.normalizeAuthEmail = exports.PASSWORD_PATTERNS = exports.PASSWORD_MIN_LENGTH = exports.AUTH_INPUT_LIMITS = void 0;
 const zod_1 = require("zod");
 const audit_1 = require("./audit");
+const department_user_access_1 = require("../auth/department-user-access");
 exports.AUTH_INPUT_LIMITS = {
     email: 254,
     organizationName: 100,
@@ -198,3 +199,29 @@ function validatePasswordLength(value, field = "password") {
     };
 }
 exports.validatePasswordLength = validatePasswordLength;
+function validateDepartmentUserAccessCodeInput(value) {
+    const normalizedResult = validatePlainTextInput(value, {
+        field: "accessCode",
+        label: "Access code",
+        maxLength: department_user_access_1.DEPARTMENT_USER_ACCESS_CODE_MAX_LENGTH,
+        minLength: 4,
+    });
+    if (!normalizedResult.ok) {
+        return normalizedResult;
+    }
+    const normalizedCode = (0, department_user_access_1.normalizeDepartmentUserAccessCode)(normalizedResult.value);
+    if (!/[A-Z0-9]/.test(normalizedCode)) {
+        return createIssue({
+            code: "INVALID_CODE",
+            field: "accessCode",
+            message: "Access code must contain letters or numbers",
+            outcome: audit_1.AUDIT_OUTCOMES.rejectedInvalidCode,
+            reason: "access_code_missing_alphanumeric_content",
+        });
+    }
+    return {
+        ok: true,
+        value: normalizedCode,
+    };
+}
+exports.validateDepartmentUserAccessCodeInput = validateDepartmentUserAccessCodeInput;

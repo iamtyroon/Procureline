@@ -45,7 +45,7 @@ development_status:
   epic-1: in-progress
   epic-11: in-progress
   epic-2: in-progress
-  epic-3: backlog
+  epic-3: in-progress
   epic-4: backlog
   epic-5: backlog
   epic-6: backlog
@@ -66,11 +66,11 @@ development_status:
 
   11-1-marketing-landing-page: done
   11-2-pricing-page-tier-comparison: done
-  11-3-public-role-based-auth-entry: review
-  1-8-du-access-code-authentication: backlog
-  11-4-first-login-onboarding-contextual-help: backlog
+  11-3-public-role-based-auth-entry: done
+  1-8-du-access-code-authentication: review
+  
 
-  3-2-tenant-admin-dashboard: backlog
+  3-2-tenant-admin-dashboard: ready-for-dev
   4-1-po-dashboard-onboarding-wizard: backlog
   5-1-du-dashboard-plan-status: backlog
   2-1-platform-admin-authentication-2fa: backlog
@@ -141,6 +141,7 @@ development_status:
   3-11-security-session-management: backlog
   3-12-account-lifecycle-admin-transfer: backlog
   4-4-budget-allocation-department-import: backlog
+  11-4-first-login-onboarding-contextual-help: backlog
 
   epic-1-retrospective: optional
   epic-2-retrospective: optional
@@ -282,7 +283,7 @@ recommended_execution_sequence:
       - 1-4-password-reset-via-email
       - 1-5-session-management-logout
       - 1-8-du-access-code-authentication
-      - 11-4-first-login-onboarding-contextual-help
+      
 
   phase-3-dashboard-shells-and-setup-surfaces:
     rationale: "Build the visible dashboard and setup shells early so backend workflows can be exercised against realistic screens."
@@ -370,3 +371,4 @@ recommended_execution_sequence:
       - 3-11-security-session-management
       - 3-12-account-lifecycle-admin-transfer
       - 4-4-budget-allocation-department-import
+      - 11-4-first-login-onboarding-contextual-help

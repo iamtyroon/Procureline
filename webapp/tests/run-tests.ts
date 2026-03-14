@@ -1,4 +1,5 @@
 import { runConvexErrorHandlingTests } from "./convex-error-handling.test";
+import { runDepartmentUserAccessTests } from "./department-user-access.test";
 import { runPasswordResetTests } from "./password-reset.test";
 import { runPricingFlowTests } from "./pricing-flow.test";
 import { runPublicAuthEntryTests } from "./public-auth-entry.test";
@@ -14,6 +15,7 @@ import { runTenantIsolationTests } from "./tenant-isolation.test";
 async function main(): Promise<void> {
     const completedTests = [
         ...runConvexErrorHandlingTests(),
+        ...(await runDepartmentUserAccessTests()),
         ...runPasswordResetTests(),
         ...runPricingFlowTests(),
         ...runPublicAuthEntryTests(),

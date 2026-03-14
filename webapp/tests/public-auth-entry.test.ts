@@ -10,6 +10,7 @@ import {
     resolveAuthenticatedAccessRedirect,
     resolvePublicEntryState,
 } from "../lib/auth/public-entry";
+import { scrubDepartmentUserAccessCodeFromUrl } from "../lib/auth/department-user-access";
 import { SESSION_EXPIRED_REDIRECT_PATH } from "../lib/auth/proxy";
 
 function toUrl(path: string): URL {
@@ -154,6 +155,17 @@ export function runPublicAuthEntryTests(): string[] {
     );
     completedTests.push(
         "department user guidance exposes a distinct continuation route contract without opening public self-signup",
+    );
+
+    assert.equal(
+        scrubDepartmentUserAccessCodeFromUrl(
+            "/access/department-user",
+            "?accessCode=DU-2026-ABC&role=department_user",
+        ),
+        "/access/department-user?role=department_user",
+    );
+    completedTests.push(
+        "department user deep links can prefill the code and then scrub it from the browser URL without changing the continuation route",
     );
 
     const institutionChoice = PUBLIC_ACCESS_CHOICES.find(

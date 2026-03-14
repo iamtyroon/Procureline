@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import { ThemeProvider } from "@/src/components/theme-provider";
@@ -8,12 +7,6 @@ import "./globals.css";
 
 // Prevent static prerendering — ConvexAuthNextjsProvider needs runtime client
 export const dynamic = "force-dynamic";
-
-const inter = Inter({
-    subsets: ["latin"],
-    display: "swap",
-    variable: "--font-inter",
-});
 
 export const metadata: Metadata = {
     title: "Procureline",
@@ -26,7 +19,7 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="en" className={inter.variable} suppressHydrationWarning>
+        <html lang="en" suppressHydrationWarning>
             <body className="font-sans antialiased">
                 <ConvexAuthNextjsServerProvider>
                     <ConvexClientProvider>

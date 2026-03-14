@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.runPublicAuthEntryTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
 const public_entry_1 = require("../lib/auth/public-entry");
+const department_user_access_1 = require("../lib/auth/department-user-access");
 const proxy_1 = require("../lib/auth/proxy");
 function toUrl(path) {
     return new URL(path, "https://example.test");
@@ -89,6 +90,8 @@ function runPublicAuthEntryTests() {
     strict_1.default.equal(departmentUserSelectionUrl.hash, "#role-guidance");
     strict_1.default.equal(departmentUserUrl.searchParams.get("accessCode"), "DU-2026-ABC");
     completedTests.push("department user guidance exposes a distinct continuation route contract without opening public self-signup");
+    strict_1.default.equal((0, department_user_access_1.scrubDepartmentUserAccessCodeFromUrl)("/access/department-user", "?accessCode=DU-2026-ABC&role=department_user"), "/access/department-user?role=department_user");
+    completedTests.push("department user deep links can prefill the code and then scrub it from the browser URL without changing the continuation route");
     const institutionChoice = public_entry_1.PUBLIC_ACCESS_CHOICES.find((choice) => choice.key === "institution");
     const procurementOfficerChoice = public_entry_1.PUBLIC_ACCESS_CHOICES.find((choice) => choice.key === "procurement_officer");
     const departmentUserChoice = public_entry_1.PUBLIC_ACCESS_CHOICES.find((choice) => choice.key === "department_user");

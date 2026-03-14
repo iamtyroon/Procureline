@@ -7,6 +7,7 @@ import {
     SESSION_EXPIRED_REASON,
     SUBSCRIPTION_INACTIVE_REASON,
 } from "../../lib/auth/session";
+import { evaluateDepartmentUserSubmissionWindow } from "../../lib/auth/department-user-access";
 import {
     buildDashboardPath,
     FORBIDDEN_ACCESS_REASON,
@@ -61,8 +62,15 @@ const tenantStatusValidator = v.union(
     v.literal("suspended"),
 );
 
+const departmentAccessModeValidator = v.union(
+    v.literal("editable"),
+    v.literal("read_only_grace"),
+);
+
 export const authContextValidator = v.object({
     accessState: accessStateValidator,
+    departmentAccessMode: v.optional(departmentAccessModeValidator),
+    departmentId: v.optional(v.id("departments")),
     homePath: v.string(),
     isActive: v.boolean(),
     isRoleResolved: v.boolean(),
@@ -85,6 +93,8 @@ export const authContextValidator = v.object({
 
 export interface AuthorizationContext {
     accessState: AccessState;
+    departmentAccessMode?: "editable" | "read_only_grace";
+    departmentId?: Id<"departments">;
     homePath: string;
     isActive: boolean;
     isRoleResolved: boolean;
@@ -102,6 +112,8 @@ export interface AuthorizationContext {
 
 function createBaseContext(args: {
     accessState: AccessState;
+    departmentAccessMode?: AuthorizationContext["departmentAccessMode"];
+    departmentId?: Id<"departments">;
     homePath: string;
     isActive: boolean;
     isRoleResolved: boolean;
@@ -134,6 +146,8 @@ function createInactiveAccessContext(args: {
 }): AuthorizationContext {
     return createBaseContext({
         accessState: "inactive",
+        departmentAccessMode: undefined,
+        departmentId: undefined,
         homePath: "/dashboard",
         isActive: false,
         isRoleResolved: false,
@@ -183,6 +197,8 @@ export async function getAuthorizationContext(
     if (!currentSession.state.isValid) {
         return createBaseContext({
             accessState: "inactive",
+            departmentAccessMode: undefined,
+            departmentId: undefined,
             homePath: "/dashboard",
             isActive: false,
             isRoleResolved: false,
@@ -237,6 +253,8 @@ export async function getAuthorizationContext(
 
         return createBaseContext({
             accessState: resolvedRole.accessState,
+            departmentAccessMode: undefined,
+            departmentId: undefined,
             homePath: "/dashboard",
             isActive: false,
             isRoleResolved: false,
@@ -255,6 +273,8 @@ export async function getAuthorizationContext(
     if (resolvedRole.role === "platform_admin") {
         return createBaseContext({
             accessState: "allowed",
+            departmentAccessMode: undefined,
+            departmentId: undefined,
             homePath: getHomePathForRole("platform_admin"),
             isActive: true,
             isRoleResolved: true,
@@ -277,6 +297,8 @@ export async function getAuthorizationContext(
     if (!tenantId) {
         return createBaseContext({
             accessState: "misconfigured",
+            departmentAccessMode: undefined,
+            departmentId: undefined,
             homePath: "/dashboard",
             isActive: false,
             isRoleResolved: false,
@@ -296,6 +318,8 @@ export async function getAuthorizationContext(
     if (!tenant) {
         return createBaseContext({
             accessState: "misconfigured",
+            departmentAccessMode: undefined,
+            departmentId: undefined,
             homePath: "/dashboard",
             isActive: false,
             isRoleResolved: false,
@@ -320,8 +344,104 @@ export async function getAuthorizationContext(
         });
     }
 
+    let departmentId: Id<"departments"> | undefined;
+    let departmentAccessMode: AuthorizationContext["departmentAccessMode"];
+
+    if (resolvedRole.role === "department_user") {
+        const tenantUser = await ctx.db
+            .query("tenantUsers")
+            .withIndex("by_userId_tenantId", (q) =>
+                q.eq("userId", userId).eq("tenantId", tenantId),
+            )
+            .first();
+
+        if (!tenantUser || !tenantUser.isActive || tenantUser.role !== "department_user") {
+            return createBaseContext({
+                accessState: "misconfigured",
+                departmentAccessMode: undefined,
+                departmentId: undefined,
+                homePath: "/dashboard",
+                isActive: false,
+                isRoleResolved: false,
+                isSessionValid: true,
+                redirectPath: buildDashboardPath(ROLE_MISCONFIGURED_REASON),
+                rememberMe: currentSession.state.rememberMe,
+                role: "unassigned",
+                scope: "none",
+                sessionStatus: currentSession.state.status,
+                tenantStatus: "not_applicable",
+                userId,
+                redirectReason: ROLE_MISCONFIGURED_REASON,
+            });
+        }
+
+        const profile = await ctx.db
+            .query("departmentUserProfiles")
+            .withIndex("by_tenantUserId", (q) => q.eq("tenantUserId", tenantUser._id))
+            .first();
+
+        if (!profile) {
+            return createBaseContext({
+                accessState: "misconfigured",
+                departmentAccessMode: undefined,
+                departmentId: undefined,
+                homePath: "/dashboard",
+                isActive: false,
+                isRoleResolved: false,
+                isSessionValid: true,
+                redirectPath: buildDashboardPath(ROLE_MISCONFIGURED_REASON),
+                rememberMe: currentSession.state.rememberMe,
+                role: "unassigned",
+                scope: "none",
+                sessionStatus: currentSession.state.status,
+                tenantStatus: "not_applicable",
+                userId,
+                redirectReason: ROLE_MISCONFIGURED_REASON,
+            });
+        }
+
+        if (!profile.isActive) {
+            return createInactiveAccessContext({
+                reason: ACCOUNT_DEACTIVATED_REASON,
+                rememberMe: currentSession.state.rememberMe,
+                sessionStatus: currentSession.state.status,
+                userId,
+            });
+        }
+
+        const department = await ctx.db.get(profile.departmentId);
+        if (!department || department.tenantId !== tenantId || !department.isActive) {
+            return createBaseContext({
+                accessState: "misconfigured",
+                departmentAccessMode: undefined,
+                departmentId: undefined,
+                homePath: "/dashboard",
+                isActive: false,
+                isRoleResolved: false,
+                isSessionValid: true,
+                redirectPath: buildDashboardPath(ROLE_MISCONFIGURED_REASON),
+                rememberMe: currentSession.state.rememberMe,
+                role: "unassigned",
+                scope: "none",
+                sessionStatus: currentSession.state.status,
+                tenantStatus: "not_applicable",
+                userId,
+                redirectReason: ROLE_MISCONFIGURED_REASON,
+            });
+        }
+
+        departmentId = profile.departmentId;
+        const windowState = evaluateDepartmentUserSubmissionWindow({
+            submissionEndsAt: department.submissionEndsAt,
+            submissionStartsAt: department.submissionStartsAt,
+        });
+        departmentAccessMode = windowState.accessMode ?? undefined;
+    }
+
     return createBaseContext({
         accessState: "allowed",
+        departmentAccessMode,
+        departmentId,
         homePath: getHomePathForRole(resolvedRole.role as AppRole),
         isActive: true,
         isRoleResolved: true,

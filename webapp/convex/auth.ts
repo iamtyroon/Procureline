@@ -1,7 +1,14 @@
 import { convexAuth } from "@convex-dev/auth/server";
+import { ConvexCredentials } from "@convex-dev/auth/providers/ConvexCredentials";
 import { Password } from "@convex-dev/auth/providers/Password";
+import type { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { REMEMBER_ME_SESSION_WINDOW_MS } from "../lib/auth/session";
+import {
+  DEPARTMENT_USER_AUTH_PROVIDER,
+  DEPARTMENT_USER_AUTH_START_FLOW,
+  DEPARTMENT_USER_AUTH_VERIFY_FLOW,
+} from "../lib/auth/department-user-access";
 import { buildSecurityInputRejectedEvent } from "../lib/security/audit";
 import {
   PASSWORD_MIN_LENGTH,
@@ -12,6 +19,10 @@ import {
 } from "../lib/security/input";
 import { ResendOTP } from "./ResendOTP";
 import { ResendPasswordReset } from "./ResendPasswordReset";
+import {
+  startDepartmentUserOtpChallenge,
+  verifyDepartmentUserOtpChallenge,
+} from "./functions/departmentUserAuth";
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   session: {
@@ -19,6 +30,44 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
     inactiveDurationMs: REMEMBER_ME_SESSION_WINDOW_MS,
   },
   providers: [
+    ConvexCredentials({
+      id: DEPARTMENT_USER_AUTH_PROVIDER,
+      extraProviders: [ResendOTP],
+      authorize: async (params, ctx) => {
+        const flow =
+          typeof params.flow === "string" ? params.flow : "";
+        const challengeId =
+          typeof params.challengeId === "string" ? params.challengeId : "";
+        const challengeDocId =
+          challengeId as Id<"departmentUserAuthChallenges">;
+
+        if (!challengeId) {
+          throw new Error("Department User sign-in challenge expired. Start again.");
+        }
+
+        if (flow === DEPARTMENT_USER_AUTH_START_FLOW) {
+          await startDepartmentUserOtpChallenge(ctx, challengeDocId);
+          return null;
+        }
+
+        if (flow === DEPARTMENT_USER_AUTH_VERIFY_FLOW) {
+          const codeResult = validateOneTimeCodeInput(String(params.code ?? ""), {
+            field: "code",
+            label: "Verification code",
+          });
+          if (!codeResult.ok) {
+            throw new Error(codeResult.issue.message);
+          }
+
+          return await verifyDepartmentUserOtpChallenge(ctx, {
+            challengeId: challengeDocId,
+            code: codeResult.value,
+          });
+        }
+
+        throw new Error("Unsupported Department User sign-in flow.");
+      },
+    }),
     Password({
       verify: ResendOTP,
       reset: ResendPasswordReset,

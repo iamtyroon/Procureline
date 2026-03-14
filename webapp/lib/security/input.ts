@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { AUDIT_OUTCOMES } from "./audit";
+import {
+    DEPARTMENT_USER_ACCESS_CODE_MAX_LENGTH,
+    normalizeDepartmentUserAccessCode,
+} from "../auth/department-user-access";
 
 export const AUTH_INPUT_LIMITS = {
     email: 254,
@@ -264,5 +268,39 @@ export function validatePasswordLength(
     return {
         ok: true,
         value,
+    };
+}
+
+export function validateDepartmentUserAccessCodeInput(
+    value: string,
+): SecurityValidationResult<string> {
+    const normalizedResult = validatePlainTextInput(value, {
+        field: "accessCode",
+        label: "Access code",
+        maxLength: DEPARTMENT_USER_ACCESS_CODE_MAX_LENGTH,
+        minLength: 4,
+    });
+
+    if (!normalizedResult.ok) {
+        return normalizedResult;
+    }
+
+    const normalizedCode = normalizeDepartmentUserAccessCode(
+        normalizedResult.value,
+    );
+
+    if (!/[A-Z0-9]/.test(normalizedCode)) {
+        return createIssue({
+            code: "INVALID_CODE",
+            field: "accessCode",
+            message: "Access code must contain letters or numbers",
+            outcome: AUDIT_OUTCOMES.rejectedInvalidCode,
+            reason: "access_code_missing_alphanumeric_content",
+        });
+    }
+
+    return {
+        ok: true,
+        value: normalizedCode,
     };
 }

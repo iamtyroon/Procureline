@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const convex_error_handling_test_1 = require("./convex-error-handling.test");
+const department_user_access_test_1 = require("./department-user-access.test");
 const password_reset_test_1 = require("./password-reset.test");
 const pricing_flow_test_1 = require("./pricing-flow.test");
 const public_auth_entry_test_1 = require("./public-auth-entry.test");
@@ -15,6 +16,7 @@ const tenant_isolation_test_1 = require("./tenant-isolation.test");
 async function main() {
     const completedTests = [
         ...(0, convex_error_handling_test_1.runConvexErrorHandlingTests)(),
+        ...(await (0, department_user_access_test_1.runDepartmentUserAccessTests)()),
         ...(0, password_reset_test_1.runPasswordResetTests)(),
         ...(0, pricing_flow_test_1.runPricingFlowTests)(),
         ...(0, public_auth_entry_test_1.runPublicAuthEntryTests)(),

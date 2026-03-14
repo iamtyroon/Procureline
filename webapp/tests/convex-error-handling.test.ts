@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+    getPublicDepartmentUserAccessErrorMessage,
     getPublicInquirySubmissionErrorMessage,
     getPublicVerificationErrorMessage,
     isVerificationCodeFailureMessage,
@@ -49,6 +50,12 @@ export function runConvexErrorHandlingTests(): string[] {
     assert.equal(
         getPublicVerificationErrorMessage(new Error("[CONVEX] Request ID: abc Server Error")),
         "We could not complete your request right now. Please try again.",
+    );
+    assert.equal(
+        getPublicDepartmentUserAccessErrorMessage(
+            new Error("Could not verify code"),
+        ),
+        "Invalid verification code. Please try again.",
     );
     completedTests.push(
         "verification error mapping only rewrites actual code failures and keeps unrelated backend issues generic",

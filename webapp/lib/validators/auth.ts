@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
     AUTH_INPUT_LIMITS,
+    validateDepartmentUserAccessCodeInput,
     PASSWORD_MIN_LENGTH,
     PASSWORD_PATTERNS,
     validateEmailInput,
@@ -54,6 +55,13 @@ const resetCodeSchema = z.string().superRefine((value, ctx) => {
             field: "code",
             label: "Reset code",
         }),
+        ctx,
+    );
+});
+
+const departmentUserAccessCodeSchema = z.string().superRefine((value, ctx) => {
+    validateWithSharedResult(
+        validateDepartmentUserAccessCodeInput(value),
         ctx,
     );
 });
@@ -123,6 +131,15 @@ export const loginSchema = z.object({
 });
 
 export type LoginFormData = z.infer<typeof loginSchema>;
+
+export const departmentUserAccessRequestSchema = z.object({
+    accessCode: departmentUserAccessCodeSchema,
+    email: emailSchema,
+});
+
+export type DepartmentUserAccessRequestData = z.infer<
+    typeof departmentUserAccessRequestSchema
+>;
 
 export const forgotPasswordSchema = z.object({
     email: emailSchema,

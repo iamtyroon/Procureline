@@ -1,7 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getPublicVerificationErrorMessage = exports.isVerificationCodeFailureMessage = exports.getPublicInquirySubmissionErrorMessage = exports.isOrganizationNameConflictError = exports.isExistingRoleAssignmentError = void 0;
+exports.getPublicDepartmentUserAccessErrorMessage = exports.getPublicVerificationErrorMessage = exports.isVerificationCodeFailureMessage = exports.getPublicInquirySubmissionErrorMessage = exports.isOrganizationNameConflictError = exports.isExistingRoleAssignmentError = void 0;
 const sales_1 = require("../validators/sales");
+const department_user_access_1 = require("../auth/department-user-access");
 const GENERIC_PUBLIC_ERROR_MESSAGE = "We could not complete your request right now. Please try again.";
 const GENERIC_PUBLIC_INQUIRY_ERROR_MESSAGE = "We could not submit your request right now. Please try again.";
 const PUBLIC_INQUIRY_RATE_LIMIT_MESSAGE = (0, sales_1.getEnterpriseInquiryCooldownMessage)();
@@ -21,6 +22,14 @@ const SAFE_PUBLIC_VERIFICATION_CODE_PATTERNS = [
     /\b(invalid|expired|incorrect)\b.*\b(one-time code|one-time passcode|otp)\b/i,
     /^code (is )?(invalid|expired|incorrect)\.?$/i,
     /^(invalid|expired|incorrect) code\.?$/i,
+];
+const SAFE_DEPARTMENT_USER_ACCESS_MESSAGES = [
+    department_user_access_1.INVALID_ACCESS_CODE_MESSAGE,
+    department_user_access_1.EXPIRED_ACCESS_CODE_MESSAGE,
+    department_user_access_1.DEACTIVATED_DEPARTMENT_USER_MESSAGE,
+    department_user_access_1.INCOMPATIBLE_DEPARTMENT_USER_EMAIL_MESSAGE,
+    department_user_access_1.SUBSCRIPTION_INACTIVE_MESSAGE,
+    department_user_access_1.DEPARTMENT_USER_SUBMISSION_ENDED_MESSAGE,
 ];
 function getErrorMessage(error) {
     if (error instanceof Error && error.message.trim().length > 0) {
@@ -82,3 +91,21 @@ function getPublicVerificationErrorMessage(error) {
     return GENERIC_PUBLIC_ERROR_MESSAGE;
 }
 exports.getPublicVerificationErrorMessage = getPublicVerificationErrorMessage;
+function getPublicDepartmentUserAccessErrorMessage(error) {
+    const message = getErrorMessage(error);
+    if (!message) {
+        return GENERIC_PUBLIC_ERROR_MESSAGE;
+    }
+    if (SAFE_DEPARTMENT_USER_ACCESS_MESSAGES.some((safeMessage) => safeMessage === message) || message.startsWith("Submission period has not started yet.")) {
+        return message;
+    }
+    if (message.startsWith("Too many failed attempts. Try again in ")) {
+        return message;
+    }
+    if (isVerificationCodeFailureMessage(message) ||
+        (0, department_user_access_1.isDepartmentUserOtpProviderFailureMessage)(message)) {
+        return department_user_access_1.DEPARTMENT_USER_INVALID_VERIFICATION_CODE_MESSAGE;
+    }
+    return GENERIC_PUBLIC_ERROR_MESSAGE;
+}
+exports.getPublicDepartmentUserAccessErrorMessage = getPublicDepartmentUserAccessErrorMessage;

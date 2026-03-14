@@ -21,6 +21,7 @@ function runConvexErrorHandlingTests() {
     strict_1.default.equal((0, convex_1.isVerificationCodeFailureMessage)("Invalid mail provider API configuration for resend pipeline"), false);
     strict_1.default.equal((0, convex_1.getPublicVerificationErrorMessage)(new Error("Invalid mail provider API configuration for resend pipeline")), "We could not complete your request right now. Please try again.");
     strict_1.default.equal((0, convex_1.getPublicVerificationErrorMessage)(new Error("[CONVEX] Request ID: abc Server Error")), "We could not complete your request right now. Please try again.");
+    strict_1.default.equal((0, convex_1.getPublicDepartmentUserAccessErrorMessage)(new Error("Could not verify code")), "Invalid verification code. Please try again.");
     completedTests.push("verification error mapping only rewrites actual code failures and keeps unrelated backend issues generic");
     strict_1.default.equal((0, convex_1.getPublicInquirySubmissionErrorMessage)(new Error("[CONVEX M(functions/salesInquiries:submitEnterpriseInquiry)] [Request ID: abc] Server Error")), "We could not submit your request right now. Please try again.");
     strict_1.default.equal((0, convex_1.getPublicInquirySubmissionErrorMessage)(new Error((0, sales_1.getEnterpriseInquiryCooldownMessage)())), (0, sales_1.getEnterpriseInquiryCooldownMessage)());

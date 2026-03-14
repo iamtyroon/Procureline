@@ -1,6 +1,12 @@
 import { AUDIT_EVENT_NAMES } from "../security/audit";
 
-export const TENANT_SCOPED_TABLES = ["tenantUsers"] as const;
+export const TENANT_SCOPED_TABLES = [
+    "departmentAccessCodes",
+    "departmentUserAuthChallenges",
+    "departmentUserProfiles",
+    "departments",
+    "tenantUsers",
+] as const;
 export const TENANT_ROOT_TABLES = ["tenants"] as const;
 export const PLATFORM_SCOPED_TABLES = ["platformUsers"] as const;
 export const GLOBAL_ONLY_TABLES = ["sessionMetadata", "subscriptionTiers"] as const;
@@ -88,6 +94,10 @@ const CURRENT_TABLE_CLASSIFICATIONS: Record<
     TenantIsolationTableName,
     TenantIsolationTableClassification
 > = {
+    departmentAccessCodes: "tenant_scoped",
+    departmentUserAuthChallenges: "tenant_scoped",
+    departmentUserProfiles: "tenant_scoped",
+    departments: "tenant_scoped",
     platformUsers: "platform_scoped",
     sessionMetadata: "global",
     subscriptionTiers: "global",
@@ -96,6 +106,15 @@ const CURRENT_TABLE_CLASSIFICATIONS: Record<
 };
 
 const CANONICAL_TENANT_INDEXES = {
+    departmentAccessCodes: {
+        byTenant: "by_tenantId",
+    },
+    departmentUserProfiles: {
+        byTenant: "by_tenantId",
+    },
+    departments: {
+        byTenant: "by_tenantId",
+    },
     tenantUsers: {
         byTenant: "by_tenantId",
         byUserTenant: "by_userId_tenantId",
@@ -122,10 +141,13 @@ export function classifyTenantIsolationTable(
     return CURRENT_TABLE_CLASSIFICATIONS[tableName];
 }
 
-export function getCanonicalTenantIndex(
-    tableName: keyof typeof CANONICAL_TENANT_INDEXES,
-    indexName: keyof (typeof CANONICAL_TENANT_INDEXES)[typeof tableName],
-): (typeof CANONICAL_TENANT_INDEXES)[typeof tableName][typeof indexName] {
+export function getCanonicalTenantIndex<
+    TableName extends keyof typeof CANONICAL_TENANT_INDEXES,
+    IndexName extends keyof (typeof CANONICAL_TENANT_INDEXES)[TableName],
+>(
+    tableName: TableName,
+    indexName: IndexName,
+): (typeof CANONICAL_TENANT_INDEXES)[TableName][IndexName] {
     return CANONICAL_TENANT_INDEXES[tableName][indexName];
 }
 

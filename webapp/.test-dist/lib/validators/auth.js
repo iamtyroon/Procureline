@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resetPasswordSchema = exports.forgotPasswordSchema = exports.loginSchema = exports.passwordRequirements = exports.otpSchema = exports.organizationSetupSchema = exports.signupSchema = exports.passwordSchema = void 0;
+exports.resetPasswordSchema = exports.forgotPasswordSchema = exports.departmentUserAccessRequestSchema = exports.loginSchema = exports.passwordRequirements = exports.otpSchema = exports.organizationSetupSchema = exports.signupSchema = exports.passwordSchema = void 0;
 const zod_1 = require("zod");
 const input_1 = require("../security/input");
 function validateWithSharedResult(result, ctx) {
@@ -29,6 +29,9 @@ const resetCodeSchema = zod_1.z.string().superRefine((value, ctx) => {
         field: "code",
         label: "Reset code",
     }), ctx);
+});
+const departmentUserAccessCodeSchema = zod_1.z.string().superRefine((value, ctx) => {
+    validateWithSharedResult((0, input_1.validateDepartmentUserAccessCodeInput)(value), ctx);
 });
 exports.passwordSchema = zod_1.z
     .string()
@@ -69,6 +72,10 @@ exports.loginSchema = zod_1.z.object({
         .min(1, "Password is required")
         .max(input_1.AUTH_INPUT_LIMITS.password, `Password must not exceed ${input_1.AUTH_INPUT_LIMITS.password} characters`),
     rememberMe: zod_1.z.boolean(),
+});
+exports.departmentUserAccessRequestSchema = zod_1.z.object({
+    accessCode: departmentUserAccessCodeSchema,
+    email: emailSchema,
 });
 exports.forgotPasswordSchema = zod_1.z.object({
     email: emailSchema,

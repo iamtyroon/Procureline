@@ -38,6 +38,85 @@ export default defineSchema({
         .index("by_tenantId", ["tenantId"])
         .index("by_userId_tenantId", ["userId", "tenantId"]),
 
+    departments: defineTable({
+        tenantId: v.id("tenants"),
+        procurementOfficerTenantUserId: v.id("tenantUsers"),
+        name: v.string(),
+        code: v.string(),
+        isActive: v.boolean(),
+        submissionStartsAt: v.number(),
+        submissionEndsAt: v.number(),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_tenantId", ["tenantId"])
+        .index("by_tenantId_code", ["tenantId", "code"])
+        .index("by_procurementOfficerTenantUserId", ["procurementOfficerTenantUserId"]),
+
+    departmentAccessCodes: defineTable({
+        tenantId: v.id("tenants"),
+        departmentId: v.id("departments"),
+        codeHash: v.string(),
+        codeSuffix: v.string(),
+        expiresAt: v.number(),
+        isActive: v.boolean(),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_tenantId", ["tenantId"])
+        .index("by_departmentId", ["departmentId"])
+        .index("by_codeHash", ["codeHash"])
+        .index("by_tenantId_codeHash", ["tenantId", "codeHash"]),
+
+    departmentUserProfiles: defineTable({
+        tenantId: v.id("tenants"),
+        tenantUserId: v.id("tenantUsers"),
+        departmentId: v.id("departments"),
+        normalizedEmail: v.string(),
+        isActive: v.boolean(),
+        deactivatedAt: v.optional(v.number()),
+        lastAuthenticatedAt: v.optional(v.number()),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_tenantId", ["tenantId"])
+        .index("by_tenantUserId", ["tenantUserId"])
+        .index("by_departmentId_email", ["departmentId", "normalizedEmail"])
+        .index("by_tenantId_email", ["tenantId", "normalizedEmail"]),
+
+    departmentUserLoginAttempts: defineTable({
+        normalizedEmail: v.string(),
+        accessCodeHash: v.string(),
+        accessCodeId: v.optional(v.id("departmentAccessCodes")),
+        failedAttempts: v.number(),
+        lockedUntil: v.optional(v.number()),
+        lastFailureAt: v.optional(v.number()),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_email_accessCodeHash", ["normalizedEmail", "accessCodeHash"])
+        .index("by_accessCodeId", ["accessCodeId"]),
+
+    departmentUserAuthChallenges: defineTable({
+        tenantId: v.id("tenants"),
+        departmentId: v.id("departments"),
+        accessCodeId: v.id("departmentAccessCodes"),
+        normalizedEmail: v.string(),
+        accessMode: v.union(
+            v.literal("editable"),
+            v.literal("read_only_grace"),
+        ),
+        authAccountId: v.optional(v.id("authAccounts")),
+        authUserId: v.optional(v.id("users")),
+        expiresAt: v.number(),
+        consumedAt: v.optional(v.number()),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_normalizedEmail", ["normalizedEmail", "createdAt"])
+        .index("by_accessCodeId", ["accessCodeId", "createdAt"])
+        .index("by_expiresAt", ["expiresAt"]),
+
     platformUsers: defineTable({
         userId: v.id("users"),
         isActive: v.boolean(),

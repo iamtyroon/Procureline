@@ -4,12 +4,12 @@ import {
     getTrimmedSearchParam,
 } from "@/lib/auth/public-entry";
 import { PublicAccessGate } from "@/src/components/auth/PublicAccessGate";
-import { RoleAccessComingSoon } from "@/src/components/auth/RoleAccessComingSoon";
+import { DepartmentUserAccessForm } from "@/src/components/auth/DepartmentUserAccessForm";
 
 export const metadata: Metadata = {
     title: "Department User Access - Procureline",
     description:
-        "Role-specific Department User sign-in placeholder for the future access-code login flow.",
+        "Sign in to Procureline with your department access code and email verification.",
 };
 
 interface DepartmentUserAccessPageProps {
@@ -30,16 +30,14 @@ export default async function DepartmentUserAccessPage({
 
     return (
         <PublicAccessGate>
-            <RoleAccessComingSoon
-                backHref={backHref}
-                details={
-                    accessCode
-                        ? `Department access code preserved: ${accessCode}. Keep this code handy because the dedicated Department User access-code form will live on this page.`
-                        : "Department Users sign in with a department-scoped access code issued by their Procurement Officer. This page is reserved for that role-specific access flow."
-                }
-                hint="The future Department User form will be added here instead of sending users through the generic shared login."
-                title="Department User Sign In"
-            />
+            <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
+                <div className="w-full max-w-md">
+                    <DepartmentUserAccessForm
+                        backHref={backHref}
+                        initialAccessCode={accessCode}
+                    />
+                </div>
+            </div>
         </PublicAccessGate>
     );
 }
