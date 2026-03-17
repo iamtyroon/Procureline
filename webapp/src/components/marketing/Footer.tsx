@@ -1,130 +1,134 @@
 import Link from "next/link";
+import { ArrowRight, Building2, Mail, ShieldCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { MARKETING_ACCESS_CTA } from "@/lib/auth/public-entry";
 
 interface FooterLink {
-    label: string;
     href: string;
+    label: string;
 }
 
 interface FooterColumn {
-    title: string;
     links: FooterLink[];
+    title: string;
 }
 
 const columns: FooterColumn[] = [
     {
         title: "Product",
         links: [
-            { label: "Features", href: "/#features" },
-            { label: "How It Works", href: "/#how-it-works" },
-            { label: "Pricing", href: "/#pricing" },
-            { label: "Compliance", href: "/#compliance" },
+            { href: "/#features", label: "Features" },
+            { href: "/#how-it-works", label: "How It Works" },
+            { href: "/#pricing", label: "Pricing" },
+            { href: "/#compliance", label: "Compliance" },
         ],
     },
     {
-        title: "Company",
+        title: "Access",
         links: [
-            { label: "About Us", href: "#" },
-            { label: "Careers", href: "#" },
-            { label: "Contact", href: "mailto:support@procureline.co.ke" },
-            { label: "Blog", href: "#" },
-        ],
-    },
-    {
-        title: "Resources",
-        links: [
-            { label: "Documentation", href: "#" },
-            { label: "API Reference", href: "#" },
-            { label: "GOK Templates", href: "#" },
-            { label: "Help Center", href: "#" },
-        ],
-    },
-    {
-        title: "Legal",
-        links: [
-            { label: "Privacy Policy", href: "#" },
-            { label: "Terms of Service", href: "#" },
-            { label: "Data Processing", href: "#" },
-            { label: "Cookie Policy", href: "#" },
+            { href: MARKETING_ACCESS_CTA.href, label: MARKETING_ACCESS_CTA.label },
+            { href: "/signup", label: "Register University" },
+            { href: "/login", label: "Sign In" },
+            { href: "mailto:support@procureline.co.ke", label: "Contact Support" },
         ],
     },
 ];
 
 export function Footer(): JSX.Element {
     return (
-        <footer
-            aria-label="Site footer"
-            className="border-t border-gray-200 bg-white px-6 py-16 text-gray-500 dark:bg-black dark:text-gray-400"
-        >
+        <footer aria-label="Site footer" className="border-t border-border/60 bg-background px-6 py-16">
             <div className="mx-auto max-w-7xl">
-                {/* Top section */}
-                <div className="mb-12 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-6">
-                    {/* Brand */}
-                    <div className="lg:col-span-2">
-                        <div className="mb-4 text-2xl font-bold text-gray-900 dark:text-white">
-                            Procure<span className="text-primary">line</span>
+                <div className="grid gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+                    <div>
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                                <Building2 className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <p className="text-2xl font-semibold tracking-tight text-foreground">
+                                    Procure<span className="text-primary">line</span>
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                    Procurement planning for modern institutions
+                                </p>
+                            </div>
                         </div>
-                        <p className="mb-6 max-w-xs text-sm leading-relaxed text-gray-500 dark:text-gray-400">
-                            Streamline university procurement planning with visual block-based
-                            tools. GOK compliant. Excel-ready. Free forever tier available.
+
+                        <p className="mt-5 max-w-xl text-sm leading-7 text-muted-foreground">
+                            Procureline gives universities a cleaner path to role-based planning,
+                            compliance review, and submission-ready procurement outputs.
                         </p>
-                        <Link href={MARKETING_ACCESS_CTA.href}>
-                            <span className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-emerald-600">
-                                {MARKETING_ACCESS_CTA.label} →
-                            </span>
-                        </Link>
+
+                        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                            <Button asChild className="gap-2 rounded-xl px-6">
+                                <Link href={MARKETING_ACCESS_CTA.href}>
+                                    {MARKETING_ACCESS_CTA.label}
+                                    <ArrowRight className="h-4 w-4" />
+                                </Link>
+                            </Button>
+                            <Button asChild variant="outline" className="gap-2 rounded-xl px-6">
+                                <a href="mailto:support@procureline.co.ke">
+                                    <Mail className="h-4 w-4" />
+                                    support@procureline.co.ke
+                                </a>
+                            </Button>
+                        </div>
+
+                        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                            <div className="rounded-2xl border border-border/60 bg-card/70 p-4">
+                                <div className="flex items-center gap-3">
+                                    <ShieldCheck className="h-5 w-5 text-primary" />
+                                    <p className="font-medium text-foreground">
+                                        Role-aware onboarding
+                                    </p>
+                                </div>
+                                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                                    Institution setup stays public while provisioned roles continue
+                                    through secure, guided access paths.
+                                </p>
+                            </div>
+                            <div className="rounded-2xl border border-border/60 bg-card/70 p-4">
+                                <div className="flex items-center gap-3">
+                                    <Mail className="h-5 w-5 text-primary" />
+                                    <p className="font-medium text-foreground">Need assistance?</p>
+                                </div>
+                                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                                    Reach the Procureline team for rollout guidance, pricing
+                                    questions, or onboarding support.
+                                </p>
+                            </div>
+                        </div>
                     </div>
 
-                    {/* Link columns */}
-                    {columns.map((column) => (
-                        <div key={column.title}>
-                            <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-900 dark:text-gray-300">
-                                {column.title}
-                            </h4>
-                            <ul className="space-y-3">
-                                {column.links.map((link) => (
-                                    <li key={link.label}>
-                                        <a
-                                            href={link.href}
-                                            className="text-sm transition-colors hover:text-primary"
-                                        >
-                                            {link.label}
-                                        </a>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    ))}
+                    <div className="grid gap-8 sm:grid-cols-2">
+                        {columns.map((column) => (
+                            <div key={column.title}>
+                                <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground">
+                                    {column.title}
+                                </h2>
+                                <ul className="mt-4 space-y-3">
+                                    {column.links.map((link) => (
+                                        <li key={link.label}>
+                                            <a
+                                                href={link.href}
+                                                className="text-sm leading-6 text-muted-foreground transition-colors hover:text-foreground"
+                                            >
+                                                {link.label}
+                                            </a>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
-                {/* Bottom section */}
-                <div className="flex flex-col items-center justify-between gap-4 border-t border-gray-200 pt-8 dark:border-gray-800 md:flex-row">
-                    <p className="text-sm text-gray-500">
-                        © {new Date().getFullYear()} Procureline. All rights reserved.
-                    </p>
-                    <div className="flex items-center gap-6">
-                        <a
-                            href="#"
-                            aria-label="Twitter"
-                            className="text-gray-500 transition-colors hover:text-primary"
-                        >
-                            𝕏
-                        </a>
-                        <a
-                            href="#"
-                            aria-label="LinkedIn"
-                            className="text-gray-500 transition-colors hover:text-primary"
-                        >
-                            in
-                        </a>
-                        <a
-                            href="mailto:support@procureline.co.ke"
-                            aria-label="Email"
-                            className="text-gray-500 transition-colors hover:text-primary"
-                        >
-                            ✉
-                        </a>
-                    </div>
+                <Separator className="my-8" />
+
+                <div className="flex flex-col gap-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+                    <p>Copyright {new Date().getFullYear()} Procureline. All rights reserved.</p>
+                    <p>Built for accountable university procurement planning.</p>
                 </div>
             </div>
         </footer>

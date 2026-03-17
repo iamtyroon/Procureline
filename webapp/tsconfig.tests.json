@@ -16,6 +16,7 @@
     "lib/auth/**/*.ts",
     "lib/errors/**/*.ts",
     "lib/marketing/**/*.ts",
+    "lib/tenant-admin/**/*.ts",
     "lib/security/**/*.ts",
     "lib/services/**/*.ts",
     "lib/validators/**/*.ts"

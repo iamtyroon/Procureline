@@ -2,7 +2,17 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { ArrowRight, Landmark, Menu } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+    Sheet,
+    SheetClose,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "@/components/ui/sheet";
 import { MARKETING_ACCESS_CTA } from "@/lib/auth/public-entry";
 import { cn } from "@/lib/utils";
 import { ModeToggle } from "@/src/components/mode-toggle";
@@ -12,52 +22,55 @@ const navLinks = [
     { href: "/#how-it-works", label: "How It Works" },
     { href: "/#pricing", label: "Pricing" },
     { href: "/#compliance", label: "Compliance" },
-];
+] as const;
 
 export function Navbar(): JSX.Element {
-    const [isMobileOpen, setIsMobileOpen] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
 
-    // Handle scroll-driven background change
     useEffect(() => {
         const handleScroll = (): void => {
             setIsScrolled(window.scrollY > 10);
         };
+
+        handleScroll();
         window.addEventListener("scroll", handleScroll, { passive: true });
+
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
-
-    // Close mobile menu when a link is clicked
-    const handleNavClick = (): void => {
-        setIsMobileOpen(false);
-    };
 
     return (
         <nav
             aria-label="Main navigation"
             className={cn(
-                "fixed left-0 right-0 top-0 z-50 transition-all duration-300",
+                "fixed inset-x-0 top-0 z-50 transition-all duration-300",
                 isScrolled
-                    ? "bg-white/95 shadow-sm backdrop-blur-sm dark:border-b dark:border-border dark:bg-gray-900/95"
+                    ? "border-b border-border/60 bg-background/88 shadow-sm backdrop-blur-xl"
                     : "bg-transparent",
             )}
         >
-            <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-                {/* Brand */}
-                <Link
-                    href="/"
-                    className="text-2xl font-bold text-foreground transition-colors hover:text-primary"
-                >
-                    Procure<span className="text-primary">line</span>
-                </Link>
+            <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
+                <div className="flex items-center gap-4">
+                    <Link
+                        href="/"
+                        className="text-2xl font-semibold tracking-tight text-foreground transition-colors hover:text-primary"
+                    >
+                        Procure<span className="text-primary">line</span>
+                    </Link>
+                    <Badge
+                        variant="outline"
+                        className="hidden gap-2 rounded-full border-primary/15 bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground lg:inline-flex"
+                    >
+                        <Landmark className="h-3.5 w-3.5 text-primary" />
+                        University procurement OS
+                    </Badge>
+                </div>
 
-                {/* Desktop nav links */}
                 <ul className="hidden items-center gap-8 md:flex">
                     {navLinks.map((link) => (
                         <li key={link.href}>
                             <a
                                 href={link.href}
-                                className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+                                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
                             >
                                 {link.label}
                             </a>
@@ -65,73 +78,77 @@ export function Navbar(): JSX.Element {
                     ))}
                 </ul>
 
-                {/* Desktop actions */}
                 <div className="hidden items-center gap-3 md:flex">
-                    <Button asChild variant="ghost" size="sm" className="text-sm">
+                    <Button asChild variant="ghost" size="sm">
                         <Link href={MARKETING_ACCESS_CTA.href}>
                             {MARKETING_ACCESS_CTA.label}
                         </Link>
                     </Button>
-                    <Button
-                        asChild
-                        size="sm"
-                        className="bg-primary text-sm text-primary-foreground shadow-md hover:bg-primary/90"
-                    >
-                        <Link href="/signup">Register University</Link>
+                    <Button asChild size="sm" className="gap-2">
+                        <Link href="/signup">
+                            Register university
+                            <ArrowRight className="h-4 w-4" />
+                        </Link>
                     </Button>
                     <ModeToggle />
                 </div>
 
-                {/* Mobile menu button */}
-                <button
-                    className="flex h-10 w-10 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-muted md:hidden"
-                    onClick={() => setIsMobileOpen(!isMobileOpen)}
-                    aria-label={isMobileOpen ? "Close navigation menu" : "Open navigation menu"}
-                    aria-expanded={isMobileOpen}
-                >
-                    <span className="text-xl">{isMobileOpen ? "x" : "="}</span>
-                </button>
-            </div>
-
-            {/* Mobile navigation */}
-            {isMobileOpen && (
-                <div className="border-b border-gray-200 bg-white px-6 py-6 shadow-lg dark:border-border dark:bg-background md:hidden">
-                    <ul className="mb-6 space-y-2">
-                        {navLinks.map((link) => (
-                            <li key={link.href}>
-                                <a
-                                    href={link.href}
-                                    onClick={handleNavClick}
-                                    className="block rounded-lg px-4 py-3 text-base font-medium text-foreground transition-colors hover:bg-muted hover:text-primary"
-                                >
-                                    {link.label}
-                                </a>
-                            </li>
-                        ))}
-                    </ul>
-                    <div className="flex flex-col gap-3">
-                        <Button asChild variant="outline" className="w-full">
-                            <Link
-                                href={MARKETING_ACCESS_CTA.href}
-                                onClick={handleNavClick}
-                            >
-                                {MARKETING_ACCESS_CTA.label}
-                            </Link>
-                        </Button>
-                        <Button
-                            asChild
-                            className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                <div className="flex items-center gap-2 md:hidden">
+                    <ModeToggle />
+                    <Sheet>
+                        <SheetTrigger asChild>
+                            <Button variant="outline" size="icon" aria-label="Open navigation menu">
+                                <Menu className="h-5 w-5" />
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent
+                            side="right"
+                            className="w-full max-w-xs border-l border-border/60 bg-background/95"
                         >
-                            <Link href="/signup" onClick={handleNavClick}>
-                                Register University
-                            </Link>
-                        </Button>
-                        <div className="flex justify-center pt-2">
-                            <ModeToggle />
-                        </div>
-                    </div>
+                            <SheetHeader className="border-b border-border/60 pb-4 text-left">
+                                <SheetTitle className="text-left">
+                                    Procure<span className="text-primary">line</span>
+                                </SheetTitle>
+                            </SheetHeader>
+
+                            <div className="mt-8 flex flex-col gap-6">
+                                <div className="space-y-2">
+                                    {navLinks.map((link) => (
+                                        <SheetClose asChild key={link.href}>
+                                            <a
+                                                href={link.href}
+                                                className="flex items-center justify-between rounded-xl border border-border/60 bg-card px-4 py-3 text-sm font-medium text-foreground transition-colors hover:border-primary/30 hover:text-primary"
+                                            >
+                                                {link.label}
+                                                <ArrowRight className="h-4 w-4" />
+                                            </a>
+                                        </SheetClose>
+                                    ))}
+                                </div>
+
+                                <div className="space-y-3">
+                                    <SheetClose asChild>
+                                        <Button asChild variant="outline" className="w-full justify-between">
+                                            <Link href={MARKETING_ACCESS_CTA.href}>
+                                                {MARKETING_ACCESS_CTA.label}
+                                                <ArrowRight className="h-4 w-4" />
+                                            </Link>
+                                        </Button>
+                                    </SheetClose>
+                                    <SheetClose asChild>
+                                        <Button asChild className="w-full justify-between">
+                                            <Link href="/signup">
+                                                Register university
+                                                <ArrowRight className="h-4 w-4" />
+                                            </Link>
+                                        </Button>
+                                    </SheetClose>
+                                </div>
+                            </div>
+                        </SheetContent>
+                    </Sheet>
                 </div>
-            )}
+            </div>
         </nav>
     );
 }

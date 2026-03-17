@@ -1,6 +1,6 @@
 # Story 3.2: Tenant Admin Dashboard
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -29,52 +29,52 @@ so that I can monitor my organization's procurement activities at a glance.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Replace the current tenant-admin placeholder with a real dashboard shell (AC: 1, 2, 4, 5, 6, 7, 9)
-  - [ ] Keep `webapp/app/(app)/tenant-admin/page.tsx` thin and move the UI into a dedicated feature component such as `webapp/src/components/tenant-admin/TenantAdminDashboard.tsx`.
-  - [ ] Build the dashboard with the existing shadcn/ui primitives and the UX spec's bento-box information architecture instead of introducing a charting or dashboard library.
-  - [ ] Use `docs/html/admin-tenant.html` as a layout and visual-reference source for card hierarchy, sidebar mindset, and section composition, but adapt it to the existing protected app shell rather than copying the prototype DOM or fake screens one-to-one.
-  - [ ] Include the four required summary cards, a fiscal-year status/timeline panel, a recent-activity panel, and a quick-actions/onboarding panel in the first delivered layout.
-  - [ ] Preserve the existing authenticated app shell in `webapp/app/(app)/layout.tsx` and the role-protected `/tenant-admin` route contract established by Story 1.6.
+- [x] Task 1: Replace the current tenant-admin placeholder with a real dashboard shell (AC: 1, 2, 4, 5, 6, 7, 9)
+  - [x] Keep `webapp/app/(app)/tenant-admin/page.tsx` thin and move the UI into a dedicated feature component such as `webapp/src/components/tenant-admin/TenantAdminDashboard.tsx`.
+  - [x] Build the dashboard with the existing shadcn/ui primitives and the UX spec's bento-box information architecture instead of introducing a charting or dashboard library.
+  - [x] Use `docs/html/admin-tenant.html` as a layout and visual-reference source for card hierarchy, sidebar mindset, and section composition, but adapt it to the existing protected app shell rather than copying the prototype DOM or fake screens one-to-one.
+  - [x] Include the four required summary cards, a fiscal-year status/timeline panel, a recent-activity panel, and a quick-actions/onboarding panel in the first delivered layout.
+  - [x] Preserve the existing authenticated app shell in `webapp/app/(app)/layout.tsx` and the role-protected `/tenant-admin` route contract established by Story 1.6.
 
-- [ ] Task 2: Create a tenant-admin dashboard data contract that works with current data and later stories (AC: 1, 2, 3, 5, 6, 7, 9, 10)
-  - [ ] Add a focused Convex query module such as `webapp/convex/functions/tenantAdminDashboard.ts` rather than overloading unrelated auth modules.
-  - [ ] Gate the query with `requireTenantRole(...["tenant_admin"])` so only tenant admins can load the snapshot.
-  - [ ] Aggregate available metrics from existing tables now: Procurement Officer count from `tenantUsers`, department count from `departments`, recent activity from `auditLogs`, and tenant metadata from `tenants`.
-  - [ ] Return stable placeholder or `null`/empty values for metrics whose underlying source tables do not exist yet, especially submission-progress and budget-utilization details that will be completed by later stories.
-  - [ ] Shape the response so later stories can extend it without breaking the initial dashboard UI contract, for example by returning `snapshotGeneratedAt`, `selectedFiscalYear`, `sourceState`, and strongly typed metric groups.
-  - [ ] Explicitly distinguish between `zero`, `empty`, `unconfigured`, and `unavailable` data states so the UI never turns missing backend data into believable fake business metrics.
-  - [ ] Do not surface prototype-only billing, invoice, settings, usage, submission, or PO-detail values unless they come from actual queryable data sources in the live schema and functions.
-  - [ ] Do not introduce tenant-admin-only mock fixtures, seeded dashboard summaries, client-side fake arrays, or fallback constants just to make the UI feel full.
+- [x] Task 2: Create a tenant-admin dashboard data contract that works with current data and later stories (AC: 1, 2, 3, 5, 6, 7, 9, 10)
+  - [x] Add a focused Convex query module such as `webapp/convex/functions/tenantAdminDashboard.ts` rather than overloading unrelated auth modules.
+  - [x] Gate the query with `requireTenantRole(...["tenant_admin"])` so only tenant admins can load the snapshot.
+  - [x] Aggregate available metrics from existing tables now: Procurement Officer count from `tenantUsers`, department count from `departments`, recent activity from `auditLogs`, and tenant metadata from `tenants`.
+  - [x] Return stable placeholder or `null`/empty values for metrics whose underlying source tables do not exist yet, especially submission-progress and budget-utilization details that will be completed by later stories.
+  - [x] Shape the response so later stories can extend it without breaking the initial dashboard UI contract, for example by returning `snapshotGeneratedAt`, `selectedFiscalYear`, `sourceState`, and strongly typed metric groups.
+  - [x] Explicitly distinguish between `zero`, `empty`, `unconfigured`, and `unavailable` data states so the UI never turns missing backend data into believable fake business metrics.
+  - [x] Do not surface prototype-only billing, invoice, settings, usage, submission, or PO-detail values unless they come from actual queryable data sources in the live schema and functions.
+  - [x] Do not introduce tenant-admin-only mock fixtures, seeded dashboard summaries, client-side fake arrays, or fallback constants just to make the UI feel full.
 
-- [ ] Task 3: Implement period-aware dashboard states and onboarding cues (AC: 2, 4, 5, 6, 7, 9)
-  - [ ] Add a tenant-admin dashboard helper module such as `webapp/lib/tenant-admin/dashboard.ts` for fiscal-year labeling, timeline state, onboarding priority, and display formatting so these rules are testable outside React.
-  - [ ] Default fiscal-year logic to the Kenya July 1 to June 30 cycle from project context and architecture guidance.
-  - [ ] Derive explicit cycle states for the hero/timeline area: `setup_required`, `before_start`, `active_submission`, or `cycle_complete`.
-  - [ ] If no safe tenant-wide submission window can be derived from the currently available department data, prefer `setup_required` over inventing a synthetic start/end date.
-  - [ ] Highlight quick actions based on missing setup prerequisites, especially the zero-PO case and missing institutional/fiscal-year context.
-  - [ ] Keep downstream workflow buttons honest: use reserved routes, placeholders, or coming-soon treatments where later stories have not yet landed instead of fake completed experiences.
-  - [ ] Define what the dashboard does when multiple POs exist: do not let a single-PO prototype card silently become misleading; either show an aggregated summary or a clearly labeled primary/most-recent PO surface.
+- [x] Task 3: Implement period-aware dashboard states and onboarding cues (AC: 2, 4, 5, 6, 7, 9)
+  - [x] Add a tenant-admin dashboard helper module such as `webapp/lib/tenant-admin/dashboard.ts` for fiscal-year labeling, timeline state, onboarding priority, and display formatting so these rules are testable outside React.
+  - [x] Default fiscal-year logic to the Kenya July 1 to June 30 cycle from project context and architecture guidance.
+  - [x] Derive explicit cycle states for the hero/timeline area: `setup_required`, `before_start`, `active_submission`, or `cycle_complete`.
+  - [x] If no safe tenant-wide submission window can be derived from the currently available department data, prefer `setup_required` over inventing a synthetic start/end date.
+  - [x] Highlight quick actions based on missing setup prerequisites, especially the zero-PO case and missing institutional/fiscal-year context.
+  - [x] Keep downstream workflow buttons honest: use reserved routes, placeholders, or coming-soon treatments where later stories have not yet landed instead of fake completed experiences.
+  - [x] Define what the dashboard does when multiple POs exist: do not let a single-PO prototype card silently become misleading; either show an aggregated summary or a clearly labeled primary/most-recent PO surface.
 
-- [ ] Task 4: Add recent-activity and resilience behavior without fighting Convex reactivity (AC: 3, 8, 10)
-  - [ ] Source recent activity from the existing audited event stream rather than inventing a second dashboard-only activity log.
-  - [ ] Limit the recent-activity feed to the latest 20 tenant-scoped items with safe display formatting for actor, action, entity, and time.
-  - [ ] Build a small client-side dashboard snapshot cache helper, for example `webapp/lib/tenant-admin/dashboard-cache.ts`, that stores the last successful payload plus timestamp for stale-data fallback.
-  - [ ] Use Convex `useQuery` for live data; do not add manual polling, interval refetching, or redundant REST fetches for the same snapshot.
-  - [ ] Show a clear stale-data banner when cached fallback is being displayed, and clear that banner once a fresh reactive payload succeeds.
-  - [ ] Key any cached snapshot by both `tenantId` and `selectedFiscalYear` so one tenant's or one period's data can never appear in another tenant/year context after navigation or role changes.
-  - [ ] Render safe empty/fallback labels when audit log rows have missing optional metadata instead of assuming every activity item has a full actor/entity payload.
+- [x] Task 4: Add recent-activity and resilience behavior without fighting Convex reactivity (AC: 3, 8, 10)
+  - [x] Source recent activity from the existing audited event stream rather than inventing a second dashboard-only activity log.
+  - [x] Limit the recent-activity feed to the latest 20 tenant-scoped items with safe display formatting for actor, action, entity, and time.
+  - [x] Build a small client-side dashboard snapshot cache helper, for example `webapp/lib/tenant-admin/dashboard-cache.ts`, that stores the last successful payload plus timestamp for stale-data fallback.
+  - [x] Use Convex `useQuery` for live data; do not add manual polling, interval refetching, or redundant REST fetches for the same snapshot.
+  - [x] Show a clear stale-data banner when cached fallback is being displayed, and clear that banner once a fresh reactive payload succeeds.
+  - [x] Key any cached snapshot by both `tenantId` and `selectedFiscalYear` so one tenant's or one period's data can never appear in another tenant/year context after navigation or role changes.
+  - [x] Render safe empty/fallback labels when audit log rows have missing optional metadata instead of assuming every activity item has a full actor/entity payload.
 
-- [ ] Task 5: Create routing and placeholder contracts for follow-on tenant-admin work (AC: 4, 5)
-  - [ ] Stabilize reserved quick-action destinations for at least PO management, reports, and settings under the `/tenant-admin/...` namespace so downstream stories extend the same IA instead of redirecting elsewhere later.
-  - [ ] Reuse existing placeholder or access-coming-soon patterns where needed instead of building unfinished downstream features in Story 3.2.
-  - [ ] Ensure route access remains inside the tenant-admin prefix so `RoleGuard` continues enforcing Story 1.6 behavior automatically.
+- [x] Task 5: Create routing and placeholder contracts for follow-on tenant-admin work (AC: 4, 5)
+  - [x] Stabilize reserved quick-action destinations for at least PO management, reports, and settings under the `/tenant-admin/...` namespace so downstream stories extend the same IA instead of redirecting elsewhere later.
+  - [x] Reuse existing placeholder or access-coming-soon patterns where needed instead of building unfinished downstream features in Story 3.2.
+  - [x] Ensure route access remains inside the tenant-admin prefix so `RoleGuard` continues enforcing Story 1.6 behavior automatically.
 
-- [ ] Task 6: Add deterministic test coverage for dashboard state derivation, access control, and fallback behavior (AC: 1, 3, 5, 6, 7, 8, 9, 10)
-  - [ ] Add pure tests for fiscal-year state resolution, onboarding-priority selection, quick-action highlighting, and stale-snapshot metadata handling.
-  - [ ] Add backend-shaping tests for the dashboard snapshot builder so PO counts, department counts, recent activity truncation, and missing-data placeholders are deterministic.
-  - [ ] Add route/auth regression checks confirming the tenant-admin route still requires a resolved tenant-admin role and still redirects non-tenant-admin users away.
-  - [ ] Add tests proving the dashboard uses cached data only as a fallback and still prefers fresh Convex query results when they are available.
-  - [ ] Add edge-case tests for: no POs, no departments, no activity rows, selected fiscal year with no data, unconfigured/inconsistent submission windows, multiple active POs, and cache isolation by tenant plus fiscal year.
+- [x] Task 6: Add deterministic test coverage for dashboard state derivation, access control, and fallback behavior (AC: 1, 3, 5, 6, 7, 8, 9, 10)
+  - [x] Add pure tests for fiscal-year state resolution, onboarding-priority selection, quick-action highlighting, and stale-snapshot metadata handling.
+  - [x] Add backend-shaping tests for the dashboard snapshot builder so PO counts, department counts, recent activity truncation, and missing-data placeholders are deterministic.
+  - [x] Add route/auth regression checks confirming the tenant-admin route still requires a resolved tenant-admin role and still redirects non-tenant-admin users away.
+  - [x] Add tests proving the dashboard uses cached data only as a fallback and still prefers fresh Convex query results when they are available.
+  - [x] Add edge-case tests for: no POs, no departments, no activity rows, selected fiscal year with no data, unconfigured/inconsistent submission windows, multiple active POs, and cache isolation by tenant plus fiscal year.
 
 ## Dev Notes
 
@@ -362,6 +362,11 @@ gpt-5-codex
   - `git show --stat --summary --format=medium -1 507afa8`
   - `git show --stat --summary --format=medium -1 c782b50`
   - `git show --stat --summary --format=medium -1 3181fec`
+- Validation commands:
+  - `npx convex codegen`
+  - `npm test`
+  - `npm run lint`
+  - `npm run build`
 - External validation sources:
   - `https://nextjs.org/docs/app`
   - `https://nextjs.org/docs/app/guides/authentication`
@@ -376,16 +381,43 @@ gpt-5-codex
 - 2026-03-14: Anchored the story to the existing protected app shell, role guard, Convex auth context, audit-log infrastructure, and current schema instead of assuming future tenant-admin modules already exist.
 - 2026-03-14: Explicitly documented the gap between current available data sources and later dashboard metrics so the implementing dev can ship a truthful dashboard shell without inventing fake production data.
 - 2026-03-14: Updated sprint tracking so `3-2-tenant-admin-dashboard` is `ready-for-dev` and Epic 3 is marked `in-progress`.
+- 2026-03-14: Replaced the `/tenant-admin` placeholder with a dedicated dashboard feature composed of a hero timeline panel, four honest summary cards, recent activity, quick actions, and onboarding checklist surfaces.
+- 2026-03-14: Added `webapp/convex/functions/tenantAdminDashboard.ts` plus audit-log tenant indexes and a typed snapshot builder so tenant admins receive a reactive, tenant-scoped dashboard contract without mock metrics.
+- 2026-03-14: Added period-aware fiscal-year helpers, stale snapshot cache handling, reserved `/tenant-admin/...` follow-on routes, and deterministic tests covering cycle-state derivation, cache fallback, snapshot shaping, and tenant-admin route protection.
+- 2026-03-14: Validated the implementation with `npx convex codegen`, `npm test`, `npm run lint`, and `npm run build`.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/3-2-tenant-admin-dashboard.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `webapp/app/(app)/tenant-admin/page.tsx`
+- `webapp/app/(app)/tenant-admin/po-management/page.tsx`
+- `webapp/app/(app)/tenant-admin/reports/page.tsx`
+- `webapp/app/(app)/tenant-admin/settings/page.tsx`
+- `webapp/convex/_generated/api.d.ts`
+- `webapp/convex/functions/tenantAdminDashboard.ts`
+- `webapp/convex/schema.ts`
+- `webapp/lib/tenant-admin/dashboard-cache.ts`
+- `webapp/lib/tenant-admin/dashboard-snapshot.ts`
+- `webapp/lib/tenant-admin/dashboard.ts`
+- `webapp/src/components/tenant-admin/TenantAdminDashboard.tsx`
+- `webapp/src/components/tenant-admin/TenantAdminQuickActions.tsx`
+- `webapp/src/components/tenant-admin/TenantAdminRecentActivity.tsx`
+- `webapp/src/components/tenant-admin/TenantAdminRoutePlaceholder.tsx`
+- `webapp/src/components/tenant-admin/TenantAdminSummaryCard.tsx`
+- `webapp/tests/rbac.test.ts`
+- `webapp/tests/run-tests.ts`
+- `webapp/tests/tenant-admin-dashboard.test.ts`
+- `webapp/tsconfig.tests.json`
+
+### Change Log
+
+- 2026-03-14: Implemented the tenant-admin dashboard shell, reactive Convex snapshot query, period-aware helpers, stale-cache fallback, reserved follow-on routes, and deterministic dashboard coverage.
 
 ### Story Completion Status
 
 - Story ID: `3.2`
 - Story Key: `3-2-tenant-admin-dashboard`
 - Output File: `_bmad-output/implementation-artifacts/3-2-tenant-admin-dashboard.md`
-- Final Status: `ready-for-dev`
-- Completion Note: `Ultimate context engine analysis completed - comprehensive developer guide created`
+- Final Status: `review`
+- Completion Note: `Implemented the tenant-admin dashboard, reactive snapshot contract, reserved follow-on routes, and deterministic validation coverage`

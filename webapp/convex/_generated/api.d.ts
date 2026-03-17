@@ -27,6 +27,7 @@ import type * as functions_externalServices from "../functions/externalServices.
 import type * as functions_salesInquiries from "../functions/salesInquiries.js";
 import type * as functions_securityAudit from "../functions/securityAudit.js";
 import type * as functions_sessions from "../functions/sessions.js";
+import type * as functions_tenantAdminDashboard from "../functions/tenantAdminDashboard.js";
 import type * as functions_tenants from "../functions/tenants.js";
 import type * as functions_users from "../functions/users.js";
 import type * as http from "../http.js";
@@ -61,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   "functions/salesInquiries": typeof functions_salesInquiries;
   "functions/securityAudit": typeof functions_securityAudit;
   "functions/sessions": typeof functions_sessions;
+  "functions/tenantAdminDashboard": typeof functions_tenantAdminDashboard;
   "functions/tenants": typeof functions_tenants;
   "functions/users": typeof functions_users;
   http: typeof http;

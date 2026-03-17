@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth, useMutation } from "convex/react";
+import { Check, Circle, LoaderCircle, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -236,19 +237,7 @@ export function SignupForm({
         <Card className="border-border/50 shadow-lg">
             <CardHeader className="space-y-1 text-center">
                 <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                    <svg
-                        className="h-6 w-6 text-primary"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                        />
-                    </svg>
+                    <UserPlus className="h-6 w-6 text-primary" />
                 </div>
                 <CardTitle className="text-2xl font-bold">
                     {isRecoveryMode
@@ -401,29 +390,9 @@ export function SignupForm({
                                             >
                                                 <span className="flex-shrink-0">
                                                     {met ? (
-                                                        <svg
-                                                            className="h-3.5 w-3.5"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            stroke="currentColor"
-                                                            strokeWidth={3}
-                                                        >
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                d="M5 13l4 4L19 7"
-                                                            />
-                                                        </svg>
+                                                        <Check className="h-3.5 w-3.5" />
                                                     ) : (
-                                                        <svg
-                                                            className="h-3.5 w-3.5"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            stroke="currentColor"
-                                                            strokeWidth={2}
-                                                        >
-                                                            <circle cx="12" cy="12" r="9" />
-                                                        </svg>
+                                                        <Circle className="h-3.5 w-3.5" />
                                                     )}
                                                 </span>
                                                 {requirement.label}
@@ -445,25 +414,7 @@ export function SignupForm({
                     >
                         {isSubmitting ? (
                             <span className="flex items-center gap-2">
-                                <svg
-                                    className="h-4 w-4 animate-spin"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                >
-                                    <circle
-                                        className="opacity-25"
-                                        cx="12"
-                                        cy="12"
-                                        r="10"
-                                        stroke="currentColor"
-                                        strokeWidth="4"
-                                    />
-                                    <path
-                                        className="opacity-75"
-                                        fill="currentColor"
-                                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                                    />
-                                </svg>
+                                <LoaderCircle className="h-4 w-4 animate-spin" />
                                 {isRecoveryMode
                                     ? "Completing setup..."
                                     : "Creating account..."}

@@ -28,6 +28,9 @@ export function runRbacTests(): string[] {
     assert.equal(getProtectedRouteRole("/platform-admin"), "platform_admin");
     assert.equal(getProtectedRouteRole("/platform-admin/settings"), "platform_admin");
     assert.equal(getProtectedRouteRole("/tenant-admin"), "tenant_admin");
+    assert.equal(getProtectedRouteRole("/tenant-admin/po-management"), "tenant_admin");
+    assert.equal(getProtectedRouteRole("/tenant-admin/reports"), "tenant_admin");
+    assert.equal(getProtectedRouteRole("/tenant-admin/settings"), "tenant_admin");
     assert.equal(getProtectedRouteRole("/po/requisitions"), "procurement_officer");
     assert.equal(getProtectedRouteRole("/du/plans"), "department_user");
     assert.equal(getProtectedRouteRole("/portal"), null);
@@ -332,6 +335,28 @@ export function runRbacTests(): string[] {
         { action: "allow" },
     );
     completedTests.push("tenant admin is allowed to access their own sub-routes");
+
+    assert.deepEqual(
+        evaluateRoleRouteAccess({
+            pathname: "/tenant-admin/reports",
+            authContext: {
+                ...ACTIVE_SESSION_CONTEXT,
+                accessState: "allowed",
+                role: "procurement_officer",
+                scope: "tenant",
+                isActive: true,
+                isRoleResolved: true,
+                homePath: "/po",
+                redirectPath: "/po",
+                tenantStatus: "active",
+            },
+        }),
+        {
+            action: "redirect",
+            target: `/po?reason=${FORBIDDEN_ACCESS_REASON}&from=%2Ftenant-admin%2Freports`,
+        },
+    );
+    completedTests.push("reserved tenant-admin sub-routes stay protected by the existing role guard");
 
     assert.deepEqual(
         evaluateRoleRouteAccess({

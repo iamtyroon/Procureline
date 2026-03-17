@@ -28,6 +28,8 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -46,7 +48,9 @@ import {
     FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { CheckCircle2, CircleAlert, Coins, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 type DisplayTier = PublicPricingDisplayTier;
@@ -252,10 +256,14 @@ export function Pricing(): JSX.Element {
             >
                 <div className="mx-auto max-w-7xl">
                     <div className="mx-auto mb-16 max-w-3xl text-center">
-                        <div className="mb-4 inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-3.5 py-1.5 text-xs font-semibold text-primary">
+                        <Badge
+                            variant="secondary"
+                            className="mb-4 gap-2 rounded-full border border-primary/15 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary"
+                        >
+                            <Coins className="h-4 w-4" />
                             Pricing
-                        </div>
-                        <h2 className="mb-4 text-4xl font-bold tracking-tight text-foreground">
+                        </Badge>
+                        <h2 className="mb-4 text-4xl font-semibold tracking-tight text-foreground">
                             Annual procurement plans with USD and KES comparison views
                         </h2>
                         <p className="text-lg text-muted-foreground">
@@ -265,40 +273,40 @@ export function Pricing(): JSX.Element {
                             fixed planning rate of {PRICING_EXCHANGE_RATE_KES_PER_USD} KES
                             per USD from the PRD.
                         </p>
-                        <div className="mt-6 inline-flex rounded-full border border-border/60 bg-card p-1 shadow-sm">
-                            <button
-                                type="button"
-                                onClick={() => setPricingCurrency("usd")}
-                                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                                    pricingCurrency === "usd"
-                                        ? "bg-primary text-primary-foreground"
-                                        : "text-muted-foreground hover:text-foreground"
-                                }`}
-                                aria-pressed={pricingCurrency === "usd"}
-                            >
-                                USD pricing
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setPricingCurrency("kes")}
-                                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                                    pricingCurrency === "kes"
-                                        ? "bg-primary text-primary-foreground"
-                                        : "text-muted-foreground hover:text-foreground"
-                                }`}
-                                aria-pressed={pricingCurrency === "kes"}
-                            >
-                                KES planning view
-                            </button>
-                        </div>
+                        <Tabs
+                            value={pricingCurrency}
+                            onValueChange={(value) =>
+                                setPricingCurrency(value as PricingCurrency)
+                            }
+                            className="mt-6"
+                        >
+                            <TabsList className="h-auto rounded-full border border-border/60 bg-card p-1 shadow-sm">
+                                <TabsTrigger
+                                    value="usd"
+                                    className="rounded-full px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                                >
+                                    USD pricing
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    value="kes"
+                                    className="rounded-full px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                                >
+                                    KES planning view
+                                </TabsTrigger>
+                            </TabsList>
+                        </Tabs>
                     </div>
 
                     {pricingCatalog.usingFallback ? (
-                        <div className="mb-8 rounded-2xl border border-amber-300/60 bg-amber-50 px-5 py-4 text-sm text-amber-900">
-                            We are showing the standard pricing snapshot because the live
-                            tier catalog is currently unavailable. Self-serve links and
-                            the Enterprise contact flow remain available.
-                        </div>
+                        <Alert className="mb-8 rounded-2xl border-amber-300/60 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+                            <CircleAlert className="h-4 w-4" />
+                            <AlertTitle>Showing fallback pricing</AlertTitle>
+                            <AlertDescription>
+                                We are showing the standard pricing snapshot because the live tier
+                                catalog is currently unavailable. Self-serve links and the
+                                Enterprise contact flow remain available.
+                            </AlertDescription>
+                        </Alert>
                     ) : null}
 
                     <div className="mb-10 rounded-3xl border border-border/60 bg-card px-6 py-6 shadow-sm md:flex md:items-center md:justify-between md:gap-8">
@@ -347,9 +355,9 @@ export function Pricing(): JSX.Element {
                                                 {tier.tierName}
                                             </h3>
                                             {tier.isPopular ? (
-                                                <span className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+                                                <Badge className="rounded-full px-3 py-1">
                                                     Recommended
-                                                </span>
+                                                </Badge>
                                             ) : null}
                                         </div>
                                         <p className="min-h-[72px] text-sm leading-6 text-muted-foreground">
@@ -437,9 +445,7 @@ export function Pricing(): JSX.Element {
                                                 key={`${tier.slug}-${feature}`}
                                                 className="flex items-start gap-3 text-sm leading-6 text-muted-foreground"
                                             >
-                                                <span className="mt-1 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                                                    +
-                                                </span>
+                                                <CheckCircle2 className="mt-1 h-5 w-5 flex-shrink-0 text-primary" />
                                                 <span>{feature}</span>
                                             </li>
                                         ))}
@@ -472,9 +478,13 @@ export function Pricing(): JSX.Element {
 
                     <div className="mt-16 grid gap-10 rounded-3xl border border-border/60 bg-card px-6 py-8 shadow-sm lg:grid-cols-[0.9fr_1.1fr]">
                         <div>
-                            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.18em] text-primary">
+                            <Badge
+                                variant="secondary"
+                                className="mb-3 gap-2 rounded-full border border-primary/15 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary"
+                            >
+                                <Sparkles className="h-4 w-4" />
                                 Pricing FAQ
-                            </p>
+                            </Badge>
                             <h3 className="mb-3 text-3xl font-semibold text-foreground">
                                 Questions procurement teams ask before rollout
                             </h3>

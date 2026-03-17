@@ -1,10 +1,5 @@
-import { RoleDashboardPlaceholder } from "@/src/components/auth/RoleDashboardPlaceholder";
+import { TenantAdminDashboard } from "@/src/components/tenant-admin/TenantAdminDashboard";
 
 export default function TenantAdminPage() {
-    return (
-        <RoleDashboardPlaceholder
-            title="Tenant Admin Dashboard"
-            description="Manage your institution setup, onboard departments, and configure procurement planning for your team."
-        />
-    );
+    return <TenantAdminDashboard />;
 }

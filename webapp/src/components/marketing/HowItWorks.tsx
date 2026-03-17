@@ -1,33 +1,56 @@
+import type { LucideIcon } from "lucide-react";
+import {
+    ArrowRight,
+    ClipboardCheck,
+    Send,
+    ShieldCheck,
+    Users,
+    Workflow,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
+
 interface Step {
-    number: number;
-    title: string;
     description: string;
+    icon: LucideIcon;
+    number: string;
+    title: string;
 }
 
 const steps: Step[] = [
     {
-        number: 1,
-        title: "Setup Departments",
         description:
-            "Admin creates departments and invites Departmental Users. Each user gets secure access to their planning workspace.",
+            "Tenant Admin sets up departments, budgets, and user access so every planning unit starts inside the right workspace.",
+        icon: Users,
+        number: "01",
+        title: "Onboard the institution",
     },
     {
-        number: 2,
-        title: "Plan with Blocks",
         description:
-            "Departmental Users build their procurement plans using drag-and-drop blocks. Categories, items, quantities, and budgets — all visual.",
+            "Department users structure procurement needs in guided blocks for categories, items, and specifications.",
+        icon: Workflow,
+        number: "02",
+        title: "Build the plan",
     },
     {
-        number: 3,
-        title: "Review & Validate",
         description:
-            "Procurement Officer reviews submissions, ensures compliance quotas are met, and consolidates the master plan.",
+            "Procurement leadership validates submissions, watches quota posture, and closes any readiness gaps before export.",
+        icon: ShieldCheck,
+        number: "03",
+        title: "Review and validate",
     },
     {
-        number: 4,
-        title: "Export & Submit",
         description:
-            "Generate the official GOK Excel template with one click. Ready for PPRA submission. Done!",
+            "Generate the official output package and move the consolidated plan into final review and submission.",
+        icon: Send,
+        number: "04",
+        title: "Export and submit",
     },
 ];
 
@@ -36,39 +59,66 @@ export function HowItWorks(): JSX.Element {
         <section
             id="how-it-works"
             aria-label="How it works"
-            className="bg-gray-50 px-6 py-24 text-gray-900 dark:bg-slate-900 dark:text-white"
+            className="bg-muted/20 px-6 py-24"
         >
             <div className="mx-auto max-w-7xl">
-                {/* Section Header */}
-                <div className="mx-auto mb-16 max-w-2xl text-center">
-                    <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3.5 py-1.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-primary">
-                        🛤️ How It Works
-                    </div>
-                    <h2 className="mb-4 text-4xl font-bold tracking-tight text-gray-900 dark:text-white">
-                        From Chaos to Compliance in 4 Steps
+                <div className="mx-auto mb-16 max-w-3xl text-center">
+                    <Badge
+                        variant="secondary"
+                        className="mb-4 gap-2 rounded-full border border-primary/15 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary"
+                    >
+                        <ClipboardCheck className="h-4 w-4" />
+                        Workflow overview
+                    </Badge>
+                    <h2 className="text-4xl font-semibold tracking-tight text-foreground">
+                        A clear four-step path from setup to submission.
                     </h2>
-                    <p className="text-lg text-gray-500 dark:text-gray-400">
-                        Streamline your entire procurement planning workflow with
-                        Procureline.
+                    <p className="mt-4 text-lg leading-8 text-muted-foreground">
+                        Procureline keeps the handoff between departments and procurement leadership
+                        visible, structured, and ready for review.
                     </p>
                 </div>
 
-                {/* Steps Grid */}
-                <div className="relative grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
-                    {/* Connecting line */}
-                    <div className="absolute left-[60px] right-[60px] top-10 hidden h-0.5 bg-gradient-to-r from-primary to-emerald-600 opacity-30 lg:block" />
+                <div className="grid gap-6 xl:grid-cols-4">
+                    {steps.map((step, index) => {
+                        const Icon = step.icon;
 
-                    {steps.map((step) => (
-                        <div key={step.number} className="relative text-center">
-                            <div className="relative z-10 mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary to-emerald-600 text-3xl font-bold text-white shadow-lg shadow-emerald-500/20">
-                                {step.number}
+                        return (
+                            <div key={step.number} className="relative">
+                                <Card className="h-full border-border/60 bg-card/80 shadow-sm">
+                                    <CardHeader className="pb-4">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                                                <Icon className="h-5 w-5" />
+                                            </div>
+                                            <Badge
+                                                variant="outline"
+                                                className="rounded-full border-border/70 bg-background/80 px-3 py-1 text-xs font-semibold text-muted-foreground"
+                                            >
+                                                {step.number}
+                                            </Badge>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="pt-0">
+                                        <CardTitle className="text-xl text-foreground">
+                                            {step.title}
+                                        </CardTitle>
+                                        <CardDescription className="mt-3 text-sm leading-7 text-muted-foreground">
+                                            {step.description}
+                                        </CardDescription>
+                                    </CardContent>
+                                </Card>
+
+                                {index < steps.length - 1 ? (
+                                    <div className="pointer-events-none absolute -right-4 top-1/2 hidden -translate-y-1/2 xl:block">
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground">
+                                            <ArrowRight className="h-4 w-4" />
+                                        </div>
+                                    </div>
+                                ) : null}
                             </div>
-                            <h3 className="mb-3 text-lg font-semibold">{step.title}</h3>
-                            <p className="text-sm leading-relaxed text-gray-400">
-                                {step.description}
-                            </p>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </section>

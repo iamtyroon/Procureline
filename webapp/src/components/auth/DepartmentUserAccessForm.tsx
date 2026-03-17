@@ -4,6 +4,7 @@ import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
+import { LockKeyhole } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
@@ -216,19 +217,7 @@ export function DepartmentUserAccessForm({
         <Card className="border-border/50 shadow-lg">
             <CardHeader className="space-y-1 text-center">
                 <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                    <svg
-                        className="h-6 w-6 text-primary"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M12 11c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.306-.835 2.417-2 2.83V16a1 1 0 01-2 0v-2.17A2.996 2.996 0 0112 11zm-6 1a6 6 0 1112 0v6a2 2 0 01-2 2H8a2 2 0 01-2-2v-6z"
-                        />
-                    </svg>
+                    <LockKeyhole className="h-6 w-6 text-primary" />
                 </div>
                 <CardTitle className="text-2xl font-bold">
                     Department User Sign In

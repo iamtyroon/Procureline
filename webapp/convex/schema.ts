@@ -237,6 +237,8 @@ export default defineSchema({
     })
         .index("by_actorUserId", ["actorUserId", "timestamp"])
         .index("by_event", ["event", "timestamp"])
+        .index("by_sourceTenantId", ["sourceTenantId", "timestamp"])
+        .index("by_targetTenantId", ["targetTenantId", "timestamp"])
         .index("by_timestamp", ["timestamp"]),
 
     externalServiceSyncEvents: defineTable({

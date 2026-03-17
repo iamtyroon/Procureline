@@ -10,6 +10,7 @@ import { runSecurityInfrastructureTests } from "./security-infrastructure.test";
 import { runServiceBridgeTests } from "./service-bridge.test";
 import { runSessionManagementTests } from "./session-management.test";
 import { runSignupFlowTests } from "./signup-flow.test";
+import { runTenantAdminDashboardTests } from "./tenant-admin-dashboard.test";
 import { runTenantIsolationTests } from "./tenant-isolation.test";
 
 async function main(): Promise<void> {
@@ -26,6 +27,7 @@ async function main(): Promise<void> {
         ...(await runServiceBridgeTests()),
         ...runSessionManagementTests(),
         ...runSignupFlowTests(),
+        ...runTenantAdminDashboardTests(),
         ...runTenantIsolationTests(),
     ];
 

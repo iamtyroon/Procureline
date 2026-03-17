@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth, useMutation } from "convex/react";
+import { LoaderCircle, MailCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -200,19 +201,7 @@ export function VerifyEmailForm({
         <Card className="border-border/50 shadow-lg">
             <CardHeader className="space-y-1 text-center">
                 <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                    <svg
-                        className="h-6 w-6 text-primary"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                        />
-                    </svg>
+                    <MailCheck className="h-6 w-6 text-primary" />
                 </div>
                 <CardTitle className="text-2xl font-bold">
                     Check your email
@@ -274,25 +263,7 @@ export function VerifyEmailForm({
                     >
                         {isSubmitting ? (
                             <span className="flex items-center gap-2">
-                                <svg
-                                    className="h-4 w-4 animate-spin"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                >
-                                    <circle
-                                        className="opacity-25"
-                                        cx="12"
-                                        cy="12"
-                                        r="10"
-                                        stroke="currentColor"
-                                        strokeWidth="4"
-                                    />
-                                    <path
-                                        className="opacity-75"
-                                        fill="currentColor"
-                                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                                    />
-                                </svg>
+                                <LoaderCircle className="h-4 w-4 animate-spin" />
                                 Verifying...
                             </span>
                         ) : (
@@ -301,8 +272,10 @@ export function VerifyEmailForm({
                     </Button>
 
                     <div className="flex w-full items-center justify-between text-sm">
-                        <button
+                        <Button
                             type="button"
+                            variant="ghost"
+                            className="h-auto px-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
                             onClick={() => {
                                 onBack(
                                     requiresOrganizationRetry
@@ -310,27 +283,27 @@ export function VerifyEmailForm({
                                         : undefined,
                                 );
                             }}
-                            className="text-muted-foreground transition-colors hover:text-foreground"
                         >
                             {requiresOrganizationRetry
                                 ? "Choose another name"
                                 : "Back"}
-                        </button>
+                        </Button>
 
-                        <button
+                        <Button
                             type="button"
+                            variant="link"
+                            className="h-auto px-0"
                             onClick={() => {
                                 void handleResend();
                             }}
                             disabled={isResending || resendCooldown > 0}
-                            className="text-primary transition-colors hover:underline disabled:text-muted-foreground disabled:no-underline"
                         >
                             {resendCooldown > 0
                                 ? `Resend in ${resendCooldown}s`
                                 : isResending
                                     ? "Sending..."
                                     : "Resend code"}
-                        </button>
+                        </Button>
                     </div>
                 </CardFooter>
             </form>

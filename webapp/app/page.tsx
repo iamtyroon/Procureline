@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Navbar } from "@/src/components/marketing/Navbar";
 import { Hero } from "@/src/components/marketing/Hero";
-import { TrustedBy } from "@/src/components/marketing/TrustedBy";
 import { Features } from "@/src/components/marketing/Features";
 import { HowItWorks } from "@/src/components/marketing/HowItWorks";
 import { BlocklyShowcase } from "@/src/components/marketing/BlocklyShowcase";
@@ -93,7 +92,6 @@ export default async function LandingPage({
             <main id="main-content" tabIndex={-1}>
                 <Hero />
                 <HomepagePublicAccessExperience searchParams={resolvedSearchParams} />
-                <TrustedBy />
                 <Features />
                 <HowItWorks />
                 <BlocklyShowcase />

@@ -11,6 +11,7 @@ import {
     getRoleLabel,
     shouldTerminateAuthenticatedSession,
 } from "@/lib/auth/roles";
+import { ModeToggle } from "@/src/components/mode-toggle";
 import { RoleGuard } from "@/src/components/auth/RoleGuard";
 import { Spinner } from "@/src/components/ui/Spinner";
 
@@ -157,9 +158,16 @@ export default function AppLayout({
                             Signed in as {getRoleLabel(authContext.role)}
                         </p>
                     </div>
-                    <Button type="button" variant="outline" onClick={() => void handleLogout()}>
-                        Log out
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <ModeToggle />
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => void handleLogout()}
+                        >
+                            Log out
+                        </Button>
+                    </div>
                 </div>
                 {noticeMessage ? (
                     <div

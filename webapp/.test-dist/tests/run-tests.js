@@ -12,6 +12,7 @@ const security_infrastructure_test_1 = require("./security-infrastructure.test")
 const service_bridge_test_1 = require("./service-bridge.test");
 const session_management_test_1 = require("./session-management.test");
 const signup_flow_test_1 = require("./signup-flow.test");
+const tenant_admin_dashboard_test_1 = require("./tenant-admin-dashboard.test");
 const tenant_isolation_test_1 = require("./tenant-isolation.test");
 async function main() {
     const completedTests = [
@@ -27,6 +28,7 @@ async function main() {
         ...(await (0, service_bridge_test_1.runServiceBridgeTests)()),
         ...(0, session_management_test_1.runSessionManagementTests)(),
         ...(0, signup_flow_test_1.runSignupFlowTests)(),
+        ...(0, tenant_admin_dashboard_test_1.runTenantAdminDashboardTests)(),
         ...(0, tenant_isolation_test_1.runTenantIsolationTests)(),
     ];
     for (const completedTest of completedTests) {

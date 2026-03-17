@@ -1,117 +1,194 @@
-interface ComplianceBadge {
-    icon: string;
-    label: string;
-    percentage: string;
+import type { LucideIcon } from "lucide-react";
+import {
+    BarChart3,
+    CheckCircle2,
+    Download,
+    Landmark,
+    ShieldCheck,
+    Users2,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+
+interface ComplianceRequirement {
     description: string;
-    barWidth: string;
-    barColor: string;
+    icon: LucideIcon;
+    label: string;
+    progress: number;
+    toneClassName: string;
+    value: string;
 }
 
-const badges: ComplianceBadge[] = [
+const requirements: ComplianceRequirement[] = [
     {
-        icon: "👥",
+        description: "Youth, women, and PWD supplier allocation target",
+        icon: Users2,
         label: "AGPO",
-        percentage: "30%",
-        description: "Youth, Women, PWD",
-        barWidth: "30%",
-        barColor: "bg-primary",
+        progress: 30,
+        toneClassName: "bg-primary/10 text-primary",
+        value: "30%",
     },
     {
-        icon: "♿",
+        description: "Persons with disability requirement tracked in review",
+        icon: ShieldCheck,
         label: "PWD",
-        percentage: "2%",
-        description: "Persons with Disability",
-        barWidth: "40%", // Visual scale — 2% would be too narrow to see
-        barColor: "bg-blue-500",
+        progress: 40,
+        toneClassName: "bg-secondary text-secondary-foreground",
+        value: "2%",
     },
     {
-        icon: "🇰🇪",
-        label: "Local Content",
-        percentage: "40%",
-        description: "Buy Kenya Build Kenya",
-        barWidth: "40%",
-        barColor: "bg-amber-500",
+        description: "Buy Kenya Build Kenya local-content planning threshold",
+        icon: Landmark,
+        label: "Local content",
+        progress: 40,
+        toneClassName: "bg-accent text-accent-foreground",
+        value: "40%",
     },
 ];
 
 export function Compliance(): JSX.Element {
     return (
-        <section
-            id="compliance"
-            aria-label="GOK compliance"
-            className="bg-gradient-to-br from-emerald-600 to-emerald-800 px-6 py-24 text-white dark:from-emerald-900 dark:to-emerald-950"
-        >
-            <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-16 lg:grid-cols-2">
-                {/* Content */}
+        <section id="compliance" aria-label="GOK compliance" className="px-6 py-24">
+            <div className="mx-auto grid max-w-7xl items-center gap-10 rounded-[2rem] border border-border/60 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.14),transparent_34%),linear-gradient(180deg,hsl(var(--card)),hsl(var(--muted)/0.45))] p-8 shadow-xl lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:p-10">
                 <div>
-                    <h2 className="mb-6 text-4xl font-bold tracking-tight">
-                        100% PPRA Compliant, Automatically
+                    <Badge
+                        variant="secondary"
+                        className="mb-4 gap-2 rounded-full border border-primary/15 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary"
+                    >
+                        <ShieldCheck className="h-4 w-4" />
+                        Compliance intelligence
+                    </Badge>
+                    <h2 className="max-w-2xl text-4xl font-semibold tracking-tight text-foreground">
+                        Government compliance stays visible while plans are still in motion.
                     </h2>
-                    <p className="mb-8 text-lg text-emerald-100">
-                        Procureline automatically validates your procurement plan against
-                        Government of Kenya requirements. No more manual calculations or
-                        audit failures.
+                    <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">
+                        Procureline keeps statutory thresholds attached to the planning workflow so
+                        teams can resolve risks before export and submission.
                     </p>
 
-                    <div className="mb-8 flex flex-wrap gap-4">
-                        {badges.map((badge) => (
-                            <div
-                                key={badge.label}
-                                className="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-3 backdrop-blur-sm"
-                            >
-                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20 text-lg">
-                                    {badge.icon}
-                                </div>
-                                <div>
-                                    <div className="text-sm font-semibold">
-                                        {badge.label} {badge.percentage}
-                                    </div>
-                                    <div className="text-xs text-emerald-200">
-                                        {badge.description}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    <div className="mt-8 grid gap-4 sm:grid-cols-3">
+                        {requirements.map((requirement) => {
+                            const Icon = requirement.icon;
 
-                    <button className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white px-6 py-3 text-sm font-semibold text-emerald-700 transition-all hover:bg-emerald-50">
-                        📄 Download Compliance Guide
-                    </button>
-                </div>
-
-                {/* Compliance Chart Visual */}
-                <div className="rounded-2xl border border-white/10 bg-white p-6 shadow-xl dark:border-transparent dark:bg-card">
-                    <div className="mb-6 flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
-                        📊 Compliance Tracker
-                    </div>
-
-                    <div className="space-y-5">
-                        {badges.map((badge) => (
-                            <div key={badge.label} className="flex items-center gap-4">
-                                <span className="w-16 text-right text-sm font-medium text-gray-600 dark:text-gray-400">
-                                    {badge.label}
-                                </span>
-                                <div className="flex-1">
-                                    <div className="h-3 overflow-hidden rounded-full bg-gray-100 dark:bg-muted">
+                            return (
+                                <Card
+                                    key={requirement.label}
+                                    className="border-border/60 bg-card/80 shadow-sm"
+                                >
+                                    <CardContent className="p-5">
                                         <div
-                                            className={`h-full rounded-full ${badge.barColor} transition-all duration-1000`}
-                                            style={{ width: badge.barWidth }}
-                                        />
-                                    </div>
-                                </div>
-                                <span className="w-12 text-right text-sm font-bold text-gray-900 dark:text-white">
-                                    {badge.percentage}
-                                </span>
-                            </div>
-                        ))}
+                                            className={`flex h-11 w-11 items-center justify-center rounded-2xl ${requirement.toneClassName}`}
+                                        >
+                                            <Icon className="h-5 w-5" />
+                                        </div>
+                                        <p className="mt-4 text-lg font-semibold text-foreground">
+                                            {requirement.label}
+                                        </p>
+                                        <p className="mt-1 text-sm text-muted-foreground">
+                                            {requirement.value} requirement
+                                        </p>
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
                     </div>
 
-                    <div className="mt-6 border-t border-gray-200 pt-4 text-center dark:border-border">
-                        <span className="inline-flex items-center gap-2 text-sm font-semibold text-primary">
-                            ✅ All Requirements Met
-                        </span>
+                    <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+                        <Button type="button" size="lg" className="gap-2 rounded-xl px-6">
+                            <Download className="h-4 w-4" />
+                            Download compliance guide
+                        </Button>
+                        <Button
+                            type="button"
+                            size="lg"
+                            variant="outline"
+                            className="gap-2 rounded-xl px-6"
+                        >
+                            <BarChart3 className="h-4 w-4" />
+                            Review dashboard posture
+                        </Button>
                     </div>
                 </div>
+
+                <Card className="border-border/60 bg-card/92 shadow-lg">
+                    <CardHeader className="pb-5">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                                <BarChart3 className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-xl text-foreground">
+                                    Compliance tracker
+                                </CardTitle>
+                                <CardDescription className="mt-1 text-sm text-muted-foreground">
+                                    Live posture for fiscal-year procurement planning
+                                </CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-6 pt-0">
+                        {requirements.map((requirement) => {
+                            const Icon = requirement.icon;
+
+                            return (
+                                <div
+                                    key={requirement.label}
+                                    className="rounded-2xl border border-border/60 bg-muted/20 p-4"
+                                >
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex items-start gap-3">
+                                            <div
+                                                className={`mt-1 flex h-10 w-10 items-center justify-center rounded-xl ${requirement.toneClassName}`}
+                                            >
+                                                <Icon className="h-4 w-4" />
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-foreground">
+                                                    {requirement.label}
+                                                </p>
+                                                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                                                    {requirement.description}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <Badge
+                                            variant="outline"
+                                            className="rounded-full border-border/70 bg-background/80 px-3 py-1 text-foreground"
+                                        >
+                                            {requirement.value}
+                                        </Badge>
+                                    </div>
+
+                                    <Progress
+                                        value={requirement.progress}
+                                        className="mt-4 h-2.5 bg-muted"
+                                    />
+                                </div>
+                            );
+                        })}
+
+                        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
+                            <div className="flex items-center gap-3">
+                                <CheckCircle2 className="h-5 w-5 text-primary" />
+                                <p className="font-semibold text-foreground">
+                                    All tracked requirements are within the current planning guardrails.
+                                </p>
+                            </div>
+                            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                                Procurement leadership can continue review without waiting for a
+                                separate compliance spreadsheet.
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
         </section>
     );
