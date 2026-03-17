@@ -3,7 +3,7 @@
 # project_key: procureline
 # tracking_system: file-system
 # story_location: c:\Users\Tyroon\Downloads\project\Procureline\_bmad-output\implementation-artifacts
-# last_updated: 2026-03-10
+# last_updated: 2026-03-17
 # ==============================================================================
 
 # STATUS DEFINITIONS:
@@ -46,7 +46,7 @@ development_status:
   epic-11: in-progress
   epic-2: in-progress
   epic-3: in-progress
-  epic-4: backlog
+  epic-4: in-progress
   epic-5: backlog
   epic-6: backlog
   epic-7: backlog
@@ -67,16 +67,16 @@ development_status:
   11-1-marketing-landing-page: done
   11-2-pricing-page-tier-comparison: done
   11-3-public-role-based-auth-entry: done
-  1-8-du-access-code-authentication: review
+  1-8-du-access-code-authentication: done
   
 
-  3-2-tenant-admin-dashboard: review
-  4-1-po-dashboard-onboarding-wizard: backlog
+  3-2-tenant-admin-dashboard: done
+  4-1-po-dashboard-onboarding-wizard: ready-for-dev
   5-1-du-dashboard-plan-status: backlog
   2-1-platform-admin-authentication-2fa: backlog
   2-2-platform-admin-dashboard-shell: backlog
   3-1-tenant-admin-institution-setup-flow: backlog
-  3-3-po-management-add-invite: backlog
+  3-3-po-management-add-invite: backlog # frontend-complete
   4-2-department-crud-operations: backlog
   4-3-access-code-generation-management: backlog
   4-5-submission-deadline-management: backlog
@@ -100,7 +100,7 @@ development_status:
   6-5-plan-approval-rejection: backlog
   6-6-du-revision-flow: backlog
   4-6-submission-monitoring-reminders: backlog
-  3-9-cross-institutional-visibility: backlog
+  3-9-cross-institutional-visibility: backlog # frontend-complete
 
   7-1-consolidation-workspace-access: backlog
   7-2-drag-and-drop-department-consolidation: backlog
@@ -108,7 +108,7 @@ development_status:
   7-4-finalization-versioning: backlog
   7-5-excel-export: backlog
   7-6-excel-formatting-content: backlog
-  3-8-report-generation-system: backlog
+  3-8-report-generation-system: backlog # frontend-complete
 
   8-1-free-tier-provisioning-usage-monitoring: backlog
   8-2-subscription-tier-selection: backlog
@@ -133,13 +133,13 @@ development_status:
   2-11-security-dashboard-compliance: backlog
   2-12-support-tickets-incidents: backlog
   2-13-system-configuration-feature-flags: backlog
-  3-4-po-management-lifecycle-activity: backlog
-  3-5-institutional-settings-configuration: backlog
-  3-6-billing-dashboard-payment-methods: backlog
+  3-4-po-management-lifecycle-activity: backlog # frontend-complete
+  3-5-institutional-settings-configuration: backlog # frontend-complete
+  3-6-billing-dashboard-payment-methods: backlog # frontend-complete
   3-7-subscription-lifecycle-management: backlog
   3-10-notification-system: backlog
-  3-11-security-session-management: backlog
-  3-12-account-lifecycle-admin-transfer: backlog
+  3-11-security-session-management: backlog # frontend-complete
+  3-12-account-lifecycle-admin-transfer: backlog # frontend-complete
   4-4-budget-allocation-department-import: backlog
   11-4-first-login-onboarding-contextual-help: backlog
 
@@ -289,7 +289,7 @@ recommended_execution_sequence:
     rationale: "Build the visible dashboard and setup shells early so backend workflows can be exercised against realistic screens."
     stories:
       - 3-2-tenant-admin-dashboard
-      - 4-1-po-dashboard-onboarding-wizard
+      - 4-1-po-dashboard,onboarding-wizard
       - 5-1-du-dashboard-plan-status
       - 2-1-platform-admin-authentication-2fa
       - 2-2-platform-admin-dashboard-shell

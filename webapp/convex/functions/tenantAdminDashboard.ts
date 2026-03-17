@@ -132,6 +132,40 @@ const dashboardSnapshotValidator = v.object({
             statusLabel: v.string(),
         }),
     ),
+    directory: v.object({
+        currentTenantAdmin: v.union(
+            v.object({
+                email: v.string(),
+                initials: v.string(),
+                name: v.string(),
+            }),
+            v.null(),
+        ),
+        departmentUsers: v.array(
+            v.object({
+                departmentName: v.string(),
+                email: v.string(),
+                id: v.string(),
+                initials: v.string(),
+                lastSeenAt: v.union(v.number(), v.null()),
+                lastSeenLabel: v.string(),
+                name: v.string(),
+                statusLabel: v.string(),
+            }),
+        ),
+        procurementOfficers: v.array(
+            v.object({
+                departmentsManaged: v.number(),
+                email: v.string(),
+                id: v.string(),
+                initials: v.string(),
+                lastSeenAt: v.union(v.number(), v.null()),
+                lastSeenLabel: v.string(),
+                name: v.string(),
+                statusLabel: v.string(),
+            }),
+        ),
+    }),
     meta: v.object({
         availableFiscalYears: v.array(v.string()),
         currentFiscalYear: v.string(),
@@ -206,7 +240,7 @@ export const getTenantAdminDashboardSnapshot = query({
             });
         }
 
-        const [tenantUsers, departments, targetActivity, sourceActivity] =
+        const [tenantUsers, departments, departmentUserProfiles, targetActivity, sourceActivity] =
             await Promise.all([
                 ctx.db
                     .query("tenantUsers")
@@ -216,6 +250,12 @@ export const getTenantAdminDashboardSnapshot = query({
                     .collect(),
                 ctx.db
                     .query("departments")
+                    .withIndex("by_tenantId", (q) =>
+                        q.eq("tenantId", authContext.tenantId),
+                    )
+                    .collect(),
+                ctx.db
+                    .query("departmentUserProfiles")
                     .withIndex("by_tenantId", (q) =>
                         q.eq("tenantId", authContext.tenantId),
                     )
@@ -246,7 +286,111 @@ export const getTenantAdminDashboardSnapshot = query({
             )
             .slice(0, 20);
 
-        return buildTenantAdminDashboardSnapshot({
+        const userIds = Array.from(
+            new Set(
+                tenantUsers
+                    .map((tenantUser) => tenantUser.userId)
+                    .concat(authContext.userId),
+            ),
+        );
+        const userDocuments = await Promise.all(
+            userIds.map(async (userId) => [String(userId), await ctx.db.get(userId)] as const),
+        );
+        const userDocumentMap = new Map(userDocuments);
+        const departmentsById = new Map(
+            departments.map((department) => [String(department._id), department]),
+        );
+
+        const lastSeenByUserId = new Map<string, number>();
+        for (const activity of mergedActivity) {
+            if (!activity.actorUserId) {
+                continue;
+            }
+
+            const key = String(activity.actorUserId);
+            const existing = lastSeenByUserId.get(key);
+            if (existing === undefined || activity.timestamp > existing) {
+                lastSeenByUserId.set(key, activity.timestamp);
+            }
+        }
+
+        for (const profile of departmentUserProfiles) {
+            const tenantUser = tenantUsers.find(
+                (candidate) => candidate._id === profile.tenantUserId,
+            );
+            if (!tenantUser || profile.lastAuthenticatedAt === undefined) {
+                continue;
+            }
+
+            const key = String(tenantUser.userId);
+            const existing = lastSeenByUserId.get(key);
+            if (existing === undefined || profile.lastAuthenticatedAt > existing) {
+                lastSeenByUserId.set(key, profile.lastAuthenticatedAt);
+            }
+        }
+
+        const procurementOfficers = tenantUsers
+            .filter((tenantUser) => tenantUser.role === "procurement_officer")
+            .map((tenantUser) => {
+                const authUser = userDocumentMap.get(String(tenantUser.userId));
+                const summary = readAuthUserSummary(authUser, "Procurement Officer");
+                const lastSeenAt = lastSeenByUserId.get(String(tenantUser.userId)) ?? null;
+
+                return {
+                    departmentsManaged: departments.filter(
+                        (department) =>
+                            department.procurementOfficerTenantUserId === tenantUser._id &&
+                            department.isActive,
+                    ).length,
+                    email: summary.email,
+                    id: String(tenantUser._id),
+                    initials: summary.initials,
+                    lastSeenAt,
+                    lastSeenLabel: formatLastSeenLabel(lastSeenAt),
+                    name: summary.name,
+                    statusLabel: tenantUser.isActive ? "Active" : "Inactive",
+                };
+            });
+
+        const departmentUsersDirectory = departmentUserProfiles
+            .map((profile) => {
+                const tenantUser = tenantUsers.find(
+                    (candidate) => candidate._id === profile.tenantUserId,
+                );
+                if (!tenantUser) {
+                    return null;
+                }
+
+                const authUser = userDocumentMap.get(String(tenantUser.userId));
+                const summary = readAuthUserSummary(authUser, "Department User");
+                const lastSeenAt =
+                    profile.lastAuthenticatedAt ??
+                    lastSeenByUserId.get(String(tenantUser.userId)) ??
+                    null;
+
+                return {
+                    departmentName:
+                        departmentsById.get(String(profile.departmentId))?.name ??
+                        "Unassigned department",
+                    email: summary.email,
+                    id: String(profile.tenantUserId),
+                    initials: summary.initials,
+                    lastSeenAt,
+                    lastSeenLabel: formatLastSeenLabel(lastSeenAt),
+                    name: summary.name,
+                    statusLabel:
+                        profile.isActive && tenantUser.isActive ? "Active" : "Inactive",
+                };
+            })
+            .filter((profile): profile is NonNullable<typeof profile> => profile !== null)
+            .sort((left, right) => left.name.localeCompare(right.name));
+
+        const currentAdminSummary = readAuthUserSummary(
+            userDocumentMap.get(String(authContext.userId)),
+            "Tenant Admin",
+        );
+
+        const baseSnapshot = buildTenantAdminDashboardSnapshot({
             activityLogs: mergedActivity.map((activity) => ({
                 action: activity.action,
                 actorRole: activity.actorRole,
@@ -283,5 +427,53 @@ export const getTenantAdminDashboardSnapshot = query({
                 role: tenantUser.role,
             })),
         });
+
+        return {
+            ...baseSnapshot,
+            directory: {
+                currentTenantAdmin: {
+                    email: currentAdminSummary.email,
+                    initials: currentAdminSummary.initials,
+                    name: currentAdminSummary.name,
+                },
+                departmentUsers: departmentUsersDirectory,
+                procurementOfficers,
+            },
+        };
     },
 });
+
+function readAuthUserSummary(
+    userDocument: unknown,
+    fallbackName: string,
+): { email: string; initials: string; name: string } {
+    const record =
+        userDocument && typeof userDocument === "object" && !Array.isArray(userDocument)
+            ? (userDocument as Record<string, unknown>)
+            : {};
+    const email =
+        typeof record.email === "string" && record.email.trim().length > 0
+            ? record.email.trim()
+            : "No email available";
+    const name =
+        typeof record.name === "string" && record.name.trim().length > 0
+            ? record.name.trim()
+            : email !== "No email available"
+              ? email.split("@")[0] || fallbackName
+              : fallbackName;
+
+    return {
+        email,
+        initials: name
+            .split(/\s+/)
+            .slice(0, 2)
+            .map((part) => part.charAt(0))
+            .join("")
+            .toUpperCase(),
+        name,
+    };
+}
+
+function formatLastSeenLabel(lastSeenAt: number | null): string {
+    return lastSeenAt ? new Date(lastSeenAt).toLocaleString("en-GB") : "No activity recorded";
+}

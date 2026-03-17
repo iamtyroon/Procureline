@@ -5,16 +5,11 @@ import { useQuery } from "convex/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-    ArrowRight,
     Building2,
     CircleAlert,
     Clock3,
-    FileText,
-    Landmark,
     LayoutGrid,
-    LoaderCircle,
     type LucideIcon,
-    MapPin,
     PanelLeftClose,
     PanelLeftOpen,
     ShieldCheck,
@@ -28,20 +23,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
     Card,
-    CardContent,
     CardDescription,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -52,8 +38,6 @@ import {
 } from "@/components/ui/tooltip";
 import {
     formatDashboardTimestamp,
-    formatFiscalYearLabel,
-    type DashboardCycleState,
 } from "@/lib/tenant-admin/dashboard";
 import {
     readTenantAdminDashboardCache,
@@ -61,9 +45,18 @@ import {
     writeTenantAdminDashboardCache,
     type TenantAdminDashboardCacheEnvelope,
 } from "@/lib/tenant-admin/dashboard-cache";
+import {
+    renderTenantAdminView,
+    TENANT_ADMIN_VIEW_META,
+    type TenantAdminView,
+} from "@/src/components/tenant-admin/TenantAdminViewContent";
 import { cn } from "@/lib/utils";
 
-export function TenantAdminDashboard(): JSX.Element {
+export function TenantAdminDashboard({
+    view = "dashboard",
+}: {
+    view?: TenantAdminView;
+}): JSX.Element {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const authContext = useQuery(api.functions.users.getAuthContext, {});
     const pathname = usePathname();
@@ -73,6 +66,7 @@ export function TenantAdminDashboard(): JSX.Element {
     const [cachedEnvelope, setCachedEnvelope] =
         useState<TenantAdminDashboardCacheEnvelope | null>(null);
     const [countdownNow, setCountdownNow] = useState(() => Date.now());
+    const [directoryQuery, setDirectoryQuery] = useState("");
 
     const liveSnapshot = useQuery(
         api.functions.tenantAdminDashboard.getTenantAdminDashboardSnapshot,
@@ -200,8 +194,29 @@ export function TenantAdminDashboard(): JSX.Element {
         return <TenantAdminDashboardSkeleton />;
     }
 
-    const procurementOfficerCount = Number(snapshot.summaryCards.totalPOs.value) || 0;
+    const procurementOfficerCount = snapshot.directory.procurementOfficers.length;
     const sidebarSections = TENANT_ADMIN_SIDEBAR_SECTIONS;
+    const viewMeta = TENANT_ADMIN_VIEW_META[view];
+    const normalizedDirectoryQuery = directoryQuery.trim().toLowerCase();
+    const visibleDepartmentUsers = snapshot.directory.departmentUsers.filter((member) =>
+        normalizedDirectoryQuery.length === 0
+            ? true
+            : `${member.name} ${member.email} ${member.departmentName}`
+                  .toLowerCase()
+                  .includes(normalizedDirectoryQuery),
+    );
+    const visibleProcurementOfficers = snapshot.directory.procurementOfficers.filter((member) =>
+        normalizedDirectoryQuery.length === 0
+            ? true
+            : `${member.name} ${member.email}`.toLowerCase().includes(normalizedDirectoryQuery),
+    );
+    const visibleAuditItems = snapshot.activityFeed.items.filter((item) =>
+        normalizedDirectoryQuery.length === 0
+            ? true
+            : `${item.action} ${item.actor} ${item.entity} ${item.outcome}`
+                  .toLowerCase()
+                  .includes(normalizedDirectoryQuery),
+    );
 
     return (
         <div className="min-h-[calc(100vh-4rem)] bg-background">
@@ -341,10 +356,10 @@ export function TenantAdminDashboard(): JSX.Element {
                 <div className="min-w-0 flex-1 bg-background">
                     <header className="border-b border-border/70 bg-card/70 px-8 py-7 backdrop-blur">
                         <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                            Dashboard
+                            {viewMeta.title}
                         </h1>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Overview of your institution procurement system
+                            {viewMeta.subtitle}
                         </p>
                     </header>
 
@@ -365,296 +380,26 @@ export function TenantAdminDashboard(): JSX.Element {
                                     </AlertDescription>
                                 </Alert>
                             ) : null}
-
-                            <section className="grid gap-5 xl:grid-cols-3">
-                        <Card className="rounded-2xl border-border/70 bg-card shadow-sm xl:col-span-2">
-                            <CardContent className="space-y-6 p-6">
-                                <div className="flex items-start gap-4">
-                                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-chart-2 text-lg font-extrabold text-primary-foreground">
-                                        {getInstitutionInitials(snapshot.meta.tenantName)}
-                                    </div>
-                                    <div className="space-y-2">
-                                        <div className="text-xl font-bold text-foreground">
-                                            {snapshot.meta.tenantName}
-                                        </div>
-                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                            <MapPin className="h-3.5 w-3.5" />
-                                            Tenant-scoped workspace
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-wrap items-center gap-3">
-                                    <div className="inline-flex items-center gap-2 rounded-md border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary">
-                                        <Landmark className="h-3.5 w-3.5" />
-                                        {formatFiscalYearLabel(snapshot.meta.selectedFiscalYear)}
-                                    </div>
-                                    <StatusBadge
-                                        tone="success"
-                                        value={humanizeTenantStatus(snapshot.meta.tenantStatus)}
-                                    />
-                                </div>
-
-                                <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_16rem]">
-                                    <div className="rounded-xl border border-border/70 bg-muted/50 p-4">
-                                        <div className="text-sm leading-7 text-muted-foreground">
-                                            Keep a quick view of tenant setup, user coverage, and
-                                            department submission posture in the same arrangement as
-                                            the admin HTML prototype.
-                                        </div>
-                                    </div>
-
-                                    <div className="rounded-xl border border-border/70 bg-background p-4">
-                                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                                            Fiscal year
-                                        </p>
-                                        <Select
-                                            value={snapshot.meta.selectedFiscalYear}
-                                            onValueChange={(nextValue) => {
-                                                startTransition(() => {
-                                                    setSelectedFiscalYear(nextValue);
-                                                });
-                                            }}
-                                        >
-                                            <SelectTrigger className="mt-3 h-10 rounded-lg border-border bg-background">
-                                                <SelectValue placeholder="Select fiscal year" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {snapshot.meta.availableFiscalYears.map((year) => (
-                                                    <SelectItem key={year} value={year}>
-                                                        {formatFiscalYearLabel(year)}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <div className="mt-4 space-y-2 text-xs text-muted-foreground">
-                                            <div className="flex items-center gap-2">
-                                                <LayoutGrid className="h-3.5 w-3.5 text-primary" />
-                                                Tier: {snapshot.meta.tenantTier}
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {resolvedSnapshotState.state === "live" ? (
-                                                    <LoaderCircle className="h-3.5 w-3.5 text-primary" />
-                                                ) : (
-                                                    <CircleAlert className="h-3.5 w-3.5 text-amber-500" />
-                                                )}
-                                                Last updated:{" "}
-                                                {formatDashboardTimestamp(
-                                                    snapshot.meta.lastUpdatedAt,
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <PrototypeStatCard
-                            icon={Users2}
-                            iconTone="secondary"
-                            label="Total Users"
-                            meta={formatUserBreakdownShort(snapshot.userSummary)}
-                            value={String(snapshot.userSummary.activeTotal)}
-                        />
-
-                        <PrototypeStatCard
-                            icon={ShieldCheck}
-                            iconTone="primary"
-                            label="Submission Progress"
-                            meta={snapshot.summaryCards.submissionProgress.helperText}
-                            value={snapshot.summaryCards.submissionProgress.value}
-                        />
-
-                        <PrototypeStatCard
-                            icon={Wallet}
-                            iconTone="accent"
-                            label="Budget Utilized"
-                            meta={snapshot.summaryCards.budgetUtilization.helperText}
-                            value={snapshot.summaryCards.budgetUtilization.value}
-                        />
-
-                        <PrototypeStatCard
-                            icon={Building2}
-                            iconTone="tertiary"
-                            label="Active Departments"
-                            meta={snapshot.summaryCards.departments.helperText}
-                            value={snapshot.summaryCards.departments.value}
-                        />
-
-                        <Card className="rounded-2xl border-border/70 bg-card shadow-sm xl:col-span-2">
-                            <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-border/70 pb-4">
-                                <div className="flex items-center gap-3 text-sm font-semibold text-foreground">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-                                        <Users2 className="h-4 w-4" />
-                                    </div>
-                                    Procurement Officer
-                                </div>
-                                <Link
-                                    href="/tenant-admin/po-management"
-                                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                                >
-                                    Manage
-                                    <ArrowRight className="h-3.5 w-3.5" />
-                                </Link>
-                            </CardHeader>
-                            <CardContent className="p-6">
-                                <div className="flex gap-5 rounded-xl border border-border/70 bg-muted/40 p-5">
-                                    <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-2xl bg-primary text-xl font-extrabold text-primary-foreground shadow-sm">
-                                        {procurementOfficerCount > 0 ? "PO" : "NA"}
-                                    </div>
-                                    <div className="min-w-0 flex-1 space-y-3">
-                                        <div>
-                                            <div className="text-lg font-semibold text-foreground">
-                                                {procurementOfficerCount > 0
-                                                    ? `${pluralize(procurementOfficerCount, "Procurement Officer")} assigned`
-                                                    : "No Procurement Officer assigned yet"}
-                                            </div>
-                                            <div className="text-sm text-muted-foreground">
-                                                {snapshot.summaryCards.totalPOs.helperText}
-                                            </div>
-                                        </div>
-
-                                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                            <MetaPill icon={Clock3} value={liveCountdownLabel} />
-                                            <MetaPill
-                                                icon={ShieldCheck}
-                                                value={snapshot.summaryCards.totalPOs.trendLabel}
-                                            />
-                                            <StatusBadge
-                                                tone={
-                                                    procurementOfficerCount > 0
-                                                        ? "success"
-                                                        : "warning"
-                                                }
-                                                value={snapshot.summaryCards.totalPOs.statusLabel}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="rounded-2xl border-border/70 bg-card shadow-sm">
-                            <CardHeader className="space-y-3 pb-4">
-                                <CardTitle className="text-sm font-semibold text-foreground">
-                                    Procurement Cycle
-                                </CardTitle>
-                                <CardDescription className="text-sm leading-6 text-muted-foreground">
-                                    {snapshot.cycleState.description}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="text-2xl font-bold tracking-tight text-foreground">
-                                    {snapshot.cycleState.title}
-                                </div>
-                                <StatusBadge
-                                    tone={getCycleTone(snapshot.cycleState.state)}
-                                    value={humanizeCycleState(snapshot.cycleState.state)}
-                                />
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                        <span>Cycle signal</span>
-                                        <span>{getCycleProgressValue(snapshot.cycleState.state)}%</span>
-                                    </div>
-                                    <Progress
-                                        value={getCycleProgressValue(snapshot.cycleState.state)}
-                                        className="h-2 bg-muted"
-                                    />
-                                </div>
-                                <p className="text-sm leading-6 text-muted-foreground">
-                                    {liveCountdownLabel}
-                                </p>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="rounded-2xl border-border/70 bg-card shadow-sm xl:col-span-3">
-                            <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-border/70 pb-4">
-                                <div className="flex items-center gap-3 text-sm font-semibold text-foreground">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-secondary-foreground shadow-sm">
-                                        <Building2 className="h-4 w-4" />
-                                    </div>
-                                    Department Status
-                                </div>
-                                <span className="text-xs font-medium text-primary">
-                                    {snapshot.departmentStatus.length} shown
-                                </span>
-                            </CardHeader>
-                            <CardContent className="p-6">
-                                {snapshot.departmentStatus.length === 0 ? (
-                                    <div className="rounded-xl border border-dashed border-border bg-muted/30 p-8 text-center">
-                                        <p className="text-sm font-medium text-foreground">
-                                            No departments configured yet
-                                        </p>
-                                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                                            Add departments and submission windows to populate this
-                                            status grid.
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                                        {snapshot.departmentStatus.map((department) => (
-                                            <DepartmentStatusCard
-                                                key={department.id}
-                                                detail={department.detail}
-                                                name={department.name}
-                                                progressTone={department.progressTone}
-                                                progressValue={department.progressValue}
-                                                statusLabel={department.statusLabel}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                            </section>
+                            {renderTenantAdminView({
+                                liveCountdownLabel,
+                                onDirectoryQueryChange: setDirectoryQuery,
+                                onFiscalYearChange: (nextValue) =>
+                                    startTransition(() => {
+                                        setSelectedFiscalYear(nextValue);
+                                    }),
+                                procurementOfficerCount,
+                                resolvedSnapshotState,
+                                snapshot,
+                                view,
+                                visibleAuditItems,
+                                visibleDepartmentUsers,
+                                visibleProcurementOfficers,
+                            })}
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    );
-}
-
-interface PrototypeStatCardProps {
-    icon: typeof Users2;
-    iconTone: "accent" | "primary" | "secondary" | "tertiary";
-    label: string;
-    meta: string;
-    value: string;
-}
-
-function PrototypeStatCard({
-    icon: Icon,
-    iconTone,
-    label,
-    meta,
-    value,
-}: PrototypeStatCardProps): JSX.Element {
-    return (
-        <Card className="relative overflow-hidden rounded-2xl border-border/70 bg-card shadow-sm">
-            <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-primary to-emerald-400 opacity-0 transition-opacity duration-300 hover:opacity-100" />
-            <CardContent className="p-6">
-                <div
-                    className={cn(
-                        "mb-4 flex h-11 w-11 items-center justify-center rounded-[10px] shadow-sm",
-                        iconTone === "primary" && "bg-primary text-primary-foreground",
-                        iconTone === "secondary" &&
-                            "bg-secondary text-secondary-foreground",
-                        iconTone === "accent" && "bg-accent text-accent-foreground",
-                        iconTone === "tertiary" && "bg-muted text-foreground",
-                    )}
-                >
-                    <Icon className="h-5 w-5" />
-                </div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    {label}
-                </div>
-                <div className="mt-1 text-[1.75rem] font-bold tracking-tight text-foreground">
-                    {value}
-                </div>
-                <div className="mt-1 text-sm text-muted-foreground">{meta}</div>
-            </CardContent>
-        </Card>
     );
 }
 
@@ -691,7 +436,7 @@ const TENANT_ADMIN_SIDEBAR_SECTIONS: TenantAdminSidebarSectionConfig[] = [
                 label: "Procurement Officer",
             },
             {
-                disabled: true,
+                href: "/tenant-admin/department-users",
                 icon: Users2,
                 label: "Departmental Users",
             },
@@ -701,14 +446,9 @@ const TENANT_ADMIN_SIDEBAR_SECTIONS: TenantAdminSidebarSectionConfig[] = [
         title: "Procurement",
         items: [
             {
-                disabled: true,
+                href: "/tenant-admin/departments",
                 icon: Building2,
                 label: "Departments",
-            },
-            {
-                href: "/tenant-admin/reports",
-                icon: FileText,
-                label: "Reports",
             },
         ],
     },
@@ -716,7 +456,7 @@ const TENANT_ADMIN_SIDEBAR_SECTIONS: TenantAdminSidebarSectionConfig[] = [
         title: "Account",
         items: [
             {
-                disabled: true,
+                href: "/tenant-admin/billing",
                 icon: Wallet,
                 label: "Billing",
             },
@@ -726,7 +466,7 @@ const TENANT_ADMIN_SIDEBAR_SECTIONS: TenantAdminSidebarSectionConfig[] = [
                 label: "Settings",
             },
             {
-                disabled: true,
+                href: "/tenant-admin/audit-log",
                 icon: Clock3,
                 label: "Audit Log",
             },
@@ -819,85 +559,6 @@ function TenantAdminSidebarItemButton({
     );
 }
 
-interface DepartmentStatusCardProps {
-    detail: string;
-    name: string;
-    progressTone: "neutral" | "positive" | "warning";
-    progressValue: number;
-    statusLabel: string;
-}
-
-function DepartmentStatusCard({
-    detail,
-    name,
-    progressTone,
-    progressValue,
-    statusLabel,
-}: DepartmentStatusCardProps): JSX.Element {
-    return (
-        <div className="rounded-xl border border-border bg-muted/20 p-4 transition-colors hover:bg-background">
-            <div className="truncate text-sm font-semibold text-foreground">{name}</div>
-            <div className="mt-2 text-xs leading-5 text-muted-foreground">{detail}</div>
-            <div className="mt-3">
-                <Progress
-                    value={progressValue}
-                    className={cn(
-                        "h-1.5 bg-muted",
-                        progressTone === "warning" &&
-                            "[&>div]:bg-gradient-to-r [&>div]:from-amber-500 [&>div]:to-amber-400",
-                        progressTone === "positive" &&
-                            "[&>div]:bg-gradient-to-r [&>div]:from-emerald-600 [&>div]:to-emerald-400",
-                    )}
-                />
-            </div>
-            <div className="mt-3">
-                <StatusBadge tone={getDepartmentTone(progressTone)} value={statusLabel} />
-            </div>
-        </div>
-    );
-}
-
-interface MetaPillProps {
-    icon: typeof Clock3;
-    value: string;
-}
-
-function MetaPill({ icon: Icon, value }: MetaPillProps): JSX.Element {
-    return (
-        <div className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-background px-2.5 py-1.5">
-            <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-            <span>{value}</span>
-        </div>
-    );
-}
-
-interface StatusBadgeProps {
-    tone: "danger" | "info" | "neutral" | "success" | "warning";
-    value: string;
-}
-
-function StatusBadge({ tone, value }: StatusBadgeProps): JSX.Element {
-    return (
-        <span
-            className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold",
-                tone === "success" &&
-                    "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-200 dark:ring-1 dark:ring-emerald-800/70",
-                tone === "warning" &&
-                    "bg-amber-100 text-amber-700 dark:bg-amber-950/80 dark:text-amber-200 dark:ring-1 dark:ring-amber-800/70",
-                tone === "danger" &&
-                    "bg-red-100 text-red-700 dark:bg-red-950/80 dark:text-red-200 dark:ring-1 dark:ring-red-800/70",
-                tone === "info" &&
-                    "bg-blue-100 text-blue-700 dark:bg-blue-950/80 dark:text-blue-200 dark:ring-1 dark:ring-blue-800/70",
-                tone === "neutral" && "bg-muted text-muted-foreground",
-            )}
-        >
-            <span className="h-1.5 w-1.5 rounded-full bg-current" />
-            {value}
-        </span>
-    );
-}
-
 function isTenantAdminSidebarItemActive(
     pathname: string,
     item: TenantAdminSidebarItem,
@@ -913,85 +574,6 @@ function isTenantAdminSidebarItemActive(
             ? pathname === prefix
             : pathname === prefix || pathname.startsWith(`${prefix}/`),
     );
-}
-
-function formatUserBreakdownShort(userSummary: {
-    departmentUsers: number;
-    procurementOfficers: number;
-    tenantAdmins: number;
-}): string {
-    const parts = [
-        `${userSummary.procurementOfficers} PO`,
-        `${userSummary.departmentUsers} Department User${userSummary.departmentUsers === 1 ? "" : "s"}`,
-    ];
-
-    if (userSummary.tenantAdmins > 0) {
-        parts.push(`${userSummary.tenantAdmins} Tenant Admin${userSummary.tenantAdmins === 1 ? "" : "s"}`);
-    }
-
-    return parts.join(" + ");
-}
-
-function pluralize(count: number, label: string): string {
-    return `${count} ${label}${count === 1 ? "" : "s"}`;
-}
-
-function humanizeTenantStatus(status: string): string {
-    return status.charAt(0).toUpperCase() + status.slice(1);
-}
-
-function humanizeCycleState(cycleState: DashboardCycleState): string {
-    switch (cycleState) {
-        case "before_start":
-            return "Before start";
-        case "active_submission":
-            return "Active submission";
-        case "cycle_complete":
-            return "Cycle complete";
-        default:
-            return "Setup required";
-    }
-}
-
-function getCycleTone(
-    cycleState: DashboardCycleState,
-): "danger" | "info" | "neutral" | "success" | "warning" {
-    switch (cycleState) {
-        case "before_start":
-            return "info";
-        case "active_submission":
-            return "success";
-        case "cycle_complete":
-            return "neutral";
-        default:
-            return "warning";
-    }
-}
-
-function getDepartmentTone(
-    progressTone: "neutral" | "positive" | "warning",
-): "neutral" | "success" | "warning" {
-    switch (progressTone) {
-        case "positive":
-            return "success";
-        case "warning":
-            return "warning";
-        default:
-            return "neutral";
-    }
-}
-
-function getCycleProgressValue(cycleState: DashboardCycleState): number {
-    switch (cycleState) {
-        case "before_start":
-            return 30;
-        case "active_submission":
-            return 68;
-        case "cycle_complete":
-            return 100;
-        default:
-            return 12;
-    }
 }
 
 function getInstitutionInitials(name: string): string {

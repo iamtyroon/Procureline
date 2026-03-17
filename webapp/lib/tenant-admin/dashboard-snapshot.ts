@@ -113,6 +113,34 @@ export interface TenantAdminUserSummary {
     tenantAdmins: number;
 }
 
+export interface TenantAdminCurrentAdminProfile {
+    email: string;
+    initials: string;
+    name: string;
+}
+
+export interface TenantAdminProcurementOfficerProfile {
+    departmentsManaged: number;
+    email: string;
+    id: string;
+    initials: string;
+    lastSeenAt: number | null;
+    lastSeenLabel: string;
+    name: string;
+    statusLabel: string;
+}
+
+export interface TenantAdminDepartmentUserProfile {
+    departmentName: string;
+    email: string;
+    id: string;
+    initials: string;
+    lastSeenAt: number | null;
+    lastSeenLabel: string;
+    name: string;
+    statusLabel: string;
+}
+
 export interface TenantAdminDashboardMeta {
     availableFiscalYears: string[];
     currentFiscalYear: string;
@@ -133,6 +161,11 @@ export interface TenantAdminDashboardSnapshot {
     activityFeed: TenantAdminActivityFeed;
     cycleState: DashboardCyclePresentation;
     departmentStatus: TenantAdminDepartmentStatusItem[];
+    directory: {
+        currentTenantAdmin: TenantAdminCurrentAdminProfile | null;
+        departmentUsers: TenantAdminDepartmentUserProfile[];
+        procurementOfficers: TenantAdminProcurementOfficerProfile[];
+    };
     meta: TenantAdminDashboardMeta;
     onboardingChecklist: OnboardingChecklistItem[];
     quickActions: QuickActionItem[];
@@ -223,6 +256,11 @@ export function buildTenantAdminDashboardSnapshot(
         activityFeed: buildActivityFeed(args.activityLogs, selectedFiscalYear),
         cycleState,
         departmentStatus: buildDepartmentStatus(filteredDepartments, args.now),
+        directory: {
+            currentTenantAdmin: null,
+            departmentUsers: [],
+            procurementOfficers: [],
+        },
         meta: {
             availableFiscalYears,
             currentFiscalYear,

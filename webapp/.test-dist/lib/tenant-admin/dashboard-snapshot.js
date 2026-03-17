@@ -45,6 +45,11 @@ function buildTenantAdminDashboardSnapshot(args) {
         activityFeed: buildActivityFeed(args.activityLogs, selectedFiscalYear),
         cycleState,
         departmentStatus: buildDepartmentStatus(filteredDepartments, args.now),
+        directory: {
+            currentTenantAdmin: null,
+            departmentUsers: [],
+            procurementOfficers: [],
+        },
         meta: {
             availableFiscalYears,
             currentFiscalYear,
