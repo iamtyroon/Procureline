@@ -3,9 +3,18 @@
 import { useEffect } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { Bell, CircleAlert } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
     getAuthNoticeMessage,
     getRoleLabel,
@@ -25,6 +34,10 @@ export default function AppLayout({
     const authContext = useQuery(
         api.functions.users.getAuthContext,
         isAuthenticated ? {} : "skip",
+    );
+    const procurementDashboardSnapshot = useQuery(
+        api.functions.procurementOfficerDashboard.getProcurementOfficerDashboardSnapshot,
+        authContext?.role === "procurement_officer" ? {} : "skip",
     );
     const markCurrentSessionLoggedOut = useMutation(
         api.functions.sessions.markCurrentSessionLoggedOut,
@@ -145,6 +158,10 @@ export default function AppLayout({
     }
 
     const noticeMessage = getAuthNoticeMessage(searchParams.get("reason"));
+    const procurementAlerts =
+        authContext.role === "procurement_officer"
+            ? (procurementDashboardSnapshot?.alerts ?? [])
+            : [];
 
     return (
         <div className="min-h-screen bg-background">
@@ -159,6 +176,63 @@ export default function AppLayout({
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
+                        {authContext.role === "procurement_officer" ? (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="relative"
+                                    >
+                                        <Bell className="h-[1.2rem] w-[1.2rem]" />
+                                        {procurementAlerts.length > 0 ? (
+                                            <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                                                {procurementAlerts.length}
+                                            </span>
+                                        ) : null}
+                                        <span className="sr-only">Open notifications</span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-[22rem]">
+                                    <DropdownMenuLabel className="flex items-center justify-between">
+                                        Notifications
+                                        <span className="text-xs font-medium text-muted-foreground">
+                                            {procurementAlerts.length}
+                                        </span>
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {procurementAlerts.length === 0 ? (
+                                        <div className="px-2 py-3 text-sm text-muted-foreground">
+                                            No active procurement alerts.
+                                        </div>
+                                    ) : (
+                                        procurementAlerts.map((alert) => (
+                                            <DropdownMenuItem
+                                                key={alert.id}
+                                                className="items-start gap-3 py-3"
+                                                onClick={() => router.push(alert.cta.href)}
+                                            >
+                                                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
+                                                    <CircleAlert className="h-4 w-4" />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="text-sm font-semibold text-foreground">
+                                                        {alert.title}
+                                                    </div>
+                                                    <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                                                        {alert.message}
+                                                    </div>
+                                                    <div className="mt-2 text-[11px] font-semibold text-primary">
+                                                        {alert.cta.label}
+                                                    </div>
+                                                </div>
+                                            </DropdownMenuItem>
+                                        ))
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        ) : null}
                         <ModeToggle />
                         <Button
                             type="button"

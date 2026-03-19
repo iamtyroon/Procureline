@@ -1,4 +1,5 @@
-import { mutation } from "./_generated/server";
+import { ConvexError, v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 /**
  * Seed subscription tiers with initial data.
@@ -142,5 +143,111 @@ export const seedSubscriptionTiers = mutation({
 
         console.log("Seeded 4 subscription tiers");
         return { seeded: true, message: "Seeded 4 subscription tiers" };
+    },
+});
+
+/**
+ * List current tenant-scoped role assignments by email to help local/dev setup.
+ * Run via CLI: npx convex run seedData:listTenantRoleAssignments
+ */
+export const listTenantRoleAssignments = query({
+    args: {},
+    handler: async (ctx) => {
+        const tenantUsers = await ctx.db.query("tenantUsers").collect();
+        const users = await Promise.all(
+            tenantUsers.map(async (tenantUser) => ({
+                email:
+                    (await ctx.db.get(tenantUser.userId))?.email ??
+                    "unknown-email",
+                role: tenantUser.role,
+                tenantId: String(tenantUser.tenantId),
+                tenantUserId: String(tenantUser._id),
+                userId: String(tenantUser.userId),
+                isActive: tenantUser.isActive,
+            })),
+        );
+
+        return users.sort((left, right) => left.email.localeCompare(right.email));
+    },
+});
+
+/**
+ * Update an existing tenant-scoped account to a different role for local/dev validation.
+ * This intentionally only works when the user has exactly one active tenant role.
+ * Run via CLI:
+ * npx convex run seedData:setTenantRoleByEmail "{\"email\":\"you@example.com\",\"role\":\"procurement_officer\"}"
+ */
+export const setTenantRoleByEmail = mutation({
+    args: {
+        email: v.string(),
+        role: v.union(
+            v.literal("tenant_admin"),
+            v.literal("procurement_officer"),
+            v.literal("department_user"),
+        ),
+    },
+    handler: async (ctx, args) => {
+        const normalizedEmail = args.email.trim().toLowerCase();
+        const matchingUsers = await ctx.db
+            .query("users")
+            .withIndex("email", (q) => q.eq("email", normalizedEmail))
+            .collect();
+
+        if (matchingUsers.length === 0) {
+            throw new ConvexError({
+                code: "NOT_FOUND",
+                message: `No auth user found for ${normalizedEmail}.`,
+            });
+        }
+
+        if (matchingUsers.length > 1) {
+            throw new ConvexError({
+                code: "DATA_INTEGRITY_ERROR",
+                message: `Multiple auth users found for ${normalizedEmail}.`,
+            });
+        }
+
+        const user = matchingUsers.at(0);
+        if (user === undefined) {
+            throw new ConvexError({
+                code: "NOT_FOUND",
+                message: `No auth user found for ${normalizedEmail}.`,
+            });
+        }
+
+        const tenantUsers = await ctx.db
+            .query("tenantUsers")
+            .withIndex("by_userId", (q) => q.eq("userId", user._id))
+            .collect();
+        const activeTenantUsers = tenantUsers.filter((tenantUser) => tenantUser.isActive);
+
+        if (activeTenantUsers.length !== 1) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message:
+                    "This helper requires exactly one active tenant role for the target user.",
+            });
+        }
+
+        const activeTenantUser = activeTenantUsers.at(0);
+        if (activeTenantUser === undefined) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message:
+                    "This helper requires exactly one active tenant role for the target user.",
+            });
+        }
+
+        await ctx.db.patch(activeTenantUser._id, {
+            role: args.role,
+        });
+
+        return {
+            email: normalizedEmail,
+            previousRole: activeTenantUser.role,
+            role: args.role,
+            tenantId: String(activeTenantUser.tenantId),
+            tenantUserId: String(activeTenantUser._id),
+        };
     },
 });

@@ -1,10 +1,5 @@
-import { RoleDashboardPlaceholder } from "@/src/components/auth/RoleDashboardPlaceholder";
+import { ProcurementOfficerDashboard } from "@/src/components/procurement-officer/ProcurementOfficerDashboard";
 
 export default function ProcurementOfficerPage() {
-    return (
-        <RoleDashboardPlaceholder
-            title="Procurement Officer Dashboard"
-            description="Review departmental submissions, validate compliance, and consolidate plans into a single institutional procurement package."
-        />
-    );
+    return <ProcurementOfficerDashboard />;
 }

@@ -2,6 +2,7 @@ import { runConvexErrorHandlingTests } from "./convex-error-handling.test";
 import { runDepartmentUserAccessTests } from "./department-user-access.test";
 import { runPasswordResetTests } from "./password-reset.test";
 import { runPricingFlowTests } from "./pricing-flow.test";
+import { runProcurementOfficerDashboardTests } from "./procurement-officer-dashboard.test";
 import { runPublicAuthEntryTests } from "./public-auth-entry.test";
 import { runProxyRouteTests } from "./proxy.test";
 import { runRbacTests } from "./rbac.test";
@@ -19,6 +20,7 @@ async function main(): Promise<void> {
         ...(await runDepartmentUserAccessTests()),
         ...runPasswordResetTests(),
         ...runPricingFlowTests(),
+        ...runProcurementOfficerDashboardTests(),
         ...runPublicAuthEntryTests(),
         ...runProxyRouteTests(),
         ...runRbacTests(),
