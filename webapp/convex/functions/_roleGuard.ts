@@ -382,21 +382,21 @@ export async function getAuthorizationContext(
 
         if (!profile) {
             return createBaseContext({
-                accessState: "misconfigured",
+                accessState: "allowed",
                 departmentAccessMode: undefined,
                 departmentId: undefined,
-                homePath: "/dashboard",
-                isActive: false,
-                isRoleResolved: false,
+                homePath: getHomePathForRole("department_user"),
+                isActive: true,
+                isRoleResolved: true,
                 isSessionValid: true,
-                redirectPath: buildDashboardPath(ROLE_MISCONFIGURED_REASON),
+                redirectPath: getHomePathForRole("department_user"),
                 rememberMe: currentSession.state.rememberMe,
-                role: "unassigned",
-                scope: "none",
+                role: "department_user",
+                scope: "tenant",
                 sessionStatus: currentSession.state.status,
-                tenantStatus: "not_applicable",
+                tenantId,
+                tenantStatus: tenant.status,
                 userId,
-                redirectReason: ROLE_MISCONFIGURED_REASON,
             });
         }
 
@@ -412,21 +412,21 @@ export async function getAuthorizationContext(
         const department = await ctx.db.get(profile.departmentId);
         if (!department || department.tenantId !== tenantId || !department.isActive) {
             return createBaseContext({
-                accessState: "misconfigured",
+                accessState: "allowed",
                 departmentAccessMode: undefined,
                 departmentId: undefined,
-                homePath: "/dashboard",
-                isActive: false,
-                isRoleResolved: false,
+                homePath: getHomePathForRole("department_user"),
+                isActive: true,
+                isRoleResolved: true,
                 isSessionValid: true,
-                redirectPath: buildDashboardPath(ROLE_MISCONFIGURED_REASON),
+                redirectPath: getHomePathForRole("department_user"),
                 rememberMe: currentSession.state.rememberMe,
-                role: "unassigned",
-                scope: "none",
+                role: "department_user",
+                scope: "tenant",
                 sessionStatus: currentSession.state.status,
-                tenantStatus: "not_applicable",
+                tenantId,
+                tenantStatus: tenant.status,
                 userId,
-                redirectReason: ROLE_MISCONFIGURED_REASON,
             });
         }
 

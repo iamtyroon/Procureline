@@ -23,6 +23,7 @@ import type * as functions__tenantGuard from "../functions/_tenantGuard.js";
 import type * as functions_auditLogs from "../functions/auditLogs.js";
 import type * as functions_auth from "../functions/auth.js";
 import type * as functions_departmentUserAuth from "../functions/departmentUserAuth.js";
+import type * as functions_departmentUserDashboard from "../functions/departmentUserDashboard.js";
 import type * as functions_externalServices from "../functions/externalServices.js";
 import type * as functions_procurementOfficerDashboard from "../functions/procurementOfficerDashboard.js";
 import type * as functions_salesInquiries from "../functions/salesInquiries.js";
@@ -59,6 +60,7 @@ declare const fullApi: ApiFromModules<{
   "functions/auditLogs": typeof functions_auditLogs;
   "functions/auth": typeof functions_auth;
   "functions/departmentUserAuth": typeof functions_departmentUserAuth;
+  "functions/departmentUserDashboard": typeof functions_departmentUserDashboard;
   "functions/externalServices": typeof functions_externalServices;
   "functions/procurementOfficerDashboard": typeof functions_procurementOfficerDashboard;
   "functions/salesInquiries": typeof functions_salesInquiries;

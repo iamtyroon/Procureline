@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import {
+    AlertTriangle,
     ArrowRight,
     ArrowUpRight,
     Building2,
     CalendarClock,
+    CheckCircle2,
     ChevronRight,
     FileStack,
     FolderTree,
@@ -14,13 +16,14 @@ import {
     Layers3,
     MapPin,
     Users2,
+    Zap,
 } from "lucide-react";
 import { startTransition, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
     Dialog,
     DialogContent,
@@ -48,6 +51,151 @@ import type {
 } from "@/lib/procurement-officer/dashboard-snapshot";
 import { cn } from "@/lib/utils";
 
+/* ─── Donut Ring ──────────────────────────────────────────────────── */
+
+function DonutRing({
+    value,
+    size = 120,
+    strokeWidth = 10,
+    className,
+}: {
+    value: number;
+    size?: number;
+    strokeWidth?: number;
+    className?: string;
+}) {
+    const radius = (size - strokeWidth) / 2.5;
+    const circumference = 2 * Math.PI * radius;
+    const filled = Math.min(value, 100);
+    const offset = circumference - (filled / 100) * circumference;
+
+    const color =
+        filled >= 100
+            ? "stroke-emerald-500"
+            : filled >= 60
+              ? "stroke-primary"
+              : filled >= 30
+                ? "stroke-amber-400"
+                : "stroke-rose-400";
+
+    return (
+        <svg
+            className={cn("rotate-[-90deg]", className)}
+            height={size}
+            viewBox={`0 0 ${size} ${size}`}
+            width={size}
+        >
+            <circle
+                className="stroke-muted"
+                cx={size / 2}
+                cy={size / 2}
+                fill="none"
+                r={radius}
+                strokeWidth={strokeWidth}
+            />
+            <circle
+                className={cn("transition-all duration-700 ease-out", color)}
+                cx={size / 2}
+                cy={size / 2}
+                fill="none"
+                r={radius}
+                strokeDasharray={circumference}
+                strokeDashoffset={offset}
+                strokeLinecap="round"
+                strokeWidth={strokeWidth}
+            />
+        </svg>
+    );
+}
+
+/* ─── State Badge ─────────────────────────────────────────────────── */
+
+function StateBadge({ label, state }: { label?: string; state: ProcurementDashboardState }) {
+    const rendered = label ?? humanizeState(state);
+    const isPulsing = state === "setup_required" || state === "coming_soon";
+
+    return (
+        <span
+            className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                state === "available" &&
+                    "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+                state === "coming_soon" && "bg-primary/10 text-primary",
+                state === "empty" && "bg-muted text-muted-foreground",
+                state === "setup_required" &&
+                    "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+                state === "unavailable" && "bg-muted text-muted-foreground",
+            )}
+        >
+            <span
+                className={cn(
+                    "h-1.5 w-1.5 rounded-full bg-current",
+                    isPulsing && "animate-pulse",
+                )}
+            />
+            {rendered}
+        </span>
+    );
+}
+
+/* ─── Bento Card wrapper ──────────────────────────────────────────── */
+
+function BentoCard({
+    children,
+    className,
+    glowColor,
+}: {
+    children: React.ReactNode;
+    className?: string;
+    glowColor?: "primary" | "amber" | "emerald";
+}) {
+    return (
+        <div
+            className={cn(
+                "group relative overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-sm backdrop-blur-sm",
+                "transition-all duration-200 hover:-translate-y-[1px] hover:shadow-md hover:border-border/80",
+                glowColor === "primary" && "hover:border-primary/30",
+                glowColor === "amber" && "hover:border-amber-400/30",
+                glowColor === "emerald" && "hover:border-emerald-400/30",
+                className,
+            )}
+        >
+            {children}
+        </div>
+    );
+}
+
+/* ─── Icon container ──────────────────────────────────────────────── */
+
+function IconBox({
+    children,
+    tone = "primary",
+}: {
+    children: React.ReactNode;
+    tone?: "primary" | "muted" | "amber" | "emerald" | "info";
+}) {
+    return (
+        <div
+            className={cn(
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-sm",
+                tone === "primary" &&
+                    "bg-primary text-primary-foreground shadow-primary/25",
+                tone === "muted" && "bg-muted text-muted-foreground",
+                tone === "amber" &&
+                    "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+                tone === "emerald" &&
+                    "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+                tone === "info" &&
+                    "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+            )}
+        >
+            {children}
+        </div>
+    );
+}
+
+/* ─── Main component ──────────────────────────────────────────────── */
+
 export function ProcurementOfficerDashboard(): JSX.Element {
     const [selectedFiscalYear, setSelectedFiscalYear] = useState<string | undefined>();
     const router = useRouter();
@@ -65,9 +213,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
         }
     }, [selectedFiscalYear, snapshot?.fiscalYears.selectedFiscalYear]);
 
-    if (!snapshot) {
-        return <ProcurementOfficerDashboardSkeleton />;
-    }
+    if (!snapshot) return <ProcurementOfficerDashboardSkeleton />;
 
     const activeModal = normalizeProcurementOfficerWorkspaceModalState({
         modal: searchParams.get("modal"),
@@ -76,60 +222,43 @@ export function ProcurementOfficerDashboard(): JSX.Element {
     const fiscalYearLabel = snapshot.fiscalYears.selectedFiscalYear
         ? formatProcurementFiscalYearLabel(snapshot.fiscalYears.selectedFiscalYear)
         : "Fiscal year unavailable";
-    const departmentsConfiguredCard = findSummaryCard(
-        snapshot.summaryCards,
-        "departments_configured",
-    );
+    const departmentsConfiguredCard = findSummaryCard(snapshot.summaryCards, "departments_configured");
     const accessCodeCard = findSummaryCard(snapshot.summaryCards, "access_code_coverage");
     const deadlineCard = findSummaryCard(snapshot.summaryCards, "deadline_readiness");
     const duCoverageCard = findSummaryCard(snapshot.summaryCards, "du_assignment_coverage");
     const requestPanel = findFuturePanel(snapshot.futurePanels, "request_inbox");
-    const submissionPanel = findFuturePanel(
-        snapshot.futurePanels,
-        "submission_monitoring",
-    );
+    const submissionPanel = findFuturePanel(snapshot.futurePanels, "submission_monitoring");
     const categoriesPanel = findFuturePanel(snapshot.futurePanels, "categories");
     const itemsPanel = findFuturePanel(snapshot.futurePanels, "items");
     const readyDepartmentCount = snapshot.departmentReadiness.items.filter(
-        (item) => item.overallState === "available",
+        (i) => i.overallState === "available",
     ).length;
     const readinessPercent =
         snapshot.meta.selectedDepartmentCount === 0
             ? 0
-            : Math.round(
-                  (readyDepartmentCount / snapshot.meta.selectedDepartmentCount) * 100,
-              );
+            : Math.round((readyDepartmentCount / snapshot.meta.selectedDepartmentCount) * 100);
     const otherFiscalYears = snapshot.fiscalYears.options.filter(
-        (year) => year !== snapshot.fiscalYears.selectedFiscalYear,
+        (y) => y !== snapshot.fiscalYears.selectedFiscalYear,
     );
 
     function setWorkspaceModal(
         modalState: ProcurementOfficerWorkspaceModalState | null,
         historyMode: "push" | "replace",
-    ): void {
-        const href = modalState
-            ? buildProcurementOfficerWorkspaceModalPath(modalState)
-            : pathname;
-
-        if (historyMode === "push") {
-            router.push(href);
-            return;
-        }
-
-        router.replace(href);
+    ) {
+        const href = modalState ? buildProcurementOfficerWorkspaceModalPath(modalState) : pathname;
+        if (historyMode === "push") router.push(href);
+        else router.replace(href);
     }
 
-    function handleWorkspaceAction(href: string): void {
+    function handleWorkspaceAction(href: string) {
         const target = resolveProcurementOfficerWorkspaceNavigation(href);
-        if (target.type === "route") {
-            router.push(target.href);
-            return;
-        }
+        if (target.type === "route") { router.push(target.href); return; }
         setWorkspaceModal(target.modalState, "push");
     }
 
     return (
         <div className="min-h-[calc(100vh-4rem)] bg-background">
+            {/* ── Mobile fallback ── */}
             <div className="px-4 py-8 sm:px-6 lg:hidden">
                 <Card className="mx-auto max-w-2xl rounded-[24px] border-border/70 bg-card shadow-sm">
                     <CardHeader className="space-y-4">
@@ -140,113 +269,99 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                             Procurement Officer dashboards are designed for desktop viewports
                         </CardTitle>
                         <CardDescription className="text-base leading-7 text-muted-foreground">
-                            This workspace follows the desktop-only platform strategy from the
-                            Procureline UX specification.
+                            This workspace follows the desktop-only platform strategy from the Procureline UX specification.
                         </CardDescription>
                     </CardHeader>
                 </Card>
             </div>
 
-            <div className="hidden min-h-[calc(100vh-4rem)] overflow-y-auto lg:block">
-                <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-none flex-col gap-3 px-3 py-3 xl:px-4">
-                    {departmentsConfiguredCard && accessCodeCard && deadlineCard ? (
-                        <UnifiedStatsCard
-                            sections={[
-                                {
-                                    card: departmentsConfiguredCard,
-                                    icon: <Building2 className="h-5 w-5" />,
-                                    meta: `${snapshot.meta.activeDepartmentCount} active across the workspace`,
-                                    tone: "primary",
-                                },
-                                {
-                                    card: accessCodeCard,
-                                    icon: <KeyRound className="h-5 w-5" />,
-                                    meta:
-                                        snapshot.meta.selectedDepartmentCount === 0
-                                            ? "Available after departments exist"
-                                            : `${snapshot.meta.selectedDepartmentCount} department scope in ${fiscalYearLabel}`,
-                                    tone: "warning",
-                                },
-                                {
-                                    card: deadlineCard,
-                                    icon: <CalendarClock className="h-5 w-5" />,
-                                    meta: snapshot.alerts.some((alert) => alert.id === "deadline")
-                                        ? "Shared deadline still needs setup"
-                                        : "Shared submission window can be trusted",
-                                    tone: "success",
-                                },
-                            ]}
-                        />
-                    ) : null}
+            {/* ── Desktop bento grid ── */}
+            <div className="hidden lg:block">
+                <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-none flex-col gap-3 px-4 py-4 xl:px-5">
 
-                    <section className="grid gap-3 xl:grid-cols-[minmax(0,1.62fr)_minmax(300px,0.82fr)]">
-                        <div className="grid gap-3 xl:grid-cols-[minmax(0,1.48fr)_minmax(280px,0.82fr)]">
-                            <Card className="rounded-2xl border-border/70 bg-card shadow-sm">
-                                <CardContent className="flex flex-col gap-3 p-4">
-                                    <div className="flex items-center justify-between border-b border-border/70 pb-3">
-                                        <div className="flex items-center gap-2.5 text-[15px] font-bold text-foreground">
-                                            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+                    {/* Row 2 — Consolidation Hub + Org Overview + Workflow Panels */}
+                    <div className="grid gap-3 xl:grid-cols-[minmax(0,1.56fr)_minmax(320px,0.9fr)]">
+
+                        {/* Left column */}
+                        <div className="grid gap-3 xl:grid-cols-[minmax(0,1.38fr)_minmax(280px,0.92fr)]">
+
+                            {/* Consolidation Hub — 2×1 dominant card */}
+                            <BentoCard glowColor="primary">
+                                <div className="flex flex-col gap-4 p-5">
+                                    {/* Header */}
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2.5">
+                                            <IconBox tone="primary">
                                                 <Layers3 className="h-4 w-4" />
-                                            </div>
-                                            Consolidation Hub
+                                            </IconBox>
+                                            <span className="text-[15px] font-bold text-foreground">
+                                                Consolidation Hub
+                                            </span>
                                         </div>
                                         <StateBadge state={snapshot.hero.state} />
                                     </div>
 
-                                    <div className="rounded-xl border border-border/70 bg-muted/40 p-3.5">
-                                        <div className="flex items-start justify-between gap-4">
+                                    {/* Donut + stats */}
+                                    <div className="flex items-center gap-5 rounded-xl border border-border/60 bg-muted/30 p-4">
+                                        <div className="relative shrink-0">
+                                            <DonutRing size={108} strokeWidth={9} value={readinessPercent} />
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                                <span className="text-2xl font-black leading-none tracking-[-0.06em] text-foreground">
+                                                    {readinessPercent}%
+                                                </span>
+                                                <span className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                                                    Ready
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="flex-1 space-y-3">
                                             <div>
-                                                <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
+                                                <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary mb-1">
                                                     Current Fiscal Year
                                                 </div>
-                                                <div className="mt-1.5 text-lg font-bold text-foreground">
+                                                <div className="text-base font-bold tracking-[-0.03em] text-foreground">
                                                     {fiscalYearLabel}
                                                 </div>
-                                                <div className="mt-1 text-[13px] text-muted-foreground">
+                                                <div className="mt-0.5 text-[12px] text-muted-foreground">
                                                     {readyDepartmentCount} of {snapshot.meta.selectedDepartmentCount} Departments Ready
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <div className="text-3xl font-black leading-none text-primary">
-                                                    {readinessPercent}%
+                                            <div className="space-y-1.5">
+                                                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                                                    <div
+                                                        className="h-full rounded-full bg-gradient-to-r from-primary via-chart-3 to-chart-4 transition-all duration-700 shadow-[0_0_6px_var(--primary)]"
+                                                        style={{ width: `${readinessPercent}%` }}
+                                                    />
                                                 </div>
-                                                <div className="mt-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                                                    Complete
+                                                <div className="text-[10px] text-muted-foreground">
+                                                    Preparation completion
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-                                            <div
-                                                className="h-full rounded-full bg-gradient-to-r from-primary to-chart-4 transition-all duration-500"
-                                                style={{ width: `${readinessPercent}%` }}
-                                            />
-                                        </div>
-                                        <Button asChild className="mt-3 h-9 w-full rounded-xl text-sm">
-                                            <Link href="/po/consolidation">
-                                                Open Consolidation Workspace
-                                                <ArrowRight className="ml-2 h-4 w-4" />
-                                            </Link>
-                                        </Button>
                                     </div>
 
-                                    <div className="mt-auto flex flex-wrap items-center gap-1.5 border-t border-border/70 pt-3">
-                                        <div className="mr-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                                    {/* CTA */}
+                                    <Button asChild className="h-10 w-full rounded-xl text-sm font-semibold shadow-sm shadow-primary/20">
+                                        <Link href="/po/consolidation">
+                                            <Zap className="mr-2 h-4 w-4" />
+                                            Open Consolidation Workspace
+                                            <ArrowRight className="ml-auto h-4 w-4" />
+                                        </Link>
+                                    </Button>
+
+                                    {/* Previous cycles */}
+                                    <div className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-3">
+                                        <span className="mr-1 text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                                             Previous cycles
-                                        </div>
+                                        </span>
                                         {otherFiscalYears.length === 0 ? (
-                                            <span className="text-[13px] text-muted-foreground">
-                                                None yet
-                                            </span>
+                                            <span className="text-[12px] text-muted-foreground">None yet</span>
                                         ) : (
                                             otherFiscalYears.slice(0, 3).map((year) => (
                                                 <button
                                                     key={year}
-                                                    className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background px-2.5 py-1.5 text-[12px] font-medium text-foreground transition hover:border-primary/30 hover:bg-muted/20"
-                                                    onClick={() =>
-                                                        startTransition(() => {
-                                                            setSelectedFiscalYear(year);
-                                                        })
-                                                    }
+                                                    className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background px-2.5 py-1 text-[11px] font-medium text-foreground transition hover:border-primary/30 hover:bg-primary/5"
+                                                    onClick={() => startTransition(() => setSelectedFiscalYear(year))}
                                                     type="button"
                                                 >
                                                     {formatProcurementFiscalYearLabel(year)}
@@ -255,17 +370,20 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                                             ))
                                         )}
                                     </div>
-                                </CardContent>
-                            </Card>
+                                </div>
+                            </BentoCard>
 
-                            <Card className="rounded-2xl border-border/70 bg-card shadow-sm">
-                                <CardContent className="flex flex-col gap-3 p-4">
-                                    <div className="flex items-center justify-between border-b border-border/70 pb-3">
-                                        <div className="flex items-center gap-2.5 text-[15px] font-bold text-foreground">
-                                            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-muted text-foreground shadow-sm">
+                            {/* Organization Overview */}
+                            <BentoCard>
+                                <div className="flex flex-col gap-3 p-5">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2.5">
+                                            <IconBox tone="muted">
                                                 <Building2 className="h-4 w-4" />
-                                            </div>
-                                            Organization Overview
+                                            </IconBox>
+                                            <span className="text-[14px] font-bold text-foreground">
+                                                Organization
+                                            </span>
                                         </div>
                                         <StateBadge
                                             state={snapshot.fiscalYears.state}
@@ -277,246 +395,282 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                                         />
                                     </div>
 
-                                    <div className="flex items-center gap-3 border-b border-border/70 pb-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-base font-black tracking-[-0.04em] text-primary-foreground shadow-sm">
-                                                {getInitials(snapshot.meta.tenantName)}
+                                    {/* Tenant */}
+                                    <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/20 p-3">
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-sm font-black tracking-[-0.04em] text-primary-foreground shadow-sm shadow-primary/20">
+                                            {getInitials(snapshot.meta.tenantName)}
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-bold tracking-[-0.02em] text-foreground">
+                                                {snapshot.meta.tenantName}
                                             </div>
-                                            <div>
-                                                <div className="text-base font-bold tracking-[-0.03em] text-foreground">
-                                                    {snapshot.meta.tenantName}
-                                                </div>
-                                                <div className="mt-0.5 flex items-center gap-1.5 text-[13px] text-muted-foreground">
-                                                    <MapPin className="h-3 w-3" />
-                                                    Procurement workspace overview
-                                                </div>
+                                            <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                                <MapPin className="h-3 w-3" />
+                                                Procurement workspace
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="space-y-2.5">
-                                        <div className="flex items-end justify-between gap-4">
-                                            <div className="text-[13px] font-semibold text-foreground">
-                                                Preparation completion
-                                            </div>
-                                            <div className="text-xl font-black tracking-[-0.04em] text-primary">
+                                    {/* Progress */}
+                                    <div className="space-y-1.5">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[12px] font-semibold text-foreground">
+                                                Preparation
+                                            </span>
+                                            <span className="text-lg font-black tracking-[-0.04em] text-primary">
                                                 {readinessPercent}%
-                                            </div>
+                                            </span>
                                         </div>
                                         <div className="h-2 overflow-hidden rounded-full bg-muted">
                                             <div
-                                                className="h-full rounded-full bg-primary transition-all duration-500"
+                                                className="h-full rounded-full bg-primary transition-all duration-700"
                                                 style={{ width: `${readinessPercent}%` }}
                                             />
                                         </div>
-                                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                                            <span>Ready: {readyDepartmentCount} departments</span>
+                                        <div className="flex justify-between text-[10px] text-muted-foreground">
+                                            <span>Ready: {readyDepartmentCount} depts</span>
                                             <span>{fiscalYearLabel}</span>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <OverviewMiniStat label="Departments" value={String(snapshot.meta.selectedDepartmentCount)} />
-                                        <OverviewMiniStat label="DU Coverage" value={duCoverageCard?.value ?? "--"} />
-                                        <OverviewMiniStat label="Alerts" value={String(snapshot.alerts.length)} />
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <Card className="rounded-2xl border-border/70 bg-card shadow-sm xl:col-span-2">
-                                <CardHeader className="flex-row items-center justify-between space-y-0 border-b border-border/70 px-4 py-3">
-                                    <div className="space-y-1">
-                                        <div className="flex items-center gap-2.5 text-base font-bold tracking-[-0.03em] text-foreground">
-                                            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-                                                <Users2 className="h-4 w-4" />
+                                    {departmentsConfiguredCard && accessCodeCard && deadlineCard ? (
+                                        <div className="space-y-2">
+                                            <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                                                Workspace signals
                                             </div>
-                                            Department Management
+                                            <div className="flex flex-wrap gap-2">
+                                                <OrganizationStatPill
+                                                    card={departmentsConfiguredCard}
+                                                    icon={<Building2 className="h-3.5 w-3.5" />}
+                                                    tone="primary"
+                                                />
+                                                <OrganizationStatPill
+                                                    card={accessCodeCard}
+                                                    icon={<KeyRound className="h-3.5 w-3.5" />}
+                                                    tone="amber"
+                                                />
+                                                <OrganizationStatPill
+                                                    card={deadlineCard}
+                                                    icon={<CalendarClock className="h-3.5 w-3.5" />}
+                                                    tone="emerald"
+                                                />
+                                            </div>
                                         </div>
-                                        <CardDescription className="text-xs leading-5 text-muted-foreground">
-                                            {snapshot.departmentReadiness.summary}
-                                        </CardDescription>
+                                    ) : (
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <MiniStat label="Departments" value={String(snapshot.meta.selectedDepartmentCount)} />
+                                            <MiniStat label="DU Coverage" value={duCoverageCard?.value ?? "--"} />
+                                            <MiniStat
+                                                label="Alerts"
+                                                value={String(snapshot.alerts.length)}
+                                                highlight={snapshot.alerts.length > 0}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </BentoCard>
+
+                            {/* Department Management — full width */}
+                            <BentoCard className="xl:col-span-2">
+                                <div className="flex items-center justify-between border-b border-border/60 px-5 py-3.5">
+                                    <div className="flex items-center gap-2.5">
+                                        <IconBox tone="primary">
+                                            <Users2 className="h-4 w-4" />
+                                        </IconBox>
+                                        <div>
+                                            <div className="text-[14px] font-bold text-foreground">
+                                                Department Management
+                                            </div>
+                                            <div className="text-[11px] text-muted-foreground">
+                                                {snapshot.departmentReadiness.summary}
+                                            </div>
+                                        </div>
                                     </div>
                                     <Button
-                                        className="h-9 rounded-lg text-sm"
+                                        className="h-8 rounded-lg text-xs"
                                         onClick={() => handleWorkspaceAction("/po/departments")}
                                         type="button"
                                     >
                                         Open departments
                                     </Button>
-                                </CardHeader>
-                                <CardContent className="p-0">
-                                    {snapshot.departmentReadiness.items.length === 0 ? (
-                                        <div className="p-4">
-                                            <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 p-5 text-sm leading-6 text-muted-foreground">
+                                </div>
+
+                                {snapshot.departmentReadiness.items.length === 0 ? (
+                                    <div className="p-5">
+                                        <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-6 text-center">
+                                            <Building2 className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
+                                            <div className="text-sm font-medium text-muted-foreground">
                                                 Department readiness appears here once active departments exist.
                                             </div>
                                         </div>
-                                    ) : (
-                                        <div className="overflow-x-auto">
-                                            <table className="min-w-full border-separate border-spacing-0">
-                                                <thead>
-                                                    <tr className="bg-muted/30 text-left">
-                                                        <th className="rounded-tl-xl border-b-2 border-border/70 px-3 py-2.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                                                            Department
+                                    </div>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full border-separate border-spacing-0">
+                                            <thead>
+                                                <tr className="bg-muted/20">
+                                                    {["Department", "Vote #", "Readiness", "Coverage", "Actions"].map((h, i) => (
+                                                        <th
+                                                            key={h}
+                                                            className={cn(
+                                                                "border-b border-border/60 px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground",
+                                                                i === 0 && "text-left",
+                                                                i === 4 && "text-right",
+                                                            )}
+                                                        >
+                                                            {h}
                                                         </th>
-                                                        <th className="border-b-2 border-border/70 px-3 py-2.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                                                            Vote #
-                                                        </th>
-                                                        <th className="border-b-2 border-border/70 px-3 py-2.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                                                            Readiness
-                                                        </th>
-                                                        <th className="border-b-2 border-border/70 px-3 py-2.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                                                            Coverage
-                                                        </th>
-                                                        <th className="rounded-tr-xl border-b-2 border-border/70 px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                                                            Actions
-                                                        </th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {snapshot.departmentReadiness.items.slice(0, 5).map((item) => (
-                                                        <DepartmentReadinessRow
-                                                            key={item.id}
-                                                            compact
-                                                            item={item}
-                                                            onManageDepartment={() =>
-                                                                handleWorkspaceAction("/po/departments")
-                                                            }
-                                                        />
                                                     ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {snapshot.departmentReadiness.items.slice(0, 6).map((item) => (
+                                                    <DepartmentReadinessRow
+                                                        key={item.id}
+                                                        item={item}
+                                                        onManageDepartment={() => handleWorkspaceAction("/po/departments")}
+                                                    />
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </BentoCard>
                         </div>
 
-                        <div className="grid">
-                            <Card className="rounded-2xl border-border/70 bg-card shadow-sm">
-                                <CardHeader className="space-y-2 border-b border-border/70 px-4 py-3">
-                                    <div className="flex items-center justify-between gap-4">
-                                        <div className="flex items-center gap-2.5 text-[15px] font-bold text-foreground">
-                                            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                                                <FileStack className="h-4 w-4" />
-                                            </div>
-                                            Workflow Panels
+                        {/* Right column — Workflow Panels */}
+                        <BentoCard className="flex flex-col">
+                            <div className="flex items-center justify-between border-b border-border/60 px-4 py-3.5">
+                                <div className="flex items-center gap-2.5">
+                                    <IconBox tone="info">
+                                        <FileStack className="h-4 w-4" />
+                                    </IconBox>
+                                    <span className="text-[14px] font-bold text-foreground">
+                                        Workflow Panels
+                                    </span>
+                                </div>
+                                {submissionPanel ? (
+                                    <StateBadge state={submissionPanel.state} label={submissionPanel.statusLabel} />
+                                ) : null}
+                            </div>
+
+                            <div className="flex flex-1 flex-col gap-3 p-4">
+                                {/* Review Center */}
+                                <div className="rounded-xl border border-border/60 bg-muted/20 p-3.5">
+                                    <div className="mb-3 flex items-center justify-between">
+                                        <div className="text-[13px] font-semibold text-foreground">
+                                            Review Center
                                         </div>
-                                        {submissionPanel ? (
-                                            <StateBadge
-                                                state={submissionPanel.state}
-                                                label={submissionPanel.statusLabel}
+                                        {requestPanel ? (
+                                            <StateBadge state={requestPanel.state} label={requestPanel.statusLabel} />
+                                        ) : null}
+                                    </div>
+                                    <div className="space-y-2">
+                                        {[requestPanel, submissionPanel]
+                                            .filter((p): p is ProcurementOfficerDashboardFuturePanel => Boolean(p))
+                                            .map((panel) => (
+                                                <WorkflowPanelButton
+                                                    key={panel.id}
+                                                    panel={panel}
+                                                    onClick={() => handleWorkspaceAction(panel.cta.href)}
+                                                />
+                                            ))}
+                                    </div>
+                                </div>
+
+                                {/* Categories & Items */}
+                                <div className="rounded-xl border border-border/60 bg-muted/20 p-3.5">
+                                    <div className="mb-3 flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                                <FolderTree className="h-3.5 w-3.5" />
+                                            </div>
+                                            <div className="text-[13px] font-semibold text-foreground">
+                                                Categories & Items
+                                            </div>
+                                        </div>
+                                        {categoriesPanel ? (
+                                            <StateBadge state={categoriesPanel.state} label={categoriesPanel.statusLabel} />
+                                        ) : null}
+                                    </div>
+                                    <div className="space-y-2">
+                                        {categoriesPanel ? (
+                                            <WorkflowPanelButton
+                                                panel={categoriesPanel}
+                                                onClick={() => handleWorkspaceAction(categoriesPanel.cta.href)}
+                                            />
+                                        ) : null}
+                                        {itemsPanel ? (
+                                            <WorkflowPanelButton
+                                                panel={{ ...itemsPanel, label: "Items" }}
+                                                onClick={() => handleWorkspaceAction(itemsPanel.cta.href)}
                                             />
                                         ) : null}
                                     </div>
-                                </CardHeader>
-                                <CardContent className="grid gap-2.5 p-3.5">
-                                    <div className="rounded-2xl border border-border/70 bg-muted/20 p-3.5">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <div className="font-semibold text-foreground">
-                                                Review Center
-                                            </div>
-                                            {requestPanel ? (
-                                                <StateBadge
-                                                    state={requestPanel.state}
-                                                    label={requestPanel.statusLabel}
-                                                />
-                                            ) : null}
-                                        </div>
-                                        <div className="mt-2.5 space-y-2">
-                                            {[requestPanel, submissionPanel]
-                                                .filter(
-                                                    (
-                                                        panel,
-                                                    ): panel is ProcurementOfficerDashboardFuturePanel =>
-                                                        Boolean(panel),
-                                                )
-                                                .map((panel) => (
-                                                    <button
-                                                        key={panel.id}
-                                                        className="flex w-full items-start justify-between gap-3 rounded-xl border border-border/70 bg-background px-3 py-2.5 text-left transition hover:border-primary/30 hover:bg-muted/20"
-                                                        onClick={() => handleWorkspaceAction(panel.cta.href)}
-                                                        type="button"
-                                                    >
-                                                        <div className="min-w-0">
-                                                            <div className="text-[13px] font-medium text-foreground">
-                                                                {panel.label}
-                                                            </div>
-                                                            <div className="mt-0.5 text-[11px] leading-4.5 text-muted-foreground">
-                                                                {panel.description}
-                                                            </div>
-                                                        </div>
-                                                        <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                                    </button>
-                                                ))}
-                                        </div>
-                                    </div>
+                                </div>
 
-                                    <div className="rounded-2xl border border-border/70 bg-muted/20 p-3.5">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                                                    <FolderTree className="h-3.5 w-3.5" />
-                                                </div>
-                                                <div className="text-[13px] font-semibold text-foreground">
-                                                    Categories and Items
-                                                </div>
+                                {/* Access Codes quick link */}
+                                <div className="mt-auto rounded-xl border border-border/60 bg-muted/20 p-3">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                                                <KeyRound className="h-3 w-3" />
                                             </div>
-                                            {categoriesPanel ? (
-                                                <StateBadge
-                                                    state={categoriesPanel.state}
-                                                    label={categoriesPanel.statusLabel}
-                                                />
-                                            ) : null}
+                                            <span className="text-[12px] font-semibold text-foreground">
+                                                Access Codes
+                                            </span>
                                         </div>
-                                        <div className="mt-2.5 space-y-2">
-                                            {categoriesPanel ? (
-                                                <button
-                                                    className="flex w-full items-start justify-between gap-3 rounded-xl border border-border/70 bg-background px-3 py-2.5 text-left transition hover:border-primary/30 hover:bg-muted/20"
-                                                    onClick={() => handleWorkspaceAction(categoriesPanel.cta.href)}
-                                                    type="button"
-                                                >
-                                                    <div className="min-w-0">
-                                                        <div className="text-[13px] font-medium text-foreground">
-                                                            {categoriesPanel.label}
-                                                        </div>
-                                                        <div className="mt-0.5 text-[11px] leading-4.5 text-muted-foreground">
-                                                            {categoriesPanel.description}
-                                                        </div>
-                                                    </div>
-                                                    <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                                </button>
-                                            ) : null}
-                                            {itemsPanel ? (
-                                                <button
-                                                    className="flex w-full items-start justify-between gap-3 rounded-xl border border-border/70 bg-background px-3 py-2.5 text-left transition hover:border-primary/30 hover:bg-muted/20"
-                                                    onClick={() => handleWorkspaceAction(itemsPanel.cta.href)}
-                                                    type="button"
-                                                >
-                                                    <div className="min-w-0">
-                                                        <div className="text-[13px] font-medium text-foreground">
-                                                            Items
-                                                        </div>
-                                                        <div className="mt-0.5 text-[11px] leading-4.5 text-muted-foreground">
-                                                            Open the items section inside categories.
-                                                        </div>
-                                                    </div>
-                                                    <StateBadge
-                                                        state={itemsPanel.state}
-                                                        label={itemsPanel.statusLabel}
-                                                    />
-                                                </button>
-                                            ) : null}
-                                        </div>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-7 px-2 text-[11px] text-primary hover:text-primary"
+                                            onClick={() => handleWorkspaceAction("/po/access-codes")}
+                                            type="button"
+                                        >
+                                            Manage
+                                            <ArrowRight className="ml-1 h-3 w-3" />
+                                        </Button>
                                     </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-                    </section>
+                                </div>
+
+                                {/* Deadlines quick link */}
+                                <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className={cn(
+                                                "flex h-6 w-6 items-center justify-center rounded-lg",
+                                                snapshot.alerts.some(a => a.id === "deadline")
+                                                    ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300"
+                                                    : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                                            )}>
+                                                {snapshot.alerts.some(a => a.id === "deadline")
+                                                    ? <AlertTriangle className="h-3 w-3" />
+                                                    : <CheckCircle2 className="h-3 w-3" />
+                                                }
+                                            </div>
+                                            <span className="text-[12px] font-semibold text-foreground">
+                                                Deadlines
+                                            </span>
+                                        </div>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-7 px-2 text-[11px] text-primary hover:text-primary"
+                                            onClick={() => handleWorkspaceAction("/po/deadlines")}
+                                            type="button"
+                                        >
+                                            Review
+                                            <ArrowRight className="ml-1 h-3 w-3" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </BentoCard>
+                    </div>
                 </div>
             </div>
 
+            {/* Workspace modal */}
             <WorkspaceModal
                 accessCodeCard={accessCodeCard}
                 activeModal={activeModal}
@@ -541,6 +695,160 @@ export function ProcurementOfficerDashboard(): JSX.Element {
         </div>
     );
 }
+
+/* ─── Organization summary pill ───────────────────────────────────── */
+
+function OrganizationStatPill({
+    card,
+    icon,
+    tone,
+}: {
+    card: ProcurementOfficerDashboardSummaryCard;
+    icon: React.ReactNode;
+    tone: "primary" | "amber" | "emerald";
+}) {
+    return (
+        <div className="flex min-w-[11rem] flex-1 items-center gap-2 rounded-full border border-border/60 bg-muted/25 px-3 py-2">
+            <div
+                className={cn(
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
+                    tone === "primary" && "bg-primary text-primary-foreground",
+                    tone === "amber" &&
+                        "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+                    tone === "emerald" &&
+                        "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+                )}
+            >
+                {icon}
+            </div>
+            <div className="min-w-0 flex-1">
+                <div className="text-[8px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                    {card.label}
+                </div>
+                <div className="truncate text-[12px] font-semibold tracking-[-0.02em] text-foreground">
+                    {card.value}
+                </div>
+            </div>
+            <span
+                className={cn(
+                    "h-2 w-2 shrink-0 rounded-full",
+                    card.state === "available" && "bg-emerald-500",
+                    card.state === "coming_soon" && "bg-primary",
+                    card.state === "setup_required" && "bg-amber-500",
+                    (card.state === "empty" || card.state === "unavailable") && "bg-muted-foreground/50",
+                )}
+            />
+        </div>
+    );
+}
+
+/* ─── Mini stat cell ──────────────────────────────────────────────── */
+
+function MiniStat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+    return (
+        <div className="rounded-xl border border-border/60 bg-muted/30 p-2.5 text-center">
+            <div className={cn("text-lg font-black tracking-[-0.04em]", highlight ? "text-rose-500" : "text-foreground")}>
+                {value}
+            </div>
+            <div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                {label}
+            </div>
+        </div>
+    );
+}
+
+/* ─── Workflow panel button ───────────────────────────────────────── */
+
+function WorkflowPanelButton({
+    panel,
+    onClick,
+}: {
+    panel: ProcurementOfficerDashboardFuturePanel;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            className="group flex w-full items-start justify-between gap-3 rounded-xl border border-border/60 bg-background px-3 py-2.5 text-left transition hover:border-primary/30 hover:bg-primary/5"
+            onClick={onClick}
+            type="button"
+        >
+            <div className="min-w-0">
+                <div className="text-[12px] font-semibold text-foreground">{panel.label}</div>
+                <div className="mt-0.5 line-clamp-2 text-[10px] leading-[1.4] text-muted-foreground">
+                    {panel.description}
+                </div>
+            </div>
+            <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground transition group-hover:text-primary" />
+        </button>
+    );
+}
+
+/* ─── Department Readiness Row ────────────────────────────────────── */
+
+function DepartmentReadinessRow({
+    item,
+    onManageDepartment,
+}: {
+    item: ProcurementOfficerDashboardDepartmentReadinessItem;
+    onManageDepartment: () => void;
+}) {
+    return (
+        <tr className="transition hover:bg-muted/20">
+            <td className="border-b border-border/50 px-4 py-2.5 text-left">
+                <div className="flex items-center gap-2.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted text-[10px] font-bold uppercase text-muted-foreground">
+                        {getInitials(item.name)}
+                    </div>
+                    <div>
+                        <div className="text-[13px] font-semibold text-foreground">{item.name}</div>
+                        <div className="text-[10px] text-muted-foreground">{item.blockerSummary}</div>
+                    </div>
+                </div>
+            </td>
+            <td className="border-b border-border/50 px-4 py-2.5 text-center">
+                <span className="rounded-md bg-muted px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
+                    {item.code}
+                </span>
+            </td>
+            <td className="border-b border-border/50 px-4 py-2.5 text-center">
+                <div className="space-y-1.5">
+                    <StateBadge state={item.overallState} />
+                    <Progress value={item.progressValue} className="h-1 bg-muted" />
+                </div>
+            </td>
+            <td className="border-b border-border/50 px-4 py-2.5 text-center">
+                <div className="space-y-1">
+                    <InlineStatePill label="Access" state={item.accessCode.state} value={item.accessCode.label} />
+                    <InlineStatePill label="DU" state={item.departmentUser.state} value={item.departmentUser.label} />
+                    <InlineStatePill label="Deadline" state={item.deadline.state} value={item.deadline.label} />
+                </div>
+            </td>
+            <td className="border-b border-border/50 px-4 py-2.5 text-right">
+                <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-[11px] text-primary hover:text-primary"
+                    onClick={onManageDepartment}
+                    type="button"
+                >
+                    Manage
+                    <ArrowRight className="ml-1 h-3 w-3" />
+                </Button>
+            </td>
+        </tr>
+    );
+}
+
+function InlineStatePill({ label, state, value }: { label: string; state: ProcurementDashboardState; value: string }) {
+    return (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-muted/20 px-2 py-1 text-[10px]">
+            <span className="text-muted-foreground">{label}</span>
+            <StateBadge state={state} label={value} />
+        </div>
+    );
+}
+
+/* ─── Workspace Modal ─────────────────────────────────────────────── */
 
 function WorkspaceModal({
     accessCodeCard,
@@ -575,9 +883,7 @@ function WorkspaceModal({
 }): JSX.Element {
     const topDepartments = snapshot.departmentReadiness.items.slice(0, 4);
     const activeTab =
-        activeModal?.modal === "categories" && activeModal.section === "items"
-            ? "items"
-            : "categories";
+        activeModal?.modal === "categories" && activeModal.section === "items" ? "items" : "categories";
 
     return (
         <Dialog open={Boolean(activeModal)} onOpenChange={(open) => !open && onClose()}>
@@ -588,10 +894,7 @@ function WorkspaceModal({
                             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                                 {getWorkspaceIcon(activeModal?.modal ?? "departments")}
                             </div>
-                            <Badge
-                                variant="outline"
-                                className="rounded-full border-primary/20 bg-primary/10 text-primary"
-                            >
+                            <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/10 text-primary">
                                 Procurement workspace
                             </Badge>
                         </div>
@@ -631,25 +934,13 @@ function WorkspaceModal({
                     {activeModal?.modal === "requests" ? (
                         <div className="grid gap-4 md:grid-cols-2">
                             {[requestPanel, submissionPanel]
-                                .filter(
-                                    (
-                                        panel,
-                                    ): panel is ProcurementOfficerDashboardFuturePanel =>
-                                        Boolean(panel),
-                                )
+                                .filter((p): p is ProcurementOfficerDashboardFuturePanel => Boolean(p))
                                 .map((panel) => (
-                                    <div
-                                        key={panel.id}
-                                        className="rounded-2xl border border-border/70 bg-card p-5"
-                                    >
+                                    <div key={panel.id} className="rounded-2xl border border-border/70 bg-card p-5">
                                         <div className="flex items-start justify-between gap-3">
                                             <div>
-                                                <div className="font-semibold text-foreground">
-                                                    {panel.label}
-                                                </div>
-                                                <div className="mt-2 text-sm leading-6 text-muted-foreground">
-                                                    {panel.description}
-                                                </div>
+                                                <div className="font-semibold text-foreground">{panel.label}</div>
+                                                <div className="mt-2 text-sm leading-6 text-muted-foreground">{panel.description}</div>
                                             </div>
                                             <StateBadge state={panel.state} label={panel.statusLabel} />
                                         </div>
@@ -659,14 +950,10 @@ function WorkspaceModal({
                     ) : null}
 
                     {activeModal?.modal === "categories" ? (
-                        <Tabs value={activeTab} onValueChange={(value) => onCategorySectionChange(value === "items" ? "items" : undefined)}>
+                        <Tabs value={activeTab} onValueChange={(v) => onCategorySectionChange(v === "items" ? "items" : undefined)}>
                             <TabsList className="h-auto rounded-full border border-border/70 bg-card p-1">
-                                <TabsTrigger className="rounded-full px-4 py-2" value="categories">
-                                    Categories
-                                </TabsTrigger>
-                                <TabsTrigger className="rounded-full px-4 py-2" value="items">
-                                    Items
-                                </TabsTrigger>
+                                <TabsTrigger className="rounded-full px-4 py-2" value="categories">Categories</TabsTrigger>
+                                <TabsTrigger className="rounded-full px-4 py-2" value="items">Items</TabsTrigger>
                             </TabsList>
                             <TabsContent className="mt-4 space-y-4" value="categories">
                                 <ModalMetricCard label="Status" value={categoriesPanel?.statusLabel ?? "Later story"} />
@@ -678,7 +965,7 @@ function WorkspaceModal({
                             <TabsContent className="mt-4 space-y-4" value="items">
                                 <ModalMetricCard label="Status" value={itemsPanel?.statusLabel ?? "Later story"} />
                                 <EmptyWorkspaceState
-                                    body={itemsPanel?.description ?? "Items now live under categories so the dashboard does not waste a separate destination on a placeholder flow."}
+                                    body={itemsPanel?.description ?? "Items now live under categories."}
                                     title={itemsPanel?.label ?? "Items"}
                                 />
                             </TabsContent>
@@ -691,18 +978,14 @@ function WorkspaceModal({
                                 <ModalMetricCard label="Coverage" value={accessCodeCard?.value ?? "--"} />
                                 <ModalMetricCard
                                     label="Departments ready"
-                                    value={String(
-                                        snapshot.departmentReadiness.items.filter(
-                                            (item) => item.accessCode.state === "available",
-                                        ).length,
-                                    )}
+                                    value={String(snapshot.departmentReadiness.items.filter((i) => i.accessCode.state === "available").length)}
                                 />
                                 <ModalMetricCard label="Fiscal year" value={fiscalYearLabel} />
                             </div>
                             <div className="space-y-3">
                                 {snapshot.departmentReadiness.items.length === 0 ? (
                                     <EmptyWorkspaceState
-                                        body="Access-code coverage unlocks once departments exist, so there is nothing to audit yet."
+                                        body="Access-code coverage unlocks once departments exist."
                                         title="Waiting for departments"
                                     />
                                 ) : (
@@ -735,9 +1018,7 @@ function WorkspaceModal({
                                             className="rounded-2xl border border-amber-200/70 bg-amber-50/70 p-4 text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100"
                                         >
                                             <div className="font-semibold">{alert.title}</div>
-                                            <div className="mt-1 text-sm leading-6 opacity-90">
-                                                {alert.message}
-                                            </div>
+                                            <div className="mt-1 text-sm leading-6 opacity-90">{alert.message}</div>
                                         </div>
                                     ))}
                                 </div>
@@ -752,9 +1033,7 @@ function WorkspaceModal({
 
                     <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-muted/20 px-5 py-4">
                         <div>
-                            <div className="font-semibold text-foreground">
-                                Consolidation stays separate
-                            </div>
+                            <div className="font-semibold text-foreground">Consolidation stays separate</div>
                             <div className="text-sm leading-6 text-muted-foreground">
                                 This is the only PO workflow that still opens as its own page.
                             </div>
@@ -772,157 +1051,15 @@ function WorkspaceModal({
     );
 }
 
-function DepartmentReadinessRow({
-    compact = false,
-    item,
-    onManageDepartment,
-}: {
-    compact?: boolean;
-    item: ProcurementOfficerDashboardDepartmentReadinessItem;
-    onManageDepartment: () => void;
-}): JSX.Element {
-    return (
-        <tr className="transition hover:bg-muted/30">
-            <td
-                className={cn(
-                    "border-b border-border/70 px-3",
-                    compact ? "py-2.5" : "py-4",
-                )}
-            >
-                <div className="flex items-center gap-2.5">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted text-[10px] font-bold uppercase text-muted-foreground">
-                        {getInitials(item.name)}
-                    </div>
-                    <div>
-                        <div className="text-[13px] font-semibold text-foreground">{item.name}</div>
-                        <div
-                            className={cn(
-                                "text-muted-foreground",
-                                compact ? "text-[11px]" : "text-sm",
-                            )}
-                        >
-                            {item.blockerSummary}
-                        </div>
-                    </div>
-                </div>
-            </td>
-            <td className={cn("border-b border-border/70 px-3", compact ? "py-2.5" : "py-4")}>
-                <span className="rounded-md bg-muted px-2 py-1 font-mono text-[11px] text-muted-foreground">
-                    {item.code}
-                </span>
-            </td>
-            <td className={cn("border-b border-border/70 px-3", compact ? "py-2.5" : "py-4")}>
-                <div className={cn(compact ? "space-y-1.5" : "space-y-2")}>
-                    <StateBadge state={item.overallState} />
-                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                        <span>Prep readiness</span>
-                        <span>{item.progressValue}%</span>
-                    </div>
-                    <Progress value={item.progressValue} className="h-1.5 bg-muted" />
-                </div>
-            </td>
-            <td className={cn("border-b border-border/70 px-3", compact ? "py-2.5" : "py-4")}>
-                <div className="grid gap-1.5">
-                    <InlineState label="Access" state={item.accessCode.state} value={item.accessCode.label} />
-                    <InlineState label="DU" state={item.departmentUser.state} value={item.departmentUser.label} />
-                    <InlineState label="Deadline" state={item.deadline.state} value={item.deadline.label} />
-                </div>
-            </td>
-            <td
-                className={cn(
-                    "border-b border-border/70 px-3 text-right",
-                    compact ? "py-2.5" : "py-4",
-                )}
-            >
-                <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 px-2 text-xs text-primary hover:text-primary"
-                    onClick={onManageDepartment}
-                    type="button"
-                >
-                    Manage
-                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                </Button>
-            </td>
-        </tr>
-    );
-}
+/* ─── Small sub-components ────────────────────────────────────────── */
 
-function UnifiedStatsCard({
-    sections,
-}: {
-    sections: Array<{
-        card: ProcurementOfficerDashboardSummaryCard;
-        icon: JSX.Element;
-        meta: string;
-        tone: "primary" | "success" | "warning";
-    }>;
-}): JSX.Element {
-    return (
-        <section className="grid gap-2 xl:grid-cols-3">
-            <div className="grid gap-2 xl:col-span-3 xl:grid-cols-3">
-                {sections.map((section, index) => (
-                    <div
-                        key={section.card.id}
-                        className={cn(
-                            "flex items-start gap-2.5 px-0.5 py-0.5",
-                            index < sections.length - 1 &&
-                                "xl:border-r xl:border-border/40 xl:pr-3",
-                        )}
-                    >
-                        <div
-                            className={cn(
-                                "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl",
-                                section.tone === "primary" &&
-                                    "bg-primary text-primary-foreground",
-                                section.tone === "success" &&
-                                    "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200",
-                                section.tone === "warning" &&
-                                    "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200",
-                            )}
-                        >
-                            {section.icon}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0">
-                                    <div className="text-[8px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-                                        {section.card.label}
-                                    </div>
-                                    <div className="mt-0.5 text-lg font-black tracking-[-0.04em] text-foreground">
-                                        {section.card.value}
-                                    </div>
-                                </div>
-                                <StateBadge
-                                    state={section.card.state}
-                                    label={section.card.statusLabel}
-                                />
-                            </div>
-                            <div className="mt-0.5 text-[12px] text-muted-foreground">
-                                {section.meta}
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </section>
-    );
-}
-
-function CompactDepartmentCard({
-    item,
-}: {
-    item: ProcurementOfficerDashboardDepartmentReadinessItem;
-}): JSX.Element {
+function CompactDepartmentCard({ item }: { item: ProcurementOfficerDashboardDepartmentReadinessItem }) {
     return (
         <div className="rounded-2xl border border-border/70 bg-card p-4">
             <div className="flex items-start justify-between gap-3">
                 <div>
                     <div className="font-semibold text-foreground">{item.name}</div>
-                    <div className="mt-1 text-sm leading-6 text-muted-foreground">
-                        {item.blockerSummary}
-                    </div>
+                    <div className="mt-1 text-sm leading-6 text-muted-foreground">{item.blockerSummary}</div>
                 </div>
                 <StateBadge state={item.overallState} />
             </div>
@@ -930,25 +1067,13 @@ function CompactDepartmentCard({
     );
 }
 
-function CompactStatusCard({
-    helper,
-    label,
-    state,
-    value,
-}: {
-    helper: string;
-    label: string;
-    state: ProcurementDashboardState;
-    value: string;
-}): JSX.Element {
+function CompactStatusCard({ helper, label, state, value }: { helper: string; label: string; state: ProcurementDashboardState; value: string }) {
     return (
         <div className="rounded-2xl border border-border/70 bg-card p-4">
             <div className="flex items-start justify-between gap-3">
                 <div>
                     <div className="font-semibold text-foreground">{label}</div>
-                    <div className="mt-1 text-sm leading-6 text-muted-foreground">
-                        {helper}
-                    </div>
+                    <div className="mt-1 text-sm leading-6 text-muted-foreground">{helper}</div>
                 </div>
                 <StateBadge state={state} label={value} />
             </div>
@@ -956,13 +1081,7 @@ function CompactStatusCard({
     );
 }
 
-function EmptyWorkspaceState({
-    body,
-    title,
-}: {
-    body: string;
-    title: string;
-}): JSX.Element {
+function EmptyWorkspaceState({ body, title }: { body: string; title: string }) {
     return (
         <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 p-5">
             <div className="font-semibold text-foreground">{title}</div>
@@ -971,171 +1090,83 @@ function EmptyWorkspaceState({
     );
 }
 
-function InlineState({
-    label,
-    state,
-    value,
-}: {
-    label: string;
-    state: ProcurementDashboardState;
-    value: string;
-}): JSX.Element {
-    return (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-background px-3 py-2 text-sm">
-            <span className="text-muted-foreground">{label}</span>
-            <StateBadge state={state} label={value} />
-        </div>
-    );
-}
-
-function ModalMetricCard({
-    label,
-    value,
-}: {
-    label: string;
-    value: string;
-}): JSX.Element {
+function ModalMetricCard({ label, value }: { label: string; value: string }) {
     return (
         <div className="rounded-2xl border border-border/70 bg-card p-4">
-            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                {label}
-            </div>
-            <div className="mt-3 text-xl font-black tracking-[-0.04em] text-foreground">
-                {value}
+            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
+            <div className="mt-3 text-xl font-black tracking-[-0.04em] text-foreground">{value}</div>
+        </div>
+    );
+}
+
+/* ─── Skeleton ────────────────────────────────────────────────────── */
+
+function ProcurementOfficerDashboardSkeleton() {
+    return (
+        <div className="mx-auto hidden w-full max-w-none gap-3 px-4 py-4 lg:flex lg:flex-col xl:px-5">
+            <div className="grid gap-3 xl:grid-cols-[minmax(0,1.56fr)_minmax(320px,0.9fr)]">
+                <div className="grid gap-3 xl:grid-cols-[minmax(0,1.38fr)_minmax(280px,0.92fr)]">
+                    <Skeleton className="h-72 rounded-2xl" />
+                    <Skeleton className="h-72 rounded-2xl" />
+                    <Skeleton className="h-56 rounded-2xl xl:col-span-2" />
+                </div>
+                <Skeleton className="h-[34rem] rounded-2xl" />
             </div>
         </div>
     );
 }
 
-function StateBadge({
-    label,
-    state,
-}: {
-    label?: string;
-    state: ProcurementDashboardState;
-}): JSX.Element {
-    const renderedLabel = label ?? humanizeState(state);
-
-    return (
-        <span
-            className={cn(
-                "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                state === "available" &&
-                    "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200",
-                state === "coming_soon" && "bg-primary/10 text-primary",
-                state === "empty" && "bg-muted text-muted-foreground",
-                state === "setup_required" &&
-                    "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200",
-                state === "unavailable" && "bg-muted text-muted-foreground",
-            )}
-        >
-            <span className="h-1.5 w-1.5 rounded-full bg-current" />
-            {renderedLabel}
-        </span>
-    );
-}
-
-function OverviewMiniStat({
-    label,
-    value,
-}: {
-    label: string;
-    value: string;
-}): JSX.Element {
-    return (
-        <div className="rounded-2xl border border-border/70 bg-muted/30 p-2.5 text-center">
-            <div className="text-lg font-black tracking-[-0.04em] text-foreground">
-                {value}
-            </div>
-            <div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                {label}
-            </div>
-        </div>
-    );
-}
+/* ─── Utilities ───────────────────────────────────────────────────── */
 
 function findSummaryCard(
     cards: ProcurementOfficerDashboardSummaryCard[],
     id: ProcurementOfficerDashboardSummaryCard["id"],
-): ProcurementOfficerDashboardSummaryCard | undefined {
-    return cards.find((card) => card.id === id);
+) {
+    return cards.find((c) => c.id === id);
 }
 
 function findFuturePanel(
     panels: ProcurementOfficerDashboardFuturePanel[],
     id: ProcurementOfficerDashboardFuturePanel["id"],
-): ProcurementOfficerDashboardFuturePanel | undefined {
-    return panels.find((panel) => panel.id === id);
+) {
+    return panels.find((p) => p.id === id);
 }
 
-function getWorkspaceIcon(
-    modal: ProcurementOfficerWorkspaceModalState["modal"],
-): JSX.Element {
-    if (modal === "requests") {
-        return <FileStack className="h-5 w-5" />;
-    }
-    if (modal === "categories") {
-        return <FolderTree className="h-5 w-5" />;
-    }
-    if (modal === "access-codes") {
-        return <KeyRound className="h-5 w-5" />;
-    }
-    if (modal === "deadlines") {
-        return <CalendarClock className="h-5 w-5" />;
-    }
+function getWorkspaceIcon(modal: ProcurementOfficerWorkspaceModalState["modal"]) {
+    if (modal === "requests") return <FileStack className="h-5 w-5" />;
+    if (modal === "categories") return <FolderTree className="h-5 w-5" />;
+    if (modal === "access-codes") return <KeyRound className="h-5 w-5" />;
+    if (modal === "deadlines") return <CalendarClock className="h-5 w-5" />;
     return <Building2 className="h-5 w-5" />;
 }
 
-function getWorkspaceTitle(
-    activeModal: ProcurementOfficerWorkspaceModalState | null,
-): string {
+function getWorkspaceTitle(activeModal: ProcurementOfficerWorkspaceModalState | null): string {
     switch (activeModal?.modal) {
-        case "requests":
-            return "Requests workspace";
-        case "categories":
-            return activeModal.section === "items"
-                ? "Categories and items workspace"
-                : "Categories workspace";
-        case "access-codes":
-            return "Access-code coverage";
-        case "deadlines":
-            return "Deadline readiness";
-        default:
-            return "Departments workspace";
+        case "requests": return "Requests workspace";
+        case "categories": return activeModal.section === "items" ? "Categories and items workspace" : "Categories workspace";
+        case "access-codes": return "Access-code coverage";
+        case "deadlines": return "Deadline readiness";
+        default: return "Departments workspace";
     }
 }
 
-function getWorkspaceDescription(
-    activeModal: ProcurementOfficerWorkspaceModalState | null,
-): string {
+function getWorkspaceDescription(activeModal: ProcurementOfficerWorkspaceModalState | null): string {
     switch (activeModal?.modal) {
-        case "requests":
-            return "Request inbox and submission monitoring now open as a dashboard modal, keeping the PO flow in one place until the live queue stories land.";
-        case "categories":
-            return activeModal.section === "items"
-                ? "Items are nested under categories on purpose, so the dashboard stays tighter and the catalog story can grow in one workspace."
-                : "Categories now open inside the dashboard, with items folded into the same workspace instead of taking their own card.";
-        case "access-codes":
-            return "Access-code follow-up stays attached to the dashboard context, so you can audit missing coverage without bouncing into a placeholder page.";
-        case "deadlines":
-            return "Deadline warnings now resolve inside the dashboard, keeping fiscal-year signals, alerts, and department readiness in one flow.";
-        default:
-            return "Department setup and readiness review now happen as a dashboard modal, while consolidation remains the only dedicated PO route.";
+        case "requests": return "Request inbox and submission monitoring now open as a dashboard modal, keeping the PO flow in one place until the live queue stories land.";
+        case "categories": return activeModal.section === "items" ? "Items are nested under categories on purpose, so the dashboard stays tighter and the catalog story can grow in one workspace." : "Categories now open inside the dashboard, with items folded into the same workspace instead of taking their own card.";
+        case "access-codes": return "Access-code follow-up stays attached to the dashboard context, so you can audit missing coverage without bouncing into a placeholder page.";
+        case "deadlines": return "Deadline warnings now resolve inside the dashboard, keeping fiscal-year signals, alerts, and department readiness in one flow.";
+        default: return "Department setup and readiness review now happen as a dashboard modal, while consolidation remains the only dedicated PO route.";
     }
 }
 
 function humanizeState(state: ProcurementDashboardState): string {
     switch (state) {
-        case "available":
-            return "Ready";
-        case "coming_soon":
-            return "Coming soon";
-        case "empty":
-            return "Empty";
-        case "setup_required":
-            return "Setup required";
-        default:
-            return "Unavailable";
+        case "available": return "Ready";
+        case "coming_soon": return "Coming soon";
+        case "empty": return "Empty";
+        case "setup_required": return "Setup required";
+        default: return "Unavailable";
     }
 }
 
@@ -1146,26 +1177,5 @@ function getInitials(value: string): string {
         .slice(0, 2)
         .map((part) => part[0]?.toUpperCase() ?? "")
         .join("");
-
     return initials || "PO";
-}
-
-function ProcurementOfficerDashboardSkeleton(): JSX.Element {
-    return (
-        <div className="mx-auto hidden w-full max-w-none space-y-4 px-4 py-4 lg:block xl:px-5">
-            <div className="grid gap-3 xl:grid-cols-3">
-                <Skeleton className="h-16 rounded-xl" />
-                <Skeleton className="h-16 rounded-xl" />
-                <Skeleton className="h-16 rounded-xl" />
-            </div>
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,0.95fr)]">
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.95fr)]">
-                    <Skeleton className="h-[18rem] rounded-[28px]" />
-                    <Skeleton className="h-[18rem] rounded-[28px]" />
-                    <Skeleton className="h-[24rem] rounded-[28px] xl:col-span-2" />
-                </div>
-                <Skeleton className="h-[24rem] rounded-[28px]" />
-            </div>
-        </div>
-    );
 }

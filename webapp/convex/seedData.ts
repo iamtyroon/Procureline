@@ -1,5 +1,19 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import {
+    getDepartmentUserAccessCodeSuffix,
+    hashDepartmentUserAccessCode,
+    normalizeDepartmentUserAccessCode,
+} from "../lib/auth/department-user-access";
+
+function firstOrThrow<T>(items: readonly T[], errorFactory: () => Error): T {
+    const item = items[0];
+    if (item === undefined) {
+        throw errorFactory();
+    }
+
+    return item;
+}
 
 /**
  * Seed subscription tiers with initial data.
@@ -207,13 +221,12 @@ export const setTenantRoleByEmail = mutation({
             });
         }
 
-        const user = matchingUsers.at(0);
-        if (user === undefined) {
-            throw new ConvexError({
+        const user = firstOrThrow(matchingUsers, () =>
+            new ConvexError({
                 code: "NOT_FOUND",
                 message: `No auth user found for ${normalizedEmail}.`,
-            });
-        }
+            }),
+        );
 
         const tenantUsers = await ctx.db
             .query("tenantUsers")
@@ -229,14 +242,13 @@ export const setTenantRoleByEmail = mutation({
             });
         }
 
-        const activeTenantUser = activeTenantUsers.at(0);
-        if (activeTenantUser === undefined) {
-            throw new ConvexError({
+        const activeTenantUser = firstOrThrow(activeTenantUsers, () =>
+            new ConvexError({
                 code: "VALIDATION_FAILED",
                 message:
                     "This helper requires exactly one active tenant role for the target user.",
-            });
-        }
+            }),
+        );
 
         await ctx.db.patch(activeTenantUser._id, {
             role: args.role,
@@ -248,6 +260,503 @@ export const setTenantRoleByEmail = mutation({
             role: args.role,
             tenantId: String(activeTenantUser.tenantId),
             tenantUserId: String(activeTenantUser._id),
+        };
+    },
+});
+
+/**
+ * List departments for a tenant-scoped user email to support local role/profile setup.
+ * Run via CLI:
+ * npx convex run seedData:listDepartmentsForUserEmail "{\"email\":\"you@example.com\"}"
+ */
+export const listDepartmentsForUserEmail = query({
+    args: {
+        email: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const normalizedEmail = args.email.trim().toLowerCase();
+        const matchingUsers = await ctx.db
+            .query("users")
+            .withIndex("email", (q) => q.eq("email", normalizedEmail))
+            .collect();
+
+        if (matchingUsers.length !== 1) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: `Expected exactly one auth user for ${normalizedEmail}.`,
+            });
+        }
+
+        const user = firstOrThrow(matchingUsers, () =>
+            new ConvexError({
+                code: "NOT_FOUND",
+                message: `No auth user found for ${normalizedEmail}.`,
+            }),
+        );
+
+        const tenantUsers = await ctx.db
+            .query("tenantUsers")
+            .withIndex("by_userId", (q) => q.eq("userId", user._id))
+            .collect();
+        const activeTenantUsers = tenantUsers.filter((tenantUser) => tenantUser.isActive);
+
+        if (activeTenantUsers.length !== 1) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message:
+                    "This helper requires exactly one active tenant role for the target user.",
+            });
+        }
+
+        const activeTenantUser = firstOrThrow(activeTenantUsers, () =>
+            new ConvexError({
+                code: "VALIDATION_FAILED",
+                message:
+                    "This helper requires exactly one active tenant role for the target user.",
+            }),
+        );
+
+        const departments = await ctx.db
+            .query("departments")
+            .withIndex("by_tenantId", (q) => q.eq("tenantId", activeTenantUser.tenantId))
+            .collect();
+
+        return departments
+            .filter((department) => department.isActive)
+            .sort((left, right) => left.name.localeCompare(right.name))
+            .map((department) => ({
+                code: department.code,
+                departmentId: String(department._id),
+                name: department.name,
+                submissionEndsAt: department.submissionEndsAt,
+                submissionStartsAt: department.submissionStartsAt,
+                tenantId: String(department.tenantId),
+            }));
+    },
+});
+
+/**
+ * Switch a tenant-scoped account into Department User role and attach/create its department profile.
+ * Run via CLI:
+ * npx convex run seedData:setDepartmentUserRoleByEmail "{\"email\":\"you@example.com\",\"departmentId\":\"...\"}"
+ */
+export const setDepartmentUserRoleByEmail = mutation({
+    args: {
+        departmentId: v.id("departments"),
+        email: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const normalizedEmail = args.email.trim().toLowerCase();
+        const matchingUsers = await ctx.db
+            .query("users")
+            .withIndex("email", (q) => q.eq("email", normalizedEmail))
+            .collect();
+
+        if (matchingUsers.length !== 1) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: `Expected exactly one auth user for ${normalizedEmail}.`,
+            });
+        }
+
+        const user = firstOrThrow(matchingUsers, () =>
+            new ConvexError({
+                code: "NOT_FOUND",
+                message: `No auth user found for ${normalizedEmail}.`,
+            }),
+        );
+
+        const tenantUsers = await ctx.db
+            .query("tenantUsers")
+            .withIndex("by_userId", (q) => q.eq("userId", user._id))
+            .collect();
+        const activeTenantUsers = tenantUsers.filter((tenantUser) => tenantUser.isActive);
+
+        if (activeTenantUsers.length !== 1) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message:
+                    "This helper requires exactly one active tenant role for the target user.",
+            });
+        }
+
+        const activeTenantUser = firstOrThrow(activeTenantUsers, () =>
+            new ConvexError({
+                code: "VALIDATION_FAILED",
+                message:
+                    "This helper requires exactly one active tenant role for the target user.",
+            }),
+        );
+
+        const department = await ctx.db.get(args.departmentId);
+        if (!department || !department.isActive) {
+            throw new ConvexError({
+                code: "NOT_FOUND",
+                message: "Department not found or inactive.",
+            });
+        }
+
+        if (department.tenantId !== activeTenantUser.tenantId) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: "Department must belong to the same tenant as the user.",
+            });
+        }
+
+        await ctx.db.patch(activeTenantUser._id, {
+            role: "department_user",
+        });
+
+        const existingProfile = await ctx.db
+            .query("departmentUserProfiles")
+            .withIndex("by_tenantUserId", (q) => q.eq("tenantUserId", activeTenantUser._id))
+            .first();
+        const now = Date.now();
+
+        if (existingProfile) {
+            await ctx.db.patch(existingProfile._id, {
+                deactivatedAt: undefined,
+                departmentId: args.departmentId,
+                isActive: true,
+                normalizedEmail,
+                updatedAt: now,
+            });
+        } else {
+            await ctx.db.insert("departmentUserProfiles", {
+                createdAt: now,
+                departmentId: args.departmentId,
+                isActive: true,
+                normalizedEmail,
+                tenantId: activeTenantUser.tenantId,
+                tenantUserId: activeTenantUser._id,
+                updatedAt: now,
+            });
+        }
+
+        return {
+            departmentCode: department.code,
+            departmentId: String(department._id),
+            departmentName: department.name,
+            email: normalizedEmail,
+            role: "department_user",
+            tenantId: String(activeTenantUser.tenantId),
+            tenantUserId: String(activeTenantUser._id),
+        };
+    },
+});
+
+/**
+ * Create a minimal DU-ready department for a tenant user and switch that account to department_user.
+ * Run via CLI:
+ * npx convex run seedData:bootstrapDepartmentUserByEmail "{ email: 'you@example.com' }"
+ */
+export const bootstrapDepartmentUserByEmail = mutation({
+    args: {
+        budgetAllocation: v.optional(v.number()),
+        departmentCode: v.optional(v.string()),
+        departmentName: v.optional(v.string()),
+        email: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const normalizedEmail = args.email.trim().toLowerCase();
+        const matchingUsers = await ctx.db
+            .query("users")
+            .withIndex("email", (q) => q.eq("email", normalizedEmail))
+            .collect();
+
+        if (matchingUsers.length !== 1) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: `Expected exactly one auth user for ${normalizedEmail}.`,
+            });
+        }
+
+        const user = firstOrThrow(matchingUsers, () =>
+            new ConvexError({
+                code: "NOT_FOUND",
+                message: `No auth user found for ${normalizedEmail}.`,
+            }),
+        );
+
+        const tenantUsers = await ctx.db
+            .query("tenantUsers")
+            .withIndex("by_userId", (q) => q.eq("userId", user._id))
+            .collect();
+        const activeTenantUsers = tenantUsers.filter((tenantUser) => tenantUser.isActive);
+
+        if (activeTenantUsers.length !== 1) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message:
+                    "This helper requires exactly one active tenant role for the target user.",
+            });
+        }
+
+        const activeTenantUser = firstOrThrow(activeTenantUsers, () =>
+            new ConvexError({
+                code: "VALIDATION_FAILED",
+                message:
+                    "This helper requires exactly one active tenant role for the target user.",
+            }),
+        );
+
+        const now = Date.now();
+        const departmentName =
+            args.departmentName?.trim() || "Manual DU Verification Department";
+        const departmentCode =
+            args.departmentCode?.trim().toUpperCase() || "DU-MANUAL-VERIFY";
+        const budgetAllocation = args.budgetAllocation;
+        const submissionStartsAt = now - 2 * 24 * 60 * 60 * 1000;
+        const submissionEndsAt = now + 14 * 24 * 60 * 60 * 1000;
+
+        const existingDepartment = await ctx.db
+            .query("departments")
+            .withIndex("by_tenantId_code", (q) =>
+                q.eq("tenantId", activeTenantUser.tenantId).eq("code", departmentCode),
+            )
+            .first();
+
+        const departmentId =
+            existingDepartment?._id ??
+            (await ctx.db.insert("departments", {
+                code: departmentCode,
+                createdAt: now,
+                isActive: true,
+                name: departmentName,
+                procurementOfficerTenantUserId: activeTenantUser._id,
+                submissionEndsAt,
+                submissionStartsAt,
+                tenantId: activeTenantUser.tenantId,
+                updatedAt: now,
+                ...(typeof budgetAllocation === "number" ? { budgetAllocation } : {}),
+            }));
+
+        await ctx.db.patch(activeTenantUser._id, {
+            role: "department_user",
+        });
+
+        const existingProfile = await ctx.db
+            .query("departmentUserProfiles")
+            .withIndex("by_tenantUserId", (q) => q.eq("tenantUserId", activeTenantUser._id))
+            .first();
+
+        if (existingProfile) {
+            await ctx.db.patch(existingProfile._id, {
+                deactivatedAt: undefined,
+                departmentId,
+                isActive: true,
+                normalizedEmail,
+                updatedAt: now,
+            });
+        } else {
+            await ctx.db.insert("departmentUserProfiles", {
+                createdAt: now,
+                departmentId,
+                isActive: true,
+                normalizedEmail,
+                tenantId: activeTenantUser.tenantId,
+                tenantUserId: activeTenantUser._id,
+                updatedAt: now,
+            });
+        }
+
+        return {
+            budgetAllocation,
+            departmentCode,
+            departmentId: String(departmentId),
+            departmentName,
+            email: normalizedEmail,
+            role: "department_user",
+            submissionEndsAt,
+            submissionStartsAt,
+            tenantId: String(activeTenantUser.tenantId),
+            tenantUserId: String(activeTenantUser._id),
+        };
+    },
+});
+
+/**
+ * Clear the seeded DU budget allocation so the dashboard falls back to truthful empty-state dashes.
+ * Run via CLI:
+ * npx convex run seedData:clearDepartmentUserBudgetByEmail "{ email: 'you@example.com' }"
+ */
+export const clearDepartmentUserBudgetByEmail = mutation({
+    args: {
+        email: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const normalizedEmail = args.email.trim().toLowerCase();
+        const matchingUsers = await ctx.db
+            .query("users")
+            .withIndex("email", (q) => q.eq("email", normalizedEmail))
+            .collect();
+
+        if (matchingUsers.length !== 1) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: `Expected exactly one auth user for ${normalizedEmail}.`,
+            });
+        }
+
+        const user = firstOrThrow(matchingUsers, () =>
+            new ConvexError({
+                code: "NOT_FOUND",
+                message: `No auth user found for ${normalizedEmail}.`,
+            }),
+        );
+
+        const tenantUsers = await ctx.db
+            .query("tenantUsers")
+            .withIndex("by_userId", (q) => q.eq("userId", user._id))
+            .collect();
+        const activeTenantUser = tenantUsers.find((tenantUser) => tenantUser.isActive);
+
+        if (!activeTenantUser) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: "No active tenant role found for the target user.",
+            });
+        }
+
+        const profile = await ctx.db
+            .query("departmentUserProfiles")
+            .withIndex("by_tenantUserId", (q) => q.eq("tenantUserId", activeTenantUser._id))
+            .first();
+
+        if (!profile || !profile.isActive) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: "The target user does not have an active department profile.",
+            });
+        }
+
+        const department = await ctx.db.get(profile.departmentId);
+        if (!department || !department.isActive) {
+            throw new ConvexError({
+                code: "NOT_FOUND",
+                message: "Active department not found for the target user.",
+            });
+        }
+
+        const now = Date.now();
+        await ctx.db.patch(department._id, {
+            budgetAllocation: undefined,
+            updatedAt: now,
+        });
+
+        return {
+            cleared: true,
+            departmentCode: department.code,
+            departmentId: String(department._id),
+            departmentName: department.name,
+            email: normalizedEmail,
+            updatedAt: now,
+        };
+    },
+});
+
+/**
+ * Issue a fresh DU access code for an already-linked department user account.
+ * Run via CLI:
+ * npx convex run seedData:issueDepartmentAccessCodeForEmail "{ email: 'you@example.com', accessCode: 'DU-VERIFY-2026' }"
+ */
+export const issueDepartmentAccessCodeForEmail = mutation({
+    args: {
+        accessCode: v.string(),
+        email: v.string(),
+        expiresAt: v.optional(v.number()),
+    },
+    handler: async (ctx, args) => {
+        const normalizedEmail = args.email.trim().toLowerCase();
+        const normalizedAccessCode = normalizeDepartmentUserAccessCode(args.accessCode);
+        const matchingUsers = await ctx.db
+            .query("users")
+            .withIndex("email", (q) => q.eq("email", normalizedEmail))
+            .collect();
+
+        if (matchingUsers.length !== 1) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: `Expected exactly one auth user for ${normalizedEmail}.`,
+            });
+        }
+
+        const user = firstOrThrow(matchingUsers, () =>
+            new ConvexError({
+                code: "NOT_FOUND",
+                message: `No auth user found for ${normalizedEmail}.`,
+            }),
+        );
+
+        const tenantUsers = await ctx.db
+            .query("tenantUsers")
+            .withIndex("by_userId", (q) => q.eq("userId", user._id))
+            .collect();
+        const activeTenantUser = tenantUsers.find((tenantUser) => tenantUser.isActive);
+
+        if (!activeTenantUser) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: "No active tenant role found for the target user.",
+            });
+        }
+
+        const profile = await ctx.db
+            .query("departmentUserProfiles")
+            .withIndex("by_tenantUserId", (q) => q.eq("tenantUserId", activeTenantUser._id))
+            .first();
+
+        if (!profile || !profile.isActive) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: "The target user does not have an active department profile.",
+            });
+        }
+
+        const department = await ctx.db.get(profile.departmentId);
+        if (!department || !department.isActive) {
+            throw new ConvexError({
+                code: "NOT_FOUND",
+                message: "Active department not found for the target user.",
+            });
+        }
+
+        const now = Date.now();
+        const codeHash = await hashDepartmentUserAccessCode(normalizedAccessCode);
+        const existingCodes = await ctx.db
+            .query("departmentAccessCodes")
+            .withIndex("by_departmentId", (q) => q.eq("departmentId", department._id))
+            .collect();
+
+        for (const existingCode of existingCodes) {
+            if (existingCode.isActive) {
+                await ctx.db.patch(existingCode._id, {
+                    isActive: false,
+                    updatedAt: now,
+                });
+            }
+        }
+
+        const expiresAt = args.expiresAt ?? now + 30 * 24 * 60 * 60 * 1000;
+        const accessCodeId = await ctx.db.insert("departmentAccessCodes", {
+            codeHash,
+            codeSuffix: getDepartmentUserAccessCodeSuffix(normalizedAccessCode),
+            createdAt: now,
+            departmentId: department._id,
+            expiresAt,
+            isActive: true,
+            tenantId: department.tenantId,
+            updatedAt: now,
+        });
+
+        return {
+            accessCode: normalizedAccessCode,
+            accessCodeId: String(accessCodeId),
+            departmentCode: department.code,
+            departmentId: String(department._id),
+            departmentName: department.name,
+            email: normalizedEmail,
+            expiresAt,
         };
     },
 });

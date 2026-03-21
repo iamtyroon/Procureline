@@ -1,10 +1,5 @@
-import { RoleDashboardPlaceholder } from "@/src/components/auth/RoleDashboardPlaceholder";
+import { DepartmentUserDashboard } from "@/src/components/department-user/DepartmentUserDashboard";
 
 export default function DepartmentUserPage() {
-    return (
-        <RoleDashboardPlaceholder
-            title="Department User Dashboard"
-            description="Build your department procurement plan, track allocations, and submit a compliant proposal to your procurement office."
-        />
-    );
+    return <DepartmentUserDashboard />;
 }

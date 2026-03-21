@@ -43,6 +43,7 @@ export default defineSchema({
         procurementOfficerTenantUserId: v.id("tenantUsers"),
         name: v.string(),
         code: v.string(),
+        budgetAllocation: v.optional(v.number()),
         isActive: v.boolean(),
         submissionStartsAt: v.number(),
         submissionEndsAt: v.number(),
@@ -52,6 +53,62 @@ export default defineSchema({
         .index("by_tenantId", ["tenantId"])
         .index("by_tenantId_code", ["tenantId", "code"])
         .index("by_procurementOfficerTenantUserId", ["procurementOfficerTenantUserId"]),
+
+    procurementCategories: defineTable({
+        tenantId: v.id("tenants"),
+        name: v.string(),
+        description: v.optional(v.string()),
+        isActive: v.boolean(),
+        sortOrder: v.number(),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_tenantId", ["tenantId"])
+        .index("by_tenantId_isActive", ["tenantId", "isActive"]),
+
+    procurementItems: defineTable({
+        tenantId: v.id("tenants"),
+        categoryId: v.id("procurementCategories"),
+        name: v.string(),
+        description: v.optional(v.string()),
+        isActive: v.boolean(),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_tenantId", ["tenantId"])
+        .index("by_categoryId", ["categoryId"])
+        .index("by_tenantId_isActive", ["tenantId", "isActive"]),
+
+    plans: defineTable({
+        tenantId: v.id("tenants"),
+        departmentId: v.id("departments"),
+        fiscalYear: v.string(),
+        status: v.union(
+            v.literal("draft"),
+            v.literal("submitted"),
+            v.literal("rejected"),
+            v.literal("approved"),
+        ),
+        itemCount: v.number(),
+        estimatedBudgetUsed: v.number(),
+        selectedCategoryIds: v.array(v.id("procurementCategories")),
+        categorySummaries: v.array(v.object({
+            categoryId: v.id("procurementCategories"),
+            categoryName: v.string(),
+            amount: v.number(),
+            itemCount: v.number(),
+        })),
+        rejectionComment: v.optional(v.string()),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+        submittedAt: v.optional(v.number()),
+        approvedAt: v.optional(v.number()),
+        rejectedAt: v.optional(v.number()),
+    })
+        .index("by_tenantId", ["tenantId"])
+        .index("by_departmentId", ["departmentId"])
+        .index("by_departmentId_fiscalYear", ["departmentId", "fiscalYear"])
+        .index("by_tenantId_status", ["tenantId", "status"]),
 
     departmentAccessCodes: defineTable({
         tenantId: v.id("tenants"),
