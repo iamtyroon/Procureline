@@ -37,6 +37,7 @@ export interface SessionMetadataRecordLike {
     platformAdminAuthStage?: PlatformAdminAuthStage;
     platformAdminChallengeId?: string;
     platformAdminRiskLevel?: PlatformAdminRiskLevel;
+    platformAdminRiskReasons?: string[];
     platformAdminVerifiedAt?: number;
     platformAdminTrustedAt?: number;
     platformAdminVerificationMethod?: PlatformAdminVerificationMethod;
@@ -216,3 +217,4 @@ export function clearRememberMeBootstrapValue(): void {
 
     window.sessionStorage.removeItem(REMEMBER_ME_STORAGE_KEY);
 }
+

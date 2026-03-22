@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderCircle, LogIn } from "lucide-react";
@@ -15,7 +15,6 @@ import {
     writeRememberMeBootstrapValue,
 } from "@/lib/auth/session";
 import { shouldTerminateAuthenticatedSession } from "@/lib/auth/roles";
-import type { PlatformAdminRequestContext } from "@/lib/platform-admin/risk";
 import { normalizeAuthEmail } from "@/lib/security/input";
 import { loginSchema, type LoginFormData } from "@/lib/validators/auth";
 import { api } from "@/convex/_generated/api";
@@ -38,21 +37,19 @@ const AUTH_REASON_MESSAGES: Record<string, string> = {
     subscription_inactive: "Subscription inactive. Contact your administrator.",
     password_reset_success: PASSWORD_RESET_SUCCESS_MESSAGE,
 };
+const PLATFORM_ADMIN_SHARED_LOGIN_MESSAGE =
+    "Platform Admin accounts must use the dedicated internal admin sign-in page.";
 
 interface LoginFormProps {
     reason?: string | null;
-    requestContext: PlatformAdminRequestContext;
 }
 
-export function LoginForm({ reason, requestContext }: LoginFormProps) {
+export function LoginForm({ reason }: LoginFormProps) {
     const { signIn, signOut } = useAuthActions();
     const { isAuthenticated } = useConvexAuth();
     const authContext = useQuery(
         api.functions.users.getAuthContext,
         isAuthenticated ? {} : "skip",
-    );
-    const beginPlatformAdminSignIn = useAction(
-        api.functions.platformAdminAuth.beginPlatformAdminSignIn,
     );
     const ensureCurrentSessionMetadata = useMutation(
         api.functions.sessions.ensureCurrentSessionMetadata,
@@ -111,17 +108,15 @@ export function LoginForm({ reason, requestContext }: LoginFormProps) {
             try {
                 if (currentAuthContext.role === "platform_admin") {
                     clearRememberMeBootstrapValue();
-                    const adminResult = await beginPlatformAdminSignIn({
-                        requestContext: {
-                            city: requestContext.city ?? null,
-                            country: requestContext.country ?? null,
-                            ipAddress: requestContext.ipAddress ?? null,
-                            region: requestContext.region ?? null,
-                            userAgent: requestContext.userAgent ?? null,
-                        },
-                    });
-                    setIsSubmitting(false);
-                    router.replace(adminResult.redirectPath);
+
+                    if (isSubmitting) {
+                        await signOut();
+                        setIsSubmitting(false);
+                        setServerError(PLATFORM_ADMIN_SHARED_LOGIN_MESSAGE);
+                        return;
+                    }
+
+                    router.replace(currentAuthContext.homePath);
                     return;
                 }
 
@@ -149,14 +144,9 @@ export function LoginForm({ reason, requestContext }: LoginFormProps) {
         void handleAuthenticatedState();
     }, [
         authContext,
-        beginPlatformAdminSignIn,
         ensureCurrentSessionMetadata,
         isAuthenticated,
-        requestContext.city,
-        requestContext.country,
-        requestContext.ipAddress,
-        requestContext.region,
-        requestContext.userAgent,
+        isSubmitting,
         router,
         signOut,
     ]);
@@ -212,7 +202,8 @@ export function LoginForm({ reason, requestContext }: LoginFormProps) {
         (isAuthenticated &&
             authContext !== undefined &&
             authContext !== null &&
-            authContext.isSessionValid);
+            authContext.isSessionValid &&
+            authContext.role !== "platform_admin");
 
     return (
         <Card className="border-border/50 shadow-lg">
@@ -283,7 +274,7 @@ export function LoginForm({ reason, requestContext }: LoginFormProps) {
                         <Input
                             id="password"
                             type="password"
-                            placeholder="••••••••••••"
+                            placeholder="............"
                             autoComplete="current-password"
                             {...register("password")}
                             aria-invalid={errors.password ? "true" : undefined}
@@ -334,7 +325,7 @@ export function LoginForm({ reason, requestContext }: LoginFormProps) {
                         {isBusy ? (
                             <span className="flex items-center gap-2">
                                 <LoaderCircle className="h-4 w-4 animate-spin" />
-                                Signing in…
+                                Signing in...
                             </span>
                         ) : (
                             "Sign in"

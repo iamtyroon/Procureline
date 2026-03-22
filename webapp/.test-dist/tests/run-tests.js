@@ -5,6 +5,7 @@ const department_user_dashboard_test_1 = require("./department-user-dashboard.te
 const department_user_access_test_1 = require("./department-user-access.test");
 const password_reset_test_1 = require("./password-reset.test");
 const platform_admin_auth_test_1 = require("./platform-admin-auth.test");
+const platform_admin_dashboard_test_1 = require("./platform-admin-dashboard.test");
 const pricing_flow_test_1 = require("./pricing-flow.test");
 const procurement_officer_dashboard_test_1 = require("./procurement-officer-dashboard.test");
 const public_auth_entry_test_1 = require("./public-auth-entry.test");
@@ -24,6 +25,7 @@ async function main() {
         ...(await (0, department_user_access_test_1.runDepartmentUserAccessTests)()),
         ...(0, password_reset_test_1.runPasswordResetTests)(),
         ...(await (0, platform_admin_auth_test_1.runPlatformAdminAuthTests)()),
+        ...(await (0, platform_admin_dashboard_test_1.runPlatformAdminDashboardTests)()),
         ...(0, pricing_flow_test_1.runPricingFlowTests)(),
         ...(0, procurement_officer_dashboard_test_1.runProcurementOfficerDashboardTests)(),
         ...(0, public_auth_entry_test_1.runPublicAuthEntryTests)(),

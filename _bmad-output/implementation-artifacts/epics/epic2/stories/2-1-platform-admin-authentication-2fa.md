@@ -1,6 +1,6 @@
 # Story 2.1: Platform Admin Authentication & 2FA
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -437,5 +437,5 @@ gpt-5-codex
 - Story ID: `2.1`
 - Story Key: `2-1-platform-admin-authentication-2fa`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic2/stories/2-1-platform-admin-authentication-2fa.md`
-- Final Status: `review`
-- Completion Note: `Dedicated Platform Admin login, OTP setup and verification, hashed backup-code recovery, suspicious-login checks, 30-minute privileged session enforcement, revoke-all controls, deletion blocking, and regression coverage are implemented and ready for review.`
+- Final Status: `done`
+- Completion Note: `Dedicated Platform Admin login, OTP setup and verification, hashed backup-code recovery, suspicious-login checks, 30-minute privileged session enforcement, revoke-all controls, deletion blocking, and regression coverage are implemented and verified complete.`

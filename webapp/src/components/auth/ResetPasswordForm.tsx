@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { useMutation } from "convex/react";
 import { Check, Circle, LockKeyhole } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { api } from "@/convex/_generated/api";
 import {
     isPasswordResetLinkExpired,
     matchesInitialPasswordResetAttempt,
@@ -45,6 +47,9 @@ export function ResetPasswordForm({
     initialExpiresAt,
 }: ResetPasswordFormProps) {
     const { signIn, signOut } = useAuthActions();
+    const clearCurrentPlatformAdminPasswordResetRequirement = useMutation(
+        api.functions.platformAdminAuth.clearCurrentPlatformAdminPasswordResetRequirement,
+    );
     const router = useRouter();
     const [serverError, setServerError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -102,6 +107,7 @@ export function ResetPasswordForm({
             formData.set("flow", "reset-verification");
 
             await signIn("password", formData);
+            await clearCurrentPlatformAdminPasswordResetRequirement({});
             await signOut();
             router.replace(`/login?reason=${PASSWORD_RESET_SUCCESS_REASON}`);
         } catch (error: unknown) {
@@ -191,7 +197,7 @@ export function ResetPasswordForm({
                             id="new-password"
                             type="password"
                             autoComplete="new-password"
-                            placeholder="••••••••••••"
+                            placeholder="............"
                             {...register("newPassword")}
                             aria-invalid={errors.newPassword ? "true" : undefined}
                             aria-describedby="reset-password-requirements"
@@ -212,10 +218,11 @@ export function ResetPasswordForm({
                                 return (
                                     <li
                                         key={requirement.label}
-                                        className={`flex items-center gap-1.5 ${isMet
-                                            ? "text-primary"
-                                            : "text-muted-foreground"
-                                            }`}
+                                        className={`flex items-center gap-1.5 ${
+                                            isMet
+                                                ? "text-primary"
+                                                : "text-muted-foreground"
+                                        }`}
                                     >
                                         <span className="flex-shrink-0">
                                             {isMet ? (

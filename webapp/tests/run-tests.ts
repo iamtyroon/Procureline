@@ -3,6 +3,7 @@ import { runDepartmentUserDashboardTests } from "./department-user-dashboard.tes
 import { runDepartmentUserAccessTests } from "./department-user-access.test";
 import { runPasswordResetTests } from "./password-reset.test";
 import { runPlatformAdminAuthTests } from "./platform-admin-auth.test";
+import { runPlatformAdminDashboardTests } from "./platform-admin-dashboard.test";
 import { runPricingFlowTests } from "./pricing-flow.test";
 import { runProcurementOfficerDashboardTests } from "./procurement-officer-dashboard.test";
 import { runPublicAuthEntryTests } from "./public-auth-entry.test";
@@ -23,6 +24,7 @@ async function main(): Promise<void> {
         ...(await runDepartmentUserAccessTests()),
         ...runPasswordResetTests(),
         ...(await runPlatformAdminAuthTests()),
+        ...(await runPlatformAdminDashboardTests()),
         ...runPricingFlowTests(),
         ...runProcurementOfficerDashboardTests(),
         ...runPublicAuthEntryTests(),

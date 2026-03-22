@@ -16,6 +16,33 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 
+function formatVerificationMethod(
+    verificationMethod: "email_otp" | "backup_code" | null,
+): string {
+    if (verificationMethod === "backup_code") {
+        return "Backup code";
+    }
+
+    if (verificationMethod === "email_otp") {
+        return "Email OTP";
+    }
+
+    return "Pending verification";
+}
+
+function formatSessionLocation(args: {
+    ipAddress: string | null;
+    location: string | null;
+}): string {
+    if (args.location) {
+        return args.ipAddress
+            ? `${args.location} (${args.ipAddress})`
+            : args.location;
+    }
+
+    return args.ipAddress ?? "Location unavailable";
+}
+
 export function PlatformAdminSecurityCard() {
     const { signOut } = useAuthActions();
     const securityOverview = useQuery(
@@ -153,14 +180,25 @@ export function PlatformAdminSecurityCard() {
                                     {session.isCurrent ? "Current browser" : "Tracked session"}
                                 </div>
                                 <p className="text-sm text-slate-600">
-                                    {session.location ?? "Location unavailable"} ·{" "}
+                                    {formatSessionLocation({
+                                        ipAddress: session.ipAddress,
+                                        location: session.location,
+                                    })}
+                                </p>
+                                <p className="text-sm text-slate-600">
                                     {session.userAgent ?? "User agent unavailable"}
                                 </p>
                                 <p className="text-xs text-slate-500">
-                                    Last activity:{" "}
-                                    {new Date(session.lastActivityAt).toLocaleString()} · Status:{" "}
-                                    {session.status.replaceAll("_", " ")}
+                                    Last activity: {new Date(session.lastActivityAt).toLocaleString()}
                                 </p>
+                                <p className="text-xs text-slate-500">
+                                    Status: {session.status.replaceAll("_", " ")} | Method: {formatVerificationMethod(session.verificationMethod)}
+                                </p>
+                                {session.revocationReason ? (
+                                    <p className="text-xs text-amber-700">
+                                        Revocation reason: {session.revocationReason.replaceAll("_", " ")}
+                                    </p>
+                                ) : null}
                             </div>
                         </div>
                     ))}

@@ -4,6 +4,12 @@ import {
     PLATFORM_ADMIN_DELETE_BLOCKED_MESSAGE,
     consumePlatformAdminBackupCode,
 } from "../lib/platform-admin/auth";
+import {
+    createSignedPlatformAdminRequestContextToken,
+    DEVELOPMENT_PLATFORM_ADMIN_REQUEST_CONTEXT_TOKEN_SECRET,
+    resolvePlatformAdminRequestContextTokenSecret,
+    verifySignedPlatformAdminRequestContextToken,
+} from "../lib/platform-admin/request-context-token";
 import { evaluatePlatformAdminRisk } from "../lib/platform-admin/risk";
 import {
     PLATFORM_ADMIN_INACTIVITY_WINDOW_MS,
@@ -12,6 +18,14 @@ import {
 } from "../lib/auth/session";
 
 const NOW = new Date("2026-03-22T10:00:00.000Z").getTime();
+const REQUEST_CONTEXT = {
+    city: "Nairobi",
+    country: "KE",
+    ipAddress: "203.0.113.12",
+    region: "Nairobi County",
+    userAgent: "ProcurelineAdminBrowser/1.0",
+};
+const REQUEST_CONTEXT_TEST_SECRET = "platform-admin-request-context-test-secret";
 
 export async function runPlatformAdminAuthTests(): Promise<string[]> {
     const completedTests: string[] = [];
@@ -82,6 +96,64 @@ export async function runPlatformAdminAuthTests(): Promise<string[]> {
     assert.deepEqual(suspiciousRisk.reasons, ["country_changed", "ip_changed"]);
     completedTests.push(
         "platform admin suspicious-login evaluation flags country and ip drift as step-up risks",
+    );
+
+    const fallbackSecret = resolvePlatformAdminRequestContextTokenSecret({
+        secret: undefined,
+    });
+    assert.equal(
+        fallbackSecret,
+        DEVELOPMENT_PLATFORM_ADMIN_REQUEST_CONTEXT_TOKEN_SECRET,
+    );
+    completedTests.push(
+        "platform admin request-context signing falls back to the documented built-in secret when no override is configured",
+    );
+
+    const signedRequestContext = await createSignedPlatformAdminRequestContextToken({
+        context: REQUEST_CONTEXT,
+        now: NOW,
+        secret: REQUEST_CONTEXT_TEST_SECRET,
+    });
+    const verifiedRequestContext =
+        await verifySignedPlatformAdminRequestContextToken({
+            now: NOW + 60_000,
+            secret: REQUEST_CONTEXT_TEST_SECRET,
+            token: signedRequestContext,
+        });
+    assert.deepEqual(verifiedRequestContext, {
+        ok: true,
+        value: REQUEST_CONTEXT,
+    });
+    completedTests.push(
+        "platform admin request-context tokens round-trip only when the server signature is intact",
+    );
+
+    const [payload, signature] = signedRequestContext.split(".");
+    const tamperedToken = `${payload}.tampered${signature}`;
+    const tamperedResult = await verifySignedPlatformAdminRequestContextToken({
+        now: NOW + 60_000,
+        secret: REQUEST_CONTEXT_TEST_SECRET,
+        token: tamperedToken,
+    });
+    assert.deepEqual(tamperedResult, {
+        ok: false,
+        reason: "invalid",
+    });
+    completedTests.push(
+        "platform admin request-context verification rejects tampered client submissions",
+    );
+
+    const expiredResult = await verifySignedPlatformAdminRequestContextToken({
+        now: NOW + 1000 * 60 * 16,
+        secret: REQUEST_CONTEXT_TEST_SECRET,
+        token: signedRequestContext,
+    });
+    assert.deepEqual(expiredResult, {
+        ok: false,
+        reason: "expired",
+    });
+    completedTests.push(
+        "platform admin request-context tokens expire quickly so stale login pages cannot replay trusted metadata",
     );
 
     const backupCodes = [

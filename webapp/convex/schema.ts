@@ -202,6 +202,76 @@ export default defineSchema({
         updatedAt: v.number(),
     }).index("by_userId", ["userId"]),
 
+    platformAdminPreferences: defineTable({
+        userId: v.id("users"),
+        alertSeverityFilter: v.union(
+            v.literal("all"),
+            v.literal("warning"),
+            v.literal("critical"),
+        ),
+        hiddenWidgetIds: v.array(v.union(
+            v.literal("recent_tenants"),
+            v.literal("system_health"),
+            v.literal("recent_alerts"),
+        )),
+        sidebarCollapsed: v.boolean(),
+        widgetOrder: v.array(v.union(
+            v.literal("recent_tenants"),
+            v.literal("system_health"),
+            v.literal("recent_alerts"),
+        )),
+        updatedAt: v.number(),
+    }).index("by_userId", ["userId"]),
+
+    platformHealthSnapshots: defineTable({
+        capturedAt: v.number(),
+        summaryState: v.optional(v.union(
+            v.literal("healthy"),
+            v.literal("warning"),
+            v.literal("critical"),
+        )),
+        api: v.optional(v.object({
+            state: v.union(
+                v.literal("healthy"),
+                v.literal("warning"),
+                v.literal("critical"),
+            ),
+            detail: v.optional(v.string()),
+        })),
+        database: v.optional(v.object({
+            state: v.union(
+                v.literal("healthy"),
+                v.literal("warning"),
+                v.literal("critical"),
+            ),
+            detail: v.optional(v.string()),
+        })),
+        jobs: v.optional(v.object({
+            state: v.union(
+                v.literal("healthy"),
+                v.literal("warning"),
+                v.literal("critical"),
+            ),
+            detail: v.optional(v.string()),
+        })),
+        storage: v.optional(v.object({
+            state: v.union(
+                v.literal("healthy"),
+                v.literal("warning"),
+                v.literal("critical"),
+            ),
+            detail: v.optional(v.string()),
+        })),
+        email: v.optional(v.object({
+            state: v.union(
+                v.literal("healthy"),
+                v.literal("warning"),
+                v.literal("critical"),
+            ),
+            detail: v.optional(v.string()),
+        })),
+    }).index("by_capturedAt", ["capturedAt"]),
+
     platformAdminChallenges: defineTable({
         userId: v.id("users"),
         sessionId: v.id("authSessions"),
@@ -253,6 +323,11 @@ export default defineSchema({
             v.literal("normal"),
             v.literal("suspicious"),
         )),
+        platformAdminRiskReasons: v.optional(v.array(v.union(
+            v.literal("country_changed"),
+            v.literal("ip_changed"),
+            v.literal("user_agent_changed"),
+        ))),
         platformAdminVerifiedAt: v.optional(v.number()),
         platformAdminTrustedAt: v.optional(v.number()),
         platformAdminVerificationMethod: v.optional(v.union(
@@ -401,3 +476,4 @@ export default defineSchema({
         .index("by_provider_status", ["provider", "status", "updatedAt"])
         .index("by_status", ["status", "updatedAt"]),
 });
+

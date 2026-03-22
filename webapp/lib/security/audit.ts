@@ -11,7 +11,10 @@ export const AUDIT_EVENT_NAMES = {
     departmentUserWindowBlocked: "du.access_code.window_blocked",
     platformAdminBackupCodeRejected: "platform_admin.auth.backup_code_rejected",
     platformAdminBackupCodeUsed: "platform_admin.auth.backup_code_used",
+    platformAdminChallengeBlocked: "platform_admin.auth.challenge_blocked",
+    platformAdminChallengeExpired: "platform_admin.auth.challenge_expired",
     platformAdminChallengeIssued: "platform_admin.auth.challenge_issued",
+    platformAdminChallengeRejected: "platform_admin.auth.challenge_rejected",
     platformAdminChallengeVerified: "platform_admin.auth.challenge_verified",
     platformAdminDeletionBlocked: "platform_admin.account.delete_blocked",
     platformAdminNonAdminDenied: "platform_admin.auth.non_admin_denied",
@@ -203,3 +206,4 @@ export function buildBlockedOriginEvent(args: {
         timestamp: args.timestamp ?? Date.now(),
     };
 }
+

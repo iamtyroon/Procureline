@@ -1,6 +1,6 @@
 import { getAuthSessionId, getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import {
     mutation,
     query,
@@ -13,9 +13,36 @@ import {
     type SessionStatus,
 } from "../../lib/auth/session";
 
+interface CurrentSessionDocuments {
+    authSession: Doc<"authSessions"> | null;
+    metadata: Doc<"sessionMetadata"> | null;
+    sessionId: Id<"authSessions">;
+    userId: Id<"users">;
+}
+
+async function loadLatestSessionMetadata(
+    ctx: QueryCtx | MutationCtx,
+    sessionId: Id<"authSessions">,
+): Promise<Doc<"sessionMetadata"> | null> {
+    const metadataRecords = await ctx.db
+        .query("sessionMetadata")
+        .withIndex("by_sessionId", (q) => q.eq("sessionId", sessionId))
+        .collect();
+
+    return (
+        metadataRecords.sort((left, right) => {
+            if (left.createdAt !== right.createdAt) {
+                return right.createdAt - left.createdAt;
+            }
+
+            return right._creationTime - left._creationTime;
+        })[0] ?? null
+    );
+}
+
 export async function loadCurrentSessionDocuments(
     ctx: QueryCtx | MutationCtx,
-) {
+): Promise<CurrentSessionDocuments | null> {
     const [sessionId, userId] = await Promise.all([
         getAuthSessionId(ctx),
         getAuthUserId(ctx),
@@ -27,10 +54,7 @@ export async function loadCurrentSessionDocuments(
 
     const [authSession, metadata] = await Promise.all([
         ctx.db.get(sessionId),
-        ctx.db
-            .query("sessionMetadata")
-            .withIndex("by_sessionId", (q) => q.eq("sessionId", sessionId))
-            .first(),
+        loadLatestSessionMetadata(ctx, sessionId),
     ]);
 
     return { sessionId, userId, authSession, metadata };
@@ -113,12 +137,13 @@ export const ensureCurrentSessionMetadata = mutation({
             });
         }
 
+        const existingMetadata = currentSession.metadata;
         const now = Date.now();
         const rememberMe =
-            args.rememberMe ?? currentSession.metadata?.rememberMe ?? false;
+            args.rememberMe ?? (existingMetadata ? existingMetadata.rememberMe : false);
 
-        if (currentSession.metadata) {
-            await ctx.db.patch(currentSession.metadata._id, {
+        if (existingMetadata) {
+            await ctx.db.patch(existingMetadata._id, {
                 rememberMe,
                 lastActivityAt: now,
             });
@@ -181,10 +206,8 @@ export const touchCurrentSession = mutation({
             return result;
         }
 
-        if (!currentSession.metadata) {
-            // No metadata exists yet — ensureCurrentSessionMetadata has not run.
-            // Return without creating a default record to avoid silently
-            // downgrading a remember-me session to a 24h inactivity window.
+        const existingMetadata = currentSession.metadata;
+        if (!existingMetadata) {
             const result: {
                 touched: boolean;
                 sessionStatus: SessionStatus;
@@ -200,7 +223,7 @@ export const touchCurrentSession = mutation({
 
         const now = Date.now();
 
-        await ctx.db.patch(currentSession.metadata._id, {
+        await ctx.db.patch(existingMetadata._id, {
             lastActivityAt: now,
         });
 
@@ -234,11 +257,12 @@ export const markCurrentSessionLoggedOut = mutation({
             return null;
         }
 
+        const existingMetadata = currentSession.metadata;
         const now = Date.now();
         const patch = createLogoutMetadataPatch(now);
 
-        if (currentSession.metadata) {
-            await ctx.db.patch(currentSession.metadata._id, patch);
+        if (existingMetadata) {
+            await ctx.db.patch(existingMetadata._id, patch);
         } else {
             await ctx.db.insert("sessionMetadata", {
                 sessionId: currentSession.sessionId,

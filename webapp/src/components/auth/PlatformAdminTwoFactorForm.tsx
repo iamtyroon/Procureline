@@ -108,14 +108,17 @@ export function PlatformAdminTwoFactorForm({
         }
 
         if (authContext.role !== "platform_admin") {
-            void signOut().then(() => {
-                router.replace("/platform-admin/login");
-            });
+            router.replace(authContext.homePath);
             return;
         }
 
         if (authContext.platformAdminAuthStage === "verified") {
             router.replace("/platform-admin");
+            return;
+        }
+
+        if (authContext.platformAdminAuthStage === "reset_required") {
+            router.replace("/platform-admin/login?reason=password_reset_required");
             return;
         }
 

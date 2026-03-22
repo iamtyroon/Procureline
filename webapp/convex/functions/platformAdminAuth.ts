@@ -40,6 +40,10 @@ import {
     fingerprintPlatformAdminRequestContext,
     sha256Hex,
 } from "../../lib/platform-admin/risk";
+import {
+    PlatformAdminRequestContextSignatureError,
+    verifySignedPlatformAdminRequestContext,
+} from "../../lib/platform-admin/request-context-token";
 import { resolveSessionState } from "../../lib/auth/session";
 import {
     validateEmailInput,
@@ -60,7 +64,6 @@ const requestContextValidator = v.object({
     region: v.union(v.string(), v.null()),
     userAgent: v.union(v.string(), v.null()),
 });
-
 const riskReasonValidator = v.union(
     v.literal("country_changed"),
     v.literal("ip_changed"),
@@ -164,6 +167,35 @@ function createAuditEntry(args: {
     };
 }
 
+function getRequestContextAuditMetadata(args: {
+    challengeId?: Id<"platformAdminChallenges">;
+    riskReasons?: PlatformAdminRiskReason[];
+    session: NonNullable<Awaited<ReturnType<typeof loadCurrentSessionDocuments>>>;
+}): Record<string, unknown> {
+    return {
+        challengeId: args.challengeId ? String(args.challengeId) : undefined,
+        ipAddress: args.session.metadata?.platformAdminIpAddress,
+        ipCity: args.session.metadata?.platformAdminIpCity,
+        ipCountry: args.session.metadata?.platformAdminIpCountry,
+        ipRegion: args.session.metadata?.platformAdminIpRegion,
+        riskReasons: args.riskReasons,
+        sessionId: String(args.session.sessionId),
+        userAgent: args.session.metadata?.platformAdminUserAgent,
+    };
+}
+
+async function appendPlatformAdminAuditEntry(
+    ctx: MutationCtx,
+    args: {
+        event: AuditEventName;
+        metadata?: Record<string, unknown>;
+        outcome: AuditOutcome;
+        userId: Id<"users">;
+    },
+): Promise<void> {
+    await appendAuditLogBestEffort(ctx, createAuditEntry(args));
+}
+
 async function ensureSecurityState(
     ctx: MutationCtx,
     userId: Id<"users">,
@@ -236,18 +268,30 @@ async function getActiveChallenge(
         userId: Id<"users">;
     },
 ): Promise<Doc<"platformAdminChallenges"> | null> {
-    const challenges = await ctx.db
-        .query("platformAdminChallenges")
-        .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-        .collect();
+    const challenges = args.purpose
+        ? await (() => {
+              const purpose = args.purpose;
+              return ctx.db
+                  .query("platformAdminChallenges")
+                  .withIndex("by_userId_sessionId_purpose", (q) =>
+                      q
+                          .eq("userId", args.userId)
+                          .eq("sessionId", args.sessionId)
+                          .eq("purpose", purpose),
+                  )
+                  .collect();
+          })()
+        : await ctx.db
+              .query("platformAdminChallenges")
+              .withIndex("by_sessionId", (q) => q.eq("sessionId", args.sessionId))
+              .collect();
     const now = Date.now();
 
     return (
         challenges
             .filter(
                 (challenge) =>
-                    challenge.sessionId === args.sessionId &&
-                    (args.purpose ? challenge.purpose === args.purpose : true) &&
+                    challenge.userId === args.userId &&
                     challenge.consumedAt === undefined &&
                     challenge.revokedAt === undefined &&
                     challenge.expiresAt > now,
@@ -259,17 +303,15 @@ async function getActiveChallenge(
 async function revokeSessionChallenges(
     ctx: MutationCtx,
     sessionId: Id<"authSessions">,
-    userId: Id<"users">,
     now: number,
 ): Promise<void> {
     const challenges = await ctx.db
         .query("platformAdminChallenges")
-        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .withIndex("by_sessionId", (q) => q.eq("sessionId", sessionId))
         .collect();
 
     for (const challenge of challenges) {
         if (
-            challenge.sessionId !== sessionId ||
             challenge.consumedAt !== undefined ||
             challenge.revokedAt !== undefined ||
             challenge.expiresAt <= now
@@ -284,7 +326,7 @@ async function revokeSessionChallenges(
     }
 }
 
-export const initializeCurrentPlatformAdminSession = mutation({
+export const initializeCurrentPlatformAdminSession = internalMutation({
     args: {
         requestContext: requestContextValidator,
     },
@@ -312,17 +354,15 @@ export const initializeCurrentPlatformAdminSession = mutation({
         }
 
         if (authContext.role !== "platform_admin" || authContext.scope !== "platform") {
-            await appendAuditLogBestEffort(
-                ctx,
-                createAuditEntry({
-                    event: AUDIT_EVENT_NAMES.platformAdminNonAdminDenied,
-                    metadata: {
-                        attemptedRole: authContext.role,
-                    },
-                    outcome: AUDIT_OUTCOMES.blockedPlatformAdminAccessDenied,
-                    userId,
-                }),
-            );
+            await appendPlatformAdminAuditEntry(ctx, {
+                event: AUDIT_EVENT_NAMES.platformAdminNonAdminDenied,
+                metadata: {
+                    attemptedRole: authContext.role,
+                    sessionId: String(session.sessionId),
+                },
+                outcome: AUDIT_OUTCOMES.blockedPlatformAdminAccessDenied,
+                userId,
+            });
 
             throw new ConvexError({
                 code: "UNAUTHORIZED",
@@ -364,6 +404,7 @@ export const initializeCurrentPlatformAdminSession = mutation({
             isPlatformAdminSession: true,
             platformAdminAuthStage: stage,
             platformAdminRiskLevel: risk.level as "normal" | "suspicious",
+            platformAdminRiskReasons: risk.reasons,
             platformAdminIpAddress: args.requestContext.ipAddress ?? undefined,
             platformAdminIpCity: args.requestContext.city ?? undefined,
             platformAdminIpCountry: args.requestContext.country ?? undefined,
@@ -383,6 +424,7 @@ export const initializeCurrentPlatformAdminSession = mutation({
                 isPlatformAdminSession: true,
                 platformAdminAuthStage: stage,
                 platformAdminRiskLevel: risk.level as "normal" | "suspicious",
+                platformAdminRiskReasons: risk.reasons,
                 platformAdminIpAddress: args.requestContext.ipAddress ?? undefined,
                 platformAdminIpCity: args.requestContext.city ?? undefined,
                 platformAdminIpCountry: args.requestContext.country ?? undefined,
@@ -391,28 +433,41 @@ export const initializeCurrentPlatformAdminSession = mutation({
             });
         }
 
-        await appendAuditLogBestEffort(
-            ctx,
-            createAuditEntry({
-                event:
-                    stage === "reset_required"
-                        ? AUDIT_EVENT_NAMES.platformAdminPasswordResetRequired
-                        : AUDIT_EVENT_NAMES.platformAdminSessionInitialized,
-                metadata: {
-                    riskLevel: risk.level,
-                    riskReasons: risk.reasons,
-                    sessionId: String(session.sessionId),
-                    stage,
-                },
-                outcome:
-                    stage === "reset_required"
-                        ? AUDIT_OUTCOMES.blockedPlatformAdminPasswordResetRequired
-                        : risk.level === "suspicious"
-                            ? AUDIT_OUTCOMES.allowedWithStepUp
-                            : AUDIT_OUTCOMES.allowed,
+        const auditMetadata = {
+            ipAddress: args.requestContext.ipAddress ?? undefined,
+            ipCity: args.requestContext.city ?? undefined,
+            ipCountry: args.requestContext.country ?? undefined,
+            ipRegion: args.requestContext.region ?? undefined,
+            riskLevel: risk.level,
+            riskReasons: risk.reasons,
+            sessionId: String(session.sessionId),
+            stage,
+            userAgent: args.requestContext.userAgent ?? undefined,
+        };
+
+        await appendPlatformAdminAuditEntry(ctx, {
+            event:
+                stage === "reset_required"
+                    ? AUDIT_EVENT_NAMES.platformAdminPasswordResetRequired
+                    : AUDIT_EVENT_NAMES.platformAdminSessionInitialized,
+            metadata: auditMetadata,
+            outcome:
+                stage === "reset_required"
+                    ? AUDIT_OUTCOMES.blockedPlatformAdminPasswordResetRequired
+                    : risk.level === "suspicious"
+                        ? AUDIT_OUTCOMES.allowedWithStepUp
+                        : AUDIT_OUTCOMES.allowed,
+            userId,
+        });
+
+        if (risk.level === "suspicious") {
+            await appendPlatformAdminAuditEntry(ctx, {
+                event: AUDIT_EVENT_NAMES.platformAdminSuspiciousLoginDetected,
+                metadata: auditMetadata,
+                outcome: AUDIT_OUTCOMES.allowedWithStepUp,
                 userId,
-            }),
-        );
+            });
+        }
 
         return {
             redirectPath: getPlatformAdminRedirectPath(stage),
@@ -424,7 +479,9 @@ export const initializeCurrentPlatformAdminSession = mutation({
 });
 
 export const prepareCurrentTwoFactorChallengeInternal = internalMutation({
-    args: {},
+    args: {
+        riskReasons: v.optional(v.array(riskReasonValidator)),
+    },
     returns: v.object({
         code: v.string(),
         deliveryEmail: v.string(),
@@ -433,7 +490,7 @@ export const prepareCurrentTwoFactorChallengeInternal = internalMutation({
         purpose: v.union(v.literal("setup"), v.literal("verify")),
         riskReasons: v.array(riskReasonValidator),
     }),
-    handler: async (ctx) => {
+    handler: async (ctx, args) => {
         const { authContext, session } = await requirePlatformSession(ctx);
         const user = await ctx.db.get(session.userId);
         const emailResult = validateEmailInput(user?.email ?? "");
@@ -460,13 +517,15 @@ export const prepareCurrentTwoFactorChallengeInternal = internalMutation({
         }
 
         const now = Date.now();
-        await revokeSessionChallenges(ctx, session.sessionId, session.userId, now);
+        await revokeSessionChallenges(ctx, session.sessionId, now);
 
         const code = createNumericCode();
         const purpose: PlatformAdminChallengePurpose =
             authContext.platformAdminAuthStage === "setup_required"
                 ? "setup"
                 : "verify";
+        const riskReasons =
+            args.riskReasons ?? session.metadata?.platformAdminRiskReasons ?? [];
         const challengeId = await ctx.db.insert("platformAdminChallenges", {
             userId: session.userId,
             sessionId: session.sessionId,
@@ -477,7 +536,7 @@ export const prepareCurrentTwoFactorChallengeInternal = internalMutation({
                 session.metadata?.platformAdminRiskLevel === "suspicious"
                     ? "suspicious"
                     : "normal",
-            riskReasons: [],
+            riskReasons,
             failedAttempts: 0,
             sentAt: now,
             expiresAt: now + PLATFORM_ADMIN_CHALLENGE_WINDOW_MS,
@@ -498,22 +557,22 @@ export const prepareCurrentTwoFactorChallengeInternal = internalMutation({
             });
         }
 
-        await appendAuditLogBestEffort(
-            ctx,
-            createAuditEntry({
-                event: AUDIT_EVENT_NAMES.platformAdminChallengeIssued,
-                metadata: {
-                    challengeId: String(challengeId),
-                    purpose,
-                    sessionId: String(session.sessionId),
-                },
-                outcome:
-                    session.metadata?.platformAdminRiskLevel === "suspicious"
-                        ? AUDIT_OUTCOMES.allowedWithStepUp
-                        : AUDIT_OUTCOMES.allowed,
-                userId: session.userId,
-            }),
-        );
+        await appendPlatformAdminAuditEntry(ctx, {
+            event: AUDIT_EVENT_NAMES.platformAdminChallengeIssued,
+            metadata: {
+                ...getRequestContextAuditMetadata({
+                    challengeId,
+                    riskReasons,
+                    session,
+                }),
+                purpose,
+            },
+            outcome:
+                session.metadata?.platformAdminRiskLevel === "suspicious"
+                    ? AUDIT_OUTCOMES.allowedWithStepUp
+                    : AUDIT_OUTCOMES.allowed,
+            userId: session.userId,
+        });
 
         return {
             code,
@@ -521,14 +580,14 @@ export const prepareCurrentTwoFactorChallengeInternal = internalMutation({
             expiresAt: now + PLATFORM_ADMIN_CHALLENGE_WINDOW_MS,
             maskedEmail: maskPlatformAdminEmail(emailResult.value),
             purpose,
-            riskReasons: [],
+            riskReasons,
         };
     },
 });
 
 export const beginPlatformAdminSignIn = action({
     args: {
-        requestContext: requestContextValidator,
+        signedRequestContext: v.string(),
     },
     returns: v.object({
         challengeExpiresAt: v.union(v.number(), v.null()),
@@ -541,10 +600,26 @@ export const beginPlatformAdminSignIn = action({
         ),
     }),
     handler: async (ctx, args) => {
+        let requestContext;
+        try {
+            requestContext = await verifySignedPlatformAdminRequestContext(
+                args.signedRequestContext,
+            );
+        } catch (error) {
+            if (error instanceof PlatformAdminRequestContextSignatureError) {
+                throw new ConvexError({
+                    code: "UNAUTHORIZED",
+                    message: error.message,
+                });
+            }
+
+            throw error;
+        }
+
         const initialized = await ctx.runMutation(
             "functions/platformAdminAuth:initializeCurrentPlatformAdminSession" as any,
             {
-                requestContext: args.requestContext,
+                requestContext,
             },
         );
 
@@ -561,7 +636,9 @@ export const beginPlatformAdminSignIn = action({
 
         const challenge = await ctx.runMutation(
             "functions/platformAdminAuth:prepareCurrentTwoFactorChallengeInternal" as any,
-            {},
+            {
+                riskReasons: initialized.riskReasons,
+            },
         );
 
         await sendVerificationEmail({
@@ -790,6 +867,15 @@ export const verifyCurrentTwoFactorCode = mutation({
             userId: session.userId,
         });
         if (!challenge) {
+            await appendPlatformAdminAuditEntry(ctx, {
+                event: AUDIT_EVENT_NAMES.platformAdminChallengeExpired,
+                metadata: {
+                    ...getRequestContextAuditMetadata({ session }),
+                    reason: "challenge_expired",
+                },
+                outcome: AUDIT_OUTCOMES.blockedPlatformAdminChallengeExpired,
+                userId: session.userId,
+            });
             throw new ConvexError({
                 code: "UNAUTHORIZED",
                 message: "Platform Admin verification challenge expired. Request a new code.",
@@ -798,6 +884,19 @@ export const verifyCurrentTwoFactorCode = mutation({
 
         const now = Date.now();
         if (challenge.lockedUntil !== undefined && challenge.lockedUntil > now) {
+            await appendPlatformAdminAuditEntry(ctx, {
+                event: AUDIT_EVENT_NAMES.platformAdminChallengeBlocked,
+                metadata: {
+                    ...getRequestContextAuditMetadata({
+                        challengeId: challenge._id,
+                        riskReasons: challenge.riskReasons,
+                        session,
+                    }),
+                    reason: "challenge_locked",
+                },
+                outcome: AUDIT_OUTCOMES.blockedPlatformAdminChallengeLocked,
+                userId: session.userId,
+            });
             throw new ConvexError({
                 code: "UNAUTHORIZED",
                 message: "Too many failed verification attempts. Request a fresh code and try again.",
@@ -807,6 +906,23 @@ export const verifyCurrentTwoFactorCode = mutation({
         const submittedCodeHash = await sha256Hex(codeResult.value);
         if (submittedCodeHash !== challenge.codeHash) {
             const failureState = await recordChallengeFailure(ctx, challenge._id, now);
+            await appendPlatformAdminAuditEntry(ctx, {
+                event: AUDIT_EVENT_NAMES.platformAdminChallengeRejected,
+                metadata: {
+                    ...getRequestContextAuditMetadata({
+                        challengeId: challenge._id,
+                        riskReasons: challenge.riskReasons,
+                        session,
+                    }),
+                    failedAttempts: failureState.failedAttempts,
+                    reason: "invalid_code",
+                },
+                outcome:
+                    failureState.lockedUntil !== null
+                        ? AUDIT_OUTCOMES.blockedPlatformAdminChallengeLocked
+                        : AUDIT_OUTCOMES.rejectedInvalidCode,
+                userId: session.userId,
+            });
             throw new ConvexError({
                 code: "UNAUTHORIZED",
                 message:
@@ -823,23 +939,23 @@ export const verifyCurrentTwoFactorCode = mutation({
             verificationMethod: "email_otp",
         });
 
-        await appendAuditLogBestEffort(
-            ctx,
-            createAuditEntry({
-                event: AUDIT_EVENT_NAMES.platformAdminChallengeVerified,
-                metadata: {
-                    challengeId: String(challenge._id),
-                    purpose: challenge.purpose,
-                    sessionId: String(session.sessionId),
-                    verificationMethod: "email_otp",
-                },
-                outcome:
-                    challenge.riskLevel === "suspicious"
-                        ? AUDIT_OUTCOMES.allowedWithStepUp
-                        : AUDIT_OUTCOMES.allowed,
-                userId: session.userId,
-            }),
-        );
+        await appendPlatformAdminAuditEntry(ctx, {
+            event: AUDIT_EVENT_NAMES.platformAdminChallengeVerified,
+            metadata: {
+                ...getRequestContextAuditMetadata({
+                    challengeId: challenge._id,
+                    riskReasons: challenge.riskReasons,
+                    session,
+                }),
+                purpose: challenge.purpose,
+                verificationMethod: "email_otp",
+            },
+            outcome:
+                challenge.riskLevel === "suspicious"
+                    ? AUDIT_OUTCOMES.allowedWithStepUp
+                    : AUDIT_OUTCOMES.allowed,
+            userId: session.userId,
+        });
 
         return {
             backupCodes,
@@ -866,11 +982,41 @@ export const verifyCurrentBackupCode = mutation({
             userId: session.userId,
         });
         const securityState = await getSecurityState(ctx, session.userId);
+        const now = Date.now();
 
         if (!challenge || !securityState) {
+            await appendPlatformAdminAuditEntry(ctx, {
+                event: AUDIT_EVENT_NAMES.platformAdminBackupCodeRejected,
+                metadata: {
+                    ...getRequestContextAuditMetadata({ session }),
+                    reason: "challenge_expired",
+                },
+                outcome: AUDIT_OUTCOMES.blockedPlatformAdminChallengeExpired,
+                userId: session.userId,
+            });
             throw new ConvexError({
                 code: "UNAUTHORIZED",
                 message: "Platform Admin verification challenge expired. Request a new code.",
+            });
+        }
+
+        if (challenge.lockedUntil !== undefined && challenge.lockedUntil > now) {
+            await appendPlatformAdminAuditEntry(ctx, {
+                event: AUDIT_EVENT_NAMES.platformAdminBackupCodeRejected,
+                metadata: {
+                    ...getRequestContextAuditMetadata({
+                        challengeId: challenge._id,
+                        riskReasons: challenge.riskReasons,
+                        session,
+                    }),
+                    reason: "challenge_locked",
+                },
+                outcome: AUDIT_OUTCOMES.blockedPlatformAdminChallengeLocked,
+                userId: session.userId,
+            });
+            throw new ConvexError({
+                code: "UNAUTHORIZED",
+                message: "Too many failed verification attempts. Request a fresh code and try again.",
             });
         }
 
@@ -879,38 +1025,45 @@ export const verifyCurrentBackupCode = mutation({
             normalizedCodeHash: await sha256Hex(
                 normalizePlatformAdminBackupCode(args.backupCode),
             ),
-            now: Date.now(),
+            now,
         });
 
         if (!consumedBackupCode.ok) {
-            await appendAuditLogBestEffort(
-                ctx,
-                createAuditEntry({
-                    event: AUDIT_EVENT_NAMES.platformAdminBackupCodeRejected,
-                    metadata: {
-                        challengeId: String(challenge._id),
-                        reason: consumedBackupCode.reason,
-                    },
-                    outcome:
-                        consumedBackupCode.reason === "already_consumed"
+            const failureState = await recordChallengeFailure(ctx, challenge._id, now);
+            await appendPlatformAdminAuditEntry(ctx, {
+                event: AUDIT_EVENT_NAMES.platformAdminBackupCodeRejected,
+                metadata: {
+                    ...getRequestContextAuditMetadata({
+                        challengeId: challenge._id,
+                        riskReasons: challenge.riskReasons,
+                        session,
+                    }),
+                    failedAttempts: failureState.failedAttempts,
+                    reason: consumedBackupCode.reason,
+                },
+                outcome:
+                    failureState.lockedUntil !== null
+                        ? AUDIT_OUTCOMES.blockedPlatformAdminChallengeLocked
+                        : consumedBackupCode.reason === "already_consumed"
                             ? AUDIT_OUTCOMES.blockedPlatformAdminBackupCodeReplay
-                            : AUDIT_OUTCOMES.blockedInvalidAccessCode,
-                    userId: session.userId,
-                }),
-            );
+                            : AUDIT_OUTCOMES.rejectedInvalidCode,
+                userId: session.userId,
+            });
 
             throw new ConvexError({
                 code: "UNAUTHORIZED",
                 message:
-                    consumedBackupCode.reason === "already_consumed"
-                        ? "That backup code has already been used."
-                        : "Backup code is invalid. Please try again.",
+                    failureState.lockedUntil !== null
+                        ? "Too many failed verification attempts. Request a fresh code and try again."
+                        : consumedBackupCode.reason === "already_consumed"
+                            ? "That backup code has already been used."
+                            : "Backup code is invalid. Please try again.",
             });
         }
 
         await ctx.db.patch(securityState._id, {
             backupCodes: consumedBackupCode.updatedBackupCodes,
-            updatedAt: Date.now(),
+            updatedAt: now,
         });
 
         await finalizeVerifiedSession({
@@ -920,18 +1073,20 @@ export const verifyCurrentBackupCode = mutation({
             verificationMethod: "backup_code",
         });
 
-        await appendAuditLogBestEffort(
-            ctx,
-            createAuditEntry({
-                event: AUDIT_EVENT_NAMES.platformAdminBackupCodeUsed,
-                metadata: {
-                    challengeId: String(challenge._id),
-                    sessionId: String(session.sessionId),
-                },
-                outcome: AUDIT_OUTCOMES.allowedBackupCode,
-                userId: session.userId,
-            }),
-        );
+        await appendPlatformAdminAuditEntry(ctx, {
+            event: AUDIT_EVENT_NAMES.platformAdminBackupCodeUsed,
+            metadata: {
+                ...getRequestContextAuditMetadata({
+                    challengeId: challenge._id,
+                    riskReasons: challenge.riskReasons,
+                    session,
+                }),
+                purpose: challenge.purpose,
+                verificationMethod: "backup_code",
+            },
+            outcome: AUDIT_OUTCOMES.allowedBackupCode,
+            userId: session.userId,
+        });
 
         return {
             redirectPath: getPlatformAdminRedirectPath("verified"),
@@ -947,9 +1102,14 @@ export const getPlatformAdminSecurityOverview = query({
         lastTrustedAt: v.union(v.number(), v.null()),
         lastTrustedCountry: v.union(v.string(), v.null()),
         sessions: v.array(v.object({
+            ipAddress: v.union(v.string(), v.null()),
+            ipCity: v.union(v.string(), v.null()),
+            ipCountry: v.union(v.string(), v.null()),
+            ipRegion: v.union(v.string(), v.null()),
             isCurrent: v.boolean(),
             lastActivityAt: v.number(),
             location: v.union(v.string(), v.null()),
+            revocationReason: v.union(v.string(), v.null()),
             sessionId: v.id("authSessions"),
             status: v.union(
                 v.literal("active"),
@@ -958,6 +1118,11 @@ export const getPlatformAdminSecurityOverview = query({
                 v.literal("logged_out"),
             ),
             userAgent: v.union(v.string(), v.null()),
+            verificationMethod: v.union(
+                v.literal("email_otp"),
+                v.literal("backup_code"),
+                v.null(),
+            ),
             verifiedAt: v.union(v.number(), v.null()),
         })),
     }),
@@ -979,17 +1144,26 @@ export const getPlatformAdminSecurityOverview = query({
                         authSession,
                         metadata,
                     });
+                    const locationParts = [
+                        metadata.platformAdminIpCity,
+                        metadata.platformAdminIpRegion,
+                        metadata.platformAdminIpCountry,
+                    ].filter((value): value is string => typeof value === "string");
 
                     return {
+                        ipAddress: metadata.platformAdminIpAddress ?? null,
+                        ipCity: metadata.platformAdminIpCity ?? null,
+                        ipCountry: metadata.platformAdminIpCountry ?? null,
+                        ipRegion: metadata.platformAdminIpRegion ?? null,
                         isCurrent: currentSession?.sessionId === metadata.sessionId,
                         lastActivityAt: metadata.lastActivityAt,
-                        location:
-                            metadata.platformAdminIpCountry ??
-                            metadata.platformAdminIpCity ??
-                            null,
+                        location: locationParts.length > 0 ? locationParts.join(", ") : null,
+                        revocationReason: metadata.platformAdminRevocationReason ?? null,
                         sessionId: metadata.sessionId,
                         status: state.status,
                         userAgent: metadata.platformAdminUserAgent ?? null,
+                        verificationMethod:
+                            metadata.platformAdminVerificationMethod ?? null,
                         verifiedAt: metadata.platformAdminVerifiedAt ?? null,
                     };
                 }),
@@ -1016,7 +1190,14 @@ export const revokeAllPlatformAdminSessions = mutation({
     }),
     handler: async (ctx) => {
         const authContext = await requireVerifiedPlatformAdmin(ctx);
-        const securityState = await ensureSecurityState(ctx, authContext.userId, "");
+        const currentSession = await loadCurrentSessionDocuments(ctx);
+        const user = await ctx.db.get(authContext.userId);
+        const emailResult = validateEmailInput(user?.email ?? "");
+        const securityState = await ensureSecurityState(
+            ctx,
+            authContext.userId,
+            emailResult.ok ? emailResult.value : "",
+        );
         const allSessionMetadata = await ctx.db
             .query("sessionMetadata")
             .withIndex("by_userId", (q) => q.eq("userId", authContext.userId))
@@ -1026,12 +1207,15 @@ export const revokeAllPlatformAdminSessions = mutation({
             .withIndex("by_userId", (q) => q.eq("userId", authContext.userId))
             .collect();
         const now = Date.now();
+        const platformAdminSessions = allSessionMetadata.filter(
+            (metadata) => metadata.isPlatformAdminSession === true,
+        );
+        const activeChallenges = challenges.filter(
+            (challenge) =>
+                challenge.consumedAt === undefined && challenge.revokedAt === undefined,
+        );
 
-        for (const metadata of allSessionMetadata) {
-            if (metadata.isPlatformAdminSession !== true) {
-                continue;
-            }
-
+        for (const metadata of platformAdminSessions) {
             await ctx.db.patch(metadata._id, {
                 lastActivityAt: now,
                 platformAdminAuthStage: "reset_required",
@@ -1041,11 +1225,7 @@ export const revokeAllPlatformAdminSessions = mutation({
             });
         }
 
-        for (const challenge of challenges) {
-            if (challenge.consumedAt !== undefined || challenge.revokedAt !== undefined) {
-                continue;
-            }
-
+        for (const challenge of activeChallenges) {
             await ctx.db.patch(challenge._id, {
                 revokedAt: now,
                 updatedAt: now,
@@ -1058,23 +1238,86 @@ export const revokeAllPlatformAdminSessions = mutation({
             updatedAt: now,
         });
 
-        await appendAuditLogBestEffort(
-            ctx,
-            createAuditEntry({
-                event: AUDIT_EVENT_NAMES.platformAdminSessionRevoked,
-                metadata: {
-                    challengeCount: challenges.length,
-                    sessionCount: allSessionMetadata.length,
-                },
-                outcome: AUDIT_OUTCOMES.allowed,
-                userId: authContext.userId,
-            }),
-        );
+        const requestContextAuditMetadata = currentSession
+            ? getRequestContextAuditMetadata({ session: currentSession })
+            : {};
+
+        await appendPlatformAdminAuditEntry(ctx, {
+            event: AUDIT_EVENT_NAMES.platformAdminSessionRevoked,
+            metadata: {
+                ...requestContextAuditMetadata,
+                challengeCount: activeChallenges.length,
+                sessionCount: platformAdminSessions.length,
+            },
+            outcome: AUDIT_OUTCOMES.allowed,
+            userId: authContext.userId,
+        });
 
         return {
-            challengeCount: challenges.length,
-            sessionCount: allSessionMetadata.length,
+            challengeCount: activeChallenges.length,
+            sessionCount: platformAdminSessions.length,
         };
+    },
+});
+
+export const clearCurrentPlatformAdminPasswordResetRequirement = mutation({
+    args: {},
+    returns: v.null(),
+    handler: async (ctx) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) {
+            throw new ConvexError({
+                code: "UNAUTHORIZED",
+                message: "You must be signed in to continue.",
+            });
+        }
+
+        const securityState = await getSecurityState(ctx, userId);
+        if (!securityState) {
+            return null;
+        }
+
+        await ctx.db.patch(securityState._id, {
+            passwordResetRequiredAt: undefined,
+            revokedAt: undefined,
+            updatedAt: Date.now(),
+        });
+
+        return null;
+    },
+});
+
+export const clearPlatformAdminPasswordResetRequirementForEmail = internalMutation({
+    args: {
+        email: v.string(),
+    },
+    returns: v.null(),
+    handler: async (ctx, args) => {
+        const emailResult = validateEmailInput(args.email);
+        if (!emailResult.ok) {
+            return null;
+        }
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("email", (q) => q.eq("email", emailResult.value))
+            .first();
+        if (!user) {
+            return null;
+        }
+
+        const securityState = await getSecurityState(ctx, user._id);
+        if (!securityState) {
+            return null;
+        }
+
+        await ctx.db.patch(securityState._id, {
+            passwordResetRequiredAt: undefined,
+            revokedAt: undefined,
+            updatedAt: Date.now(),
+        });
+
+        return null;
     },
 });
 
@@ -1084,17 +1327,19 @@ export const attemptDeleteCurrentPlatformAdminAccount = mutation({
     handler: async (ctx) => {
         const authContext = await requirePlatformAdminSession(ctx);
 
-        await appendAuditLogBestEffort(
-            ctx,
-            createAuditEntry({
-                event: AUDIT_EVENT_NAMES.platformAdminDeletionBlocked,
-                metadata: {
-                    message: PLATFORM_ADMIN_DELETE_BLOCKED_MESSAGE,
-                },
-                outcome: AUDIT_OUTCOMES.blockedPlatformAdminDeletion,
-                userId: authContext.userId,
-            }),
-        );
+        const currentSession = await loadCurrentSessionDocuments(ctx);
+
+        await appendPlatformAdminAuditEntry(ctx, {
+            event: AUDIT_EVENT_NAMES.platformAdminDeletionBlocked,
+            metadata: {
+                ...(currentSession
+                    ? getRequestContextAuditMetadata({ session: currentSession })
+                    : {}),
+                message: PLATFORM_ADMIN_DELETE_BLOCKED_MESSAGE,
+            },
+            outcome: AUDIT_OUTCOMES.blockedPlatformAdminDeletion,
+            userId: authContext.userId,
+        });
 
         throw new ConvexError({
             code: "FORBIDDEN",
@@ -1102,3 +1347,15 @@ export const attemptDeleteCurrentPlatformAdminAccount = mutation({
         });
     },
 });
+
+
+
+
+
+
+
+
+
+
+
+

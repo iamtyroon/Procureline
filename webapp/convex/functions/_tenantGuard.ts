@@ -21,7 +21,11 @@ import {
     appendAuditLogBestEffort,
     appendAuditLogRequired,
 } from "./_audit";
-import { getAuthorizationContext, requireTenantRole } from "./_roleGuard";
+import {
+    getAuthorizationContext,
+    requirePlatformAdmin,
+    requireTenantRole,
+} from "./_roleGuard";
 
 export {
     classifyTenantIsolationTable,
@@ -249,6 +253,41 @@ export async function readTenantByIdWithPlatformAdminBypass(
 
     await persistDecisionAudit(ctx, decision);
     return null;
+}
+
+export async function auditPlatformAdminBypassRead(
+    ctx: MutationCtx,
+    args: {
+        action: string;
+        entityType: string;
+        recordId?: string;
+        tableName: string;
+        targetTenantId?: string;
+    },
+): Promise<void> {
+    const authContext = await requirePlatformAdmin(ctx);
+    const decision = resolveTenantRecordAccess({
+        action: args.action,
+        actorRole: authContext.role,
+        actorScope: authContext.scope,
+        actorTenantId: authContext.tenantId,
+        actorUserId: authContext.userId,
+        allowPlatformAdminBypass: true,
+        entityType: args.entityType,
+        recordExists: true,
+        recordId: args.recordId,
+        tableName: args.tableName,
+        targetTenantId: args.targetTenantId,
+        timestamp: Date.now(),
+    });
+
+    if (decision.kind !== "allow_with_audit") {
+        createUnauthorizedError(
+            "Platform administrator access requires an explicit audited bypass",
+        );
+    }
+
+    await persistPlatformBypassAudit(ctx, decision);
 }
 
 export async function getCurrentTenantUserMembership(

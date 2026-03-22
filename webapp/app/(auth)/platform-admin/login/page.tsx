@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getSingleSearchParam } from "@/lib/auth/password-reset";
-import { readPlatformAdminRequestContext } from "@/lib/platform-admin/request-context";
+import { readSignedPlatformAdminRequestContext } from "@/lib/platform-admin/request-context";
 import { PlatformAdminLoginForm } from "@/src/components/auth/PlatformAdminLoginForm";
 
 export const metadata: Metadata = {
@@ -18,12 +18,12 @@ export default async function PlatformAdminLoginPage({
     searchParams,
 }: PlatformAdminLoginPageProps) {
     const resolvedSearchParams = await searchParams;
-    const requestContext = await readPlatformAdminRequestContext();
+    const signedRequestContext = await readSignedPlatformAdminRequestContext();
 
     return (
         <PlatformAdminLoginForm
             reason={getSingleSearchParam(resolvedSearchParams.reason) ?? null}
-            requestContext={requestContext}
+            signedRequestContext={signedRequestContext}
         />
     );
 }

@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { getSingleSearchParam } from "@/lib/auth/password-reset";
-import { readPlatformAdminRequestContext } from "@/lib/platform-admin/request-context";
 import { LoginForm } from "@/src/components/auth/LoginForm";
 
 export const metadata: Metadata = {
-    title: "Login — Procureline",
+    title: "Login - Procureline",
     description: "Sign in to Procureline to access your procurement workspace.",
 };
 
@@ -16,12 +15,10 @@ interface LoginPageProps {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
     const resolvedSearchParams = await searchParams;
-    const requestContext = await readPlatformAdminRequestContext();
 
     return (
         <LoginForm
             reason={getSingleSearchParam(resolvedSearchParams.reason) ?? null}
-            requestContext={requestContext}
         />
     );
 }

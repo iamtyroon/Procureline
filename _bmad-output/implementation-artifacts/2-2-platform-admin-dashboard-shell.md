@@ -1,6 +1,6 @@
 # Story 2.2: Platform Admin Dashboard Shell
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -33,45 +33,45 @@ so that I can monitor platform health, tenant state, and urgent issues from one 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Replace the `/platform-admin` placeholder with a real platform-admin dashboard shell that mirrors `docs/html/admin-platform.html` one-to-one in structure (AC: 1, 2, 3, 4, 15)
-  - [ ] Keep `webapp/app/(app)/platform-admin/page.tsx` thin and move the interactive dashboard into a dedicated feature component such as `webapp/src/components/platform-admin/PlatformAdminDashboard.tsx`.
-  - [ ] Reuse the existing protected app shell in `webapp/app/(app)/layout.tsx` and the existing role-guard behavior instead of creating a second platform-admin layout or copying the prototype login screen.
-  - [ ] Recreate the prototype shell in the protected app: left sidebar with the same section order and labels, default dashboard landing state, header with the primary `Add Tenant` action, top four stat cards, `Recent Tenants`, `System Health`, and the final alerts or activity panel.
-  - [ ] Add a desktop-required fallback aligned with the UX specification's desktop-only guidance and the dashboard patterns already used for tenant-admin and procurement-officer workspaces.
+- [x] Task 1: Replace the `/platform-admin` placeholder with a real platform-admin dashboard shell that mirrors `docs/html/admin-platform.html` one-to-one in structure (AC: 1, 2, 3, 4, 15)
+  - [x] Keep `webapp/app/(app)/platform-admin/page.tsx` thin and move the interactive dashboard into a dedicated feature component such as `webapp/src/components/platform-admin/PlatformAdminDashboard.tsx`.
+  - [x] Reuse the existing protected app shell in `webapp/app/(app)/layout.tsx` and the existing role-guard behavior instead of creating a second platform-admin layout or copying the prototype login screen.
+  - [x] Recreate the prototype shell in the protected app: left sidebar with the same section order and labels, default dashboard landing state, header with the primary `Add Tenant` action, top four stat cards, `Recent Tenants`, `System Health`, and the final alerts or activity panel.
+  - [x] Add a desktop-required fallback aligned with the UX specification's desktop-only guidance and the dashboard patterns already used for tenant-admin and procurement-officer workspaces.
 
-- [ ] Task 2: Create a Platform Admin dashboard snapshot contract backed by real data only (AC: 5, 6, 7, 8, 9, 10, 11, 16, 17, 18)
-  - [ ] Add a focused Convex query module such as `webapp/convex/functions/platformAdminDashboard.ts` instead of overloading `users.ts`, `tenants.ts`, or tenant-admin modules.
-  - [ ] Guard the query with `requirePlatformAdmin(ctx)` so only Platform Admins can load the snapshot.
-  - [ ] Aggregate only from truthful live platform sources already in the schema or explicitly added as minimal support for this story, especially `tenants`, `tenantUsers`, `departments`, `subscriptionTiers`, `auditLogs`, `tenantIsolationEvents`, `externalServiceSyncEvents`, and any new `platformAdminPreferences` or `platformHealthSnapshots` structures introduced here.
-  - [ ] Shape the response so later Epic 2 stories can deepen the same shell without redesigning `/platform-admin`, for example top-level groups such as `navigation`, `summaryCards`, `recentTenants`, `healthSummary`, `alerts`, `quickActions`, `preferences`, and `meta`.
-  - [ ] Explicitly model `available`, `empty`, `awaiting_source`, `setup_required`, `warning`, `critical`, and `unavailable` style states so the shell never turns missing backend sources into believable business metrics.
-  - [ ] Normalize alert inputs into one dashboard-friendly structure rather than stitching prototype-only error arrays into the client.
+- [x] Task 2: Create a Platform Admin dashboard snapshot contract backed by real data only (AC: 5, 6, 7, 8, 9, 10, 11, 16, 17, 18)
+  - [x] Add a focused Convex query module such as `webapp/convex/functions/platformAdminDashboard.ts` instead of overloading `users.ts`, `tenants.ts`, or tenant-admin modules.
+  - [x] Guard the query with `requirePlatformAdmin(ctx)` so only Platform Admins can load the snapshot.
+  - [x] Aggregate only from truthful live platform sources already in the schema or explicitly added as minimal support for this story, especially `tenants`, `tenantUsers`, `departments`, `subscriptionTiers`, `auditLogs`, `tenantIsolationEvents`, `externalServiceSyncEvents`, and any new `platformAdminPreferences` or `platformHealthSnapshots` structures introduced here.
+  - [x] Shape the response so later Epic 2 stories can deepen the same shell without redesigning `/platform-admin`, for example top-level groups such as `navigation`, `summaryCards`, `recentTenants`, `healthSummary`, `alerts`, `quickActions`, `preferences`, and `meta`.
+  - [x] Explicitly model `available`, `empty`, `awaiting_source`, `setup_required`, `warning`, `critical`, and `unavailable` style states so the shell never turns missing backend sources into believable business metrics.
+  - [x] Normalize alert inputs into one dashboard-friendly structure rather than stitching prototype-only error arrays into the client.
 
-- [ ] Task 3: Add the minimal supporting platform data structures required for a DB-driven shell without pre-implementing later stories (AC: 5, 8, 10, 11, 12, 14, 18)
-  - [ ] Add a small persisted preference source such as `platformAdminPreferences` keyed by `userId` for sidebar collapse state, widget layout, and alert-severity filter persistence.
-  - [ ] If no truthful health source exists yet, add a minimal persisted snapshot source such as `platformHealthSnapshots` or an equivalent table with the latest API, DB, jobs, storage, and service-state summary so the dashboard can remain DB-driven without hard-coded health tiles.
-  - [ ] Define a freshness rule for health snapshots and partial-service fallback behavior so stale or incomplete health records do not present as healthy.
-  - [ ] Keep any new schema additions narrowly scoped to shell support; do not prematurely add full billing, incident, ticket, feature-flag, or analytics subsystems that belong to later stories.
-  - [ ] Ensure stored preferences and health snapshots fail closed when records are absent or malformed, falling back to the default layout or explicit unavailable panel states.
+- [x] Task 3: Add the minimal supporting platform data structures required for a DB-driven shell without pre-implementing later stories (AC: 5, 8, 10, 11, 12, 14, 18)
+  - [x] Add a small persisted preference source such as `platformAdminPreferences` keyed by `userId` for sidebar collapse state, widget layout, and alert-severity filter persistence.
+  - [x] If no truthful health source exists yet, add a minimal persisted snapshot source such as `platformHealthSnapshots` or an equivalent table with the latest API, DB, jobs, storage, and service-state summary so the dashboard can remain DB-driven without hard-coded health tiles.
+  - [x] Define a freshness rule for health snapshots and partial-service fallback behavior so stale or incomplete health records do not present as healthy.
+  - [x] Keep any new schema additions narrowly scoped to shell support; do not prematurely add full billing, incident, ticket, feature-flag, or analytics subsystems that belong to later stories.
+  - [x] Ensure stored preferences and health snapshots fail closed when records are absent or malformed, falling back to the default layout or explicit unavailable panel states.
 
-- [ ] Task 4: Reproduce the prototype navigation and reserved-route contracts without shipping unfinished downstream features (AC: 3, 4, 15)
-  - [ ] Add a small placeholder pattern such as `webapp/src/components/platform-admin/PlatformAdminRoutePlaceholder.tsx` for reserved platform-admin destinations that are not yet implemented.
-  - [ ] Stabilize the route namespace for the prototype nav items using protected `/platform-admin/...` paths, for example `/platform-admin/tenants`, `/platform-admin/subscriptions`, `/platform-admin/tenant-admins`, `/platform-admin/analytics`, `/platform-admin/health`, `/platform-admin/audit-logs`, and `/platform-admin/errors`.
-  - [ ] Keep CTA language explicit about state, such as `Coming soon`, `Awaiting live source`, or `Reserved for Story 2.x`, instead of implying that later Epic 2 features are already done.
-  - [ ] Preserve the prototype's nav order and labels so the production shell feels recognizably the same, even when downstream views still render placeholders.
+- [x] Task 4: Reproduce the prototype navigation and reserved-route contracts without shipping unfinished downstream features (AC: 3, 4, 15)
+  - [x] Add a small placeholder pattern such as `webapp/src/components/platform-admin/PlatformAdminRoutePlaceholder.tsx` for reserved platform-admin destinations that are not yet implemented.
+  - [x] Stabilize the route namespace for the prototype nav items using protected `/platform-admin/...` paths, for example `/platform-admin/tenants`, `/platform-admin/subscriptions`, `/platform-admin/tenant-admins`, `/platform-admin/analytics`, `/platform-admin/health`, `/platform-admin/audit-logs`, and `/platform-admin/errors`.
+  - [x] Keep CTA language explicit about state, such as `Coming soon`, `Awaiting live source`, or `Reserved for Story 2.x`, instead of implying that later Epic 2 features are already done.
+  - [x] Preserve the prototype's nav order and labels so the production shell feels recognizably the same, even when downstream views still render placeholders.
 
-- [ ] Task 5: Implement timestamp, formatting, and preference behavior in pure helper modules so the shell stays deterministic (AC: 8, 11, 13, 14, 18)
-  - [ ] Add a helper module such as `webapp/lib/platform-admin/dashboard.ts` for UTC/local timestamp presentation, severity filtering, default widget order, invalid-preference fallback, health-snapshot freshness, and any revenue-display helpers needed for the stat cards.
-  - [ ] Add a snapshot builder such as `webapp/lib/platform-admin/dashboard-snapshot.ts` for alert normalization, summary-card derivation, recent-tenant shaping, revenue exclusions for non-billable tenants, and health-panel state mapping so business rules are testable outside React.
-  - [ ] Reuse existing marketing-pricing helpers where appropriate for annual and monthly-equivalent formatting rather than inventing a second pricing-conversion system inside the platform dashboard.
-  - [ ] Keep shell-only rules pure and deterministic so tests can prove the dashboard does not leak mock data or stale preference state.
+- [x] Task 5: Implement timestamp, formatting, and preference behavior in pure helper modules so the shell stays deterministic (AC: 8, 11, 13, 14, 18)
+  - [x] Add a helper module such as `webapp/lib/platform-admin/dashboard.ts` for UTC/local timestamp presentation, severity filtering, default widget order, invalid-preference fallback, health-snapshot freshness, and any revenue-display helpers needed for the stat cards.
+  - [x] Add a snapshot builder such as `webapp/lib/platform-admin/dashboard-snapshot.ts` for alert normalization, summary-card derivation, recent-tenant shaping, revenue exclusions for non-billable tenants, and health-panel state mapping so business rules are testable outside React.
+  - [x] Reuse existing marketing-pricing helpers where appropriate for annual and monthly-equivalent formatting rather than inventing a second pricing-conversion system inside the platform dashboard.
+  - [x] Keep shell-only rules pure and deterministic so tests can prove the dashboard does not leak mock data or stale preference state.
 
-- [ ] Task 6: Add deterministic tests for Platform Admin dashboard state derivation, route protection, and no-mock-data behavior (AC: 2, 5, 6, 8, 10, 11, 13, 14, 15, 16, 17, 18)
-  - [ ] Add pure helper tests for UTC timestamp formatting plus local tooltip presentation, alert severity filtering, revenue-card fallback behavior, invalid preference fallback, and empty-state derivation in a file such as `webapp/tests/platform-admin-dashboard.test.ts`.
-  - [ ] Add snapshot-builder tests proving the dashboard remains truthful when there are no tenants, no subscription tiers, no health snapshots, no alerts, or no saved preferences.
-  - [ ] Add route or RBAC regression coverage if new `/platform-admin/...` subroutes are introduced so the existing role map continues to protect the namespace for `platform_admin` only.
-  - [ ] Add tests proving cross-tenant data is obtained only through the proper platform-admin guard or bypass path and that tenant-only helper paths are not used for platform-shell reads.
-  - [ ] Update `webapp/tests/run-tests.ts` to include the new dashboard test suite.
+- [x] Task 6: Add deterministic tests for Platform Admin dashboard state derivation, route protection, and no-mock-data behavior (AC: 2, 5, 6, 8, 10, 11, 13, 14, 15, 16, 17, 18)
+  - [x] Add pure helper tests for UTC timestamp formatting plus local tooltip presentation, alert severity filtering, revenue-card fallback behavior, invalid preference fallback, and empty-state derivation in a file such as `webapp/tests/platform-admin-dashboard.test.ts`.
+  - [x] Add snapshot-builder tests proving the dashboard remains truthful when there are no tenants, no subscription tiers, no health snapshots, no alerts, or no saved preferences.
+  - [x] Add route or RBAC regression coverage if new `/platform-admin/...` subroutes are introduced so the existing role map continues to protect the namespace for `platform_admin` only.
+  - [x] Add tests proving cross-tenant data is obtained only through the proper platform-admin guard or bypass path and that tenant-only helper paths are not used for platform-shell reads.
+  - [x] Update `webapp/tests/run-tests.ts` to include the new dashboard test suite.
 
 ## Dev Notes
 
@@ -490,17 +490,50 @@ gpt-5-codex
 - 2026-03-22: Documented the current platform-admin placeholder route, the repo's existing dashboard implementation patterns, and the platform-scope guard and audited bypass rules the dev agent must follow.
 - 2026-03-22: Explicitly separated safe live sources from prototype-only data so the implementing dev does not port mock arrays, seeded demo rows, or fake health metrics into production.
 - 2026-03-22: Added an ASCII dashboard wireframe and reserved-route guidance so the dev agent has tight visual and IA guardrails.
-- 2026-03-22: Updated sprint tracking so `2-2-platform-admin-dashboard-shell` is `ready-for-dev`.
+- 2026-03-22: Implemented the protected platform-admin dashboard shell with prototype-matched sidebar/navigation, live summary cards, recent tenants, system health, recent alerts, desktop-only fallback, and a dialog path back to the Story 2.1 security controls.
+- 2026-03-22: Added the `platformAdminPreferences` and `platformHealthSnapshots` schema support, a focused `platformAdminDashboard` Convex query/mutation module, deterministic helper modules, and protected reserved `/platform-admin/...` placeholder routes.
+- 2026-03-22: Added platform-admin dashboard regression coverage for timestamps, preference fallback, truthful revenue/health states, protected route contracts, and no-mock-data guardrails.
+- 2026-03-22: Restored clean validation by tightening existing platform-admin auth typing and login-effect dependencies so `npx convex codegen`, `npm run lint`, and `npm test` all pass.
+- 2026-03-22: Resolved code-review findings by gating the dashboard snapshot behind an audited platform-admin read-access token, moving local-time tooltip rendering to the client, removing name-based live-data filtering heuristics, and surfacing stale health snapshots with an explicit stale summary state.
 
 ### File List
 
+- `webapp/app/(app)/platform-admin/page.tsx`
+- `webapp/app/(app)/platform-admin/analytics/page.tsx`
+- `webapp/app/(app)/platform-admin/audit-logs/page.tsx`
+- `webapp/app/(app)/platform-admin/errors/page.tsx`
+- `webapp/app/(app)/platform-admin/health/page.tsx`
+- `webapp/app/(app)/platform-admin/subscriptions/page.tsx`
+- `webapp/app/(app)/platform-admin/tenant-admins/page.tsx`
+- `webapp/app/(app)/platform-admin/tenants/page.tsx`
+- `webapp/convex/_generated/api.d.ts`
+- `webapp/convex/auth.ts`
+- `webapp/convex/functions/_tenantGuard.ts`
+- `webapp/convex/functions/platformAdminAuth.ts`
+- `webapp/convex/functions/platformAdminDashboard.ts`
+- `webapp/convex/schema.ts`
+- `webapp/lib/platform-admin/dashboard-access-token.ts`
+- `webapp/lib/platform-admin/dashboard.ts`
+- `webapp/lib/platform-admin/dashboard-snapshot.ts`
+- `webapp/lib/platform-admin/request-context-token.ts`
+- `webapp/src/components/auth/PlatformAdminLoginForm.tsx`
+- `webapp/src/components/platform-admin/PlatformAdminDashboard.tsx`
+- `webapp/src/components/platform-admin/PlatformAdminDashboardParts.tsx`
+- `webapp/src/components/platform-admin/PlatformAdminRoutePlaceholder.tsx`
+- `webapp/tests/platform-admin-dashboard.test.ts`
+- `webapp/tests/run-tests.ts`
 - `_bmad-output/implementation-artifacts/2-2-platform-admin-dashboard-shell.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+### Change Log
+
+- 2026-03-22: Implemented the protected platform-admin dashboard shell, persisted dashboard preferences and health snapshot support, stable placeholder routes, deterministic dashboard tests, and the minimal auth/type fixes required to keep codegen, lint, and test validation green.
+- 2026-03-22: Fixed the Story 2.2 review findings by adding audited dashboard read-access gating, browser-local timestamp tooltips, truthful live-data handling without lexical record filtering, and explicit stale health-summary handling.
 
 ### Story Completion Status
 
 - Story ID: `2.2`
 - Story Key: `2-2-platform-admin-dashboard-shell`
 - Output File: `_bmad-output/implementation-artifacts/2-2-platform-admin-dashboard-shell.md`
-- Final Status: `ready-for-dev`
-- Completion Note: `Implementation-ready story created for a one-to-one, DB-driven Platform Admin dashboard shell with ASCII layout guardrails`
+- Final Status: `done`
+- Completion Note: `Protected platform-admin dashboard shell validated and fixed with audited cross-tenant read gating, client-local timestamp tooltips, truthful live-data handling, and green lint/test verification`

@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import type { PlatformAdminRequestContext } from "./risk";
+import { createSignedPlatformAdminRequestContextToken } from "./request-context-token";
 
 function readHeaderValue(
     headerValue: string | null | undefined,
@@ -29,4 +30,11 @@ export async function readPlatformAdminRequestContext(): Promise<PlatformAdminRe
         ),
         userAgent: readHeaderValue(requestHeaders.get("user-agent")),
     };
+}
+
+export async function readSignedPlatformAdminRequestContext(): Promise<string> {
+    const requestContext = await readPlatformAdminRequestContext();
+    return await createSignedPlatformAdminRequestContextToken({
+        context: requestContext,
+    });
 }
