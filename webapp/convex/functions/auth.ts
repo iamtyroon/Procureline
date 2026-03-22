@@ -1,5 +1,6 @@
 "use node";
 
+import { generateRandomString } from "@oslojs/crypto/random";
 import { v } from "convex/values";
 import { api } from "../_generated/api";
 import { action } from "../_generated/server";
@@ -8,6 +9,22 @@ import {
     isMaskedPasswordResetRequestError,
     normalizeAuthEmail,
 } from "../../lib/auth/password-reset";
+
+function randomReader() {
+    return {
+        read(bytes: Uint8Array): void {
+            crypto.getRandomValues(bytes);
+        },
+    };
+}
+
+function createPlatformAdminPasswordResetCompletionToken(): string {
+    return generateRandomString(
+        randomReader(),
+        "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789",
+        32,
+    );
+}
 
 export const requestPasswordReset = action({
     args: {
@@ -23,13 +40,25 @@ export const requestPasswordReset = action({
             return { requested: true };
         }
 
+        const platformResetToken =
+            createPlatformAdminPasswordResetCompletionToken();
+
         try {
+            await ctx.runMutation(
+                "functions/platformAdminAuth:preparePlatformAdminPasswordResetCompletionToken" as any,
+                {
+                    email: normalizedEmail,
+                    resetCompletionToken: platformResetToken,
+                },
+            );
             await ctx.runAction(api.auth.signIn, {
                 provider: "password",
                 params: {
                     email: normalizedEmail,
                     flow: "reset",
-                    redirectTo: buildPasswordResetRedirectTo(normalizedEmail),
+                    redirectTo: buildPasswordResetRedirectTo(normalizedEmail, {
+                        platformResetToken,
+                    }),
                 },
                 calledBy: "password-reset-request",
             });

@@ -10,7 +10,11 @@ import {
     resolvePlatformAdminRequestContextTokenSecret,
     verifySignedPlatformAdminRequestContextToken,
 } from "../lib/platform-admin/request-context-token";
-import { evaluatePlatformAdminRisk } from "../lib/platform-admin/risk";
+import {
+    evaluatePlatformAdminRisk,
+    fingerprintPlatformAdminRequestContext,
+} from "../lib/platform-admin/risk";
+import { maskPlatformAdminEmail } from "../lib/platform-admin/auth";
 import {
     PLATFORM_ADMIN_INACTIVITY_WINDOW_MS,
     REMEMBER_ME_SESSION_WINDOW_MS,
@@ -98,7 +102,30 @@ export async function runPlatformAdminAuthTests(): Promise<string[]> {
         "platform admin suspicious-login evaluation flags country and ip drift as step-up risks",
     );
 
+    const removedFingerprintRisk = await evaluatePlatformAdminRisk({
+        baseline: {
+            country: "KE",
+            ipHash: "persisted-ip",
+            userAgentHash: "persisted-agent",
+        },
+        current: {
+            country: null,
+            ipHash: null,
+            userAgentHash: null,
+        },
+    });
+    assert.equal(removedFingerprintRisk.level, "suspicious");
+    assert.deepEqual(removedFingerprintRisk.reasons, [
+        "country_changed",
+        "ip_changed",
+        "user_agent_changed",
+    ]);
+    completedTests.push(
+        "platform admin suspicious-login evaluation also flags removed request fingerprints as suspicious drift",
+    );
+
     const fallbackSecret = resolvePlatformAdminRequestContextTokenSecret({
+        nodeEnv: "development",
         secret: undefined,
     });
     assert.equal(
@@ -107,6 +134,18 @@ export async function runPlatformAdminAuthTests(): Promise<string[]> {
     );
     completedTests.push(
         "platform admin request-context signing falls back to the documented built-in secret when no override is configured",
+    );
+
+    assert.throws(
+        () =>
+            resolvePlatformAdminRequestContextTokenSecret({
+                nodeEnv: "production",
+                secret: undefined,
+            }),
+        /PLATFORM_ADMIN_CTX_TOKEN_SECRET/,
+    );
+    completedTests.push(
+        "platform admin request-context signing now fails fast outside development when no signing secret is configured",
     );
 
     const signedRequestContext = await createSignedPlatformAdminRequestContextToken({
@@ -143,6 +182,26 @@ export async function runPlatformAdminAuthTests(): Promise<string[]> {
         "platform admin request-context verification rejects tampered client submissions",
     );
 
+    const invalidContextToken =
+        await createSignedPlatformAdminRequestContextToken({
+            context: null as never,
+            now: NOW,
+            secret: REQUEST_CONTEXT_TEST_SECRET,
+        });
+    const invalidContextResult =
+        await verifySignedPlatformAdminRequestContextToken({
+            now: NOW + 1_000,
+            secret: REQUEST_CONTEXT_TEST_SECRET,
+            token: invalidContextToken,
+        });
+    assert.deepEqual(invalidContextResult, {
+        ok: false,
+        reason: "invalid",
+    });
+    completedTests.push(
+        "platform admin request-context verification rejects malformed null contexts",
+    );
+
     const expiredResult = await verifySignedPlatformAdminRequestContextToken({
         now: NOW + 1000 * 60 * 16,
         secret: REQUEST_CONTEXT_TEST_SECRET,
@@ -154,6 +213,30 @@ export async function runPlatformAdminAuthTests(): Promise<string[]> {
     });
     completedTests.push(
         "platform admin request-context tokens expire quickly so stale login pages cannot replay trusted metadata",
+    );
+
+    assert.deepEqual(
+        await fingerprintPlatformAdminRequestContext({
+            country: "KE",
+            ipAddress: "203.0.113.12",
+            userAgent: "ProcurelineAdminBrowser/1.0",
+        }),
+        {
+            country: "KE",
+            ipHash: null,
+            userAgentHash: null,
+        },
+    );
+    completedTests.push(
+        "platform admin request fingerprinting skips PII hashes when explicit consent is absent",
+    );
+
+    assert.equal(
+        maskPlatformAdminEmail("ops@internal@example.com"),
+        "o***s@internal@example.com",
+    );
+    completedTests.push(
+        "platform admin email masking preserves the full domain even when the address contains multiple at symbols",
     );
 
     const backupCodes = [

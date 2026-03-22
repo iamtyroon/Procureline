@@ -66,7 +66,13 @@ export function getPlatformAdminRedirectPath(
 }
 
 export function maskPlatformAdminEmail(email: string): string {
-    const [localPart, domain] = email.split("@");
+    const separatorIndex = email.indexOf("@");
+    if (separatorIndex === -1) {
+        return email;
+    }
+
+    const localPart = email.slice(0, separatorIndex);
+    const domain = email.slice(separatorIndex + 1);
     if (!localPart || !domain) {
         return email;
     }

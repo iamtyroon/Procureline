@@ -196,6 +196,8 @@ export default defineSchema({
         lastTrustedCountry: v.optional(v.string()),
         lastTrustedIpHash: v.optional(v.string()),
         lastTrustedUserAgentHash: v.optional(v.string()),
+        passwordResetCompletionTokenHash: v.optional(v.string()),
+        passwordResetCompletionTokenIssuedAt: v.optional(v.number()),
         passwordResetRequiredAt: v.optional(v.number()),
         revokedAt: v.optional(v.number()),
         createdAt: v.number(),

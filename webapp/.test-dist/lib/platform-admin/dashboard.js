@@ -26,7 +26,15 @@ function isSeverityFilter(value) {
 function hasUniqueWidgets(values) {
     return new Set(values).size === values.length;
 }
+function createValidatedTimestampDate(timestamp) {
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) {
+        throw new TypeError(`Invalid timestamp: ${String(timestamp)}`);
+    }
+    return date;
+}
 function formatInTimeZone(args) {
+    const timestampDate = createValidatedTimestampDate(args.timestamp);
     const options = {
         day: "2-digit",
         hour: "2-digit",
@@ -39,7 +47,7 @@ function formatInTimeZone(args) {
     if (args.timeZone) {
         options.timeZone = args.timeZone;
     }
-    return new Intl.DateTimeFormat(args.locale ?? "en-GB", options).format(new Date(args.timestamp));
+    return new Intl.DateTimeFormat(args.locale ?? "en-GB", options).format(timestampDate);
 }
 function getPlatformAdminLocalTimestampLabel(args) {
     return formatInTimeZone({
@@ -58,8 +66,9 @@ function getPlatformAdminUtcTimestampLabel(timestamp) {
 }
 exports.getPlatformAdminUtcTimestampLabel = getPlatformAdminUtcTimestampLabel;
 function getPlatformAdminTimestampPresentation(args) {
+    const timestampDate = createValidatedTimestampDate(args.timestamp);
     return {
-        iso: new Date(args.timestamp).toISOString(),
+        iso: timestampDate.toISOString(),
         localLabel: getPlatformAdminLocalTimestampLabel(args),
         utcLabel: getPlatformAdminUtcTimestampLabel(args.timestamp),
     };

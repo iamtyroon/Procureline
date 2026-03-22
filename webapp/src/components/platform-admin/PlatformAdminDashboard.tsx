@@ -395,7 +395,7 @@ export function PlatformAdminDashboard(): JSX.Element {
                                             <DialogHeader className="border-b border-border/70 px-6 py-5 text-left">
                                                 <DialogTitle>Platform admin security</DialogTitle>
                                                 <DialogDescription>
-                                                    Story 2.1 security controls stay available here while the dashboard becomes the default home route.
+                                                    Security controls remain available here while the dashboard becomes the default home.
                                                 </DialogDescription>
                                             </DialogHeader>
                                             <div className="max-h-[80vh] overflow-y-auto p-6">

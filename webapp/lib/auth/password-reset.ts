@@ -19,10 +19,23 @@ export function normalizeAuthEmail(email: string): string {
     return normalizeSecurityEmail(email);
 }
 
-export function buildPasswordResetRedirectTo(email: string): string {
+export function buildPasswordResetRedirectTo(
+    email: string,
+    args?: {
+        platformResetToken?: string | undefined;
+    },
+): string {
     const params = new URLSearchParams({
         email: normalizeAuthEmail(email),
     });
+
+    if (
+        typeof args?.platformResetToken === "string" &&
+        args.platformResetToken.trim().length > 0
+    ) {
+        params.set("platformResetToken", args.platformResetToken.trim());
+    }
+
     return `/reset-password?${params.toString()}`;
 }
 

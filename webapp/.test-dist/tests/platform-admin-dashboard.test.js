@@ -22,6 +22,12 @@ async function runPlatformAdminDashboardTests() {
     strict_1.default.equal(timestampPresentation.utcLabel.includes("UTC"), true);
     strict_1.default.equal(timestampPresentation.localLabel.includes("GMT+3"), true);
     completedTests.push("platform-admin timestamps keep UTC visible while exposing a deterministic local-time companion label");
+    strict_1.default.throws(() => (0, dashboard_1.getPlatformAdminTimestampPresentation)({
+        localLocale: "en-GB",
+        localTimeZone: "Africa/Nairobi",
+        timestamp: Number.NaN,
+    }), /Invalid timestamp/);
+    completedTests.push("platform-admin timestamp formatting now rejects invalid timestamp values instead of formatting corrupted dates");
     strict_1.default.deepEqual((0, dashboard_1.filterPlatformAdminAlertsBySeverity)([
         { id: "critical", severity: "critical" },
         { id: "warning", severity: "warning" },
@@ -68,6 +74,11 @@ async function runPlatformAdminDashboardTests() {
         reason: "invalid",
     });
     completedTests.push("platform-admin dashboard access tokens are signed, time-bound, and scoped to the current admin user");
+    strict_1.default.throws(() => (0, dashboard_access_token_1.resolvePlatformAdminDashboardAccessTokenSecret)({
+        nodeEnv: "production",
+        secret: undefined,
+    }), /PA_DASH_ACCESS_TOKEN_SECRET/);
+    completedTests.push("platform-admin dashboard access token signing now fails fast outside development when the secret is missing");
     const snapshot = (0, dashboard_snapshot_1.buildPlatformAdminDashboardSnapshot)({
         auditLogs: [
             {

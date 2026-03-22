@@ -311,7 +311,7 @@ export async function getAuthorizationContext(
                 currentSessionDocuments.metadata?.platformAdminAuthStage ?? null,
             hasTwoFactorEnrollment: securityState?.isTwoFactorEnrolled === true,
             passwordResetRequiredAt: securityState?.passwordResetRequiredAt,
-            storedBackupCodeCount: securityState?.backupCodes.length ?? 0,
+            storedBackupCodeCount: securityState?.backupCodes?.length ?? 0,
         });
         const requiresPlatformAdminVerification =
             platformAdminAuthStage !== "verified";

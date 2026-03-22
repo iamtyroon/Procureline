@@ -39,12 +39,14 @@ interface ResetPasswordFormProps {
     initialCode?: string;
     initialEmail?: string;
     initialExpiresAt?: number;
+    initialPlatformResetToken?: string;
 }
 
 export function ResetPasswordForm({
     initialCode,
     initialEmail,
     initialExpiresAt,
+    initialPlatformResetToken,
 }: ResetPasswordFormProps) {
     const { signIn, signOut } = useAuthActions();
     const clearCurrentPlatformAdminPasswordResetRequirement = useMutation(
@@ -107,8 +109,15 @@ export function ResetPasswordForm({
             formData.set("flow", "reset-verification");
 
             await signIn("password", formData);
-            await clearCurrentPlatformAdminPasswordResetRequirement({});
-            await signOut();
+
+            try {
+                await clearCurrentPlatformAdminPasswordResetRequirement({
+                    resetCompletionToken: initialPlatformResetToken,
+                });
+            } finally {
+                await signOut();
+            }
+
             router.replace(`/login?reason=${PASSWORD_RESET_SUCCESS_REASON}`);
         } catch (error: unknown) {
             if (error instanceof Error && error.message.includes("failed attempts")) {

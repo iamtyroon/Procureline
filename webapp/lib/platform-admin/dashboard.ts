@@ -76,11 +76,22 @@ function hasUniqueWidgets(
     return new Set(values).size === values.length;
 }
 
+function createValidatedTimestampDate(timestamp: number): Date {
+    const date = new Date(timestamp);
+
+    if (Number.isNaN(date.getTime())) {
+        throw new TypeError(`Invalid timestamp: ${String(timestamp)}`);
+    }
+
+    return date;
+}
+
 function formatInTimeZone(args: {
     locale?: string;
     timeZone?: string;
     timestamp: number;
 }): string {
+    const timestampDate = createValidatedTimestampDate(args.timestamp);
     const options: Intl.DateTimeFormatOptions = {
         day: "2-digit",
         hour: "2-digit",
@@ -96,7 +107,7 @@ function formatInTimeZone(args: {
     }
 
     return new Intl.DateTimeFormat(args.locale ?? "en-GB", options).format(
-        new Date(args.timestamp),
+        timestampDate,
     );
 }
 
@@ -125,8 +136,10 @@ export function getPlatformAdminTimestampPresentation(args: {
     localTimeZone?: string;
     timestamp: number;
 }): PlatformAdminTimestampPresentation {
+    const timestampDate = createValidatedTimestampDate(args.timestamp);
+
     return {
-        iso: new Date(args.timestamp).toISOString(),
+        iso: timestampDate.toISOString(),
         localLabel: getPlatformAdminLocalTimestampLabel(args),
         utcLabel: getPlatformAdminUtcTimestampLabel(args.timestamp),
     };

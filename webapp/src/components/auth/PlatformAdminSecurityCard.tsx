@@ -58,6 +58,7 @@ export function PlatformAdminSecurityCard() {
     const router = useRouter();
     const [feedback, setFeedback] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [isRevoking, setIsRevoking] = useState(false);
 
     async function handleRevokeAll(): Promise<void> {
@@ -75,22 +76,26 @@ export function PlatformAdminSecurityCard() {
                     ? caughtError.message
                     : "Could not revoke Platform Admin sessions.",
             );
+        } finally {
             setIsRevoking(false);
         }
     }
 
     async function handleDeleteAttempt(): Promise<void> {
+        setIsDeleting(true);
         setError(null);
         setFeedback(null);
 
         try {
             await attemptDeleteCurrentPlatformAdminAccount({});
         } catch (caughtError: unknown) {
-            setFeedback(
+            setError(
                 caughtError instanceof Error
                     ? caughtError.message
                     : "Platform Admin accounts cannot be deleted",
             );
+        } finally {
+            setIsDeleting(false);
         }
     }
 
@@ -115,7 +120,7 @@ export function PlatformAdminSecurityCard() {
                 <CardDescription>
                     Mandatory 2FA, active session visibility, immediate revoke-all,
                     and blocked account deletion guardrails live here until the full
-                    Platform Admin shell lands in Story 2.2.
+                    Platform Admin shell is released.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -218,11 +223,12 @@ export function PlatformAdminSecurityCard() {
                 <Button
                     type="button"
                     variant="outline"
+                    disabled={isDeleting}
                     onClick={() => {
                         void handleDeleteAttempt();
                     }}
                 >
-                    Attempt account deletion
+                    {isDeleting ? "Checking deletion policy..." : "Attempt account deletion"}
                 </Button>
             </CardFooter>
         </Card>

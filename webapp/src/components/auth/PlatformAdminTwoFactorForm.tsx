@@ -324,15 +324,22 @@ export function PlatformAdminTwoFactorForm({
                         </div>
                     ) : (
                         <>
+                            {(() => {
+                                const verificationInputId =
+                                    showBackupFallback && mode === "verify"
+                                        ? "platform-admin-backup-code"
+                                        : "platform-admin-code";
+
+                                return (
                             <div className="space-y-2">
-                                <Label htmlFor="platform-admin-code">
+                                <Label htmlFor={verificationInputId}>
                                     {showBackupFallback && mode === "verify"
                                         ? "Backup code"
                                         : "Verification code"}
                                 </Label>
                                 {showBackupFallback && mode === "verify" ? (
                                     <Input
-                                        id="platform-admin-backup-code"
+                                        id={verificationInputId}
                                         type="text"
                                         placeholder="ABCDE-FGHIJ"
                                         value={backupCode}
@@ -343,7 +350,7 @@ export function PlatformAdminTwoFactorForm({
                                     />
                                 ) : (
                                     <Input
-                                        id="platform-admin-code"
+                                        id={verificationInputId}
                                         type="text"
                                         inputMode="numeric"
                                         pattern="[0-9]*"
@@ -361,6 +368,8 @@ export function PlatformAdminTwoFactorForm({
                                     </p>
                                 ) : null}
                             </div>
+                                );
+                            })()}
 
                             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                                 Verification challenge is bound to{" "}

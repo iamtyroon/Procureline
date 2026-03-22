@@ -36,16 +36,35 @@ async function signSegment(segment, secret) {
     const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(segment));
     return encodeBytesBase64Url(new Uint8Array(signature));
 }
+function constantTimeEqual(left, right) {
+    if (left.length !== right.length) {
+        return false;
+    }
+    let mismatch = 0;
+    for (let index = 0; index < left.length; index += 1) {
+        mismatch |= left.charCodeAt(index) ^ right.charCodeAt(index);
+    }
+    return mismatch === 0;
+}
+function resolvePlatformAdminRequestContextTokenNodeEnv(nodeEnv) {
+    if (typeof nodeEnv === "string") {
+        return nodeEnv;
+    }
+    return typeof process.env.NODE_ENV === "string"
+        ? process.env.NODE_ENV
+        : "development";
+}
 function resolvePlatformAdminRequestContextTokenSecret(args) {
     const secret = args?.secret ?? process.env[exports.PLATFORM_ADMIN_REQUEST_CONTEXT_TOKEN_ENV_NAME];
+    const nodeEnv = resolvePlatformAdminRequestContextTokenNodeEnv(args?.nodeEnv);
     if (typeof secret === "string" && secret.trim().length > 0) {
         return secret.trim();
     }
-    // Use a deterministic fallback inside this codebase so the dedicated
-    // platform-admin flow works in local and shared dev environments without
-    // extra Convex configuration. Real deployments should still override this
-    // with PLATFORM_ADMIN_CTX_TOKEN_SECRET.
-    return exports.DEVELOPMENT_PLATFORM_ADMIN_REQUEST_CONTEXT_TOKEN_SECRET;
+    if (nodeEnv === "development") {
+        console.warn(`resolvePlatformAdminRequestContextTokenSecret is falling back to ${exports.DEVELOPMENT_PLATFORM_ADMIN_REQUEST_CONTEXT_TOKEN_SECRET} because ${exports.PLATFORM_ADMIN_REQUEST_CONTEXT_TOKEN_ENV_NAME} is not configured in development.`);
+        return exports.DEVELOPMENT_PLATFORM_ADMIN_REQUEST_CONTEXT_TOKEN_SECRET;
+    }
+    throw new Error(`resolvePlatformAdminRequestContextTokenSecret requires ${exports.PLATFORM_ADMIN_REQUEST_CONTEXT_TOKEN_ENV_NAME} outside development.`);
 }
 exports.resolvePlatformAdminRequestContextTokenSecret = resolvePlatformAdminRequestContextTokenSecret;
 async function createSignedPlatformAdminRequestContextToken(args) {
@@ -69,7 +88,7 @@ async function verifySignedPlatformAdminRequestContextToken(args) {
         };
     }
     const expectedSignature = await signSegment(encodedPayload, args.secret ?? resolvePlatformAdminRequestContextTokenSecret());
-    if (providedSignature !== expectedSignature) {
+    if (!constantTimeEqual(providedSignature, expectedSignature)) {
         return {
             ok: false,
             reason: "invalid",
@@ -80,7 +99,9 @@ async function verifySignedPlatformAdminRequestContextToken(args) {
         const now = args.now ?? Date.now();
         if (typeof envelope.issuedAt !== "number" ||
             typeof envelope.expiresAt !== "number" ||
-            typeof envelope.context !== "object") {
+            typeof envelope.context !== "object" ||
+            envelope.context === null ||
+            Array.isArray(envelope.context)) {
             return {
                 ok: false,
                 reason: "invalid",

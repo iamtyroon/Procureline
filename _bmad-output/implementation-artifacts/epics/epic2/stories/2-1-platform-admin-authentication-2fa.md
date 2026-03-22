@@ -308,7 +308,7 @@ so that platform administration is protected against unauthorized access.
 
 ### Agent Model Used
 
-gpt-5-codex
+gpt-5-codex (internal placeholder identifier; replace with the exact deployed public model ID if this record is shared externally)
 
 ### Debug Log References
 

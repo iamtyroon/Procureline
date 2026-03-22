@@ -122,7 +122,13 @@ function getCurrentTierPriceAnnualUsd(tier) {
     if (!tier.isActive || !Number.isFinite(tier.priceUSD) || tier.priceUSD < 0) {
         return null;
     }
+    if (typeof tier.billingCycle !== "string") {
+        return null;
+    }
     const billingCycle = tier.billingCycle.trim().toLowerCase();
+    if (!billingCycle) {
+        return null;
+    }
     if (billingCycle === "annual" || billingCycle === "yearly") {
         return tier.priceUSD;
     }
@@ -165,7 +171,7 @@ function buildRecentTenants(args) {
         totalCount: args.tenants.length,
     };
 }
-function buildRevenueSummaryCard(args) {
+function buildRevenueSummaryCardBase(args) {
     const annualTierPriceBySlug = new Map();
     for (const subscriptionTier of args.subscriptionTiers) {
         const annualPrice = getCurrentTierPriceAnnualUsd(subscriptionTier);
@@ -183,7 +189,7 @@ function buildRevenueSummaryCard(args) {
             id: "recurring_revenue",
             label: "Recurring Revenue",
             state: "awaiting_source",
-            statusLabel: "Awaiting source",
+            statusLabel: args.labels.awaitingSource,
             tone: "warning",
             value: "Unavailable",
         };
@@ -200,7 +206,7 @@ function buildRevenueSummaryCard(args) {
             id: "recurring_revenue",
             label: "Recurring Revenue",
             state: "empty",
-            statusLabel: "Free only",
+            statusLabel: args.labels.empty,
             tone: "neutral",
             value: revenuePresentation.annualLabel,
         };
@@ -210,10 +216,20 @@ function buildRevenueSummaryCard(args) {
         id: "recurring_revenue",
         label: "Recurring Revenue",
         state: "available",
-        statusLabel: "Truthful ARR",
+        statusLabel: args.labels.available,
         tone: "positive",
         value: revenuePresentation.annualLabel,
     };
+}
+function buildRevenueSummaryCard(args) {
+    return buildRevenueSummaryCardBase({
+        ...args,
+        labels: {
+            awaitingSource: "Awaiting source",
+            available: "Truthful ARR",
+            empty: "Free only",
+        },
+    });
 }
 function buildAlertItems(args) {
     const alertItems = [...args.healthDiagnostics];
@@ -358,54 +374,14 @@ function _buildSummaryCardsLegacy(args) {
     ];
 }
 function buildRevenueSummaryCardClean(args) {
-    const annualTierPriceBySlug = new Map();
-    for (const subscriptionTier of args.subscriptionTiers) {
-        const annualPrice = getCurrentTierPriceAnnualUsd(subscriptionTier);
-        if (annualPrice === null) {
-            continue;
-        }
-        annualTierPriceBySlug.set(subscriptionTier.slug, annualPrice);
-    }
-    const activeTenants = args.tenants.filter((tenant) => tenant.status === "active");
-    const billableActiveTenants = activeTenants.filter((tenant) => tenant.tier !== "free");
-    const missingTierCatalog = billableActiveTenants.some((tenant) => !annualTierPriceBySlug.has(tenant.tier));
-    if (missingTierCatalog) {
-        return {
-            helperText: "Recurring revenue is waiting on an active pricing catalog that matches every paid tenant tier.",
-            id: "recurring_revenue",
-            label: "Recurring Revenue",
-            state: "awaiting_source",
-            statusLabel: "Catalog missing",
-            tone: "warning",
-            value: "Unavailable",
-        };
-    }
-    const annualRevenueUsd = billableActiveTenants.reduce((total, tenant) => {
-        return total + (annualTierPriceBySlug.get(tenant.tier) ?? 0);
-    }, 0);
-    const revenuePresentation = (0, dashboard_1.getPlatformAdminRevenuePresentation)(annualRevenueUsd);
-    if (billableActiveTenants.length === 0) {
-        return {
-            helperText: args.statusCounts.active === 0
-                ? "No active billable tenants are contributing recurring revenue yet."
-                : "Active tenants are currently on Free, so recurring revenue remains at zero.",
-            id: "recurring_revenue",
-            label: "Recurring Revenue",
-            state: "empty",
-            statusLabel: "No paid tenants",
-            tone: "neutral",
-            value: revenuePresentation.annualLabel,
-        };
-    }
-    return {
-        helperText: `${revenuePresentation.monthlyLabel} across ${billableActiveTenants.length} active paid tenant${billableActiveTenants.length === 1 ? "" : "s"}.`,
-        id: "recurring_revenue",
-        label: "Recurring Revenue",
-        state: "available",
-        statusLabel: "Catalog matched",
-        tone: "positive",
-        value: revenuePresentation.annualLabel,
-    };
+    return buildRevenueSummaryCardBase({
+        ...args,
+        labels: {
+            awaitingSource: "Catalog missing",
+            available: "Catalog matched",
+            empty: "No paid tenants",
+        },
+    });
 }
 function buildHealthSummaryClean(args) {
     if (!args.healthSnapshot) {

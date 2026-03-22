@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { getProtectedRouteRole } from "../lib/auth/roles";
 import {
     createPlatformAdminDashboardReadAccessToken,
+    resolvePlatformAdminDashboardAccessTokenSecret,
     verifyPlatformAdminDashboardReadAccessToken,
 } from "../lib/platform-admin/dashboard-access-token";
 import {
@@ -27,6 +28,19 @@ export async function runPlatformAdminDashboardTests(): Promise<string[]> {
     assert.equal(timestampPresentation.localLabel.includes("GMT+3"), true);
     completedTests.push(
         "platform-admin timestamps keep UTC visible while exposing a deterministic local-time companion label",
+    );
+
+    assert.throws(
+        () =>
+            getPlatformAdminTimestampPresentation({
+                localLocale: "en-GB",
+                localTimeZone: "Africa/Nairobi",
+                timestamp: Number.NaN,
+            }),
+        /Invalid timestamp/,
+    );
+    completedTests.push(
+        "platform-admin timestamp formatting now rejects invalid timestamp values instead of formatting corrupted dates",
     );
 
     assert.deepEqual(
@@ -97,6 +111,18 @@ export async function runPlatformAdminDashboardTests(): Promise<string[]> {
     });
     completedTests.push(
         "platform-admin dashboard access tokens are signed, time-bound, and scoped to the current admin user",
+    );
+
+    assert.throws(
+        () =>
+            resolvePlatformAdminDashboardAccessTokenSecret({
+                nodeEnv: "production",
+                secret: undefined,
+            }),
+        /PA_DASH_ACCESS_TOKEN_SECRET/,
+    );
+    completedTests.push(
+        "platform-admin dashboard access token signing now fails fast outside development when the secret is missing",
     );
 
     const snapshot = buildPlatformAdminDashboardSnapshot({

@@ -16,6 +16,7 @@ interface ResetPasswordPageProps {
         code?: string | string[] | undefined;
         email?: string | string[] | undefined;
         expiresAt?: string | string[] | undefined;
+        platformResetToken?: string | string[] | undefined;
     }>;
 }
 
@@ -30,6 +31,9 @@ export default async function ResetPasswordPage({
             initialEmail={getSingleSearchParam(resolvedSearchParams.email)}
             initialExpiresAt={parsePasswordResetExpiresAt(
                 resolvedSearchParams.expiresAt,
+            )}
+            initialPlatformResetToken={getSingleSearchParam(
+                resolvedSearchParams.platformResetToken,
             )}
         />
     );

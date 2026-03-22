@@ -29,13 +29,35 @@ async function signSegment(segment, secret) {
     const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(segment));
     return encodeBytesBase64Url(new Uint8Array(signature));
 }
+function constantTimeEqual(left, right) {
+    if (left.length !== right.length) {
+        return false;
+    }
+    let mismatch = 0;
+    for (let index = 0; index < left.length; index += 1) {
+        mismatch |= left.charCodeAt(index) ^ right.charCodeAt(index);
+    }
+    return mismatch === 0;
+}
+function resolvePlatformAdminDashboardAccessTokenNodeEnv(nodeEnv) {
+    if (typeof nodeEnv === "string") {
+        return nodeEnv;
+    }
+    return typeof process.env.NODE_ENV === "string"
+        ? process.env.NODE_ENV
+        : "development";
+}
 function resolvePlatformAdminDashboardAccessTokenSecret(args) {
     const secret = args?.secret ??
         process.env[exports.PLATFORM_ADMIN_DASHBOARD_ACCESS_TOKEN_ENV_NAME];
+    const nodeEnv = resolvePlatformAdminDashboardAccessTokenNodeEnv(args?.nodeEnv);
     if (typeof secret === "string" && secret.trim().length > 0) {
         return secret.trim();
     }
-    return exports.DEVELOPMENT_PLATFORM_ADMIN_DASHBOARD_ACCESS_TOKEN_SECRET;
+    if (nodeEnv === "development") {
+        return exports.DEVELOPMENT_PLATFORM_ADMIN_DASHBOARD_ACCESS_TOKEN_SECRET;
+    }
+    throw new Error(`resolvePlatformAdminDashboardAccessTokenSecret requires ${exports.PLATFORM_ADMIN_DASHBOARD_ACCESS_TOKEN_ENV_NAME} outside development.`);
 }
 exports.resolvePlatformAdminDashboardAccessTokenSecret = resolvePlatformAdminDashboardAccessTokenSecret;
 async function createPlatformAdminDashboardReadAccessToken(args) {
@@ -59,7 +81,7 @@ async function verifyPlatformAdminDashboardReadAccessToken(args) {
         };
     }
     const expectedSignature = await signSegment(encodedPayload, args.secret ?? resolvePlatformAdminDashboardAccessTokenSecret());
-    if (providedSignature !== expectedSignature) {
+    if (!constantTimeEqual(providedSignature, expectedSignature)) {
         return {
             ok: false,
             reason: "invalid",

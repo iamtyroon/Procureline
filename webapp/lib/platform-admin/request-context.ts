@@ -25,6 +25,7 @@ export async function readPlatformAdminRequestContext(): Promise<PlatformAdminRe
         ipAddress:
             readForwardedIp(requestHeaders.get("x-forwarded-for")) ??
             readHeaderValue(requestHeaders.get("x-real-ip")),
+        isPIIAllowed: true,
         region: readHeaderValue(
             requestHeaders.get("x-vercel-ip-country-region"),
         ),

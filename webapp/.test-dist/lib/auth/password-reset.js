@@ -14,10 +14,14 @@ function normalizeAuthEmail(email) {
     return (0, input_1.normalizeAuthEmail)(email);
 }
 exports.normalizeAuthEmail = normalizeAuthEmail;
-function buildPasswordResetRedirectTo(email) {
+function buildPasswordResetRedirectTo(email, args) {
     const params = new URLSearchParams({
         email: normalizeAuthEmail(email),
     });
+    if (typeof args?.platformResetToken === "string" &&
+        args.platformResetToken.trim().length > 0) {
+        params.set("platformResetToken", args.platformResetToken.trim());
+    }
     return `/reset-password?${params.toString()}`;
 }
 exports.buildPasswordResetRedirectTo = buildPasswordResetRedirectTo;

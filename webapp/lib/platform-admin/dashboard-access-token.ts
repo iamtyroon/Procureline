@@ -54,18 +54,54 @@ async function signSegment(segment: string, secret: string): Promise<string> {
     return encodeBytesBase64Url(new Uint8Array(signature));
 }
 
+function constantTimeEqual(left: string, right: string): boolean {
+    if (left.length !== right.length) {
+        return false;
+    }
+
+    let mismatch = 0;
+
+    for (let index = 0; index < left.length; index += 1) {
+        mismatch |= left.charCodeAt(index) ^ right.charCodeAt(index);
+    }
+
+    return mismatch === 0;
+}
+
+function resolvePlatformAdminDashboardAccessTokenNodeEnv(
+    nodeEnv?: string | undefined,
+): string {
+    if (typeof nodeEnv === "string") {
+        return nodeEnv;
+    }
+
+    return typeof process.env.NODE_ENV === "string"
+        ? process.env.NODE_ENV
+        : "development";
+}
+
 export function resolvePlatformAdminDashboardAccessTokenSecret(args?: {
+    nodeEnv?: string | undefined;
     secret?: string | undefined;
 }): string {
     const secret =
         args?.secret ??
         process.env[PLATFORM_ADMIN_DASHBOARD_ACCESS_TOKEN_ENV_NAME];
+    const nodeEnv = resolvePlatformAdminDashboardAccessTokenNodeEnv(
+        args?.nodeEnv,
+    );
 
     if (typeof secret === "string" && secret.trim().length > 0) {
         return secret.trim();
     }
 
-    return DEVELOPMENT_PLATFORM_ADMIN_DASHBOARD_ACCESS_TOKEN_SECRET;
+    if (nodeEnv === "development") {
+        return DEVELOPMENT_PLATFORM_ADMIN_DASHBOARD_ACCESS_TOKEN_SECRET;
+    }
+
+    throw new Error(
+        `resolvePlatformAdminDashboardAccessTokenSecret requires ${PLATFORM_ADMIN_DASHBOARD_ACCESS_TOKEN_ENV_NAME} outside development.`,
+    );
 }
 
 export async function createPlatformAdminDashboardReadAccessToken(args: {
@@ -115,7 +151,7 @@ export async function verifyPlatformAdminDashboardReadAccessToken(args: {
         encodedPayload,
         args.secret ?? resolvePlatformAdminDashboardAccessTokenSecret(),
     );
-    if (providedSignature !== expectedSignature) {
+    if (!constantTimeEqual(providedSignature, expectedSignature)) {
         return {
             ok: false,
             reason: "invalid",

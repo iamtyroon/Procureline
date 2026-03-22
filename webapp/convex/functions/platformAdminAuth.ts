@@ -59,8 +59,10 @@ import {
 
 const requestContextValidator = v.object({
     city: v.union(v.string(), v.null()),
+    consentFlag: v.optional(v.boolean()),
     country: v.union(v.string(), v.null()),
     ipAddress: v.union(v.string(), v.null()),
+    isPIIAllowed: v.optional(v.boolean()),
     region: v.union(v.string(), v.null()),
     userAgent: v.union(v.string(), v.null()),
 });
@@ -97,6 +99,42 @@ function formatBackupCode(rawCode: string): string {
     return `${rawCode.slice(0, 5)}-${rawCode.slice(5)}`;
 }
 
+function constantTimeEqual(left: string, right: string): boolean {
+    if (left.length !== right.length) {
+        return false;
+    }
+
+    let mismatch = 0;
+
+    for (let index = 0; index < left.length; index += 1) {
+        mismatch |= left.charCodeAt(index) ^ right.charCodeAt(index);
+    }
+
+    return mismatch === 0;
+}
+
+function resolvePlatformAdminVerificationEmailSender(): string {
+    const sender =
+        process.env.AUTH_PLATFORM_ADMIN_RESEND_FROM ??
+        process.env.AUTH_RESET_RESEND_FROM;
+    const nodeEnv =
+        typeof process.env.NODE_ENV === "string"
+            ? process.env.NODE_ENV
+            : "development";
+
+    if (typeof sender === "string" && sender.trim().length > 0) {
+        return sender.trim();
+    }
+
+    if (nodeEnv === "development") {
+        return "Procureline <onboarding@resend.dev>";
+    }
+
+    throw new Error(
+        "AUTH_PLATFORM_ADMIN_RESEND_FROM must be configured for Platform Admin verification emails outside development.",
+    );
+}
+
 async function sendVerificationEmail(args: {
     code: string;
     email: string;
@@ -109,6 +147,7 @@ async function sendVerificationEmail(args: {
     }
 
     const resend = new ResendAPI(apiKey);
+    const fromAddress = resolvePlatformAdminVerificationEmailSender();
     const headline =
         args.purpose === "setup"
             ? "Finish your Platform Admin 2FA setup"
@@ -119,7 +158,7 @@ async function sendVerificationEmail(args: {
             : "Enter this code to continue into the Platform Admin workspace.";
 
     const { error } = await resend.emails.send({
-        from: "Procureline <onboarding@resend.dev>",
+        from: fromAddress,
         to: [args.email],
         subject: headline,
         text: `${contextLine}\n\nYour code is ${args.code}. It expires in 15 minutes.`,
@@ -239,6 +278,22 @@ async function getSecurityState(
         .query("platformAdminSecurityStates")
         .withIndex("by_userId", (q) => q.eq("userId", userId))
         .first();
+}
+
+async function revokePlatformAdminChallenge(
+    ctx: MutationCtx,
+    challengeId: Id<"platformAdminChallenges">,
+): Promise<void> {
+    const challenge = await ctx.db.get(challengeId);
+
+    if (!challenge || challenge.revokedAt !== undefined) {
+        return;
+    }
+
+    await ctx.db.patch(challengeId, {
+        revokedAt: Date.now(),
+        updatedAt: Date.now(),
+    });
 }
 
 async function requirePlatformSession(
@@ -483,6 +538,7 @@ export const prepareCurrentTwoFactorChallengeInternal = internalMutation({
         riskReasons: v.optional(v.array(riskReasonValidator)),
     },
     returns: v.object({
+        id: v.id("platformAdminChallenges"),
         code: v.string(),
         deliveryEmail: v.string(),
         expiresAt: v.number(),
@@ -575,6 +631,7 @@ export const prepareCurrentTwoFactorChallengeInternal = internalMutation({
         });
 
         return {
+            id: challengeId,
             code,
             deliveryEmail: emailResult.value,
             expiresAt: now + PLATFORM_ADMIN_CHALLENGE_WINDOW_MS,
@@ -641,12 +698,23 @@ export const beginPlatformAdminSignIn = action({
             },
         );
 
-        await sendVerificationEmail({
-            code: challenge.code,
-            email: challenge.deliveryEmail,
-            purpose: challenge.purpose,
-            riskReasons: challenge.riskReasons,
-        });
+        try {
+            await sendVerificationEmail({
+                code: challenge.code,
+                email: challenge.deliveryEmail,
+                purpose: challenge.purpose,
+                riskReasons: challenge.riskReasons,
+            });
+        } catch (error) {
+            console.error("Platform Admin verification email failed", error);
+            await ctx.runMutation(
+                "functions/platformAdminAuth:revokePlatformAdminChallengeInternal" as any,
+                {
+                    challengeId: challenge.id,
+                },
+            );
+            throw error;
+        }
 
         return {
             challengeExpiresAt: challenge.expiresAt,
@@ -669,12 +737,23 @@ export const issueCurrentTwoFactorChallenge = action({
             {},
         );
 
-        await sendVerificationEmail({
-            code: challenge.code,
-            email: challenge.deliveryEmail,
-            purpose: challenge.purpose,
-            riskReasons: challenge.riskReasons,
-        });
+        try {
+            await sendVerificationEmail({
+                code: challenge.code,
+                email: challenge.deliveryEmail,
+                purpose: challenge.purpose,
+                riskReasons: challenge.riskReasons,
+            });
+        } catch (error) {
+            console.error("Platform Admin verification email failed", error);
+            await ctx.runMutation(
+                "functions/platformAdminAuth:revokePlatformAdminChallengeInternal" as any,
+                {
+                    challengeId: challenge.id,
+                },
+            );
+            throw error;
+        }
 
         return {
             challengeExpiresAt: challenge.expiresAt,
@@ -794,6 +873,7 @@ async function finalizeVerifiedSession(args: {
     const trustFingerprint = await fingerprintPlatformAdminRequestContext({
         country: session.metadata?.platformAdminIpCountry ?? null,
         ipAddress: session.metadata?.platformAdminIpAddress ?? null,
+        isPIIAllowed: true,
         userAgent: session.metadata?.platformAdminUserAgent ?? null,
     });
 
@@ -812,6 +892,8 @@ async function finalizeVerifiedSession(args: {
         lastTrustedCountry: trustFingerprint.country ?? undefined,
         lastTrustedIpHash: trustFingerprint.ipHash ?? undefined,
         lastTrustedUserAgentHash: trustFingerprint.userAgentHash ?? undefined,
+        passwordResetCompletionTokenHash: undefined,
+        passwordResetCompletionTokenIssuedAt: undefined,
         passwordResetRequiredAt: undefined,
         revokedAt: undefined,
         updatedAt: now,
@@ -1261,9 +1343,11 @@ export const revokeAllPlatformAdminSessions = mutation({
 });
 
 export const clearCurrentPlatformAdminPasswordResetRequirement = mutation({
-    args: {},
+    args: {
+        resetCompletionToken: v.optional(v.string()),
+    },
     returns: v.null(),
-    handler: async (ctx) => {
+    handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
         if (!userId) {
             throw new ConvexError({
@@ -1277,12 +1361,103 @@ export const clearCurrentPlatformAdminPasswordResetRequirement = mutation({
             return null;
         }
 
+        if (securityState.passwordResetRequiredAt === undefined) {
+            return null;
+        }
+
+        const token = args.resetCompletionToken?.trim();
+        if (!token) {
+            throw new ConvexError({
+                code: "FORBIDDEN",
+                message: "A completed password reset is required before Platform Admin access can be restored.",
+            });
+        }
+
+        if (
+            !securityState.passwordResetCompletionTokenHash ||
+            securityState.passwordResetCompletionTokenIssuedAt === undefined
+        ) {
+            throw new ConvexError({
+                code: "FORBIDDEN",
+                message: "The Platform Admin password reset completion token is missing or expired. Request a fresh reset link.",
+            });
+        }
+
+        const submittedTokenHash = await sha256Hex(token);
+        if (
+            !constantTimeEqual(
+                submittedTokenHash,
+                securityState.passwordResetCompletionTokenHash,
+            )
+        ) {
+            throw new ConvexError({
+                code: "FORBIDDEN",
+                message: "The Platform Admin password reset completion token could not be verified.",
+            });
+        }
+
         await ctx.db.patch(securityState._id, {
+            passwordResetCompletionTokenHash: undefined,
+            passwordResetCompletionTokenIssuedAt: undefined,
             passwordResetRequiredAt: undefined,
             revokedAt: undefined,
             updatedAt: Date.now(),
         });
 
+        return null;
+    },
+});
+
+export const preparePlatformAdminPasswordResetCompletionToken = internalMutation({
+    args: {
+        email: v.string(),
+        resetCompletionToken: v.string(),
+    },
+    returns: v.null(),
+    handler: async (ctx, args) => {
+        const emailResult = validateEmailInput(args.email);
+        if (!emailResult.ok) {
+            return null;
+        }
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("email", (q) => q.eq("email", emailResult.value))
+            .first();
+        if (!user) {
+            return null;
+        }
+
+        const platformUser = await ctx.db
+            .query("platformUsers")
+            .withIndex("by_userId", (q) => q.eq("userId", user._id))
+            .first();
+        if (!platformUser) {
+            return null;
+        }
+
+        const securityState = await ensureSecurityState(ctx, user._id, emailResult.value);
+        const now = Date.now();
+
+        await ctx.db.patch(securityState._id, {
+            passwordResetCompletionTokenHash: await sha256Hex(
+                args.resetCompletionToken.trim(),
+            ),
+            passwordResetCompletionTokenIssuedAt: now,
+            updatedAt: now,
+        });
+
+        return null;
+    },
+});
+
+export const revokePlatformAdminChallengeInternal = internalMutation({
+    args: {
+        challengeId: v.id("platformAdminChallenges"),
+    },
+    returns: v.null(),
+    handler: async (ctx, args) => {
+        await revokePlatformAdminChallenge(ctx, args.challengeId);
         return null;
     },
 });
@@ -1312,6 +1487,8 @@ export const clearPlatformAdminPasswordResetRequirementForEmail = internalMutati
         }
 
         await ctx.db.patch(securityState._id, {
+            passwordResetCompletionTokenHash: undefined,
+            passwordResetCompletionTokenIssuedAt: undefined,
             passwordResetRequiredAt: undefined,
             revokedAt: undefined,
             updatedAt: Date.now(),
