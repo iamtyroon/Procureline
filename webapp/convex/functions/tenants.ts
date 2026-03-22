@@ -22,6 +22,13 @@ const tenantRecordValidator = v.object({
         v.literal("suspended"),
         v.literal("cancelled"),
     ),
+    profileComplete: v.boolean(),
+    primaryContactName: v.optional(v.string()),
+    primaryContactEmail: v.optional(v.string()),
+    primaryContactPhone: v.optional(v.string()),
+    fiscalYearStartMonth: v.optional(v.number()),
+    logoUrl: v.optional(v.string()),
+    onboardingCompletedAt: v.optional(v.number()),
     createdAt: v.number(),
 });
 
@@ -72,6 +79,7 @@ export const create = internalMutation({
             subdomain,
             tier: "free",
             status: "active",
+            profileComplete: false,
             createdAt: Date.now(),
         });
 

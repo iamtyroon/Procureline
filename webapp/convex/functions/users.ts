@@ -117,6 +117,7 @@ export const registerWithTenant = mutation({
             subdomain,
             tier: resolveTenantRegistrationTier(args.selectedTier),
             status: "active",
+            profileComplete: false,
             createdAt: Date.now(),
         });
 

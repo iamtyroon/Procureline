@@ -5,6 +5,10 @@ import {
     PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON,
     type PlatformAdminAuthStage,
 } from "../platform-admin/auth";
+import {
+    evaluateTenantAdminOnboardingRouteAccess,
+    type TenantAdminOnboardingStage,
+} from "../tenant-admin/onboarding";
 
 export const APP_ROLES = [
     "platform_admin",
@@ -102,6 +106,7 @@ export interface AuthContextSnapshot {
     sessionStatus: SessionStatus;
     platformAdminAuthStage?: PlatformAdminAuthStage;
     requiresPlatformAdminVerification?: boolean;
+    tenantAdminOnboardingStage?: TenantAdminOnboardingStage;
     tenantId?: string;
     tenantStatus: TenantStatusValue;
     redirectReason?: AuthNavigationReason;
@@ -173,6 +178,8 @@ export function getAuthNoticeMessage(reason?: string | null): string | null {
             return "Your account roles are misconfigured. Access is blocked until an administrator fixes the setup.";
         case PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON:
             return "Platform Admin access requires a password reset before you can sign in again.";
+        case "subscription_inactive":
+            return "Tenant deactivated. Contact Support.";
         default:
             return null;
     }
@@ -189,7 +196,6 @@ export function shouldTerminateAuthenticatedSession(
         authContext.accessState === "inactive" ||
         authContext.redirectReason === "account_deactivated" ||
         authContext.redirectReason === "session_expired" ||
-        authContext.redirectReason === "subscription_inactive" ||
         authContext.redirectReason ===
             PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON
     );
@@ -338,6 +344,19 @@ export function evaluateRoleRouteAccess(args: {
             action: "redirect",
             target: args.authContext.redirectPath,
         };
+    }
+
+    if (requiredRole === "tenant_admin") {
+        const tenantAdminDecision = evaluateTenantAdminOnboardingRouteAccess({
+            homePath: args.authContext.homePath,
+            onboardingStage:
+                args.authContext.tenantAdminOnboardingStage ?? "not_applicable",
+            pathname: args.pathname,
+        });
+
+        if (tenantAdminDecision.action === "redirect") {
+            return tenantAdminDecision;
+        }
     }
 
     return { action: "allow" };

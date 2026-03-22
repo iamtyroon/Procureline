@@ -28,6 +28,7 @@ function createPlatformAdminPasswordResetCompletionToken(): string {
 
 export const requestPasswordReset = action({
     args: {
+        continueTo: v.optional(v.string()),
         email: v.string(),
     },
     returns: v.object({
@@ -57,6 +58,7 @@ export const requestPasswordReset = action({
                     email: normalizedEmail,
                     flow: "reset",
                     redirectTo: buildPasswordResetRedirectTo(normalizedEmail, {
+                        continueTo: args.continueTo,
                         platformResetToken,
                     }),
                 },

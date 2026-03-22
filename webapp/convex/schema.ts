@@ -19,10 +19,56 @@ export default defineSchema({
             v.literal("suspended"),
             v.literal("cancelled"),
         ),
+        profileComplete: v.boolean(),
+        primaryContactName: v.optional(v.string()),
+        primaryContactEmail: v.optional(v.string()),
+        primaryContactPhone: v.optional(v.string()),
+        fiscalYearStartMonth: v.optional(v.number()),
+        logoUrl: v.optional(v.string()),
+        onboardingCompletedAt: v.optional(v.number()),
         createdAt: v.number(),
     })
         .index("by_subdomain", ["subdomain"])
         .index("by_status", ["status"]),
+
+    tenantAdminInvitations: defineTable({
+        tenantId: v.id("tenants"),
+        email: v.string(),
+        normalizedEmail: v.string(),
+        tokenHash: v.string(),
+        status: v.union(
+            v.literal("pending"),
+            v.literal("accepted"),
+            v.literal("expired"),
+            v.literal("revoked"),
+        ),
+        expiresAt: v.number(),
+        resentCount: v.number(),
+        createdByPlatformUserId: v.optional(v.id("users")),
+        acceptedByUserId: v.optional(v.id("users")),
+        acceptedAt: v.optional(v.number()),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_tokenHash", ["tokenHash"])
+        .index("by_tenantId_email", ["tenantId", "normalizedEmail"])
+        .index("by_normalizedEmail", ["normalizedEmail", "createdAt"]),
+
+    tenantAdminOnboardingStates: defineTable({
+        normalizedEmail: v.string(),
+        mode: v.union(v.literal("invite"), v.literal("self_serve")),
+        tenantId: v.optional(v.id("tenants")),
+        invitationId: v.optional(v.id("tenantAdminInvitations")),
+        verificationWindowExpiresAt: v.number(),
+        lastVerificationSentAt: v.number(),
+        autoResendCount: v.number(),
+        manualResendCount: v.number(),
+        completedAt: v.optional(v.number()),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_normalizedEmail", ["normalizedEmail", "createdAt"])
+        .index("by_invitationId", ["invitationId", "createdAt"]),
 
     tenantUsers: defineTable({
         userId: v.id("users"),

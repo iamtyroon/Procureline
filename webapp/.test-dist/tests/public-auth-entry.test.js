@@ -19,16 +19,18 @@ function runPublicAuthEntryTests() {
     strict_1.default.equal(neutralState.signInHref, "/login");
     completedTests.push("public access entry defaults to a neutral hub while keeping institution signup and shared sign-in on their existing routes");
     const starterTierState = (0, public_entry_1.resolvePublicEntryState)({
+        invite: "tenant-admin-token",
         tier: "starter",
     });
-    strict_1.default.equal(starterTierState.institutionHref, "/signup?tier=starter");
+    strict_1.default.equal(starterTierState.institutionHref, "/signup?tier=starter&invite=tenant-admin-token");
     strict_1.default.equal(starterTierState.shouldWarnOnInvalidTier, false);
     const invalidTierState = (0, public_entry_1.resolvePublicEntryState)({
+        invite: "tenant-admin-token",
         tier: "enterprise",
     });
-    strict_1.default.equal(invalidTierState.institutionHref, "/signup");
+    strict_1.default.equal(invalidTierState.institutionHref, "/signup?invite=tenant-admin-token");
     strict_1.default.equal(invalidTierState.shouldWarnOnInvalidTier, true);
-    completedTests.push("public access preserves valid self-serve tier intent into signup and fails closed on unsupported tier values");
+    completedTests.push("public access preserves valid self-serve tier intent and opaque invite context into signup while still failing closed on unsupported tier values");
     const procurementOfficerState = (0, public_entry_1.resolvePublicEntryState)({
         activationCode: "ACT-001",
         ignored: "drop-me",

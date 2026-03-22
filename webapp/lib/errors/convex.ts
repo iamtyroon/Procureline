@@ -58,9 +58,10 @@ function includesNormalized(
 }
 
 export function isExistingRoleAssignmentError(error: unknown): boolean {
-    return includesNormalized(
-        getErrorMessage(error),
-        "application role assignment",
+    const message = getErrorMessage(error);
+    return (
+        includesNormalized(message, "application role assignment") ||
+        includesNormalized(message, "email already in use")
     );
 }
 
@@ -127,6 +128,14 @@ export function getPublicVerificationErrorMessage(error: unknown): string {
 
     if (includesNormalized(message, "organization with this name already exists")) {
         return "That organization name is already taken. Choose a different name to finish setup.";
+    }
+
+    if (includesNormalized(message, "email already in use")) {
+        return "Email already in use. Sign in with that account or use a different email.";
+    }
+
+    if (includesNormalized(message, "tenant deactivated. contact support.")) {
+        return "Tenant deactivated. Contact Support.";
     }
 
     return GENERIC_PUBLIC_ERROR_MESSAGE;

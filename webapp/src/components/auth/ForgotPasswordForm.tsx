@@ -28,7 +28,11 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 
-export function ForgotPasswordForm() {
+export function ForgotPasswordForm({
+    continueTo,
+}: {
+    continueTo?: string;
+}) {
     const requestPasswordReset = useAction(api.functions.auth.requestPasswordReset);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
@@ -64,6 +68,7 @@ export function ForgotPasswordForm() {
         try {
             const normalizedEmail = normalizeAuthEmail(data.email);
             await requestPasswordReset({
+                continueTo,
                 email: normalizedEmail,
             });
 

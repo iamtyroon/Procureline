@@ -75,7 +75,7 @@ development_status:
   5-1-du-dashboard-plan-status: done
   2-1-platform-admin-authentication-2fa: done
   2-2-platform-admin-dashboard-shell: done
-  3-1-tenant-admin-institution-setup-flow: ready-for-dev
+  3-1-tenant-admin-institution-setup-flow: review
   3-3-po-management-add-invite: backlog # frontend-complete
   4-2-department-crud-operations: backlog
   4-3-access-code-generation-management: backlog

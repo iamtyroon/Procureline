@@ -13,7 +13,11 @@ function runPasswordResetTests() {
     completedTests.push("normalizeAuthEmail trims and lowercases emails");
     strict_1.default.equal((0, password_reset_1.buildPasswordResetRedirectTo)("Admin@University.ac.ke"), "/reset-password?email=admin%40university.ac.ke");
     completedTests.push("buildPasswordResetRedirectTo preserves the normalized email in the reset link");
-    strict_1.default.equal((0, password_reset_1.buildPasswordResetLink)("https://procureline.app/reset-password?code=12345678", "Admin@University.ac.ke", new Date("2026-03-09T10:15:00.000Z")), "https://procureline.app/reset-password?code=12345678&email=admin%40university.ac.ke&expiresAt=1773051300000");
+    strict_1.default.equal((0, password_reset_1.buildPasswordResetRedirectTo)("Admin@University.ac.ke", {
+        continueTo: "/signup?invite=tenant-admin-token",
+    }), "/reset-password?email=admin%40university.ac.ke&continueTo=%2Fsignup%3Finvite%3Dtenant-admin-token");
+    completedTests.push("buildPasswordResetRedirectTo preserves onboarding continuation routes for invite-based password recovery");
+    strict_1.default.equal((0, password_reset_1.buildPasswordResetLink)("https://procureline.app/reset-password?code=12345678&continueTo=%2Fsignup%3Finvite%3Dtenant-admin-token", "Admin@University.ac.ke", new Date("2026-03-09T10:15:00.000Z")), "https://procureline.app/reset-password?code=12345678&continueTo=%2Fsignup%3Finvite%3Dtenant-admin-token&email=admin%40university.ac.ke&expiresAt=1773051300000");
     completedTests.push("buildPasswordResetLink appends normalized email and expiry metadata");
     strict_1.default.equal((0, password_reset_1.getSingleSearchParam)(["first", "second"]), "first");
     strict_1.default.equal((0, password_reset_1.getSingleSearchParam)("single"), "single");

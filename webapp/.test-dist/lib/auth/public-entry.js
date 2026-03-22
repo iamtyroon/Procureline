@@ -118,6 +118,12 @@ function appendValidTierParam(params, searchParams) {
         params.set("tier", tier);
     }
 }
+function appendInstitutionHandoffParams(params, searchParams) {
+    const invite = getTrimmedSearchParam(searchParams[constants_1.INVITE_PARAM]);
+    if (invite) {
+        params.set(constants_1.INVITE_PARAM, invite);
+    }
+}
 function appendTierParamForRedirect(params, searchParams) {
     const tier = getTrimmedSearchParam(searchParams.tier)?.toLowerCase();
     if (tier) {
@@ -180,6 +186,7 @@ exports.buildPublicEntrySelectionHref = buildPublicEntrySelectionHref;
 function buildInstitutionSignupHref(searchParams) {
     const params = new URLSearchParams();
     appendValidTierParam(params, searchParams);
+    appendInstitutionHandoffParams(params, searchParams);
     return buildPath("/signup", params);
 }
 exports.buildInstitutionSignupHref = buildInstitutionSignupHref;

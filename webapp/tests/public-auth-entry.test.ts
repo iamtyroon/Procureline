@@ -29,18 +29,26 @@ export function runPublicAuthEntryTests(): string[] {
     );
 
     const starterTierState = resolvePublicEntryState({
+        invite: "tenant-admin-token",
         tier: "starter",
     });
-    assert.equal(starterTierState.institutionHref, "/signup?tier=starter");
+    assert.equal(
+        starterTierState.institutionHref,
+        "/signup?tier=starter&invite=tenant-admin-token",
+    );
     assert.equal(starterTierState.shouldWarnOnInvalidTier, false);
 
     const invalidTierState = resolvePublicEntryState({
+        invite: "tenant-admin-token",
         tier: "enterprise",
     });
-    assert.equal(invalidTierState.institutionHref, "/signup");
+    assert.equal(
+        invalidTierState.institutionHref,
+        "/signup?invite=tenant-admin-token",
+    );
     assert.equal(invalidTierState.shouldWarnOnInvalidTier, true);
     completedTests.push(
-        "public access preserves valid self-serve tier intent into signup and fails closed on unsupported tier values",
+        "public access preserves valid self-serve tier intent and opaque invite context into signup while still failing closed on unsupported tier values",
     );
 
     const procurementOfficerState = resolvePublicEntryState({

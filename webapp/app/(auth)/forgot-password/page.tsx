@@ -7,6 +7,19 @@ export const metadata: Metadata = {
         "Request a Procureline password reset email to regain access to your account.",
 };
 
-export default function ForgotPasswordPage() {
-    return <ForgotPasswordForm />;
+interface ForgotPasswordPageProps {
+    searchParams: Promise<{
+        continueTo?: string | string[] | undefined;
+    }>;
+}
+
+export default async function ForgotPasswordPage({
+    searchParams,
+}: ForgotPasswordPageProps) {
+    const resolvedSearchParams = await searchParams;
+    const continueTo = Array.isArray(resolvedSearchParams.continueTo)
+        ? resolvedSearchParams.continueTo[0]
+        : resolvedSearchParams.continueTo;
+
+    return <ForgotPasswordForm continueTo={continueTo} />;
 }

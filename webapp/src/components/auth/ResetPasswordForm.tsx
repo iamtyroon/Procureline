@@ -37,6 +37,7 @@ import {
 
 interface ResetPasswordFormProps {
     initialCode?: string;
+    initialContinueTo?: string;
     initialEmail?: string;
     initialExpiresAt?: number;
     initialPlatformResetToken?: string;
@@ -44,6 +45,7 @@ interface ResetPasswordFormProps {
 
 export function ResetPasswordForm({
     initialCode,
+    initialContinueTo,
     initialEmail,
     initialExpiresAt,
     initialPlatformResetToken,
@@ -118,7 +120,11 @@ export function ResetPasswordForm({
                 await signOut();
             }
 
-            router.replace(`/login?reason=${PASSWORD_RESET_SUCCESS_REASON}`);
+            router.replace(
+                initialContinueTo?.startsWith("/")
+                    ? initialContinueTo
+                    : `/login?reason=${PASSWORD_RESET_SUCCESS_REASON}`,
+            );
         } catch (error: unknown) {
             if (error instanceof Error && error.message.includes("failed attempts")) {
                 setServerError(PASSWORD_RESET_TOO_MANY_ATTEMPTS_MESSAGE);

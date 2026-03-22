@@ -15,6 +15,7 @@ import { runServiceBridgeTests } from "./service-bridge.test";
 import { runSessionManagementTests } from "./session-management.test";
 import { runSignupFlowTests } from "./signup-flow.test";
 import { runTenantAdminDashboardTests } from "./tenant-admin-dashboard.test";
+import { runTenantAdminOnboardingTests } from "./tenant-admin-onboarding.test";
 import { runTenantIsolationTests } from "./tenant-isolation.test";
 
 async function main(): Promise<void> {
@@ -36,6 +37,7 @@ async function main(): Promise<void> {
         ...runSessionManagementTests(),
         ...runSignupFlowTests(),
         ...runTenantAdminDashboardTests(),
+        ...(await runTenantAdminOnboardingTests()),
         ...runTenantIsolationTests(),
     ];
 

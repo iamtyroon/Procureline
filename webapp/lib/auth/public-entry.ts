@@ -201,6 +201,16 @@ function appendValidTierParam(
     }
 }
 
+function appendInstitutionHandoffParams(
+    params: URLSearchParams,
+    searchParams: PublicEntrySearchParams,
+): void {
+    const invite = getTrimmedSearchParam(searchParams[INVITE_PARAM]);
+    if (invite) {
+        params.set(INVITE_PARAM, invite);
+    }
+}
+
 function appendTierParamForRedirect(
     params: URLSearchParams,
     searchParams: PublicEntrySearchParams,
@@ -300,6 +310,7 @@ export function buildInstitutionSignupHref(
 ): string {
     const params = new URLSearchParams();
     appendValidTierParam(params, searchParams);
+    appendInstitutionHandoffParams(params, searchParams);
     return buildPath("/signup", params);
 }
 

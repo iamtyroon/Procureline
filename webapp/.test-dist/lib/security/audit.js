@@ -27,6 +27,11 @@ exports.AUDIT_EVENT_NAMES = {
     platformAdminSuspiciousLoginDetected: "platform_admin.auth.suspicious_login_detected",
     securityInputRejected: "security.input_rejected",
     securityOriginBlocked: "security.origin_blocked",
+    tenantAdminInvitationAccepted: "tenant_admin.invitation.accepted",
+    tenantAdminInvitationIssued: "tenant_admin.invitation.issued",
+    tenantAdminInvitationResent: "tenant_admin.invitation.resent",
+    tenantAdminOnboardingBlocked: "tenant_admin.onboarding.blocked",
+    tenantAdminOnboardingCompleted: "tenant_admin.onboarding.completed",
     tenantPlatformReadAllowed: "tenant.platform_read_allowed",
     tenantProbeBlocked: "tenant.probe_blocked",
 };

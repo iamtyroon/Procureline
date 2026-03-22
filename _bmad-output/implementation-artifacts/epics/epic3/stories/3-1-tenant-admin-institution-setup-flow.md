@@ -1,6 +1,6 @@
 # Story 3.1: Tenant Admin Institution Setup Flow
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -27,46 +27,46 @@ so that I can reach the tenant-admin workspace only after my institution is prop
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Extend the tenant onboarding data model without destabilizing current auth flows (AC: 2, 3, 5, 7, 8, 9)
-  - [ ] Update `webapp/convex/schema.ts` so `tenants` can represent onboarding state directly, including a `profileComplete` flag and the minimal institution-profile fields Story 3.1 needs now.
-  - [ ] Add a narrow `tenantAdminInvitations` table for the manual path with tenant scope, normalized email, token hash, expiry, resend metadata, and lifecycle status.
-  - [ ] Add only the minimum extra support state needed for verification-window or auto-resend tracking if the current auth-provider state is insufficient; do not mutate Convex Auth internals or create a parallel account system.
+- [x] Task 1: Extend the tenant onboarding data model without destabilizing current auth flows (AC: 2, 3, 5, 7, 8, 9)
+  - [x] Update `webapp/convex/schema.ts` so `tenants` can represent onboarding state directly, including a `profileComplete` flag and the minimal institution-profile fields Story 3.1 needs now.
+  - [x] Add a narrow `tenantAdminInvitations` table for the manual path with tenant scope, normalized email, token hash, expiry, resend metadata, and lifecycle status.
+  - [x] Add only the minimum extra support state needed for verification-window or auto-resend tracking if the current auth-provider state is insufficient; do not mutate Convex Auth internals or create a parallel account system.
 
-- [ ] Task 2: Create backend onboarding and invitation functions as a dedicated tenant-admin module (AC: 2, 3, 4, 5, 7, 8, 9, 10, 12)
-  - [ ] Add a focused module such as `webapp/convex/functions/tenantAdminOnboarding.ts` instead of overloading `users.ts` with every onboarding concern.
-  - [ ] Implement invitation issue, lookup, redemption, resend, and completion mutations or queries with tenant-scoped validation and clear `ConvexError` codes.
-  - [ ] Refactor shared tenant-admin account-attachment logic so self-serve and invite flows can reuse one secure backend path for role-assignment checks and audit logging.
-  - [ ] Write append-only audit events for invitation issued, invitation resent, invitation accepted, onboarding completed, and onboarding blocked for inactive tenant.
+- [x] Task 2: Create backend onboarding and invitation functions as a dedicated tenant-admin module (AC: 2, 3, 4, 5, 7, 8, 9, 10, 12)
+  - [x] Add a focused module such as `webapp/convex/functions/tenantAdminOnboarding.ts` instead of overloading `users.ts` with every onboarding concern.
+  - [x] Implement invitation issue, lookup, redemption, resend, and completion mutations or queries with tenant-scoped validation and clear `ConvexError` codes.
+  - [x] Refactor shared tenant-admin account-attachment logic so self-serve and invite flows can reuse one secure backend path for role-assignment checks and audit logging.
+  - [x] Write append-only audit events for invitation issued, invitation resent, invitation accepted, onboarding completed, and onboarding blocked for inactive tenant.
 
-- [ ] Task 3: Adapt the public signup flow to support both self-serve and invited Tenant Admin onboarding without creating a second auth stack (AC: 1, 2, 3, 4, 8, 10)
-  - [ ] Extend `webapp/app/(auth)/signup/page.tsx`, `webapp/src/components/auth/SignupFlow.tsx`, and `SignupForm.tsx` so `/signup` can resolve invited Tenant Admin mode from the existing `invite` query param while preserving the current self-serve tier behavior.
-  - [ ] Reuse the current Convex Auth password provider and OTP verification flow for both self-serve and invited onboarding; do not fork to a separate auth provider or vendor.
-  - [ ] Keep self-serve institution signup restricted to Free, Starter, and Professional tiers, and keep Enterprise/manual onboarding out of the self-serve branch.
-  - [ ] Preserve the public-entry passthrough behavior from Story 11.3 so deep links carrying `invite` are not dropped before they reach `/signup`.
+- [x] Task 3: Adapt the public signup flow to support both self-serve and invited Tenant Admin onboarding without creating a second auth stack (AC: 1, 2, 3, 4, 8, 10)
+  - [x] Extend `webapp/app/(auth)/signup/page.tsx`, `webapp/src/components/auth/SignupFlow.tsx`, and `SignupForm.tsx` so `/signup` can resolve invited Tenant Admin mode from the existing `invite` query param while preserving the current self-serve tier behavior.
+  - [x] Reuse the current Convex Auth password provider and OTP verification flow for both self-serve and invited onboarding; do not fork to a separate auth provider or vendor.
+  - [x] Keep self-serve institution signup restricted to Free, Starter, and Professional tiers, and keep Enterprise/manual onboarding out of the self-serve branch.
+  - [x] Preserve the public-entry passthrough behavior from Story 11.3 so deep links carrying `invite` are not dropped before they reach `/signup`.
 
-- [ ] Task 4: Add a protected tenant-admin onboarding route and route-guard contract (AC: 5, 6, 7, 9, 11)
-  - [ ] Add a thin protected page such as `webapp/app/(app)/tenant-admin/onboarding/page.tsx` and move the interactive UI into a dedicated component such as `webapp/src/components/tenant-admin/TenantAdminOnboardingFlow.tsx`.
-  - [ ] Add a small helper module such as `webapp/lib/tenant-admin/onboarding.ts` to define the canonical onboarding route, stage names, and redirect rules so they are testable outside React.
-  - [ ] Extend `webapp/convex/functions/_roleGuard.ts` and `webapp/lib/auth/roles.ts` with a tenant-admin onboarding stage similar to the existing Platform Admin verification-stage contract: incomplete tenant admins may access onboarding only; complete tenant admins route to `/tenant-admin`.
-  - [ ] Keep `/dashboard` as the neutral post-auth landing route while `getAuthContext` resolves incomplete tenant admins toward onboarding automatically, so the current `VerifyEmailForm` redirect to `/dashboard` can remain simple.
+- [x] Task 4: Add a protected tenant-admin onboarding route and route-guard contract (AC: 5, 6, 7, 9, 11)
+  - [x] Add a thin protected page such as `webapp/app/(app)/tenant-admin/onboarding/page.tsx` and move the interactive UI into a dedicated component such as `webapp/src/components/tenant-admin/TenantAdminOnboardingFlow.tsx`.
+  - [x] Add a small helper module such as `webapp/lib/tenant-admin/onboarding.ts` to define the canonical onboarding route, stage names, and redirect rules so they are testable outside React.
+  - [x] Extend `webapp/convex/functions/_roleGuard.ts` and `webapp/lib/auth/roles.ts` with a tenant-admin onboarding stage similar to the existing Platform Admin verification-stage contract: incomplete tenant admins may access onboarding only; complete tenant admins route to `/tenant-admin`.
+  - [x] Keep `/dashboard` as the neutral post-auth landing route while `getAuthContext` resolves incomplete tenant admins toward onboarding automatically, so the current `VerifyEmailForm` redirect to `/dashboard` can remain simple.
 
-- [ ] Task 5: Deliver the institution-profile completion experience with minimal but truthful persistence (AC: 5, 6, 7, 11)
-  - [ ] Build a guided onboarding form that separates already-completed account steps from remaining institution-profile requirements.
-  - [ ] Prefill safe values where available, especially organization name from self-serve signup and tenant name for invited admins, while allowing correction before completion.
-  - [ ] Keep the required form scope tight for Story 3.1: institution name, primary contact details, and fiscal-year configuration are required; logo is optional and must not force a full branding pipeline if skipped.
-  - [ ] Mark the tenant profile complete only after required fields store successfully, then redirect to `/tenant-admin` and allow the existing dashboard to load normally.
+- [x] Task 5: Deliver the institution-profile completion experience with minimal but truthful persistence (AC: 5, 6, 7, 11)
+  - [x] Build a guided onboarding form that separates already-completed account steps from remaining institution-profile requirements.
+  - [x] Prefill safe values where available, especially organization name from self-serve signup and tenant name for invited admins, while allowing correction before completion.
+  - [x] Keep the required form scope tight for Story 3.1: institution name, primary contact details, and fiscal-year configuration are required; logo is optional and must not force a full branding pipeline if skipped.
+  - [x] Mark the tenant profile complete only after required fields store successfully, then redirect to `/tenant-admin` and allow the existing dashboard to load normally.
 
-- [ ] Task 6: Wire resend, expiry, and password-reset behavior around the existing email-verification and auth stack (AC: 2, 3, 4, 9, 10)
-  - [ ] Keep the current `ResendOTP`-driven verification model unless there is a proven blocker; do not rewrite Story 1.2’s auth foundation just to satisfy onboarding copy.
-  - [ ] If the 24-hour verification-window requirement needs extra orchestration, implement it as onboarding-layer tracking plus scheduled resend calls against the existing auth APIs rather than replacing the provider.
-  - [ ] Use the already-available password reset action and reset form so invited or self-serve Tenant Admins recover through the same secure path.
-  - [ ] Keep invitation expiry and resend semantics server-authoritative, including invalidation of superseded invite links.
+- [x] Task 6: Wire resend, expiry, and password-reset behavior around the existing email-verification and auth stack (AC: 2, 3, 4, 9, 10)
+  - [x] Keep the current `ResendOTP`-driven verification model unless there is a proven blocker; do not rewrite Story 1.2’s auth foundation just to satisfy onboarding copy.
+  - [x] If the 24-hour verification-window requirement needs extra orchestration, implement it as onboarding-layer tracking plus scheduled resend calls against the existing auth APIs rather than replacing the provider.
+  - [x] Use the already-available password reset action and reset form so invited or self-serve Tenant Admins recover through the same secure path.
+  - [x] Keep invitation expiry and resend semantics server-authoritative, including invalidation of superseded invite links.
 
-- [ ] Task 7: Add deterministic regression coverage for onboarding state, route protection, and failure cases (AC: 1-12)
-  - [ ] Add signup-flow tests for invite-mode resolution from the `invite` query param and safe restoration of pending onboarding state.
-  - [ ] Add route and RBAC tests proving incomplete tenant admins are redirected to `/tenant-admin/onboarding`, complete tenant admins can access `/tenant-admin`, and non-tenant-admin roles remain blocked from the tenant-admin namespace.
-  - [ ] Add backend tests for invitation expiry, resend invalidation, duplicate-email rejection, profile-completion persistence, inactive-tenant blocking, and password-reset continuation for onboarding users.
-  - [ ] Update `webapp/tests/run-tests.ts` so onboarding coverage becomes part of the standard deterministic test run.
+- [x] Task 7: Add deterministic regression coverage for onboarding state, route protection, and failure cases (AC: 1-12)
+  - [x] Add signup-flow tests for invite-mode resolution from the `invite` query param and safe restoration of pending onboarding state.
+  - [x] Add route and RBAC tests proving incomplete tenant admins are redirected to `/tenant-admin/onboarding`, complete tenant admins can access `/tenant-admin`, and non-tenant-admin roles remain blocked from the tenant-admin namespace.
+  - [x] Add backend tests for invitation expiry, resend invalidation, duplicate-email rejection, profile-completion persistence, inactive-tenant blocking, and password-reset continuation for onboarding users.
+  - [x] Update `webapp/tests/run-tests.ts` so onboarding coverage becomes part of the standard deterministic test run.
 
 ## Dev Notes
 
@@ -255,16 +255,58 @@ gpt-5-codex
 - 2026-03-22: Anchored the story to the live repo's current self-serve signup, OTP verification, protected dashboard redirect, and tenant-admin dashboard shell instead of treating onboarding as greenfield work.
 - 2026-03-22: Resolved the main implementation risk by directing the dev agent to layer invitation and onboarding state around the existing Convex Auth OTP flow rather than rewriting the authentication foundation from Story 1.2.
 - 2026-03-22: Documented a route-guard approach that reuses the stage-based auth pattern already present for Platform Admin verification.
+- 2026-03-22: Implemented tenant onboarding schema extensions, invitation persistence, verification-window tracking, and the dedicated `tenantAdminOnboarding` Convex module.
+- 2026-03-22: Added invite-aware `/signup` handling, protected tenant-admin onboarding routing, the institution-profile completion flow, and password-reset continuation back into onboarding.
+- 2026-03-22: Verified the story with `npm test`, `npm run lint`, and `npx convex codegen` from `webapp/`.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/epics/epic3/stories/3-1-tenant-admin-institution-setup-flow.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `webapp/app/(app)/tenant-admin/onboarding/page.tsx`
+- `webapp/app/(auth)/forgot-password/page.tsx`
+- `webapp/app/(auth)/reset-password/page.tsx`
+- `webapp/app/(auth)/signup/page.tsx`
+- `webapp/convex/_generated/api.d.ts`
+- `webapp/convex/functions/_roleGuard.ts`
+- `webapp/convex/functions/auth.ts`
+- `webapp/convex/functions/tenantAdminOnboarding.ts`
+- `webapp/convex/functions/tenants.ts`
+- `webapp/convex/functions/users.ts`
+- `webapp/convex/schema.ts`
+- `webapp/lib/auth/password-reset.ts`
+- `webapp/lib/auth/public-entry.ts`
+- `webapp/lib/auth/roles.ts`
+- `webapp/lib/auth/signup-flow.ts`
+- `webapp/lib/errors/convex.ts`
+- `webapp/lib/platform-admin/request-context-token.ts`
+- `webapp/lib/security/audit.ts`
+- `webapp/lib/tenant-admin/invitations.ts`
+- `webapp/lib/tenant-admin/onboarding.ts`
+- `webapp/lib/validators/tenant-admin.ts`
+- `webapp/src/components/auth/ForgotPasswordForm.tsx`
+- `webapp/src/components/auth/ResetPasswordForm.tsx`
+- `webapp/src/components/auth/SignupFlow.tsx`
+- `webapp/src/components/auth/SignupForm.tsx`
+- `webapp/src/components/auth/VerifyEmailForm.tsx`
+- `webapp/src/components/tenant-admin/TenantAdminOnboardingFlow.tsx`
+- `webapp/tests/password-reset.test.ts`
+- `webapp/tests/public-auth-entry.test.ts`
+- `webapp/tests/rbac.test.ts`
+- `webapp/tests/run-tests.ts`
+- `webapp/tests/signup-flow.test.ts`
+- `webapp/tests/tenant-admin-onboarding.test.ts`
+
+### Change Log
+
+- 2026-03-22: Added tenant-admin invitation, verification-window, and onboarding persistence plus invite redemption/completion mutations in Convex.
+- 2026-03-22: Extended the public signup, verification, and password-reset flows for invited tenant-admin onboarding while preserving the existing password provider and OTP verification path.
+- 2026-03-22: Added protected tenant-admin onboarding routing, the institution-profile completion UI, and deterministic regression coverage for invitation, routing, and continuation behavior.
 
 ### Story Completion Status
 
 - Story ID: `3.1`
 - Story Key: `3-1-tenant-admin-institution-setup-flow`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic3/stories/3-1-tenant-admin-institution-setup-flow.md`
-- Final Status: `ready-for-dev`
-- Completion Note: `Comprehensive implementation guide created for self-serve plus invited tenant-admin onboarding, protected institution-profile setup, and auth-context-based dashboard gating.`
+- Final Status: `review`
+- Completion Note: `Implemented self-serve plus invited tenant-admin onboarding, protected institution-profile completion, verification-window orchestration, and deterministic regression coverage.`

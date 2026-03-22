@@ -6,6 +6,7 @@ import {
     evaluateRoleRouteAccess,
     type AuthContextSnapshot,
 } from "@/lib/auth/roles";
+import { isTenantAdminOnboardingRoute } from "@/lib/tenant-admin/onboarding";
 
 interface RoleGuardProps {
     authContext: AuthContextSnapshot;
@@ -15,6 +16,9 @@ interface RoleGuardProps {
 export function RoleGuard({ authContext, children }: RoleGuardProps) {
     const pathname = usePathname();
     const router = useRouter();
+    const allowInactiveTenantOnboardingMessage =
+        authContext.redirectReason === "subscription_inactive" &&
+        isTenantAdminOnboardingRoute(pathname);
 
     const routeDecision = evaluateRoleRouteAccess({
         authContext,
@@ -22,12 +26,12 @@ export function RoleGuard({ authContext, children }: RoleGuardProps) {
     });
 
     useEffect(() => {
-        if (routeDecision.action === "redirect") {
+        if (!allowInactiveTenantOnboardingMessage && routeDecision.action === "redirect") {
             router.replace(routeDecision.target);
         }
-    }, [routeDecision, router]);
+    }, [allowInactiveTenantOnboardingMessage, routeDecision, router]);
 
-    if (routeDecision.action === "redirect") {
+    if (!allowInactiveTenantOnboardingMessage && routeDecision.action === "redirect") {
         return null;
     }
 

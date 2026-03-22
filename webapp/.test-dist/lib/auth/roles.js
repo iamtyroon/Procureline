@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.evaluateRoleRouteAccess = exports.resolveRoleRecords = exports.shouldTerminateAuthenticatedSession = exports.getAuthNoticeMessage = exports.buildForbiddenRedirectPath = exports.buildDashboardPath = exports.getProtectedRouteRole = exports.isSegmentAwarePrefixMatch = exports.getRoleLabel = exports.getHomePathForRole = exports.isTenantScopedRole = exports.isAppRole = exports.ROLE_HOME_PATHS = exports.ROLE_LABELS = exports.ROLE_MISCONFIGURED_REASON = exports.PENDING_ACCESS_REASON = exports.FORBIDDEN_ACCESS_REASON = exports.TENANT_SCOPED_ROLES = exports.APP_ROLES = void 0;
 const auth_1 = require("../platform-admin/auth");
+const onboarding_1 = require("../tenant-admin/onboarding");
 exports.APP_ROLES = [
     "platform_admin",
     "tenant_admin",
@@ -88,6 +89,8 @@ function getAuthNoticeMessage(reason) {
             return "Your account roles are misconfigured. Access is blocked until an administrator fixes the setup.";
         case auth_1.PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON:
             return "Platform Admin access requires a password reset before you can sign in again.";
+        case "subscription_inactive":
+            return "Tenant deactivated. Contact Support.";
         default:
             return null;
     }
@@ -98,7 +101,6 @@ function shouldTerminateAuthenticatedSession(authContext) {
         authContext.accessState === "inactive" ||
         authContext.redirectReason === "account_deactivated" ||
         authContext.redirectReason === "session_expired" ||
-        authContext.redirectReason === "subscription_inactive" ||
         authContext.redirectReason ===
             auth_1.PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON);
 }
@@ -211,6 +213,16 @@ function evaluateRoleRouteAccess(args) {
             action: "redirect",
             target: args.authContext.redirectPath,
         };
+    }
+    if (requiredRole === "tenant_admin") {
+        const tenantAdminDecision = (0, onboarding_1.evaluateTenantAdminOnboardingRouteAccess)({
+            homePath: args.authContext.homePath,
+            onboardingStage: args.authContext.tenantAdminOnboardingStage ?? "not_applicable",
+            pathname: args.pathname,
+        });
+        if (tenantAdminDecision.action === "redirect") {
+            return tenantAdminDecision;
+        }
     }
     return { action: "allow" };
 }

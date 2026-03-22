@@ -1,6 +1,7 @@
 import { normalizeAuthEmail as normalizeSecurityEmail } from "../security/input";
 
 export const PASSWORD_RESET_SUCCESS_REASON = "password_reset_success";
+export const PASSWORD_RESET_CONTINUE_TO_PARAM = "continueTo";
 export const PASSWORD_RESET_REQUEST_MESSAGE =
     "If an account exists for that email, a password reset link has been sent.";
 export const PASSWORD_RESET_REQUEST_ERROR_MESSAGE =
@@ -22,6 +23,7 @@ export function normalizeAuthEmail(email: string): string {
 export function buildPasswordResetRedirectTo(
     email: string,
     args?: {
+        continueTo?: string | undefined;
         platformResetToken?: string | undefined;
     },
 ): string {
@@ -34,6 +36,13 @@ export function buildPasswordResetRedirectTo(
         args.platformResetToken.trim().length > 0
     ) {
         params.set("platformResetToken", args.platformResetToken.trim());
+    }
+
+    if (
+        typeof args?.continueTo === "string" &&
+        args.continueTo.startsWith("/")
+    ) {
+        params.set(PASSWORD_RESET_CONTINUE_TO_PARAM, args.continueTo);
     }
 
     return `/reset-password?${params.toString()}`;

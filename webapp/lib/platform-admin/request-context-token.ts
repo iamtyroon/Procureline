@@ -172,7 +172,11 @@ export async function verifySignedPlatformAdminRequestContextToken(args: {
     try {
         const envelope = JSON.parse(
             decodeBase64Url(encodedPayload),
-        ) as PlatformAdminRequestContextEnvelope;
+        ) as {
+            context?: unknown;
+            expiresAt?: unknown;
+            issuedAt?: unknown;
+        };
         const now = args.now ?? Date.now();
 
         if (

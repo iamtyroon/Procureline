@@ -1,18 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useConvexAuth, useMutation } from "convex/react";
 import { LoaderCircle, MailCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import {
+    PENDING_INVITE_TOKEN_STORAGE_KEY,
     PENDING_ORG_NAME_STORAGE_KEY,
     PENDING_SELECTED_TIER_STORAGE_KEY,
     PENDING_TENANT_SETUP_RETRY_STORAGE_KEY,
     PENDING_VERIFICATION_EMAIL_STORAGE_KEY,
 } from "@/lib/auth/signup-flow";
+import { buildTenantAdminSignupContinuationHref } from "@/lib/tenant-admin/onboarding";
 import {
     resolveVerificationSelectedTier,
     type SelfServeTier,
@@ -26,8 +29,6 @@ import { normalizeAuthEmail, normalizePlainText } from "@/lib/security/input";
 import { otpSchema, type OtpFormData } from "@/lib/validators/auth";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
     Card,
     CardContent,
@@ -36,11 +37,17 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface VerifyEmailFormProps {
     email: string;
+    initialOrganizationName?: string;
+    inviteToken?: string;
+    mode: "signup" | "invite";
     onBack: (options?: { retryTenantSetup?: boolean }) => void;
     selectedTier: SelfServeTier;
+    tenantName?: string;
 }
 
 const TIER_LABELS: Record<SelfServeTier, string> = {
@@ -51,25 +58,33 @@ const TIER_LABELS: Record<SelfServeTier, string> = {
 
 export function VerifyEmailForm({
     email,
+    initialOrganizationName,
+    inviteToken,
+    mode,
     onBack,
     selectedTier,
+    tenantName,
 }: VerifyEmailFormProps): JSX.Element {
     const { signIn } = useAuthActions();
     const { isAuthenticated } = useConvexAuth();
     const registerWithTenant = useMutation(api.functions.users.registerWithTenant);
+    const redeemInvitation = useMutation(
+        api.functions.tenantAdminOnboarding.redeemInvitation,
+    );
+    const registerVerificationResend = useMutation(
+        api.functions.tenantAdminOnboarding.registerVerificationResend,
+    );
     const router = useRouter();
     const [serverError, setServerError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isResending, setIsResending] = useState(false);
+    const [organizationNameForContinuation, setOrganizationNameForContinuation] =
+        useState(initialOrganizationName ?? "");
     const [requiresOrganizationRetry, setRequiresOrganizationRetry] =
         useState(false);
     const [resendCooldown, setResendCooldown] = useState(0);
 
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-    } = useForm<OtpFormData>({
+    const form = useForm<OtpFormData>({
         resolver: zodResolver(otpSchema),
         defaultValues: { code: "" },
     });
@@ -79,22 +94,36 @@ export function VerifyEmailForm({
             return;
         }
 
-        const timer = setTimeout(() => setResendCooldown((current) => current - 1), 1000);
+        const timer = setTimeout(
+            () => setResendCooldown((current) => current - 1),
+            1000,
+        );
         return () => clearTimeout(timer);
     }, [resendCooldown]);
+
+    useEffect(() => {
+        const storedOrganizationName =
+            sessionStorage.getItem(PENDING_ORG_NAME_STORAGE_KEY) ??
+            initialOrganizationName ??
+            "";
+        setOrganizationNameForContinuation(storedOrganizationName);
+    }, [initialOrganizationName]);
 
     useEffect(() => {
         if (!isAuthenticated) {
             return;
         }
 
-        const orgName = sessionStorage.getItem(PENDING_ORG_NAME_STORAGE_KEY);
+        const orgName =
+            sessionStorage.getItem(PENDING_ORG_NAME_STORAGE_KEY) ??
+            initialOrganizationName ??
+            null;
         const storedTier = resolveVerificationSelectedTier(
             sessionStorage.getItem(PENDING_SELECTED_TIER_STORAGE_KEY),
             selectedTier,
         );
 
-        if (!orgName) {
+        if (mode === "signup" && !orgName) {
             sessionStorage.setItem(PENDING_TENANT_SETUP_RETRY_STORAGE_KEY, "true");
             sessionStorage.removeItem(PENDING_VERIFICATION_EMAIL_STORAGE_KEY);
             onBack({ retryTenantSetup: true });
@@ -107,14 +136,18 @@ export function VerifyEmailForm({
             );
         }
 
-        const normalizedOrganizationName = normalizePlainText(orgName);
-
-        async function createTenant(): Promise<void> {
+        async function finalizeOnboarding(): Promise<void> {
             try {
-                await registerWithTenant({
-                    organizationName: normalizedOrganizationName,
-                    selectedTier: storedTier.tier,
-                });
+                if (mode === "invite" && inviteToken) {
+                    await redeemInvitation({ inviteToken });
+                } else {
+                    await registerWithTenant({
+                        organizationName: normalizePlainText(orgName ?? ""),
+                        selectedTier: storedTier.tier,
+                    });
+                }
+
+                sessionStorage.removeItem(PENDING_INVITE_TOKEN_STORAGE_KEY);
                 sessionStorage.removeItem(PENDING_ORG_NAME_STORAGE_KEY);
                 sessionStorage.removeItem(PENDING_SELECTED_TIER_STORAGE_KEY);
                 sessionStorage.removeItem(PENDING_TENANT_SETUP_RETRY_STORAGE_KEY);
@@ -122,6 +155,7 @@ export function VerifyEmailForm({
                 router.push("/dashboard");
             } catch (error: unknown) {
                 if (isExistingRoleAssignmentError(error)) {
+                    sessionStorage.removeItem(PENDING_INVITE_TOKEN_STORAGE_KEY);
                     sessionStorage.removeItem(PENDING_ORG_NAME_STORAGE_KEY);
                     sessionStorage.removeItem(PENDING_SELECTED_TIER_STORAGE_KEY);
                     sessionStorage.removeItem(
@@ -144,12 +178,52 @@ export function VerifyEmailForm({
                 }
 
                 setRequiresOrganizationRetry(false);
-                setServerError("Account created but organization setup failed. Please contact support.");
+                setServerError(getPublicVerificationErrorMessage(error));
             }
         }
 
-        void createTenant();
-    }, [isAuthenticated, onBack, registerWithTenant, router, selectedTier]);
+        void finalizeOnboarding();
+    }, [
+        inviteToken,
+        isAuthenticated,
+        initialOrganizationName,
+        mode,
+        onBack,
+        redeemInvitation,
+        registerWithTenant,
+        router,
+        selectedTier,
+    ]);
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            return;
+        }
+
+        async function attemptAutoResend(): Promise<void> {
+            const resendState = await registerVerificationResend({
+                email: normalizeAuthEmail(email),
+                inviteToken,
+                mode: mode === "invite" ? "invite" : "self_serve",
+                resendMode: "auto",
+            });
+
+            if (!resendState.allowed) {
+                if (resendState.message) {
+                    setServerError(resendState.message);
+                }
+                return;
+            }
+
+            const formData = new FormData();
+            formData.set("email", normalizeAuthEmail(email));
+            formData.set("flow", "email-verification");
+            await signIn("password", formData);
+            setResendCooldown(60);
+        }
+
+        void attemptAutoResend();
+    }, [email, inviteToken, isAuthenticated, mode, registerVerificationResend, signIn]);
 
     async function onSubmit(data: OtpFormData): Promise<void> {
         setServerError(null);
@@ -161,7 +235,6 @@ export function VerifyEmailForm({
             formData.set("email", normalizeAuthEmail(email));
             formData.set("code", data.code.trim());
             formData.set("flow", "email-verification");
-
             await signIn("password", formData);
         } catch (error: unknown) {
             setServerError(getPublicVerificationErrorMessage(error));
@@ -180,22 +253,38 @@ export function VerifyEmailForm({
         setRequiresOrganizationRetry(false);
 
         try {
+            const resendState = await registerVerificationResend({
+                email: normalizeAuthEmail(email),
+                inviteToken,
+                mode: mode === "invite" ? "invite" : "self_serve",
+                resendMode: "manual",
+            });
+            if (!resendState.allowed) {
+                setServerError(
+                    resendState.message ?? "Unable to resend code right now.",
+                );
+                return;
+            }
+
             const formData = new FormData();
             formData.set("email", normalizeAuthEmail(email));
             formData.set("flow", "email-verification");
             await signIn("password", formData);
             setResendCooldown(60);
         } catch (error: unknown) {
-            setServerError(
-                getPublicVerificationErrorMessage(error) ===
-                    "Invalid or expired verification code. Please try again."
-                    ? "Unable to resend code right now."
-                    : getPublicVerificationErrorMessage(error),
-            );
+            setServerError(getPublicVerificationErrorMessage(error));
         } finally {
             setIsResending(false);
         }
     }
+
+    const forgotPasswordHref = buildTenantAdminSignupContinuationHref({
+        email,
+        inviteToken,
+        organizationName:
+            mode === "signup" ? organizationNameForContinuation : undefined,
+        tier: mode === "signup" ? selectedTier : undefined,
+    });
 
     return (
         <Card className="border-border/50 shadow-lg">
@@ -211,21 +300,23 @@ export function VerifyEmailForm({
                     <span className="font-medium text-foreground">{email}</span>
                 </CardDescription>
                 <div className="mx-auto inline-flex rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
-                    Selected plan: {TIER_LABELS[selectedTier]}
+                    {mode === "invite"
+                        ? `Invitation for ${tenantName ?? "your institution"}`
+                        : `Selected plan: ${TIER_LABELS[selectedTier]}`}
                 </div>
             </CardHeader>
 
             <form
                 onSubmit={(event) => {
-                    void handleSubmit(onSubmit)(event);
+                    void form.handleSubmit(onSubmit)(event);
                 }}
             >
                 <CardContent className="space-y-4">
                     {serverError ? (
                         <div
                             className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-                            role="alert"
                             id="verify-error"
+                            role="alert"
                         >
                             {serverError}
                         </div>
@@ -242,13 +333,11 @@ export function VerifyEmailForm({
                             placeholder="12345678"
                             autoComplete="one-time-code"
                             className="text-center text-lg font-mono tracking-[0.3em]"
-                            {...register("code")}
-                            aria-invalid={errors.code ? "true" : undefined}
-                            aria-describedby={errors.code ? "code-error" : undefined}
+                            {...form.register("code")}
                         />
-                        {errors.code ? (
-                            <p id="code-error" className="text-sm text-destructive">
-                                {errors.code.message}
+                        {form.formState.errors.code?.message ? (
+                            <p className="text-sm text-destructive">
+                                {form.formState.errors.code.message}
                             </p>
                         ) : null}
                     </div>
@@ -305,6 +394,18 @@ export function VerifyEmailForm({
                                     : "Resend code"}
                         </Button>
                     </div>
+
+                    <p className="text-center text-sm text-muted-foreground">
+                        Need to recover access instead?{" "}
+                        <Link
+                            href={`/forgot-password?continueTo=${encodeURIComponent(
+                                forgotPasswordHref,
+                            )}`}
+                            className="font-medium text-primary hover:underline"
+                        >
+                            Reset password
+                        </Link>
+                    </p>
                 </CardFooter>
             </form>
         </Card>

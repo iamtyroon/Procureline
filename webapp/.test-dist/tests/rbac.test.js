@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.runRbacTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
 const roles_1 = require("../lib/auth/roles");
+const onboarding_1 = require("../lib/tenant-admin/onboarding");
 const ACTIVE_SESSION_CONTEXT = {
     isSessionValid: true,
     sessionStatus: "active",
@@ -283,6 +284,7 @@ function runRbacTests() {
             isRoleResolved: true,
             homePath: "/tenant-admin",
             redirectPath: "/tenant-admin",
+            tenantAdminOnboardingStage: "complete",
             tenantStatus: "active",
         },
     }), { action: "allow" });
@@ -298,6 +300,7 @@ function runRbacTests() {
             isRoleResolved: true,
             homePath: "/po",
             redirectPath: "/po",
+            tenantAdminOnboardingStage: "not_applicable",
             tenantStatus: "active",
         },
     }), {
@@ -316,6 +319,7 @@ function runRbacTests() {
             isRoleResolved: true,
             homePath: "/po",
             redirectPath: "/po",
+            tenantAdminOnboardingStage: "not_applicable",
             tenantStatus: "active",
         },
     }), { action: "allow" });
@@ -331,10 +335,48 @@ function runRbacTests() {
             isRoleResolved: true,
             homePath: "/du",
             redirectPath: "/du",
+            tenantAdminOnboardingStage: "not_applicable",
             tenantStatus: "active",
         },
     }), { action: "allow" });
     completedTests.push("department user is allowed to access their own sub-routes");
+    strict_1.default.deepEqual((0, roles_1.evaluateRoleRouteAccess)({
+        pathname: "/tenant-admin/settings",
+        authContext: {
+            ...ACTIVE_SESSION_CONTEXT,
+            accessState: "allowed",
+            role: "tenant_admin",
+            scope: "tenant",
+            isActive: true,
+            isRoleResolved: true,
+            homePath: onboarding_1.TENANT_ADMIN_ONBOARDING_ROUTE,
+            redirectPath: onboarding_1.TENANT_ADMIN_ONBOARDING_ROUTE,
+            tenantAdminOnboardingStage: "required",
+            tenantStatus: "active",
+        },
+    }), {
+        action: "redirect",
+        target: onboarding_1.TENANT_ADMIN_ONBOARDING_ROUTE,
+    });
+    strict_1.default.deepEqual((0, roles_1.evaluateRoleRouteAccess)({
+        pathname: onboarding_1.TENANT_ADMIN_ONBOARDING_ROUTE,
+        authContext: {
+            ...ACTIVE_SESSION_CONTEXT,
+            accessState: "allowed",
+            role: "tenant_admin",
+            scope: "tenant",
+            isActive: true,
+            isRoleResolved: true,
+            homePath: "/tenant-admin",
+            redirectPath: "/tenant-admin",
+            tenantAdminOnboardingStage: "complete",
+            tenantStatus: "active",
+        },
+    }), {
+        action: "redirect",
+        target: "/tenant-admin",
+    });
+    completedTests.push("tenant-admin onboarding access keeps incomplete admins on the onboarding route and redirects completed admins away from it");
     return completedTests;
 }
 exports.runRbacTests = runRbacTests;

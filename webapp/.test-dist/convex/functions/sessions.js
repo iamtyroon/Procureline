@@ -1,0 +1,198 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.markCurrentSessionLoggedOut = exports.touchCurrentSession = exports.ensureCurrentSessionMetadata = exports.getCurrentSessionState = exports.loadCurrentSessionState = exports.loadCurrentSessionDocuments = void 0;
+const server_1 = require("@convex-dev/auth/server");
+const values_1 = require("convex/values");
+const server_2 = require("../_generated/server");
+const session_1 = require("../../lib/auth/session");
+async function loadLatestSessionMetadata(ctx, sessionId) {
+    const metadataRecords = await ctx.db
+        .query("sessionMetadata")
+        .withIndex("by_sessionId", (q) => q.eq("sessionId", sessionId))
+        .collect();
+    return (metadataRecords.sort((left, right) => {
+        if (left.createdAt !== right.createdAt) {
+            return right.createdAt - left.createdAt;
+        }
+        return right._creationTime - left._creationTime;
+    })[0] ?? null);
+}
+async function loadCurrentSessionDocuments(ctx) {
+    const [sessionId, userId] = await Promise.all([
+        (0, server_1.getAuthSessionId)(ctx),
+        (0, server_1.getAuthUserId)(ctx),
+    ]);
+    if (!sessionId || !userId) {
+        return null;
+    }
+    const [authSession, metadata] = await Promise.all([
+        ctx.db.get(sessionId),
+        loadLatestSessionMetadata(ctx, sessionId),
+    ]);
+    return { sessionId, userId, authSession, metadata };
+}
+exports.loadCurrentSessionDocuments = loadCurrentSessionDocuments;
+async function loadCurrentSessionState(ctx) {
+    const currentSession = await loadCurrentSessionDocuments(ctx);
+    if (!currentSession) {
+        return null;
+    }
+    return {
+        sessionId: currentSession.sessionId,
+        userId: currentSession.userId,
+        state: (0, session_1.resolveSessionState)({
+            authSession: currentSession.authSession,
+            metadata: currentSession.metadata,
+        }),
+    };
+}
+exports.loadCurrentSessionState = loadCurrentSessionState;
+exports.getCurrentSessionState = (0, server_2.query)({
+    args: {},
+    returns: values_1.v.union(values_1.v.object({
+        sessionId: values_1.v.id("authSessions"),
+        userId: values_1.v.id("users"),
+        isValid: values_1.v.boolean(),
+        status: values_1.v.union(values_1.v.literal("active"), values_1.v.literal("expired"), values_1.v.literal("revoked"), values_1.v.literal("logged_out")),
+        redirectReason: values_1.v.union(values_1.v.literal("session_expired"), values_1.v.null()),
+        rememberMe: values_1.v.boolean(),
+        isPlatformAdminSession: values_1.v.boolean(),
+        inactivityWindowMs: values_1.v.number(),
+        lastActivityAt: values_1.v.union(values_1.v.number(), values_1.v.null()),
+        authSessionExpirationTime: values_1.v.union(values_1.v.number(), values_1.v.null()),
+    }), values_1.v.null()),
+    handler: async (ctx) => {
+        const currentSession = await loadCurrentSessionState(ctx);
+        if (!currentSession) {
+            return null;
+        }
+        return {
+            sessionId: currentSession.sessionId,
+            userId: currentSession.userId,
+            ...currentSession.state,
+        };
+    },
+});
+exports.ensureCurrentSessionMetadata = (0, server_2.mutation)({
+    args: {
+        rememberMe: values_1.v.optional(values_1.v.boolean()),
+    },
+    returns: values_1.v.object({
+        sessionId: values_1.v.id("authSessions"),
+        userId: values_1.v.id("users"),
+        rememberMe: values_1.v.boolean(),
+        lastActivityAt: values_1.v.number(),
+    }),
+    handler: async (ctx, args) => {
+        const currentSession = await loadCurrentSessionDocuments(ctx);
+        if (!currentSession) {
+            throw new values_1.ConvexError({
+                code: "UNAUTHORIZED",
+                message: "You must be signed in to initialize a session",
+            });
+        }
+        const existingMetadata = currentSession.metadata;
+        const now = Date.now();
+        const rememberMe = args.rememberMe ?? (existingMetadata ? existingMetadata.rememberMe : false);
+        if (existingMetadata) {
+            await ctx.db.patch(existingMetadata._id, {
+                rememberMe,
+                lastActivityAt: now,
+            });
+        }
+        else {
+            await ctx.db.insert("sessionMetadata", {
+                sessionId: currentSession.sessionId,
+                userId: currentSession.userId,
+                rememberMe,
+                lastActivityAt: now,
+                createdAt: now,
+            });
+        }
+        return {
+            sessionId: currentSession.sessionId,
+            userId: currentSession.userId,
+            rememberMe,
+            lastActivityAt: now,
+        };
+    },
+});
+exports.touchCurrentSession = (0, server_2.mutation)({
+    args: {},
+    returns: values_1.v.union(values_1.v.object({
+        touched: values_1.v.boolean(),
+        sessionStatus: values_1.v.union(values_1.v.literal("active"), values_1.v.literal("expired"), values_1.v.literal("revoked"), values_1.v.literal("logged_out")),
+        redirectReason: values_1.v.union(values_1.v.literal("session_expired"), values_1.v.null()),
+    }), values_1.v.null()),
+    handler: async (ctx) => {
+        const currentSession = await loadCurrentSessionDocuments(ctx);
+        if (!currentSession) {
+            return null;
+        }
+        const state = (0, session_1.resolveSessionState)({
+            authSession: currentSession.authSession,
+            metadata: currentSession.metadata,
+        });
+        if (!state.isValid) {
+            const result = {
+                touched: false,
+                sessionStatus: state.status,
+                redirectReason: state.redirectReason,
+            };
+            return result;
+        }
+        const existingMetadata = currentSession.metadata;
+        if (!existingMetadata) {
+            const result = {
+                touched: false,
+                sessionStatus: "active",
+                redirectReason: state.redirectReason,
+            };
+            return result;
+        }
+        const now = Date.now();
+        await ctx.db.patch(existingMetadata._id, {
+            lastActivityAt: now,
+        });
+        const result = {
+            touched: true,
+            sessionStatus: "active",
+            redirectReason: state.redirectReason,
+        };
+        return result;
+    },
+});
+exports.markCurrentSessionLoggedOut = (0, server_2.mutation)({
+    args: {},
+    returns: values_1.v.union(values_1.v.object({
+        marked: values_1.v.boolean(),
+        sessionId: values_1.v.id("authSessions"),
+        userId: values_1.v.id("users"),
+    }), values_1.v.null()),
+    handler: async (ctx) => {
+        const currentSession = await loadCurrentSessionDocuments(ctx);
+        if (!currentSession) {
+            return null;
+        }
+        const existingMetadata = currentSession.metadata;
+        const now = Date.now();
+        const patch = (0, session_1.createLogoutMetadataPatch)(now);
+        if (existingMetadata) {
+            await ctx.db.patch(existingMetadata._id, patch);
+        }
+        else {
+            await ctx.db.insert("sessionMetadata", {
+                sessionId: currentSession.sessionId,
+                userId: currentSession.userId,
+                rememberMe: false,
+                createdAt: now,
+                ...patch,
+            });
+        }
+        return {
+            marked: true,
+            sessionId: currentSession.sessionId,
+            userId: currentSession.userId,
+        };
+    },
+});

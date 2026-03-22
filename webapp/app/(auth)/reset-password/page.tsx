@@ -14,6 +14,7 @@ export const metadata: Metadata = {
 interface ResetPasswordPageProps {
     searchParams: Promise<{
         code?: string | string[] | undefined;
+        continueTo?: string | string[] | undefined;
         email?: string | string[] | undefined;
         expiresAt?: string | string[] | undefined;
         platformResetToken?: string | string[] | undefined;
@@ -28,6 +29,9 @@ export default async function ResetPasswordPage({
     return (
         <ResetPasswordForm
             initialCode={getSingleSearchParam(resolvedSearchParams.code)}
+            initialContinueTo={getSingleSearchParam(
+                resolvedSearchParams.continueTo,
+            )}
             initialEmail={getSingleSearchParam(resolvedSearchParams.email)}
             initialExpiresAt={parsePasswordResetExpiresAt(
                 resolvedSearchParams.expiresAt,

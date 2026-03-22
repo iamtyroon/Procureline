@@ -1,192 +1,56 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
-import { ConvexError, v } from "convex/values";
-import type { Id } from "../_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "../_generated/server";
-import {
-    ACCOUNT_DEACTIVATED_REASON,
-    SESSION_EXPIRED_REASON,
-    SUBSCRIPTION_INACTIVE_REASON,
-} from "../../lib/auth/session";
-import { evaluateDepartmentUserSubmissionWindow } from "../../lib/auth/department-user-access";
-import {
-    buildDashboardPath,
-    FORBIDDEN_ACCESS_REASON,
-    getHomePathForRole,
-    PENDING_ACCESS_REASON,
-    resolveRoleRecords,
-    ROLE_MISCONFIGURED_REASON,
-    type AccessState,
-    type AppRole,
-    type AuthContextRole,
-    type AuthNavigationReason,
-    type AuthScope,
-    type TenantScopedRole,
-    type TenantStatusValue,
-} from "../../lib/auth/roles";
-import {
-    getPlatformAdminRedirectPath,
-    PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON,
-    resolvePlatformAdminAuthStage,
-    type PlatformAdminAuthStage,
-} from "../../lib/platform-admin/auth";
-import {
-    TENANT_ADMIN_ONBOARDING_ROUTE,
-    resolveTenantAdminOnboardingStage,
-    type TenantAdminOnboardingStage,
-} from "../../lib/tenant-admin/onboarding";
-import {
-    loadCurrentSessionDocuments,
-    loadCurrentSessionState,
-} from "./sessions";
-
-const authContextRoleValidator = v.union(
-    v.literal("platform_admin"),
-    v.literal("tenant_admin"),
-    v.literal("procurement_officer"),
-    v.literal("department_user"),
-    v.literal("unassigned"),
-);
-
-const authScopeValidator = v.union(
-    v.literal("platform"),
-    v.literal("tenant"),
-    v.literal("none"),
-);
-
-const accessStateValidator = v.union(
-    v.literal("allowed"),
-    v.literal("inactive"),
-    v.literal("misconfigured"),
-    v.literal("pending_access"),
-);
-
-const authNavigationReasonValidator = v.union(
-    v.literal(ACCOUNT_DEACTIVATED_REASON),
-    v.literal(FORBIDDEN_ACCESS_REASON),
-    v.literal(PENDING_ACCESS_REASON),
-    v.literal(PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON),
-    v.literal(ROLE_MISCONFIGURED_REASON),
-    v.literal(SESSION_EXPIRED_REASON),
-    v.literal(SUBSCRIPTION_INACTIVE_REASON),
-);
-
-const tenantStatusValidator = v.union(
-    v.literal("active"),
-    v.literal("cancelled"),
-    v.literal("not_applicable"),
-    v.literal("suspended"),
-);
-
-const departmentAccessModeValidator = v.union(
-    v.literal("editable"),
-    v.literal("read_only_grace"),
-);
-
-const platformAdminAuthStageValidator = v.union(
-    v.literal("not_applicable"),
-    v.literal("setup_required"),
-    v.literal("verification_required"),
-    v.literal("verified"),
-    v.literal("reset_required"),
-);
-
-const tenantAdminOnboardingStageValidator = v.union(
-    v.literal("required"),
-    v.literal("complete"),
-    v.literal("not_applicable"),
-);
-
-export const authContextValidator = v.object({
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.requireVerifiedPlatformAdmin = exports.requirePlatformAdminSession = exports.requirePlatformAdmin = exports.requireTenantRole = exports.requireAnyRole = exports.requireAuthenticatedUser = exports.getAuthorizationContext = exports.authContextValidator = void 0;
+const server_1 = require("@convex-dev/auth/server");
+const values_1 = require("convex/values");
+const session_1 = require("../../lib/auth/session");
+const department_user_access_1 = require("../../lib/auth/department-user-access");
+const roles_1 = require("../../lib/auth/roles");
+const auth_1 = require("../../lib/platform-admin/auth");
+const onboarding_1 = require("../../lib/tenant-admin/onboarding");
+const sessions_1 = require("./sessions");
+const authContextRoleValidator = values_1.v.union(values_1.v.literal("platform_admin"), values_1.v.literal("tenant_admin"), values_1.v.literal("procurement_officer"), values_1.v.literal("department_user"), values_1.v.literal("unassigned"));
+const authScopeValidator = values_1.v.union(values_1.v.literal("platform"), values_1.v.literal("tenant"), values_1.v.literal("none"));
+const accessStateValidator = values_1.v.union(values_1.v.literal("allowed"), values_1.v.literal("inactive"), values_1.v.literal("misconfigured"), values_1.v.literal("pending_access"));
+const authNavigationReasonValidator = values_1.v.union(values_1.v.literal(session_1.ACCOUNT_DEACTIVATED_REASON), values_1.v.literal(roles_1.FORBIDDEN_ACCESS_REASON), values_1.v.literal(roles_1.PENDING_ACCESS_REASON), values_1.v.literal(auth_1.PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON), values_1.v.literal(roles_1.ROLE_MISCONFIGURED_REASON), values_1.v.literal(session_1.SESSION_EXPIRED_REASON), values_1.v.literal(session_1.SUBSCRIPTION_INACTIVE_REASON));
+const tenantStatusValidator = values_1.v.union(values_1.v.literal("active"), values_1.v.literal("cancelled"), values_1.v.literal("not_applicable"), values_1.v.literal("suspended"));
+const departmentAccessModeValidator = values_1.v.union(values_1.v.literal("editable"), values_1.v.literal("read_only_grace"));
+const platformAdminAuthStageValidator = values_1.v.union(values_1.v.literal("not_applicable"), values_1.v.literal("setup_required"), values_1.v.literal("verification_required"), values_1.v.literal("verified"), values_1.v.literal("reset_required"));
+const tenantAdminOnboardingStageValidator = values_1.v.union(values_1.v.literal("required"), values_1.v.literal("complete"), values_1.v.literal("not_applicable"));
+exports.authContextValidator = values_1.v.object({
     accessState: accessStateValidator,
-    departmentAccessMode: v.optional(departmentAccessModeValidator),
-    departmentId: v.optional(v.id("departments")),
-    homePath: v.string(),
-    isActive: v.boolean(),
-    isRoleResolved: v.boolean(),
-    isSessionValid: v.boolean(),
+    departmentAccessMode: values_1.v.optional(departmentAccessModeValidator),
+    departmentId: values_1.v.optional(values_1.v.id("departments")),
+    homePath: values_1.v.string(),
+    isActive: values_1.v.boolean(),
+    isRoleResolved: values_1.v.boolean(),
+    isSessionValid: values_1.v.boolean(),
     platformAdminAuthStage: platformAdminAuthStageValidator,
-    requiresPlatformAdminVerification: v.boolean(),
-    redirectPath: v.string(),
-    rememberMe: v.boolean(),
+    requiresPlatformAdminVerification: values_1.v.boolean(),
+    redirectPath: values_1.v.string(),
+    rememberMe: values_1.v.boolean(),
     role: authContextRoleValidator,
     scope: authScopeValidator,
-    sessionStatus: v.union(
-        v.literal("active"),
-        v.literal("expired"),
-        v.literal("revoked"),
-        v.literal("logged_out"),
-    ),
-    tenantId: v.optional(v.id("tenants")),
+    sessionStatus: values_1.v.union(values_1.v.literal("active"), values_1.v.literal("expired"), values_1.v.literal("revoked"), values_1.v.literal("logged_out")),
+    tenantId: values_1.v.optional(values_1.v.id("tenants")),
     tenantAdminOnboardingStage: tenantAdminOnboardingStageValidator,
     tenantStatus: tenantStatusValidator,
-    userId: v.id("users"),
-    redirectReason: v.optional(authNavigationReasonValidator),
+    userId: values_1.v.id("users"),
+    redirectReason: values_1.v.optional(authNavigationReasonValidator),
 });
-
-export interface AuthorizationContext {
-    accessState: AccessState;
-    departmentAccessMode?: "editable" | "read_only_grace";
-    departmentId?: Id<"departments">;
-    homePath: string;
-    isActive: boolean;
-    isRoleResolved: boolean;
-    isSessionValid: boolean;
-    platformAdminAuthStage: PlatformAdminAuthStage;
-    requiresPlatformAdminVerification: boolean;
-    redirectPath: string;
-    rememberMe: boolean;
-    role: AuthContextRole;
-    scope: AuthScope;
-    sessionStatus: "active" | "expired" | "logged_out" | "revoked";
-    tenantId?: Id<"tenants">;
-    tenantAdminOnboardingStage: TenantAdminOnboardingStage;
-    tenantStatus: TenantStatusValue;
-    userId: Id<"users">;
-    redirectReason?: AuthNavigationReason;
-}
-
-function createBaseContext(args: {
-    accessState: AccessState;
-    departmentAccessMode?: AuthorizationContext["departmentAccessMode"];
-    departmentId?: Id<"departments">;
-    homePath: string;
-    isActive: boolean;
-    isRoleResolved: boolean;
-    isSessionValid: boolean;
-    platformAdminAuthStage: PlatformAdminAuthStage;
-    requiresPlatformAdminVerification: boolean;
-    redirectPath: string;
-    rememberMe: boolean;
-    role: AuthContextRole;
-    scope: AuthScope;
-    sessionStatus: AuthorizationContext["sessionStatus"];
-    tenantId?: Id<"tenants">;
-    tenantAdminOnboardingStage: TenantAdminOnboardingStage;
-    tenantStatus: TenantStatusValue;
-    userId: Id<"users">;
-    redirectReason?: AuthNavigationReason;
-}): AuthorizationContext {
+function createBaseContext(args) {
     return args;
 }
-
-function unauthorizedError(message: string): never {
-    throw new ConvexError({
+function unauthorizedError(message) {
+    throw new values_1.ConvexError({
         code: "UNAUTHORIZED",
         message,
     });
 }
-
-function createInactiveAccessContext(args: {
-    reason: typeof ACCOUNT_DEACTIVATED_REASON | typeof SUBSCRIPTION_INACTIVE_REASON;
-    rememberMe: boolean;
-    sessionStatus: AuthorizationContext["sessionStatus"];
-    userId: Id<"users">;
-}): AuthorizationContext {
-    const redirectPath =
-        args.reason === SUBSCRIPTION_INACTIVE_REASON
-            ? buildDashboardPath(args.reason)
-            : `/login?reason=${args.reason}`;
-
+function createInactiveAccessContext(args) {
+    const redirectPath = args.reason === session_1.SUBSCRIPTION_INACTIVE_REASON
+        ? (0, roles_1.buildDashboardPath)(args.reason)
+        : `/login?reason=${args.reason}`;
     return createBaseContext({
         accessState: "inactive",
         departmentAccessMode: undefined,
@@ -208,7 +72,6 @@ function createInactiveAccessContext(args: {
         redirectReason: args.reason,
     });
 }
-
 /**
  * Resolve the full authorization context for the current authenticated user.
  *
@@ -227,20 +90,16 @@ function createInactiveAccessContext(args: {
  * Future queries/mutations MUST use `requireAnyRole`, `requireTenantRole`,
  * or `requirePlatformAdmin` as appropriate.
  */
-export async function getAuthorizationContext(
-    ctx: QueryCtx | MutationCtx,
-): Promise<AuthorizationContext | null> {
-    const userId = await getAuthUserId(ctx);
+async function getAuthorizationContext(ctx) {
+    const userId = await (0, server_1.getAuthUserId)(ctx);
     if (!userId) {
         return null;
     }
-
-    const currentSessionDocuments = await loadCurrentSessionDocuments(ctx);
-    const currentSession = await loadCurrentSessionState(ctx);
+    const currentSessionDocuments = await (0, sessions_1.loadCurrentSessionDocuments)(ctx);
+    const currentSession = await (0, sessions_1.loadCurrentSessionState)(ctx);
     if (!currentSession || !currentSessionDocuments) {
         return null;
     }
-
     if (!currentSession.state.isValid) {
         return createBaseContext({
             accessState: "inactive",
@@ -252,7 +111,7 @@ export async function getAuthorizationContext(
             isSessionValid: false,
             platformAdminAuthStage: "not_applicable",
             requiresPlatformAdminVerification: false,
-            redirectPath: `/login?reason=${SESSION_EXPIRED_REASON}`,
+            redirectPath: `/login?reason=${session_1.SESSION_EXPIRED_REASON}`,
             rememberMe: currentSession.state.rememberMe,
             role: "unassigned",
             scope: "none",
@@ -263,7 +122,6 @@ export async function getAuthorizationContext(
             redirectReason: currentSession.state.redirectReason ?? undefined,
         });
     }
-
     const [platformUsers, tenantUsers] = await Promise.all([
         ctx.db
             .query("platformUsers")
@@ -274,8 +132,7 @@ export async function getAuthorizationContext(
             .withIndex("by_userId", (q) => q.eq("userId", userId))
             .collect(),
     ]);
-
-    const resolvedRole = resolveRoleRecords({
+    const resolvedRole = (0, roles_1.resolveRoleRecords)({
         platformUsers: platformUsers.map((platformUser) => ({
             isActive: platformUser.isActive,
         })),
@@ -285,22 +142,18 @@ export async function getAuthorizationContext(
             tenantId: tenantUser.tenantId,
         })),
     });
-
     if (!resolvedRole.isRoleResolved) {
         if (resolvedRole.accessState === "inactive") {
             return createInactiveAccessContext({
-                reason: ACCOUNT_DEACTIVATED_REASON,
+                reason: session_1.ACCOUNT_DEACTIVATED_REASON,
                 rememberMe: currentSession.state.rememberMe,
                 sessionStatus: currentSession.state.status,
                 userId,
             });
         }
-
-        const reason =
-            resolvedRole.accessState === "misconfigured"
-                ? ROLE_MISCONFIGURED_REASON
-                : PENDING_ACCESS_REASON;
-
+        const reason = resolvedRole.accessState === "misconfigured"
+            ? roles_1.ROLE_MISCONFIGURED_REASON
+            : roles_1.PENDING_ACCESS_REASON;
         return createBaseContext({
             accessState: resolvedRole.accessState,
             departmentAccessMode: undefined,
@@ -311,7 +164,7 @@ export async function getAuthorizationContext(
             isSessionValid: true,
             platformAdminAuthStage: "not_applicable",
             requiresPlatformAdminVerification: false,
-            redirectPath: buildDashboardPath(reason),
+            redirectPath: (0, roles_1.buildDashboardPath)(reason),
             rememberMe: currentSession.state.rememberMe,
             role: "unassigned",
             scope: "none",
@@ -322,37 +175,33 @@ export async function getAuthorizationContext(
             redirectReason: reason,
         });
     }
-
     if (resolvedRole.role === "platform_admin") {
         const securityState = await ctx.db
             .query("platformAdminSecurityStates")
             .withIndex("by_userId", (q) => q.eq("userId", userId))
             .first();
-        const platformAdminAuthStage = resolvePlatformAdminAuthStage({
-            currentSessionStage:
-                currentSessionDocuments.metadata?.platformAdminAuthStage ?? null,
+        const platformAdminAuthStage = (0, auth_1.resolvePlatformAdminAuthStage)({
+            currentSessionStage: currentSessionDocuments.metadata?.platformAdminAuthStage ?? null,
             hasTwoFactorEnrollment: securityState?.isTwoFactorEnrolled === true,
             passwordResetRequiredAt: securityState?.passwordResetRequiredAt,
             storedBackupCodeCount: securityState
                 ? securityState.backupCodes.length
                 : 0,
         });
-        const requiresPlatformAdminVerification =
-            platformAdminAuthStage !== "verified";
-
+        const requiresPlatformAdminVerification = platformAdminAuthStage !== "verified";
         return createBaseContext({
             accessState: "allowed",
             departmentAccessMode: undefined,
             departmentId: undefined,
-            homePath: getHomePathForRole("platform_admin"),
+            homePath: (0, roles_1.getHomePathForRole)("platform_admin"),
             isActive: true,
             isRoleResolved: true,
             isSessionValid: true,
             platformAdminAuthStage,
             requiresPlatformAdminVerification,
             redirectPath: requiresPlatformAdminVerification
-                ? getPlatformAdminRedirectPath(platformAdminAuthStage)
-                : getHomePathForRole("platform_admin"),
+                ? (0, auth_1.getPlatformAdminRedirectPath)(platformAdminAuthStage)
+                : (0, roles_1.getHomePathForRole)("platform_admin"),
             rememberMe: currentSession.state.rememberMe,
             role: "platform_admin",
             scope: "platform",
@@ -360,18 +209,16 @@ export async function getAuthorizationContext(
             tenantStatus: "not_applicable",
             tenantAdminOnboardingStage: "not_applicable",
             userId,
-            redirectReason:
-                platformAdminAuthStage === "reset_required"
-                    ? PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON
-                    : undefined,
+            redirectReason: platformAdminAuthStage === "reset_required"
+                ? auth_1.PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON
+                : undefined,
         });
     }
-
     // Safe cast: tenantId originates from a Convex `Id<"tenants">` query
     // result, then passes through the pure `resolveRoleRecords` helper as
     // `string` for portability. The value is validated on the next line via
     // `ctx.db.get(tenantId)`.
-    const tenantId = resolvedRole.tenantId as Id<"tenants"> | undefined;
+    const tenantId = resolvedRole.tenantId;
     if (!tenantId) {
         return createBaseContext({
             accessState: "misconfigured",
@@ -383,7 +230,7 @@ export async function getAuthorizationContext(
             isSessionValid: true,
             platformAdminAuthStage: "not_applicable",
             requiresPlatformAdminVerification: false,
-            redirectPath: buildDashboardPath(ROLE_MISCONFIGURED_REASON),
+            redirectPath: (0, roles_1.buildDashboardPath)(roles_1.ROLE_MISCONFIGURED_REASON),
             rememberMe: currentSession.state.rememberMe,
             role: "unassigned",
             scope: "none",
@@ -391,10 +238,9 @@ export async function getAuthorizationContext(
             tenantStatus: "not_applicable",
             tenantAdminOnboardingStage: "not_applicable",
             userId,
-            redirectReason: ROLE_MISCONFIGURED_REASON,
+            redirectReason: roles_1.ROLE_MISCONFIGURED_REASON,
         });
     }
-
     const tenant = await ctx.db.get(tenantId);
     if (!tenant) {
         return createBaseContext({
@@ -407,7 +253,7 @@ export async function getAuthorizationContext(
             isSessionValid: true,
             platformAdminAuthStage: "not_applicable",
             requiresPlatformAdminVerification: false,
-            redirectPath: buildDashboardPath(ROLE_MISCONFIGURED_REASON),
+            redirectPath: (0, roles_1.buildDashboardPath)(roles_1.ROLE_MISCONFIGURED_REASON),
             rememberMe: currentSession.state.rememberMe,
             role: "unassigned",
             scope: "none",
@@ -415,30 +261,24 @@ export async function getAuthorizationContext(
             tenantStatus: "not_applicable",
             tenantAdminOnboardingStage: "not_applicable",
             userId,
-            redirectReason: ROLE_MISCONFIGURED_REASON,
+            redirectReason: roles_1.ROLE_MISCONFIGURED_REASON,
         });
     }
-
     if (tenant.status !== "active") {
         return createInactiveAccessContext({
-            reason: SUBSCRIPTION_INACTIVE_REASON,
+            reason: session_1.SUBSCRIPTION_INACTIVE_REASON,
             rememberMe: currentSession.state.rememberMe,
             sessionStatus: currentSession.state.status,
             userId,
         });
     }
-
-    let departmentId: Id<"departments"> | undefined;
-    let departmentAccessMode: AuthorizationContext["departmentAccessMode"];
-
+    let departmentId;
+    let departmentAccessMode;
     if (resolvedRole.role === "department_user") {
         const tenantUser = await ctx.db
             .query("tenantUsers")
-            .withIndex("by_userId_tenantId", (q) =>
-                q.eq("userId", userId).eq("tenantId", tenantId),
-            )
+            .withIndex("by_userId_tenantId", (q) => q.eq("userId", userId).eq("tenantId", tenantId))
             .first();
-
         if (!tenantUser || !tenantUser.isActive || tenantUser.role !== "department_user") {
             return createBaseContext({
                 accessState: "misconfigured",
@@ -450,7 +290,7 @@ export async function getAuthorizationContext(
                 isSessionValid: true,
                 platformAdminAuthStage: "not_applicable",
                 requiresPlatformAdminVerification: false,
-                redirectPath: buildDashboardPath(ROLE_MISCONFIGURED_REASON),
+                redirectPath: (0, roles_1.buildDashboardPath)(roles_1.ROLE_MISCONFIGURED_REASON),
                 rememberMe: currentSession.state.rememberMe,
                 role: "unassigned",
                 scope: "none",
@@ -458,27 +298,25 @@ export async function getAuthorizationContext(
                 tenantStatus: "not_applicable",
                 tenantAdminOnboardingStage: "not_applicable",
                 userId,
-                redirectReason: ROLE_MISCONFIGURED_REASON,
+                redirectReason: roles_1.ROLE_MISCONFIGURED_REASON,
             });
         }
-
         const profile = await ctx.db
             .query("departmentUserProfiles")
             .withIndex("by_tenantUserId", (q) => q.eq("tenantUserId", tenantUser._id))
             .first();
-
         if (!profile) {
             return createBaseContext({
                 accessState: "allowed",
                 departmentAccessMode: undefined,
                 departmentId: undefined,
-                homePath: getHomePathForRole("department_user"),
+                homePath: (0, roles_1.getHomePathForRole)("department_user"),
                 isActive: true,
                 isRoleResolved: true,
                 isSessionValid: true,
                 platformAdminAuthStage: "not_applicable",
                 requiresPlatformAdminVerification: false,
-                redirectPath: getHomePathForRole("department_user"),
+                redirectPath: (0, roles_1.getHomePathForRole)("department_user"),
                 rememberMe: currentSession.state.rememberMe,
                 role: "department_user",
                 scope: "tenant",
@@ -489,29 +327,27 @@ export async function getAuthorizationContext(
                 userId,
             });
         }
-
         if (!profile.isActive) {
             return createInactiveAccessContext({
-                reason: ACCOUNT_DEACTIVATED_REASON,
+                reason: session_1.ACCOUNT_DEACTIVATED_REASON,
                 rememberMe: currentSession.state.rememberMe,
                 sessionStatus: currentSession.state.status,
                 userId,
             });
         }
-
         const department = await ctx.db.get(profile.departmentId);
         if (!department || department.tenantId !== tenantId || !department.isActive) {
             return createBaseContext({
                 accessState: "allowed",
                 departmentAccessMode: undefined,
                 departmentId: undefined,
-                homePath: getHomePathForRole("department_user"),
+                homePath: (0, roles_1.getHomePathForRole)("department_user"),
                 isActive: true,
                 isRoleResolved: true,
                 isSessionValid: true,
                 platformAdminAuthStage: "not_applicable",
                 requiresPlatformAdminVerification: false,
-                redirectPath: getHomePathForRole("department_user"),
+                redirectPath: (0, roles_1.getHomePathForRole)("department_user"),
                 rememberMe: currentSession.state.rememberMe,
                 role: "department_user",
                 scope: "tenant",
@@ -522,25 +358,21 @@ export async function getAuthorizationContext(
                 userId,
             });
         }
-
         departmentId = profile.departmentId;
-        const windowState = evaluateDepartmentUserSubmissionWindow({
+        const windowState = (0, department_user_access_1.evaluateDepartmentUserSubmissionWindow)({
             submissionEndsAt: department.submissionEndsAt,
             submissionStartsAt: department.submissionStartsAt,
         });
         departmentAccessMode = windowState.accessMode ?? undefined;
     }
-
-    const tenantAdminOnboardingStage = resolveTenantAdminOnboardingStage({
+    const tenantAdminOnboardingStage = (0, onboarding_1.resolveTenantAdminOnboardingStage)({
         profileComplete: tenant.profileComplete,
         role: resolvedRole.role,
     });
-    const tenantHomePath =
-        resolvedRole.role === "tenant_admin" &&
+    const tenantHomePath = resolvedRole.role === "tenant_admin" &&
         tenantAdminOnboardingStage === "required"
-            ? TENANT_ADMIN_ONBOARDING_ROUTE
-            : getHomePathForRole(resolvedRole.role as AppRole);
-
+        ? onboarding_1.TENANT_ADMIN_ONBOARDING_ROUTE
+        : (0, roles_1.getHomePathForRole)(resolvedRole.role);
     return createBaseContext({
         accessState: "allowed",
         departmentAccessMode,
@@ -562,87 +394,53 @@ export async function getAuthorizationContext(
         userId,
     });
 }
-
-export async function requireAuthenticatedUser(
-    ctx: QueryCtx | MutationCtx,
-): Promise<AuthorizationContext> {
+exports.getAuthorizationContext = getAuthorizationContext;
+async function requireAuthenticatedUser(ctx) {
     const authContext = await getAuthorizationContext(ctx);
     if (!authContext || !authContext.isSessionValid) {
         unauthorizedError("You must be signed in to access this resource");
     }
-
     return authContext;
 }
-
-export async function requireAnyRole(
-    ctx: QueryCtx | MutationCtx,
-    allowedRoles?: readonly AppRole[],
-): Promise<AuthorizationContext & { role: AppRole }> {
+exports.requireAuthenticatedUser = requireAuthenticatedUser;
+async function requireAnyRole(ctx, allowedRoles) {
     const authContext = await requireAuthenticatedUser(ctx);
-
     if (!authContext.isRoleResolved || authContext.accessState !== "allowed") {
         unauthorizedError("You do not have an active application role");
     }
-
-    if (
-        allowedRoles &&
-        !allowedRoles.some((allowedRole) => allowedRole === authContext.role)
-    ) {
+    if (allowedRoles &&
+        !allowedRoles.some((allowedRole) => allowedRole === authContext.role)) {
         unauthorizedError("You are not authorized to access this resource");
     }
-
-    return authContext as AuthorizationContext & { role: AppRole };
+    return authContext;
 }
-
-export async function requireTenantRole(
-    ctx: QueryCtx | MutationCtx,
-    allowedRoles: readonly TenantScopedRole[] = ["tenant_admin", "procurement_officer", "department_user"],
-): Promise<AuthorizationContext & { role: TenantScopedRole; scope: "tenant"; tenantId: Id<"tenants"> }> {
+exports.requireAnyRole = requireAnyRole;
+async function requireTenantRole(ctx, allowedRoles = ["tenant_admin", "procurement_officer", "department_user"]) {
     const authContext = await requireAnyRole(ctx, allowedRoles);
-
     if (authContext.scope !== "tenant" || !authContext.tenantId) {
         unauthorizedError("Tenant-scoped access is required for this resource");
     }
-
-    return authContext as AuthorizationContext & {
-        role: TenantScopedRole;
-        scope: "tenant";
-        tenantId: Id<"tenants">;
-    };
+    return authContext;
 }
-
-export async function requirePlatformAdmin(
-    ctx: QueryCtx | MutationCtx,
-): Promise<AuthorizationContext & { role: "platform_admin"; scope: "platform" }> {
+exports.requireTenantRole = requireTenantRole;
+async function requirePlatformAdmin(ctx) {
     return await requireVerifiedPlatformAdmin(ctx);
 }
-
-export async function requirePlatformAdminSession(
-    ctx: QueryCtx | MutationCtx,
-): Promise<AuthorizationContext & { role: "platform_admin"; scope: "platform" }> {
+exports.requirePlatformAdmin = requirePlatformAdmin;
+async function requirePlatformAdminSession(ctx) {
     const authContext = await requireAnyRole(ctx, ["platform_admin"]);
-
     if (authContext.scope !== "platform") {
         unauthorizedError("Platform administrator access is required");
     }
-
-    return authContext as AuthorizationContext & {
-        role: "platform_admin";
-        scope: "platform";
-    };
-}
-
-export async function requireVerifiedPlatformAdmin(
-    ctx: QueryCtx | MutationCtx,
-): Promise<AuthorizationContext & { role: "platform_admin"; scope: "platform" }> {
-    const authContext = await requirePlatformAdminSession(ctx);
-
-    if (
-        authContext.requiresPlatformAdminVerification ||
-        authContext.platformAdminAuthStage !== "verified"
-    ) {
-        unauthorizedError("Platform administrator verification is required");
-    }
-
     return authContext;
 }
+exports.requirePlatformAdminSession = requirePlatformAdminSession;
+async function requireVerifiedPlatformAdmin(ctx) {
+    const authContext = await requirePlatformAdminSession(ctx);
+    if (authContext.requiresPlatformAdminVerification ||
+        authContext.platformAdminAuthStage !== "verified") {
+        unauthorizedError("Platform administrator verification is required");
+    }
+    return authContext;
+}
+exports.requireVerifiedPlatformAdmin = requireVerifiedPlatformAdmin;
