@@ -20,6 +20,10 @@ function runProxyRouteTests() {
     completedTests.push("procurement-officer placeholder route is public");
     strict_1.default.equal((0, public_routes_1.isKnownPublicRoute)("/access/department-user"), true);
     completedTests.push("department-user continuation route is public");
+    strict_1.default.equal((0, public_routes_1.isKnownPublicRoute)("/platform-admin/login"), true);
+    strict_1.default.equal((0, public_routes_1.isKnownPublicRoute)("/platform-admin/setup-2fa"), true);
+    strict_1.default.equal((0, public_routes_1.isKnownPublicRoute)("/platform-admin/verify"), true);
+    completedTests.push("platform-admin login and 2FA routes remain public even though the rest of the platform-admin namespace is protected");
     strict_1.default.equal((0, public_routes_1.isKnownPublicRoute)("/dashboard"), false);
     completedTests.push("dashboard route is not public");
     strict_1.default.equal((0, public_routes_1.isKnownPublicRoute)("/platform-admin"), false);
@@ -32,6 +36,9 @@ function runProxyRouteTests() {
     strict_1.default.equal(public_routes_1.PUBLIC_ROUTES.includes("/access"), true);
     strict_1.default.equal(public_routes_1.PUBLIC_ROUTES.includes("/access/procurement-officer"), true);
     strict_1.default.equal(public_routes_1.PUBLIC_ROUTES.includes("/access/department-user"), true);
+    strict_1.default.equal(public_routes_1.PUBLIC_ROUTES.includes("/platform-admin/login"), true);
+    strict_1.default.equal(public_routes_1.PUBLIC_ROUTES.includes("/platform-admin/setup-2fa"), true);
+    strict_1.default.equal(public_routes_1.PUBLIC_ROUTES.includes("/platform-admin/verify"), true);
     completedTests.push("public route registry includes the role-aware access hub plus the reserved PO and DU role-entry surfaces without broadening protected role prefixes");
     strict_1.default.equal(public_routes_1.PUBLIC_ROUTES.every((route) => (0, roles_1.getProtectedRouteRole)(route) === null), true);
     completedTests.push("proxy public routes stay separate from the centralized role-based route map");

@@ -6,6 +6,7 @@ import {
 } from "../marketing/pricing";
 import { SESSION_EXPIRED_REDIRECT_PATH } from "./proxy";
 import type { AuthContextSnapshot } from "./roles";
+import { isPlatformAdminAuthStageVerified } from "../platform-admin/auth";
 
 export const AUTH_ENTRY_ROUTE = "/access";
 export const PROCUREMENT_OFFICER_ACCESS_ROUTE = "/access/procurement-officer";
@@ -392,7 +393,9 @@ export function resolveAuthenticatedAccessRedirect(
               | "homePath"
               | "isRoleResolved"
               | "isSessionValid"
+              | "platformAdminAuthStage"
               | "redirectPath"
+              | "requiresPlatformAdminVerification"
           >
         | null
         | undefined,
@@ -410,6 +413,15 @@ export function resolveAuthenticatedAccessRedirect(
         authContext.isRoleResolved &&
         authContext.accessState === "allowed"
     ) {
+        if (
+            authContext.requiresPlatformAdminVerification === true &&
+            !isPlatformAdminAuthStageVerified(
+                authContext.platformAdminAuthStage ?? "not_applicable",
+            )
+        ) {
+            return authContext.redirectPath;
+        }
+
         return authContext.homePath;
     }
 

@@ -1,3 +1,5 @@
+import { PLATFORM_ADMIN_AUTH_ROUTES } from "../platform-admin/auth";
+
 export const PUBLIC_ROUTES = [
     "/",
     "/access",
@@ -8,6 +10,7 @@ export const PUBLIC_ROUTES = [
     "/forgot-password",
     "/reset-password",
     "/pricing",
+    ...PLATFORM_ADMIN_AUTH_ROUTES,
 ] as const;
 
 export function isKnownPublicRoute(pathname: string): boolean {

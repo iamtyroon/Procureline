@@ -182,6 +182,57 @@ export default defineSchema({
         .index("by_userId", ["userId"])
         .index("by_userId_isActive", ["userId", "isActive"]),
 
+    platformAdminSecurityStates: defineTable({
+        userId: v.id("users"),
+        enrollmentEmail: v.optional(v.string()),
+        isTwoFactorEnrolled: v.boolean(),
+        backupCodes: v.array(v.object({
+            codeHash: v.string(),
+            suffix: v.string(),
+            createdAt: v.number(),
+            consumedAt: v.optional(v.number()),
+        })),
+        lastTrustedAt: v.optional(v.number()),
+        lastTrustedCountry: v.optional(v.string()),
+        lastTrustedIpHash: v.optional(v.string()),
+        lastTrustedUserAgentHash: v.optional(v.string()),
+        passwordResetRequiredAt: v.optional(v.number()),
+        revokedAt: v.optional(v.number()),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    }).index("by_userId", ["userId"]),
+
+    platformAdminChallenges: defineTable({
+        userId: v.id("users"),
+        sessionId: v.id("authSessions"),
+        purpose: v.union(v.literal("setup"), v.literal("verify")),
+        codeHash: v.string(),
+        deliveryEmail: v.string(),
+        riskLevel: v.union(v.literal("normal"), v.literal("suspicious")),
+        riskReasons: v.array(v.union(
+            v.literal("country_changed"),
+            v.literal("ip_changed"),
+            v.literal("user_agent_changed"),
+        )),
+        failedAttempts: v.number(),
+        lockedUntil: v.optional(v.number()),
+        sentAt: v.number(),
+        expiresAt: v.number(),
+        consumedAt: v.optional(v.number()),
+        revokedAt: v.optional(v.number()),
+        ipAddress: v.optional(v.string()),
+        ipCountry: v.optional(v.string()),
+        ipRegion: v.optional(v.string()),
+        ipCity: v.optional(v.string()),
+        userAgent: v.optional(v.string()),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_userId", ["userId", "createdAt"])
+        .index("by_sessionId", ["sessionId", "createdAt"])
+        .index("by_userId_sessionId_purpose", ["userId", "sessionId", "purpose"])
+        .index("by_expiresAt", ["expiresAt"]),
+
     sessionMetadata: defineTable({
         sessionId: v.id("authSessions"),
         userId: v.id("users"),
@@ -190,6 +241,30 @@ export default defineSchema({
         createdAt: v.number(),
         revokedAt: v.optional(v.number()),
         loggedOutAt: v.optional(v.number()),
+        isPlatformAdminSession: v.optional(v.boolean()),
+        platformAdminAuthStage: v.optional(v.union(
+            v.literal("setup_required"),
+            v.literal("verification_required"),
+            v.literal("verified"),
+            v.literal("reset_required"),
+        )),
+        platformAdminChallengeId: v.optional(v.id("platformAdminChallenges")),
+        platformAdminRiskLevel: v.optional(v.union(
+            v.literal("normal"),
+            v.literal("suspicious"),
+        )),
+        platformAdminVerifiedAt: v.optional(v.number()),
+        platformAdminTrustedAt: v.optional(v.number()),
+        platformAdminVerificationMethod: v.optional(v.union(
+            v.literal("email_otp"),
+            v.literal("backup_code"),
+        )),
+        platformAdminRevocationReason: v.optional(v.string()),
+        platformAdminIpAddress: v.optional(v.string()),
+        platformAdminIpCountry: v.optional(v.string()),
+        platformAdminIpRegion: v.optional(v.string()),
+        platformAdminIpCity: v.optional(v.string()),
+        platformAdminUserAgent: v.optional(v.string()),
     })
         .index("by_sessionId", ["sessionId"])
         .index("by_userId", ["userId"])

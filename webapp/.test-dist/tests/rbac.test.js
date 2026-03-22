@@ -20,6 +20,9 @@ function runRbacTests() {
     completedTests.push("canonical home routes exist for all four application roles");
     strict_1.default.equal((0, roles_1.getProtectedRouteRole)("/platform-admin"), "platform_admin");
     strict_1.default.equal((0, roles_1.getProtectedRouteRole)("/platform-admin/settings"), "platform_admin");
+    strict_1.default.equal((0, roles_1.getProtectedRouteRole)("/platform-admin/login"), null);
+    strict_1.default.equal((0, roles_1.getProtectedRouteRole)("/platform-admin/setup-2fa"), null);
+    strict_1.default.equal((0, roles_1.getProtectedRouteRole)("/platform-admin/verify"), null);
     strict_1.default.equal((0, roles_1.getProtectedRouteRole)("/tenant-admin"), "tenant_admin");
     strict_1.default.equal((0, roles_1.getProtectedRouteRole)("/tenant-admin/po-management"), "tenant_admin");
     strict_1.default.equal((0, roles_1.getProtectedRouteRole)("/tenant-admin/reports"), "tenant_admin");
@@ -245,11 +248,30 @@ function runRbacTests() {
             isActive: true,
             isRoleResolved: true,
             homePath: "/platform-admin",
+            platformAdminAuthStage: "verification_required",
+            redirectPath: "/platform-admin/verify",
+            requiresPlatformAdminVerification: true,
+            tenantStatus: "not_applicable",
+        },
+    }), { action: "redirect", target: "/platform-admin/verify" });
+    completedTests.push("platform admin route access still fails closed until admin verification is complete for the current session");
+    strict_1.default.deepEqual((0, roles_1.evaluateRoleRouteAccess)({
+        pathname: "/platform-admin",
+        authContext: {
+            ...ACTIVE_SESSION_CONTEXT,
+            accessState: "allowed",
+            role: "platform_admin",
+            scope: "platform",
+            isActive: true,
+            isRoleResolved: true,
+            homePath: "/platform-admin",
+            platformAdminAuthStage: "verified",
             redirectPath: "/platform-admin",
+            requiresPlatformAdminVerification: false,
             tenantStatus: "not_applicable",
         },
     }), { action: "allow" });
-    completedTests.push("platform admin is allowed to access their own dashboard route");
+    completedTests.push("verified platform admin sessions can access protected admin routes");
     strict_1.default.deepEqual((0, roles_1.evaluateRoleRouteAccess)({
         pathname: "/tenant-admin/settings",
         authContext: {

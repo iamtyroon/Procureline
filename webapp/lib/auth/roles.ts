@@ -1,4 +1,10 @@
 import type { SessionRedirectReason, SessionStatus } from "./session";
+import {
+    isPlatformAdminAuthRoute,
+    isPlatformAdminAuthStageVerified,
+    PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON,
+    type PlatformAdminAuthStage,
+} from "../platform-admin/auth";
 
 export const APP_ROLES = [
     "platform_admin",
@@ -36,7 +42,8 @@ export type AuthNavigationReason =
     | SessionRedirectReason
     | typeof FORBIDDEN_ACCESS_REASON
     | typeof PENDING_ACCESS_REASON
-    | typeof ROLE_MISCONFIGURED_REASON;
+    | typeof ROLE_MISCONFIGURED_REASON
+    | typeof PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON;
 
 export const ROLE_LABELS: Record<AuthContextRole, string> = {
     platform_admin: "Platform Admin",
@@ -93,6 +100,8 @@ export interface AuthContextSnapshot {
     role: AuthContextRole;
     scope: AuthScope;
     sessionStatus: SessionStatus;
+    platformAdminAuthStage?: PlatformAdminAuthStage;
+    requiresPlatformAdminVerification?: boolean;
     tenantId?: string;
     tenantStatus: TenantStatusValue;
     redirectReason?: AuthNavigationReason;
@@ -122,6 +131,10 @@ export function isSegmentAwarePrefixMatch(
 }
 
 export function getProtectedRouteRole(pathname: string): AppRole | null {
+    if (isPlatformAdminAuthRoute(pathname)) {
+        return null;
+    }
+
     const matchedRoute = ROLE_ROUTE_PREFIXES.find(({ path }) =>
         isSegmentAwarePrefixMatch(pathname, path),
     );
@@ -158,6 +171,8 @@ export function getAuthNoticeMessage(reason?: string | null): string | null {
             return "Your account is authenticated, but access has not been assigned yet.";
         case ROLE_MISCONFIGURED_REASON:
             return "Your account roles are misconfigured. Access is blocked until an administrator fixes the setup.";
+        case PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON:
+            return "Platform Admin access requires a password reset before you can sign in again.";
         default:
             return null;
     }
@@ -174,7 +189,9 @@ export function shouldTerminateAuthenticatedSession(
         authContext.accessState === "inactive" ||
         authContext.redirectReason === "account_deactivated" ||
         authContext.redirectReason === "session_expired" ||
-        authContext.redirectReason === "subscription_inactive"
+        authContext.redirectReason === "subscription_inactive" ||
+        authContext.redirectReason ===
+            PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON
     );
 }
 
@@ -277,6 +294,11 @@ export function evaluateRoleRouteAccess(args: {
     authContext: AuthContextSnapshot;
     pathname: string;
 }): { action: "allow" } | { action: "redirect"; target: string } {
+    const platformAdminAuthStage =
+        args.authContext.platformAdminAuthStage ?? "not_applicable";
+    const requiresPlatformAdminVerification =
+        args.authContext.requiresPlatformAdminVerification === true;
+
     if (args.pathname === "/dashboard") {
         return { action: "allow" };
     }
@@ -304,6 +326,17 @@ export function evaluateRoleRouteAccess(args: {
                 attemptedPath: args.pathname,
                 homePath: args.authContext.homePath,
             }),
+        };
+    }
+
+    if (
+        requiredRole === "platform_admin" &&
+        !isPlatformAdminAuthStageVerified(platformAdminAuthStage) &&
+        requiresPlatformAdminVerification
+    ) {
+        return {
+            action: "redirect",
+            target: args.authContext.redirectPath,
         };
     }
 

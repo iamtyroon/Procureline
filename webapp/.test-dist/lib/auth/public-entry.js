@@ -4,6 +4,7 @@ exports.resolveAuthenticatedAccessRedirect = exports.resolvePublicEntryState = e
 const constants_1 = require("../../app/constants");
 const pricing_1 = require("../marketing/pricing");
 const proxy_1 = require("./proxy");
+const auth_1 = require("../platform-admin/auth");
 exports.AUTH_ENTRY_ROUTE = "/access";
 exports.PROCUREMENT_OFFICER_ACCESS_ROUTE = "/access/procurement-officer";
 exports.DEPARTMENT_USER_ACCESS_ROUTE = "/access/department-user";
@@ -250,6 +251,10 @@ function resolveAuthenticatedAccessRedirect(authContext) {
     if (authContext.isSessionValid &&
         authContext.isRoleResolved &&
         authContext.accessState === "allowed") {
+        if (authContext.requiresPlatformAdminVerification === true &&
+            !(0, auth_1.isPlatformAdminAuthStageVerified)(authContext.platformAdminAuthStage ?? "not_applicable")) {
+            return authContext.redirectPath;
+        }
         return authContext.homePath;
     }
     return authContext.redirectPath;

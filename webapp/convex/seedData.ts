@@ -1,10 +1,17 @@
 import { ConvexError, v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { Scrypt } from "lucia";
+import { action, mutation, query } from "./_generated/server";
 import {
     getDepartmentUserAccessCodeSuffix,
     hashDepartmentUserAccessCode,
     normalizeDepartmentUserAccessCode,
 } from "../lib/auth/department-user-access";
+import {
+    PASSWORD_MIN_LENGTH,
+    PASSWORD_PATTERNS,
+    validateEmailInput,
+    validatePasswordLength,
+} from "../lib/security/input";
 
 function firstOrThrow<T>(items: readonly T[], errorFactory: () => Error): T {
     const item = items[0];
@@ -13,6 +20,53 @@ function firstOrThrow<T>(items: readonly T[], errorFactory: () => Error): T {
     }
 
     return item;
+}
+
+function validateBootstrapPassword(password: string): string {
+    const passwordLengthResult = validatePasswordLength(password);
+    if (!passwordLengthResult.ok) {
+        throw new ConvexError({
+            code: "VALIDATION_FAILED",
+            message: passwordLengthResult.issue.message,
+        });
+    }
+
+    if (password.length < PASSWORD_MIN_LENGTH) {
+        throw new ConvexError({
+            code: "VALIDATION_FAILED",
+            message: `Password must be at least ${PASSWORD_MIN_LENGTH} characters`,
+        });
+    }
+
+    if (!PASSWORD_PATTERNS.uppercase.test(password)) {
+        throw new ConvexError({
+            code: "VALIDATION_FAILED",
+            message: "Password must contain at least one uppercase letter",
+        });
+    }
+
+    if (!PASSWORD_PATTERNS.lowercase.test(password)) {
+        throw new ConvexError({
+            code: "VALIDATION_FAILED",
+            message: "Password must contain at least one lowercase letter",
+        });
+    }
+
+    if (!PASSWORD_PATTERNS.digit.test(password)) {
+        throw new ConvexError({
+            code: "VALIDATION_FAILED",
+            message: "Password must contain at least one number",
+        });
+    }
+
+    if (!PASSWORD_PATTERNS.special.test(password)) {
+        throw new ConvexError({
+            code: "VALIDATION_FAILED",
+            message: "Password must contain at least one special character",
+        });
+    }
+
+    return password;
 }
 
 /**
@@ -757,6 +811,446 @@ export const issueDepartmentAccessCodeForEmail = mutation({
             departmentName: department.name,
             email: normalizedEmail,
             expiresAt,
+        };
+    },
+});
+
+/**
+ * Inspect the current account state for a potential platform-admin bootstrap email.
+ * Run via CLI:
+ * PowerShell:
+ * npx convex run seedData:getPlatformAdminBootstrapStateByEmail "{ email: 'platform.admin@example.com' }"
+ */
+export const getPlatformAdminBootstrapStateByEmail = query({
+    args: {
+        email: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const emailResult = validateEmailInput(args.email);
+        if (!emailResult.ok) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: emailResult.issue.message,
+            });
+        }
+
+        const normalizedEmail = emailResult.value;
+        const matchingUsers = await ctx.db
+            .query("users")
+            .withIndex("email", (q) => q.eq("email", normalizedEmail))
+            .collect();
+        const passwordAccounts = await ctx.db
+            .query("authAccounts")
+            .withIndex("providerAndAccountId", (q) =>
+                q.eq("provider", "password").eq("providerAccountId", normalizedEmail),
+            )
+            .collect();
+        const passwordAccount =
+            passwordAccounts.length === 1
+                ? firstOrThrow(passwordAccounts, () =>
+                      new ConvexError({
+                          code: "DATA_INTEGRITY_ERROR",
+                          message: "Expected a single password account record.",
+                      }),
+                  )
+                : null;
+
+        const matchingUser = matchingUsers.length === 1 ? matchingUsers[0] : null;
+        const platformUsers = matchingUser
+            ? await ctx.db
+                  .query("platformUsers")
+                  .withIndex("by_userId", (q) => q.eq("userId", matchingUser._id))
+                  .collect()
+            : [];
+        const tenantUsers = matchingUser
+            ? await ctx.db
+                  .query("tenantUsers")
+                  .withIndex("by_userId", (q) => q.eq("userId", matchingUser._id))
+                  .collect()
+            : [];
+
+        return {
+            email: normalizedEmail,
+            hasActivePlatformRole: platformUsers.some((platformUser) => platformUser.isActive),
+            hasActiveTenantRole: tenantUsers.some((tenantUser) => tenantUser.isActive),
+            hasPasswordAccount: passwordAccount !== null,
+            passwordAccountId: passwordAccount ? String(passwordAccount._id) : null,
+            passwordAccountCount: passwordAccounts.length,
+            platformRoleCount: platformUsers.length,
+            tenantRoleCount: tenantUsers.length,
+            userCount: matchingUsers.length,
+            userEmailVerified:
+                matchingUser?.emailVerificationTime !== undefined,
+            userId: matchingUser ? String(matchingUser._id) : null,
+        };
+    },
+});
+
+export const finalizePlatformAdminBootstrap = mutation({
+    args: {
+        accountId: v.id("authAccounts"),
+        email: v.string(),
+        isActive: v.boolean(),
+        name: v.optional(v.string()),
+        userId: v.id("users"),
+    },
+    handler: async (ctx, args) => {
+        const normalizedEmail = args.email.trim().toLowerCase();
+        const user = await ctx.db.get(args.userId);
+        const account = await ctx.db.get(args.accountId);
+
+        if (!user || !account) {
+            throw new ConvexError({
+                code: "NOT_FOUND",
+                message: "The bootstrapped auth user could not be resolved.",
+            });
+        }
+
+        if (account.userId !== args.userId) {
+            throw new ConvexError({
+                code: "DATA_INTEGRITY_ERROR",
+                message: "Password account is linked to a different user.",
+            });
+        }
+
+        const [platformUsers, tenantUsers] = await Promise.all([
+            ctx.db
+                .query("platformUsers")
+                .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+                .collect(),
+            ctx.db
+                .query("tenantUsers")
+                .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+                .collect(),
+        ]);
+
+        if (tenantUsers.length > 0) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message:
+                    "This email already has a tenant-scoped role assignment. Platform Admin bootstrap requires a clean global-only account.",
+            });
+        }
+
+        if (platformUsers.length > 1) {
+            throw new ConvexError({
+                code: "DATA_INTEGRITY_ERROR",
+                message: "Multiple platform role records already exist for this user.",
+            });
+        }
+
+        await ctx.db.patch(args.userId, {
+            email: normalizedEmail,
+            emailVerificationTime: user.emailVerificationTime ?? Date.now(),
+            ...(args.name ? { name: args.name } : {}),
+        });
+        await ctx.db.patch(args.accountId, {
+            emailVerified: normalizedEmail,
+        });
+
+        if (platformUsers.length === 1) {
+            const existingPlatformUser = firstOrThrow(platformUsers, () =>
+                new ConvexError({
+                    code: "DATA_INTEGRITY_ERROR",
+                    message: "Expected an existing platform role record.",
+                }),
+            );
+            await ctx.db.patch(existingPlatformUser._id, {
+                isActive: args.isActive,
+            });
+
+            return {
+                email: normalizedEmail,
+                platformUserId: String(existingPlatformUser._id),
+                userId: String(args.userId),
+            };
+        }
+
+        const platformUserId = await ctx.db.insert("platformUsers", {
+            userId: args.userId,
+            isActive: args.isActive,
+            createdAt: Date.now(),
+        });
+
+        return {
+            email: normalizedEmail,
+            platformUserId: String(platformUserId),
+            userId: String(args.userId),
+        };
+    },
+});
+
+export const upsertPlatformAdminBootstrapRecords = mutation({
+    args: {
+        email: v.string(),
+        isActive: v.boolean(),
+        name: v.optional(v.string()),
+        secretHash: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const normalizedEmail = args.email.trim().toLowerCase();
+        const matchingUsers = await ctx.db
+            .query("users")
+            .withIndex("email", (q) => q.eq("email", normalizedEmail))
+            .collect();
+        const passwordAccounts = await ctx.db
+            .query("authAccounts")
+            .withIndex("providerAndAccountId", (q) =>
+                q.eq("provider", "password").eq("providerAccountId", normalizedEmail),
+            )
+            .collect();
+
+        if (matchingUsers.length > 1 || passwordAccounts.length > 1) {
+            throw new ConvexError({
+                code: "DATA_INTEGRITY_ERROR",
+                message:
+                    "Multiple auth records already exist for this email. Clean up the duplicate records before bootstrapping Platform Admin access.",
+            });
+        }
+
+        let user = matchingUsers.length === 1 ? matchingUsers[0] : null;
+        const passwordAccount =
+            passwordAccounts.length === 1
+                ? firstOrThrow(passwordAccounts, () =>
+                      new ConvexError({
+                          code: "DATA_INTEGRITY_ERROR",
+                          message: "Expected a single password account record.",
+                      }),
+                  )
+                : null;
+
+        if (!user) {
+            const userId = await ctx.db.insert("users", {
+                email: normalizedEmail,
+                emailVerificationTime: Date.now(),
+                ...(args.name ? { name: args.name } : {}),
+            });
+            user = await ctx.db.get(userId);
+        } else {
+            await ctx.db.patch(user._id, {
+                email: normalizedEmail,
+                emailVerificationTime: user.emailVerificationTime ?? Date.now(),
+                ...(args.name ? { name: args.name } : {}),
+            });
+            user = await ctx.db.get(user._id);
+        }
+
+        if (!user) {
+            throw new ConvexError({
+                code: "INVALID_STATE",
+                message: "Platform Admin bootstrap user could not be created.",
+            });
+        }
+
+        const [platformUsers, tenantUsers] = await Promise.all([
+            ctx.db
+                .query("platformUsers")
+                .withIndex("by_userId", (q) => q.eq("userId", user._id))
+                .collect(),
+            ctx.db
+                .query("tenantUsers")
+                .withIndex("by_userId", (q) => q.eq("userId", user._id))
+                .collect(),
+        ]);
+
+        if (tenantUsers.length > 0) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message:
+                    "This email already belongs to a tenant-scoped account. Use a fresh email for Platform Admin review.",
+            });
+        }
+
+        let accountId = passwordAccount?._id;
+        if (passwordAccount) {
+            await ctx.db.patch(passwordAccount._id, {
+                emailVerified: normalizedEmail,
+                secret: args.secretHash,
+                userId: user._id,
+            });
+        } else {
+            accountId = await ctx.db.insert("authAccounts", {
+                userId: user._id,
+                provider: "password",
+                providerAccountId: normalizedEmail,
+                secret: args.secretHash,
+                emailVerified: normalizedEmail,
+            });
+        }
+
+        if (platformUsers.length > 1) {
+            throw new ConvexError({
+                code: "DATA_INTEGRITY_ERROR",
+                message: "Multiple platform role records already exist for this user.",
+            });
+        }
+
+        let platformUserId = platformUsers[0]?._id;
+        if (platformUsers.length === 1) {
+            const existingPlatformUser = firstOrThrow(platformUsers, () =>
+                new ConvexError({
+                    code: "DATA_INTEGRITY_ERROR",
+                    message: "Expected an existing platform role record.",
+                }),
+            );
+            await ctx.db.patch(existingPlatformUser._id, {
+                isActive: args.isActive,
+            });
+            platformUserId = existingPlatformUser._id;
+        } else {
+            platformUserId = await ctx.db.insert("platformUsers", {
+                userId: user._id,
+                isActive: args.isActive,
+                createdAt: Date.now(),
+            });
+        }
+
+        return {
+            accountId: String(accountId),
+            createdAuthAccount: passwordAccount === null,
+            email: normalizedEmail,
+            passwordUpdated: passwordAccount !== null,
+            platformUserId: String(platformUserId),
+            userId: String(user._id),
+        };
+    },
+});
+
+/**
+ * Remove a single department-user tenant membership so the same verified login
+ * can be converted into a platform-admin account during local/manual review.
+ *
+ * PowerShell:
+ * npx convex run seedData:removeDepartmentUserTenantRoleByEmail "{ email: 'iamtyroon@gmail.com' }"
+ */
+export const removeDepartmentUserTenantRoleByEmail = mutation({
+    args: {
+        email: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const emailResult = validateEmailInput(args.email);
+        if (!emailResult.ok) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: emailResult.issue.message,
+            });
+        }
+
+        const normalizedEmail = emailResult.value;
+        const matchingUsers = await ctx.db
+            .query("users")
+            .withIndex("email", (q) => q.eq("email", normalizedEmail))
+            .collect();
+
+        if (matchingUsers.length !== 1) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: `Expected exactly one auth user for ${normalizedEmail}.`,
+            });
+        }
+
+        const user = firstOrThrow(matchingUsers, () =>
+            new ConvexError({
+                code: "NOT_FOUND",
+                message: `No auth user found for ${normalizedEmail}.`,
+            }),
+        );
+
+        const tenantUsers = await ctx.db
+            .query("tenantUsers")
+            .withIndex("by_userId", (q) => q.eq("userId", user._id))
+            .collect();
+
+        if (tenantUsers.length !== 1) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message:
+                    "This helper requires exactly one tenant membership for the target user.",
+            });
+        }
+
+        const tenantUser = firstOrThrow(tenantUsers, () =>
+            new ConvexError({
+                code: "NOT_FOUND",
+                message: `No tenant membership found for ${normalizedEmail}.`,
+            }),
+        );
+
+        if (tenantUser.role !== "department_user") {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message:
+                    "This conversion helper only supports department-user accounts.",
+            });
+        }
+
+        const profile = await ctx.db
+            .query("departmentUserProfiles")
+            .withIndex("by_tenantUserId", (q) => q.eq("tenantUserId", tenantUser._id))
+            .first();
+
+        if (profile) {
+            await ctx.db.delete(profile._id);
+        }
+
+        await ctx.db.delete(tenantUser._id);
+
+        return {
+            email: normalizedEmail,
+            removedDepartmentProfile: profile ? String(profile._id) : null,
+            removedTenantRole: tenantUser.role,
+            removedTenantUserId: String(tenantUser._id),
+            userId: String(user._id),
+        };
+    },
+});
+
+/**
+ * Create or reset a local password account and assign the global Platform Admin role.
+ * This bypasses the public tenant signup flow on purpose so Story 2.1 can be reviewed
+ * without first creating a tenant-admin account.
+ *
+ * Run via CLI:
+ * PowerShell:
+ * npx convex run seedData:bootstrapPlatformAdminByEmail "{ email: 'platform.admin@example.com', password: 'StrongPass123!', name: 'Platform Admin' }"
+ */
+export const bootstrapPlatformAdminByEmail = action({
+    args: {
+        email: v.string(),
+        isActive: v.optional(v.boolean()),
+        name: v.optional(v.string()),
+        password: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const emailResult = validateEmailInput(args.email);
+        if (!emailResult.ok) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: emailResult.issue.message,
+            });
+        }
+
+        const normalizedEmail = emailResult.value;
+        const normalizedPassword = validateBootstrapPassword(args.password);
+        const normalizedName = args.name?.trim() || undefined;
+        const secretHash = await new Scrypt().hash(normalizedPassword);
+        const finalized = await ctx.runMutation(
+            "seedData:upsertPlatformAdminBootstrapRecords" as any,
+            {
+                email: normalizedEmail,
+                isActive: args.isActive ?? true,
+                name: normalizedName,
+                secretHash,
+            },
+        );
+
+        return {
+            createdAuthAccount: finalized.createdAuthAccount,
+            email: normalizedEmail,
+            loginPath: "/platform-admin/login",
+            passwordUpdated: finalized.passwordUpdated,
+            platformUserId: finalized.platformUserId,
+            userId: finalized.userId,
         };
     },
 });

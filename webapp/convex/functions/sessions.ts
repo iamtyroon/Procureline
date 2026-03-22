@@ -13,7 +13,7 @@ import {
     type SessionStatus,
 } from "../../lib/auth/session";
 
-async function loadCurrentSessionDocuments(
+export async function loadCurrentSessionDocuments(
     ctx: QueryCtx | MutationCtx,
 ) {
     const [sessionId, userId] = await Promise.all([
@@ -73,6 +73,7 @@ export const getCurrentSessionState = query({
             ),
             redirectReason: v.union(v.literal("session_expired"), v.null()),
             rememberMe: v.boolean(),
+            isPlatformAdminSession: v.boolean(),
             inactivityWindowMs: v.number(),
             lastActivityAt: v.union(v.number(), v.null()),
             authSessionExpirationTime: v.union(v.number(), v.null()),

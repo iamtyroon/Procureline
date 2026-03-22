@@ -23,7 +23,16 @@ import {
     type TenantScopedRole,
     type TenantStatusValue,
 } from "../../lib/auth/roles";
-import { loadCurrentSessionState } from "./sessions";
+import {
+    getPlatformAdminRedirectPath,
+    PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON,
+    resolvePlatformAdminAuthStage,
+    type PlatformAdminAuthStage,
+} from "../../lib/platform-admin/auth";
+import {
+    loadCurrentSessionDocuments,
+    loadCurrentSessionState,
+} from "./sessions";
 
 const authContextRoleValidator = v.union(
     v.literal("platform_admin"),
@@ -50,6 +59,7 @@ const authNavigationReasonValidator = v.union(
     v.literal(ACCOUNT_DEACTIVATED_REASON),
     v.literal(FORBIDDEN_ACCESS_REASON),
     v.literal(PENDING_ACCESS_REASON),
+    v.literal(PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON),
     v.literal(ROLE_MISCONFIGURED_REASON),
     v.literal(SESSION_EXPIRED_REASON),
     v.literal(SUBSCRIPTION_INACTIVE_REASON),
@@ -67,6 +77,14 @@ const departmentAccessModeValidator = v.union(
     v.literal("read_only_grace"),
 );
 
+const platformAdminAuthStageValidator = v.union(
+    v.literal("not_applicable"),
+    v.literal("setup_required"),
+    v.literal("verification_required"),
+    v.literal("verified"),
+    v.literal("reset_required"),
+);
+
 export const authContextValidator = v.object({
     accessState: accessStateValidator,
     departmentAccessMode: v.optional(departmentAccessModeValidator),
@@ -75,6 +93,8 @@ export const authContextValidator = v.object({
     isActive: v.boolean(),
     isRoleResolved: v.boolean(),
     isSessionValid: v.boolean(),
+    platformAdminAuthStage: platformAdminAuthStageValidator,
+    requiresPlatformAdminVerification: v.boolean(),
     redirectPath: v.string(),
     rememberMe: v.boolean(),
     role: authContextRoleValidator,
@@ -99,6 +119,8 @@ export interface AuthorizationContext {
     isActive: boolean;
     isRoleResolved: boolean;
     isSessionValid: boolean;
+    platformAdminAuthStage: PlatformAdminAuthStage;
+    requiresPlatformAdminVerification: boolean;
     redirectPath: string;
     rememberMe: boolean;
     role: AuthContextRole;
@@ -118,6 +140,8 @@ function createBaseContext(args: {
     isActive: boolean;
     isRoleResolved: boolean;
     isSessionValid: boolean;
+    platformAdminAuthStage: PlatformAdminAuthStage;
+    requiresPlatformAdminVerification: boolean;
     redirectPath: string;
     rememberMe: boolean;
     role: AuthContextRole;
@@ -152,6 +176,8 @@ function createInactiveAccessContext(args: {
         isActive: false,
         isRoleResolved: false,
         isSessionValid: true,
+        platformAdminAuthStage: "not_applicable",
+        requiresPlatformAdminVerification: false,
         redirectPath: `/login?reason=${args.reason}`,
         rememberMe: args.rememberMe,
         role: "unassigned",
@@ -189,8 +215,9 @@ export async function getAuthorizationContext(
         return null;
     }
 
+    const currentSessionDocuments = await loadCurrentSessionDocuments(ctx);
     const currentSession = await loadCurrentSessionState(ctx);
-    if (!currentSession) {
+    if (!currentSession || !currentSessionDocuments) {
         return null;
     }
 
@@ -203,6 +230,8 @@ export async function getAuthorizationContext(
             isActive: false,
             isRoleResolved: false,
             isSessionValid: false,
+            platformAdminAuthStage: "not_applicable",
+            requiresPlatformAdminVerification: false,
             redirectPath: `/login?reason=${SESSION_EXPIRED_REASON}`,
             rememberMe: currentSession.state.rememberMe,
             role: "unassigned",
@@ -259,6 +288,8 @@ export async function getAuthorizationContext(
             isActive: false,
             isRoleResolved: false,
             isSessionValid: true,
+            platformAdminAuthStage: "not_applicable",
+            requiresPlatformAdminVerification: false,
             redirectPath: buildDashboardPath(reason),
             rememberMe: currentSession.state.rememberMe,
             role: "unassigned",
@@ -271,6 +302,20 @@ export async function getAuthorizationContext(
     }
 
     if (resolvedRole.role === "platform_admin") {
+        const securityState = await ctx.db
+            .query("platformAdminSecurityStates")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .first();
+        const platformAdminAuthStage = resolvePlatformAdminAuthStage({
+            currentSessionStage:
+                currentSessionDocuments.metadata?.platformAdminAuthStage ?? null,
+            hasTwoFactorEnrollment: securityState?.isTwoFactorEnrolled === true,
+            passwordResetRequiredAt: securityState?.passwordResetRequiredAt,
+            storedBackupCodeCount: securityState?.backupCodes.length ?? 0,
+        });
+        const requiresPlatformAdminVerification =
+            platformAdminAuthStage !== "verified";
+
         return createBaseContext({
             accessState: "allowed",
             departmentAccessMode: undefined,
@@ -279,13 +324,21 @@ export async function getAuthorizationContext(
             isActive: true,
             isRoleResolved: true,
             isSessionValid: true,
-            redirectPath: getHomePathForRole("platform_admin"),
+            platformAdminAuthStage,
+            requiresPlatformAdminVerification,
+            redirectPath: requiresPlatformAdminVerification
+                ? getPlatformAdminRedirectPath(platformAdminAuthStage)
+                : getHomePathForRole("platform_admin"),
             rememberMe: currentSession.state.rememberMe,
             role: "platform_admin",
             scope: "platform",
             sessionStatus: currentSession.state.status,
             tenantStatus: "not_applicable",
             userId,
+            redirectReason:
+                platformAdminAuthStage === "reset_required"
+                    ? PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON
+                    : undefined,
         });
     }
 
@@ -303,6 +356,8 @@ export async function getAuthorizationContext(
             isActive: false,
             isRoleResolved: false,
             isSessionValid: true,
+            platformAdminAuthStage: "not_applicable",
+            requiresPlatformAdminVerification: false,
             redirectPath: buildDashboardPath(ROLE_MISCONFIGURED_REASON),
             rememberMe: currentSession.state.rememberMe,
             role: "unassigned",
@@ -324,6 +379,8 @@ export async function getAuthorizationContext(
             isActive: false,
             isRoleResolved: false,
             isSessionValid: true,
+            platformAdminAuthStage: "not_applicable",
+            requiresPlatformAdminVerification: false,
             redirectPath: buildDashboardPath(ROLE_MISCONFIGURED_REASON),
             rememberMe: currentSession.state.rememberMe,
             role: "unassigned",
@@ -364,6 +421,8 @@ export async function getAuthorizationContext(
                 isActive: false,
                 isRoleResolved: false,
                 isSessionValid: true,
+                platformAdminAuthStage: "not_applicable",
+                requiresPlatformAdminVerification: false,
                 redirectPath: buildDashboardPath(ROLE_MISCONFIGURED_REASON),
                 rememberMe: currentSession.state.rememberMe,
                 role: "unassigned",
@@ -389,6 +448,8 @@ export async function getAuthorizationContext(
                 isActive: true,
                 isRoleResolved: true,
                 isSessionValid: true,
+                platformAdminAuthStage: "not_applicable",
+                requiresPlatformAdminVerification: false,
                 redirectPath: getHomePathForRole("department_user"),
                 rememberMe: currentSession.state.rememberMe,
                 role: "department_user",
@@ -419,6 +480,8 @@ export async function getAuthorizationContext(
                 isActive: true,
                 isRoleResolved: true,
                 isSessionValid: true,
+                platformAdminAuthStage: "not_applicable",
+                requiresPlatformAdminVerification: false,
                 redirectPath: getHomePathForRole("department_user"),
                 rememberMe: currentSession.state.rememberMe,
                 role: "department_user",
@@ -446,6 +509,8 @@ export async function getAuthorizationContext(
         isActive: true,
         isRoleResolved: true,
         isSessionValid: true,
+        platformAdminAuthStage: "not_applicable",
+        requiresPlatformAdminVerification: false,
         redirectPath: getHomePathForRole(resolvedRole.role as AppRole),
         rememberMe: currentSession.state.rememberMe,
         role: resolvedRole.role,
@@ -508,6 +573,12 @@ export async function requireTenantRole(
 export async function requirePlatformAdmin(
     ctx: QueryCtx | MutationCtx,
 ): Promise<AuthorizationContext & { role: "platform_admin"; scope: "platform" }> {
+    return await requireVerifiedPlatformAdmin(ctx);
+}
+
+export async function requirePlatformAdminSession(
+    ctx: QueryCtx | MutationCtx,
+): Promise<AuthorizationContext & { role: "platform_admin"; scope: "platform" }> {
     const authContext = await requireAnyRole(ctx, ["platform_admin"]);
 
     if (authContext.scope !== "platform") {
@@ -518,4 +589,19 @@ export async function requirePlatformAdmin(
         role: "platform_admin";
         scope: "platform";
     };
+}
+
+export async function requireVerifiedPlatformAdmin(
+    ctx: QueryCtx | MutationCtx,
+): Promise<AuthorizationContext & { role: "platform_admin"; scope: "platform" }> {
+    const authContext = await requirePlatformAdminSession(ctx);
+
+    if (
+        authContext.requiresPlatformAdminVerification ||
+        authContext.platformAdminAuthStage !== "verified"
+    ) {
+        unauthorizedError("Platform administrator verification is required");
+    }
+
+    return authContext;
 }

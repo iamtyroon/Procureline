@@ -25,6 +25,13 @@ export function runProxyRouteTests(): string[] {
     assert.equal(isKnownPublicRoute("/access/department-user"), true);
     completedTests.push("department-user continuation route is public");
 
+    assert.equal(isKnownPublicRoute("/platform-admin/login"), true);
+    assert.equal(isKnownPublicRoute("/platform-admin/setup-2fa"), true);
+    assert.equal(isKnownPublicRoute("/platform-admin/verify"), true);
+    completedTests.push(
+        "platform-admin login and 2FA routes remain public even though the rest of the platform-admin namespace is protected",
+    );
+
     assert.equal(isKnownPublicRoute("/dashboard"), false);
     completedTests.push("dashboard route is not public");
 
@@ -45,6 +52,9 @@ export function runProxyRouteTests(): string[] {
     assert.equal(PUBLIC_ROUTES.includes("/access"), true);
     assert.equal(PUBLIC_ROUTES.includes("/access/procurement-officer"), true);
     assert.equal(PUBLIC_ROUTES.includes("/access/department-user"), true);
+    assert.equal(PUBLIC_ROUTES.includes("/platform-admin/login"), true);
+    assert.equal(PUBLIC_ROUTES.includes("/platform-admin/setup-2fa"), true);
+    assert.equal(PUBLIC_ROUTES.includes("/platform-admin/verify"), true);
     completedTests.push(
         "public route registry includes the role-aware access hub plus the reserved PO and DU role-entry surfaces without broadening protected role prefixes",
     );

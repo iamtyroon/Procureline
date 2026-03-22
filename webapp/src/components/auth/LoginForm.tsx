@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderCircle, LogIn } from "lucide-react";
@@ -15,6 +15,7 @@ import {
     writeRememberMeBootstrapValue,
 } from "@/lib/auth/session";
 import { shouldTerminateAuthenticatedSession } from "@/lib/auth/roles";
+import type { PlatformAdminRequestContext } from "@/lib/platform-admin/risk";
 import { normalizeAuthEmail } from "@/lib/security/input";
 import { loginSchema, type LoginFormData } from "@/lib/validators/auth";
 import { api } from "@/convex/_generated/api";
@@ -40,14 +41,18 @@ const AUTH_REASON_MESSAGES: Record<string, string> = {
 
 interface LoginFormProps {
     reason?: string | null;
+    requestContext: PlatformAdminRequestContext;
 }
 
-export function LoginForm({ reason }: LoginFormProps) {
+export function LoginForm({ reason, requestContext }: LoginFormProps) {
     const { signIn, signOut } = useAuthActions();
     const { isAuthenticated } = useConvexAuth();
     const authContext = useQuery(
         api.functions.users.getAuthContext,
         isAuthenticated ? {} : "skip",
+    );
+    const beginPlatformAdminSignIn = useAction(
+        api.functions.platformAdminAuth.beginPlatformAdminSignIn,
     );
     const ensureCurrentSessionMetadata = useMutation(
         api.functions.sessions.ensureCurrentSessionMetadata,
@@ -104,6 +109,22 @@ export function LoginForm({ reason }: LoginFormProps) {
             }
 
             try {
+                if (currentAuthContext.role === "platform_admin") {
+                    clearRememberMeBootstrapValue();
+                    const adminResult = await beginPlatformAdminSignIn({
+                        requestContext: {
+                            city: requestContext.city ?? null,
+                            country: requestContext.country ?? null,
+                            ipAddress: requestContext.ipAddress ?? null,
+                            region: requestContext.region ?? null,
+                            userAgent: requestContext.userAgent ?? null,
+                        },
+                    });
+                    setIsSubmitting(false);
+                    router.replace(adminResult.redirectPath);
+                    return;
+                }
+
                 const bootstrapRememberMe = readRememberMeBootstrapValue();
 
                 await ensureCurrentSessionMetadata(
@@ -128,8 +149,14 @@ export function LoginForm({ reason }: LoginFormProps) {
         void handleAuthenticatedState();
     }, [
         authContext,
+        beginPlatformAdminSignIn,
         ensureCurrentSessionMetadata,
         isAuthenticated,
+        requestContext.city,
+        requestContext.country,
+        requestContext.ipAddress,
+        requestContext.region,
+        requestContext.userAgent,
         router,
         signOut,
     ]);

@@ -1,13 +1,18 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.clearRememberMeBootstrapValue = exports.writeRememberMeBootstrapValue = exports.readRememberMeBootstrapValue = exports.createLogoutMetadataPatch = exports.resolveSessionState = exports.getSessionInactivityWindowMs = exports.REMEMBER_ME_SESSION_WINDOW_MS = exports.STANDARD_SESSION_INACTIVITY_MS = exports.REMEMBER_ME_STORAGE_KEY = exports.SUBSCRIPTION_INACTIVE_REASON = exports.ACCOUNT_DEACTIVATED_REASON = exports.SESSION_EXPIRED_REASON = void 0;
+exports.clearRememberMeBootstrapValue = exports.writeRememberMeBootstrapValue = exports.readRememberMeBootstrapValue = exports.createLogoutMetadataPatch = exports.resolveSessionState = exports.getSessionInactivityWindowMs = exports.REMEMBER_ME_SESSION_WINDOW_MS = exports.STANDARD_SESSION_INACTIVITY_MS = exports.REMEMBER_ME_STORAGE_KEY = exports.SUBSCRIPTION_INACTIVE_REASON = exports.ACCOUNT_DEACTIVATED_REASON = exports.SESSION_EXPIRED_REASON = exports.PLATFORM_ADMIN_INACTIVITY_WINDOW_MS = void 0;
+const auth_1 = require("../platform-admin/auth");
+Object.defineProperty(exports, "PLATFORM_ADMIN_INACTIVITY_WINDOW_MS", { enumerable: true, get: function () { return auth_1.PLATFORM_ADMIN_INACTIVITY_WINDOW_MS; } });
 exports.SESSION_EXPIRED_REASON = "session_expired";
 exports.ACCOUNT_DEACTIVATED_REASON = "account_deactivated";
 exports.SUBSCRIPTION_INACTIVE_REASON = "subscription_inactive";
 exports.REMEMBER_ME_STORAGE_KEY = "pendingRememberMe";
 exports.STANDARD_SESSION_INACTIVITY_MS = 1000 * 60 * 60 * 24;
 exports.REMEMBER_ME_SESSION_WINDOW_MS = 1000 * 60 * 60 * 24 * 30;
-function getSessionInactivityWindowMs(rememberMe) {
+function getSessionInactivityWindowMs(rememberMe, isPlatformAdminSession = false) {
+    if (isPlatformAdminSession) {
+        return auth_1.PLATFORM_ADMIN_INACTIVITY_WINDOW_MS;
+    }
     return rememberMe
         ? exports.REMEMBER_ME_SESSION_WINDOW_MS
         : exports.STANDARD_SESSION_INACTIVITY_MS;
@@ -16,13 +21,15 @@ exports.getSessionInactivityWindowMs = getSessionInactivityWindowMs;
 function resolveSessionState(args) {
     const { authSession, metadata = null, now = Date.now() } = args;
     const rememberMe = metadata?.rememberMe === true;
-    const inactivityWindowMs = getSessionInactivityWindowMs(rememberMe);
+    const isPlatformAdminSession = metadata?.isPlatformAdminSession === true;
+    const inactivityWindowMs = getSessionInactivityWindowMs(rememberMe, isPlatformAdminSession);
     if (authSession === null) {
         return {
             isValid: false,
             status: "expired",
             redirectReason: exports.SESSION_EXPIRED_REASON,
             rememberMe,
+            isPlatformAdminSession,
             inactivityWindowMs,
             lastActivityAt: metadata?.lastActivityAt ?? null,
             authSessionExpirationTime: null,
@@ -37,6 +44,7 @@ function resolveSessionState(args) {
             status: "logged_out",
             redirectReason: exports.SESSION_EXPIRED_REASON,
             rememberMe,
+            isPlatformAdminSession,
             inactivityWindowMs,
             lastActivityAt,
             authSessionExpirationTime: authSession.expirationTime,
@@ -48,6 +56,7 @@ function resolveSessionState(args) {
             status: "revoked",
             redirectReason: exports.SESSION_EXPIRED_REASON,
             rememberMe,
+            isPlatformAdminSession,
             inactivityWindowMs,
             lastActivityAt,
             authSessionExpirationTime: authSession.expirationTime,
@@ -59,6 +68,7 @@ function resolveSessionState(args) {
             status: "expired",
             redirectReason: exports.SESSION_EXPIRED_REASON,
             rememberMe,
+            isPlatformAdminSession,
             inactivityWindowMs,
             lastActivityAt,
             authSessionExpirationTime: authSession.expirationTime,
@@ -70,6 +80,7 @@ function resolveSessionState(args) {
             status: "expired",
             redirectReason: exports.SESSION_EXPIRED_REASON,
             rememberMe,
+            isPlatformAdminSession,
             inactivityWindowMs,
             lastActivityAt,
             authSessionExpirationTime: authSession.expirationTime,
@@ -80,6 +91,7 @@ function resolveSessionState(args) {
         status: "active",
         redirectReason: null,
         rememberMe,
+        isPlatformAdminSession,
         inactivityWindowMs,
         lastActivityAt,
         authSessionExpirationTime: authSession.expirationTime,
