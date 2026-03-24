@@ -130,6 +130,23 @@ export interface TenantAdminProcurementOfficerProfile {
     statusLabel: string;
 }
 
+export interface TenantAdminProcurementOfficerDirectoryEntry {
+    activationCodeSuffix?: string;
+    departmentsManaged: number;
+    email: string;
+    id: string;
+    invitationId?: string;
+    initials: string;
+    issuedAt: number | null;
+    issuedAtLabel: string;
+    lastSeenAt: number | null;
+    lastSeenLabel: string;
+    name: string;
+    source: "active_member" | "invitation";
+    status: "accepted" | "active" | "bounced" | "expired" | "inactive" | "pending";
+    statusLabel: string;
+}
+
 export interface TenantAdminDepartmentUserProfile {
     departmentName: string;
     email: string;
@@ -164,6 +181,7 @@ export interface TenantAdminDashboardSnapshot {
     directory: {
         currentTenantAdmin: TenantAdminCurrentAdminProfile | null;
         departmentUsers: TenantAdminDepartmentUserProfile[];
+        procurementOfficerDirectory: TenantAdminProcurementOfficerDirectoryEntry[];
         procurementOfficers: TenantAdminProcurementOfficerProfile[];
     };
     meta: TenantAdminDashboardMeta;
@@ -259,6 +277,7 @@ export function buildTenantAdminDashboardSnapshot(
         directory: {
             currentTenantAdmin: null,
             departmentUsers: [],
+            procurementOfficerDirectory: [],
             procurementOfficers: [],
         },
         meta: {

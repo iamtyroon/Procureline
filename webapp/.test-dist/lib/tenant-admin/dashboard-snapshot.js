@@ -48,6 +48,7 @@ function buildTenantAdminDashboardSnapshot(args) {
         directory: {
             currentTenantAdmin: null,
             departmentUsers: [],
+            procurementOfficerDirectory: [],
             procurementOfficers: [],
         },
         meta: {

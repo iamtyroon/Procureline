@@ -1,6 +1,6 @@
 # Story 3.1: Tenant Admin Institution Setup Flow
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -308,5 +308,5 @@ gpt-5-codex
 - Story ID: `3.1`
 - Story Key: `3-1-tenant-admin-institution-setup-flow`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic3/stories/3-1-tenant-admin-institution-setup-flow.md`
-- Final Status: `review`
+- Final Status: `done`
 - Completion Note: `Implemented self-serve plus invited tenant-admin onboarding, protected institution-profile completion, verification-window orchestration, and deterministic regression coverage.`

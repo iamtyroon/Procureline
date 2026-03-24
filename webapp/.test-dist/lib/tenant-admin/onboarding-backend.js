@@ -16,9 +16,6 @@ class TenantAdminOnboardingBackendError extends Error {
     }
 }
 exports.TenantAdminOnboardingBackendError = TenantAdminOnboardingBackendError;
-function asString(value) {
-    return typeof value === "string" ? value : undefined;
-}
 function asNumber(value) {
     return typeof value === "number" ? value : undefined;
 }

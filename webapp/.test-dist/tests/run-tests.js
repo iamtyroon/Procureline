@@ -8,6 +8,7 @@ const platform_admin_auth_test_1 = require("./platform-admin-auth.test");
 const platform_admin_dashboard_test_1 = require("./platform-admin-dashboard.test");
 const pricing_flow_test_1 = require("./pricing-flow.test");
 const procurement_officer_dashboard_test_1 = require("./procurement-officer-dashboard.test");
+const procurement_officer_invitations_test_1 = require("./procurement-officer-invitations.test");
 const public_auth_entry_test_1 = require("./public-auth-entry.test");
 const proxy_test_1 = require("./proxy.test");
 const rbac_test_1 = require("./rbac.test");
@@ -29,6 +30,7 @@ async function main() {
         ...(await (0, platform_admin_dashboard_test_1.runPlatformAdminDashboardTests)()),
         ...(0, pricing_flow_test_1.runPricingFlowTests)(),
         ...(0, procurement_officer_dashboard_test_1.runProcurementOfficerDashboardTests)(),
+        ...(await (0, procurement_officer_invitations_test_1.runProcurementOfficerInvitationTests)()),
         ...(0, public_auth_entry_test_1.runPublicAuthEntryTests)(),
         ...(0, proxy_test_1.runProxyRouteTests)(),
         ...(0, rbac_test_1.runRbacTests)(),

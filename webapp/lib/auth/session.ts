@@ -33,6 +33,9 @@ export interface SessionMetadataRecordLike {
     createdAt?: number;
     revokedAt?: number;
     loggedOutAt?: number;
+    activeTenantId?: string;
+    activeTenantUserId?: string;
+    activeTenantRole?: "department_user" | "procurement_officer" | "tenant_admin";
     isPlatformAdminSession?: boolean;
     platformAdminAuthStage?: PlatformAdminAuthStage;
     platformAdminChallengeId?: string;

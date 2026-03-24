@@ -60,6 +60,7 @@ function runRbacTests() {
         role: "tenant_admin",
         scope: "tenant",
         tenantId: "tenant-1",
+        tenantUserId: undefined,
     });
     completedTests.push("tenant-scoped roles resolve with their tenant context intact");
     strict_1.default.deepEqual((0, roles_1.resolveRoleRecords)({
@@ -221,11 +222,58 @@ function runRbacTests() {
     }), {
         isRoleResolved: false,
         isActive: false,
-        accessState: "misconfigured",
+        accessState: "pending_access",
         role: "unassigned",
         scope: "none",
     });
-    completedTests.push("multiple active tenant-user rows across tenants fail closed as misconfigured");
+    completedTests.push("multiple active tenant-user rows now fail closed into pending access until the session chooses one membership");
+    strict_1.default.deepEqual((0, roles_1.resolveRoleRecords)({
+        platformUsers: [],
+        selectedTenantId: "tenant-2",
+        selectedTenantRole: "procurement_officer",
+        selectedTenantUserId: "tenant-user-2",
+        tenantUsers: [
+            {
+                isActive: true,
+                role: "tenant_admin",
+                tenantId: "tenant-1",
+                tenantUserId: "tenant-user-1",
+            },
+            {
+                isActive: true,
+                role: "procurement_officer",
+                tenantId: "tenant-2",
+                tenantUserId: "tenant-user-2",
+            },
+        ],
+    }), {
+        isRoleResolved: true,
+        isActive: true,
+        accessState: "allowed",
+        role: "procurement_officer",
+        scope: "tenant",
+        tenantId: "tenant-2",
+        tenantUserId: "tenant-user-2",
+    });
+    completedTests.push("selected tenant metadata resolves the intended active membership when a user belongs to multiple tenants");
+    strict_1.default.deepEqual((0, roles_1.resolveRoleRecords)({
+        platformUsers: [],
+        selectedTenantId: "tenant-999",
+        tenantUsers: [
+            {
+                isActive: true,
+                role: "tenant_admin",
+                tenantId: "tenant-1",
+            },
+        ],
+    }), {
+        isRoleResolved: false,
+        isActive: false,
+        accessState: "pending_access",
+        role: "unassigned",
+        scope: "none",
+    });
+    completedTests.push("stale tenant selection metadata fails closed instead of silently reusing a different tenant membership");
     // H1: Multiple active platform-user rows → misconfigured
     strict_1.default.deepEqual((0, roles_1.resolveRoleRecords)({
         platformUsers: [{ isActive: true }, { isActive: true }],

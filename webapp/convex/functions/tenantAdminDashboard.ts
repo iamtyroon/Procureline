@@ -1,7 +1,14 @@
 import { ConvexError, v } from "convex/values";
 import { query } from "../_generated/server";
 import { requireTenantRole } from "./_roleGuard";
-import { buildTenantAdminDashboardSnapshot } from "../../lib/tenant-admin/dashboard-snapshot";
+import {
+    buildTenantAdminDashboardSnapshot,
+    type TenantAdminProcurementOfficerDirectoryEntry,
+} from "../../lib/tenant-admin/dashboard-snapshot";
+import {
+    evaluateProcurementOfficerInvitationStatus,
+    formatProcurementOfficerInvitationStatusLabel,
+} from "../../lib/procurement-officer/invitations";
 
 const metricStateValidator = v.union(
     v.literal("available"),
@@ -153,6 +160,34 @@ const dashboardSnapshotValidator = v.object({
                 statusLabel: v.string(),
             }),
         ),
+        procurementOfficerDirectory: v.array(
+            v.object({
+                activationCodeSuffix: v.optional(v.string()),
+                departmentsManaged: v.number(),
+                email: v.string(),
+                id: v.string(),
+                invitationId: v.optional(v.string()),
+                initials: v.string(),
+                issuedAt: v.union(v.number(), v.null()),
+                issuedAtLabel: v.string(),
+                lastSeenAt: v.union(v.number(), v.null()),
+                lastSeenLabel: v.string(),
+                name: v.string(),
+                source: v.union(
+                    v.literal("active_member"),
+                    v.literal("invitation"),
+                ),
+                status: v.union(
+                    v.literal("accepted"),
+                    v.literal("active"),
+                    v.literal("bounced"),
+                    v.literal("expired"),
+                    v.literal("inactive"),
+                    v.literal("pending"),
+                ),
+                statusLabel: v.string(),
+            }),
+        ),
         procurementOfficers: v.array(
             v.object({
                 departmentsManaged: v.number(),
@@ -240,7 +275,7 @@ export const getTenantAdminDashboardSnapshot = query({
             });
         }
 
-        const [tenantUsers, departments, departmentUserProfiles, targetActivity, sourceActivity] =
+        const [tenantUsers, departments, departmentUserProfiles, poInvitations, targetActivity, sourceActivity] =
             await Promise.all([
                 ctx.db
                     .query("tenantUsers")
@@ -256,6 +291,12 @@ export const getTenantAdminDashboardSnapshot = query({
                     .collect(),
                 ctx.db
                     .query("departmentUserProfiles")
+                    .withIndex("by_tenantId", (q) =>
+                        q.eq("tenantId", authContext.tenantId),
+                    )
+                    .collect(),
+                ctx.db
+                    .query("poInvitations")
                     .withIndex("by_tenantId", (q) =>
                         q.eq("tenantId", authContext.tenantId),
                     )
@@ -351,6 +392,87 @@ export const getTenantAdminDashboardSnapshot = query({
                     statusLabel: tenantUser.isActive ? "Active" : "Inactive",
                 };
             });
+        const activeProcurementOfficerEmailSet = new Set(
+            procurementOfficers.map((member) => member.email.toLowerCase()),
+        );
+        const invitationDirectory: TenantAdminProcurementOfficerDirectoryEntry[] = poInvitations
+            .map((invitation) => {
+                const effectiveStatus = evaluateProcurementOfficerInvitationStatus({
+                    expiresAt: invitation.expiresAt,
+                    now: Date.now(),
+                    status: invitation.status,
+                });
+
+                if (
+                    effectiveStatus === "accepted" &&
+                    activeProcurementOfficerEmailSet.has(invitation.email.toLowerCase())
+                ) {
+                    return null;
+                }
+
+                if (
+                    effectiveStatus !== "accepted" &&
+                    activeProcurementOfficerEmailSet.has(invitation.email.toLowerCase())
+                ) {
+                    return null;
+                }
+
+                if (effectiveStatus === "revoked") {
+                    return null;
+                }
+
+                return {
+                    activationCodeSuffix: invitation.activationCodeSuffix,
+                    departmentsManaged: 0,
+                    email: invitation.email,
+                    id: String(invitation._id),
+                    invitationId: String(invitation._id),
+                    initials: readNameInitials(invitation.fullName),
+                    issuedAt: invitation.createdAt,
+                    issuedAtLabel: formatIssuedLabel(invitation.createdAt),
+                    lastSeenAt: null,
+                    lastSeenLabel: "Invitation not accepted yet",
+                    name: invitation.fullName,
+                    source: "invitation" as const,
+                    status:
+                        effectiveStatus === "accepted"
+                            ? ("accepted" as const)
+                            : effectiveStatus === "bounced"
+                              ? ("bounced" as const)
+                              : effectiveStatus === "expired"
+                                ? ("expired" as const)
+                                : ("pending" as const),
+                    statusLabel: formatProcurementOfficerInvitationStatusLabel(
+                        effectiveStatus,
+                    ),
+                };
+            })
+            .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+        const memberDirectory: TenantAdminProcurementOfficerDirectoryEntry[] = procurementOfficers
+            .map((member) => ({
+                activationCodeSuffix: undefined,
+                departmentsManaged: member.departmentsManaged,
+                email: member.email,
+                id: member.id,
+                invitationId: undefined,
+                initials: member.initials,
+                issuedAt: null,
+                issuedAtLabel: member.lastSeenLabel,
+                lastSeenAt: member.lastSeenAt,
+                lastSeenLabel: member.lastSeenLabel,
+                name: member.name,
+                source: "active_member" as const,
+                status:
+                    member.statusLabel === "Inactive"
+                        ? ("inactive" as const)
+                        : ("active" as const),
+                statusLabel: member.statusLabel,
+            }));
+        const procurementOfficerDirectory: TenantAdminProcurementOfficerDirectoryEntry[] = [
+            ...memberDirectory,
+            ...invitationDirectory,
+        ]
+            .sort((left, right) => left.name.localeCompare(right.name));
 
         const departmentUsersDirectory = departmentUserProfiles
             .map((profile) => {
@@ -437,6 +559,7 @@ export const getTenantAdminDashboardSnapshot = query({
                     name: currentAdminSummary.name,
                 },
                 departmentUsers: departmentUsersDirectory,
+                procurementOfficerDirectory,
                 procurementOfficers,
             },
         };
@@ -476,4 +599,17 @@ function readAuthUserSummary(
 
 function formatLastSeenLabel(lastSeenAt: number | null): string {
     return lastSeenAt ? new Date(lastSeenAt).toLocaleString("en-GB") : "No activity recorded";
+}
+
+function formatIssuedLabel(timestamp: number | null): string {
+    return timestamp ? new Date(timestamp).toLocaleString("en-GB") : "Not issued";
+}
+
+function readNameInitials(name: string): string {
+    return name
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part.charAt(0))
+        .join("")
+        .toUpperCase();
 }

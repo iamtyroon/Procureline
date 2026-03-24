@@ -70,6 +70,58 @@ export default defineSchema({
         .index("by_normalizedEmail", ["normalizedEmail", "createdAt"])
         .index("by_invitationId", ["invitationId", "createdAt"]),
 
+    poInvitations: defineTable({
+        tenantId: v.id("tenants"),
+        email: v.string(),
+        normalizedEmail: v.string(),
+        fullName: v.string(),
+        phone: v.string(),
+        inviteTokenHash: v.string(),
+        activationCodeHash: v.string(),
+        activationCodeSuffix: v.string(),
+        issueVersion: v.number(),
+        status: v.union(
+            v.literal("pending"),
+            v.literal("accepted"),
+            v.literal("expired"),
+            v.literal("bounced"),
+            v.literal("revoked"),
+        ),
+        expiresAt: v.number(),
+        resentCount: v.number(),
+        createdByTenantUserId: v.id("tenantUsers"),
+        acceptedByUserId: v.optional(v.id("users")),
+        acceptedTenantUserId: v.optional(v.id("tenantUsers")),
+        acceptedAt: v.optional(v.number()),
+        providerMessageId: v.optional(v.string()),
+        lastEmailSentAt: v.optional(v.number()),
+        bounceReason: v.optional(v.string()),
+        bounceNotifiedAt: v.optional(v.number()),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_tenantId", ["tenantId", "createdAt"])
+        .index("by_inviteTokenHash", ["inviteTokenHash"])
+        .index("by_activationCodeHash", ["activationCodeHash"])
+        .index("by_tenantId_email", ["tenantId", "normalizedEmail"])
+        .index("by_tenantId_status", ["tenantId", "status", "createdAt"])
+        .index("by_normalizedEmail", ["normalizedEmail", "createdAt"]),
+
+    procurementOfficerAuthChallenges: defineTable({
+        tenantId: v.id("tenants"),
+        invitationId: v.id("poInvitations"),
+        normalizedEmail: v.string(),
+        authAccountId: v.optional(v.id("authAccounts")),
+        authUserId: v.optional(v.id("users")),
+        expiresAt: v.number(),
+        consumedAt: v.optional(v.number()),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_invitationId", ["invitationId", "createdAt"])
+        .index("by_normalizedEmail", ["normalizedEmail", "createdAt"])
+        .index("by_expiresAt", ["expiresAt"]),
+
     tenantUsers: defineTable({
         userId: v.id("users"),
         tenantId: v.id("tenants"),
@@ -359,6 +411,13 @@ export default defineSchema({
         createdAt: v.number(),
         revokedAt: v.optional(v.number()),
         loggedOutAt: v.optional(v.number()),
+        activeTenantId: v.optional(v.id("tenants")),
+        activeTenantUserId: v.optional(v.id("tenantUsers")),
+        activeTenantRole: v.optional(v.union(
+            v.literal("tenant_admin"),
+            v.literal("procurement_officer"),
+            v.literal("department_user"),
+        )),
         isPlatformAdminSession: v.optional(v.boolean()),
         platformAdminAuthStage: v.optional(v.union(
             v.literal("setup_required"),

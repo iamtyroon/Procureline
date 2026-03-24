@@ -9,6 +9,11 @@ import {
   DEPARTMENT_USER_AUTH_START_FLOW,
   DEPARTMENT_USER_AUTH_VERIFY_FLOW,
 } from "../lib/auth/department-user-access";
+import {
+  PROCUREMENT_OFFICER_AUTH_PROVIDER,
+  PROCUREMENT_OFFICER_AUTH_START_FLOW,
+  PROCUREMENT_OFFICER_AUTH_VERIFY_FLOW,
+} from "../lib/procurement-officer/invitations";
 import { buildSecurityInputRejectedEvent } from "../lib/security/audit";
 import {
   PASSWORD_MIN_LENGTH,
@@ -23,6 +28,10 @@ import {
   startDepartmentUserOtpChallenge,
   verifyDepartmentUserOtpChallenge,
 } from "./functions/departmentUserAuth";
+import {
+  startProcurementOfficerOtpChallenge,
+  verifyProcurementOfficerOtpChallenge,
+} from "./functions/procurementOfficerOnboarding";
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   session: {
@@ -66,6 +75,44 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         }
 
         throw new Error("Unsupported Department User sign-in flow.");
+      },
+    }),
+    ConvexCredentials({
+      id: PROCUREMENT_OFFICER_AUTH_PROVIDER,
+      extraProviders: [ResendOTP],
+      authorize: async (params, ctx) => {
+        const flow =
+          typeof params.flow === "string" ? params.flow : "";
+        const challengeId =
+          typeof params.challengeId === "string" ? params.challengeId : "";
+        const challengeDocId =
+          challengeId as Id<"procurementOfficerAuthChallenges">;
+
+        if (!challengeId) {
+          throw new Error("Procurement Officer sign-in challenge expired. Start again.");
+        }
+
+        if (flow === PROCUREMENT_OFFICER_AUTH_START_FLOW) {
+          await startProcurementOfficerOtpChallenge(ctx, challengeDocId);
+          return null;
+        }
+
+        if (flow === PROCUREMENT_OFFICER_AUTH_VERIFY_FLOW) {
+          const codeResult = validateOneTimeCodeInput(String(params.code ?? ""), {
+            field: "code",
+            label: "Verification code",
+          });
+          if (!codeResult.ok) {
+            throw new Error(codeResult.issue.message);
+          }
+
+          return await verifyProcurementOfficerOtpChallenge(ctx, {
+            challengeId: challengeDocId,
+            code: codeResult.value,
+          });
+        }
+
+        throw new Error("Unsupported Procurement Officer sign-in flow.");
       },
     }),
     Password({

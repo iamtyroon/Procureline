@@ -292,10 +292,12 @@ async function runTenantAdminOnboardingTests() {
         const invitations = ctx.tables.tenantAdminInvitations;
         const firstInvitation = invitations.find((invitation) => invitation._id === firstInvite.invitationId);
         const latestInvitation = invitations.find((invitation) => invitation._id === resentInvite.invitationId);
+        strict_1.default.ok(firstInvitation);
+        strict_1.default.ok(latestInvitation);
         strict_1.default.equal(firstInvite.inviteUrl.startsWith("/signup?invite="), true);
-        strict_1.default.equal(firstInvitation?.status, "revoked");
-        strict_1.default.equal(latestInvitation?.status, "pending");
-        strict_1.default.equal(latestInvitation?.resentCount, 1);
+        strict_1.default.equal(firstInvitation.status, "revoked");
+        strict_1.default.equal(latestInvitation.status, "pending");
+        strict_1.default.equal(latestInvitation.resentCount, 1);
         strict_1.default.equal(ctx.tables.auditLogs.filter((entry) => entry.event === "tenant_admin.invitation.issued").length, 1);
         strict_1.default.equal(ctx.tables.auditLogs.filter((entry) => entry.event === "tenant_admin.invitation.resent").length, 1);
     });
@@ -370,13 +372,14 @@ async function runTenantAdminOnboardingTests() {
         });
         const tenant = ctx.tables.tenants.find((entry) => entry._id === tenantId);
         const onboardingState = ctx.tables.tenantAdminOnboardingStates[0];
+        strict_1.default.ok(tenant);
         strict_1.default.deepEqual(result, {
             profileComplete: true,
             tenantId,
         });
-        strict_1.default.equal(tenant?.profileComplete, true);
-        strict_1.default.equal(tenant?.fiscalYearStartMonth, 7);
-        strict_1.default.equal(tenant?.name, "Gamma University Main Campus");
+        strict_1.default.equal(tenant.profileComplete, true);
+        strict_1.default.equal(tenant.fiscalYearStartMonth, 7);
+        strict_1.default.equal(tenant.name, "Gamma University Main Campus");
         strict_1.default.equal(onboardingState?.completedAt, 1_730_000_000_000);
         strict_1.default.equal(ctx.tables.auditLogs.some((entry) => entry.event === "tenant_admin.onboarding.completed"), true);
     });

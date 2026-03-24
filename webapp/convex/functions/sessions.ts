@@ -2,6 +2,7 @@ import { getAuthSessionId, getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
+    internalMutation,
     mutation,
     query,
     type MutationCtx,
@@ -80,6 +81,30 @@ export async function loadCurrentSessionState(
             metadata: currentSession.metadata,
         }),
     };
+}
+
+async function assertActiveTenantMembershipSelection(
+    ctx: QueryCtx | MutationCtx,
+    args: {
+        tenantId: Id<"tenants">;
+        tenantRole: "department_user" | "procurement_officer" | "tenant_admin";
+        tenantUserId: Id<"tenantUsers">;
+        userId: Id<"users">;
+    },
+): Promise<void> {
+    const tenantUser = await ctx.db.get(args.tenantUserId);
+    if (
+        !tenantUser ||
+        !tenantUser.isActive ||
+        tenantUser.userId !== args.userId ||
+        tenantUser.tenantId !== args.tenantId ||
+        tenantUser.role !== args.tenantRole
+    ) {
+        throw new ConvexError({
+            code: "UNAUTHORIZED",
+            message: "You can only select one of your active tenant memberships",
+        });
+    }
 }
 
 export const getCurrentSessionState = query({
@@ -238,6 +263,130 @@ export const touchCurrentSession = mutation({
         };
 
         return result;
+    },
+});
+
+export const setCurrentSessionActiveTenantSelection = mutation({
+    args: {
+        tenantId: v.id("tenants"),
+        tenantRole: v.union(
+            v.literal("tenant_admin"),
+            v.literal("procurement_officer"),
+            v.literal("department_user"),
+        ),
+        tenantUserId: v.id("tenantUsers"),
+    },
+    returns: v.object({
+        sessionId: v.id("authSessions"),
+        tenantId: v.id("tenants"),
+        tenantRole: v.union(
+            v.literal("tenant_admin"),
+            v.literal("procurement_officer"),
+            v.literal("department_user"),
+        ),
+        tenantUserId: v.id("tenantUsers"),
+    }),
+    handler: async (ctx, args) => {
+        const currentSession = await loadCurrentSessionDocuments(ctx);
+        if (!currentSession) {
+            throw new ConvexError({
+                code: "UNAUTHORIZED",
+                message: "You must be signed in to select a tenant membership",
+            });
+        }
+
+        await assertActiveTenantMembershipSelection(ctx, {
+            tenantId: args.tenantId,
+            tenantRole: args.tenantRole,
+            tenantUserId: args.tenantUserId,
+            userId: currentSession.userId,
+        });
+
+        const now = Date.now();
+        const existingMetadata = currentSession.metadata;
+
+        if (existingMetadata) {
+            await ctx.db.patch(existingMetadata._id, {
+                activeTenantId: args.tenantId,
+                activeTenantRole: args.tenantRole,
+                activeTenantUserId: args.tenantUserId,
+                lastActivityAt: now,
+            });
+        } else {
+            await ctx.db.insert("sessionMetadata", {
+                activeTenantId: args.tenantId,
+                activeTenantRole: args.tenantRole,
+                activeTenantUserId: args.tenantUserId,
+                createdAt: now,
+                lastActivityAt: now,
+                rememberMe: false,
+                sessionId: currentSession.sessionId,
+                userId: currentSession.userId,
+            });
+        }
+
+        return {
+            sessionId: currentSession.sessionId,
+            tenantId: args.tenantId,
+            tenantRole: args.tenantRole,
+            tenantUserId: args.tenantUserId,
+        };
+    },
+});
+
+export const setTenantSelectionForSession = internalMutation({
+    args: {
+        sessionId: v.id("authSessions"),
+        tenantId: v.id("tenants"),
+        tenantRole: v.union(
+            v.literal("tenant_admin"),
+            v.literal("procurement_officer"),
+            v.literal("department_user"),
+        ),
+        tenantUserId: v.id("tenantUsers"),
+        userId: v.id("users"),
+    },
+    returns: v.object({
+        sessionId: v.id("authSessions"),
+        tenantId: v.id("tenants"),
+        tenantRole: v.union(
+            v.literal("tenant_admin"),
+            v.literal("procurement_officer"),
+            v.literal("department_user"),
+        ),
+        tenantUserId: v.id("tenantUsers"),
+    }),
+    handler: async (ctx, args) => {
+        await assertActiveTenantMembershipSelection(ctx, args);
+        const existingMetadata = await loadLatestSessionMetadata(ctx, args.sessionId);
+        const now = Date.now();
+
+        if (existingMetadata) {
+            await ctx.db.patch(existingMetadata._id, {
+                activeTenantId: args.tenantId,
+                activeTenantRole: args.tenantRole,
+                activeTenantUserId: args.tenantUserId,
+                lastActivityAt: now,
+            });
+        } else {
+            await ctx.db.insert("sessionMetadata", {
+                activeTenantId: args.tenantId,
+                activeTenantRole: args.tenantRole,
+                activeTenantUserId: args.tenantUserId,
+                createdAt: now,
+                lastActivityAt: now,
+                rememberMe: false,
+                sessionId: args.sessionId,
+                userId: args.userId,
+            });
+        }
+
+        return {
+            sessionId: args.sessionId,
+            tenantId: args.tenantId,
+            tenantRole: args.tenantRole,
+            tenantUserId: args.tenantUserId,
+        };
     },
 });
 

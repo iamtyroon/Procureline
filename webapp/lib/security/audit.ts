@@ -24,6 +24,20 @@ export const AUDIT_EVENT_NAMES = {
     platformAdminSessionRevoked: "platform_admin.session.revoked",
     platformAdminSuspiciousLoginDetected:
         "platform_admin.auth.suspicious_login_detected",
+    procurementOfficerChallengeStarted:
+        "procurement_officer.invitation.challenge_started",
+    procurementOfficerChallengeVerified:
+        "procurement_officer.invitation.challenge_verified",
+    procurementOfficerInvitationAccepted:
+        "procurement_officer.invitation.accepted",
+    procurementOfficerInvitationBounced:
+        "procurement_officer.invitation.bounced",
+    procurementOfficerInvitationBlocked:
+        "procurement_officer.invitation.blocked",
+    procurementOfficerInvitationIssued:
+        "procurement_officer.invitation.issued",
+    procurementOfficerInvitationResent:
+        "procurement_officer.invitation.resent",
     securityInputRejected: "security.input_rejected",
     securityOriginBlocked: "security.origin_blocked",
     tenantAdminInvitationAccepted: "tenant_admin.invitation.accepted",
@@ -44,6 +58,7 @@ export const AUDIT_OUTCOMES = {
     blockedDisallowedOrigin: "blocked_disallowed_origin",
     blockedExpiredAccessCode: "blocked_expired_access_code",
     blockedInvalidAccessCode: "blocked_invalid_access_code",
+    blockedInvalidInvitation: "blocked_invalid_invitation",
     blockedLockedOut: "blocked_locked_out",
     blockedMissingMetadata: "blocked_missing_metadata",
     blockedMissingOrigin: "blocked_missing_origin",

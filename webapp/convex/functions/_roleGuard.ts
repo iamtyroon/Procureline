@@ -279,10 +279,18 @@ export async function getAuthorizationContext(
         platformUsers: platformUsers.map((platformUser) => ({
             isActive: platformUser.isActive,
         })),
+        selectedTenantId: currentSessionDocuments.metadata?.activeTenantId
+            ? String(currentSessionDocuments.metadata.activeTenantId)
+            : undefined,
+        selectedTenantRole: currentSessionDocuments.metadata?.activeTenantRole,
+        selectedTenantUserId: currentSessionDocuments.metadata?.activeTenantUserId
+            ? String(currentSessionDocuments.metadata.activeTenantUserId)
+            : undefined,
         tenantUsers: tenantUsers.map((tenantUser) => ({
             isActive: tenantUser.isActive,
             role: tenantUser.role,
             tenantId: tenantUser.tenantId,
+            tenantUserId: String(tenantUser._id),
         })),
     });
 

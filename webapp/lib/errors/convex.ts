@@ -9,6 +9,16 @@ import {
     SUBSCRIPTION_INACTIVE_MESSAGE,
     isDepartmentUserOtpProviderFailureMessage,
 } from "../auth/department-user-access";
+import {
+    PROCUREMENT_OFFICER_BOUNCED_MESSAGE,
+    PROCUREMENT_OFFICER_DUPLICATE_MEMBERSHIP_MESSAGE,
+    PROCUREMENT_OFFICER_INVALID_VERIFICATION_CODE_MESSAGE,
+    PROCUREMENT_OFFICER_INVITATION_ACCEPTED_MESSAGE,
+    PROCUREMENT_OFFICER_INVITATION_EXPIRED_MESSAGE,
+    PROCUREMENT_OFFICER_INVITATION_INVALID_MESSAGE,
+    PROCUREMENT_OFFICER_INVITATION_REVOKED_MESSAGE,
+    PROCUREMENT_OFFICER_TENANT_INACTIVE_MESSAGE,
+} from "../procurement-officer/invitations";
 
 const GENERIC_PUBLIC_ERROR_MESSAGE =
     "We could not complete your request right now. Please try again.";
@@ -40,6 +50,15 @@ const SAFE_DEPARTMENT_USER_ACCESS_MESSAGES = [
     INCOMPATIBLE_DEPARTMENT_USER_EMAIL_MESSAGE,
     SUBSCRIPTION_INACTIVE_MESSAGE,
     DEPARTMENT_USER_SUBMISSION_ENDED_MESSAGE,
+] as const;
+const SAFE_PROCUREMENT_OFFICER_ACCESS_MESSAGES = [
+    PROCUREMENT_OFFICER_BOUNCED_MESSAGE,
+    PROCUREMENT_OFFICER_DUPLICATE_MEMBERSHIP_MESSAGE,
+    PROCUREMENT_OFFICER_INVITATION_ACCEPTED_MESSAGE,
+    PROCUREMENT_OFFICER_INVITATION_EXPIRED_MESSAGE,
+    PROCUREMENT_OFFICER_INVITATION_INVALID_MESSAGE,
+    PROCUREMENT_OFFICER_INVITATION_REVOKED_MESSAGE,
+    PROCUREMENT_OFFICER_TENANT_INACTIVE_MESSAGE,
 ] as const;
 
 function getErrorMessage(error: unknown): string | null {
@@ -167,6 +186,33 @@ export function getPublicDepartmentUserAccessErrorMessage(
         isDepartmentUserOtpProviderFailureMessage(message)
     ) {
         return DEPARTMENT_USER_INVALID_VERIFICATION_CODE_MESSAGE;
+    }
+
+    return GENERIC_PUBLIC_ERROR_MESSAGE;
+}
+
+export function getPublicProcurementOfficerAccessErrorMessage(
+    error: unknown,
+): string {
+    const message = getErrorMessage(error);
+
+    if (!message) {
+        return GENERIC_PUBLIC_ERROR_MESSAGE;
+    }
+
+    if (
+        SAFE_PROCUREMENT_OFFICER_ACCESS_MESSAGES.some(
+            (safeMessage) => safeMessage === message,
+        )
+    ) {
+        return message;
+    }
+
+    if (
+        isVerificationCodeFailureMessage(message) ||
+        isDepartmentUserOtpProviderFailureMessage(message)
+    ) {
+        return PROCUREMENT_OFFICER_INVALID_VERIFICATION_CODE_MESSAGE;
     }
 
     return GENERIC_PUBLIC_ERROR_MESSAGE;

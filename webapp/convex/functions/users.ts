@@ -182,6 +182,76 @@ export const getAuthContext = query({
     handler: async (ctx) => await getAuthorizationContext(ctx),
 });
 
+export const listCurrentActiveTenantMembershipOptions = query({
+    args: {},
+    returns: v.array(
+        v.object({
+            tenantId: v.id("tenants"),
+            tenantName: v.string(),
+            tenantRole: v.union(
+                v.literal("tenant_admin"),
+                v.literal("procurement_officer"),
+                v.literal("department_user"),
+            ),
+            tenantUserId: v.id("tenantUsers"),
+        }),
+    ),
+    handler: async (ctx) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) {
+            return [];
+        }
+
+        const activeTenantMemberships = (
+            await ctx.db
+                .query("tenantUsers")
+                .withIndex("by_userId", (q) => q.eq("userId", userId))
+                .collect()
+        ).filter((tenantUser) => tenantUser.isActive);
+
+        const tenantDocuments = await Promise.all(
+            activeTenantMemberships.map(async (tenantUser) => [
+                String(tenantUser.tenantId),
+                await ctx.db.get(tenantUser.tenantId),
+            ] as const),
+        );
+        const tenantMap = new Map(tenantDocuments);
+
+        return activeTenantMemberships
+            .map((tenantUser) => {
+                const tenant = tenantMap.get(String(tenantUser.tenantId));
+                if (!tenant) {
+                    return null;
+                }
+
+                return {
+                    tenantId: tenantUser.tenantId,
+                    tenantName: tenant.name,
+                    tenantRole: tenantUser.role,
+                    tenantUserId: tenantUser._id,
+                };
+            })
+            .filter(
+                (
+                    option,
+                ): option is {
+                    tenantId: typeof activeTenantMemberships[number]["tenantId"];
+                    tenantName: string;
+                    tenantRole: typeof activeTenantMemberships[number]["role"];
+                    tenantUserId: typeof activeTenantMemberships[number]["_id"];
+                } => option !== null,
+            )
+            .sort((left, right) => {
+                const byTenant = left.tenantName.localeCompare(right.tenantName);
+                if (byTenant !== 0) {
+                    return byTenant;
+                }
+
+                return left.tenantRole.localeCompare(right.tenantRole);
+            });
+    },
+});
+
 /**
  * Internal-only bootstrap path for local or seed setup of platform admins.
  * This keeps platform-role assignment outside the public mutation surface.

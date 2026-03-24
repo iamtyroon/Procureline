@@ -6,6 +6,7 @@ import { runPlatformAdminAuthTests } from "./platform-admin-auth.test";
 import { runPlatformAdminDashboardTests } from "./platform-admin-dashboard.test";
 import { runPricingFlowTests } from "./pricing-flow.test";
 import { runProcurementOfficerDashboardTests } from "./procurement-officer-dashboard.test";
+import { runProcurementOfficerInvitationTests } from "./procurement-officer-invitations.test";
 import { runPublicAuthEntryTests } from "./public-auth-entry.test";
 import { runProxyRouteTests } from "./proxy.test";
 import { runRbacTests } from "./rbac.test";
@@ -28,6 +29,7 @@ async function main(): Promise<void> {
         ...(await runPlatformAdminDashboardTests()),
         ...runPricingFlowTests(),
         ...runProcurementOfficerDashboardTests(),
+        ...(await runProcurementOfficerInvitationTests()),
         ...runPublicAuthEntryTests(),
         ...runProxyRouteTests(),
         ...runRbacTests(),

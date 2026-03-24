@@ -82,6 +82,7 @@ export interface TenantUserRecordInput {
     isActive: boolean;
     role: string;
     tenantId: string;
+    tenantUserId?: string;
 }
 
 export interface ResolvedRoleRecordState {
@@ -91,6 +92,7 @@ export interface ResolvedRoleRecordState {
     role: AuthContextRole;
     scope: AuthScope;
     tenantId?: string;
+    tenantUserId?: string;
 }
 
 export interface AuthContextSnapshot {
@@ -203,6 +205,9 @@ export function shouldTerminateAuthenticatedSession(
 
 export function resolveRoleRecords(args: {
     platformUsers: PlatformUserRecordInput[];
+    selectedTenantId?: string;
+    selectedTenantRole?: TenantScopedRole;
+    selectedTenantUserId?: string;
     tenantUsers: TenantUserRecordInput[];
 }): ResolvedRoleRecordState {
     const hasUnknownTenantRole = args.tenantUsers.some(
@@ -232,7 +237,6 @@ export function resolveRoleRecords(args: {
 
     if (
         activePlatformUsers.length > 1 ||
-        activeTenantUsers.length > 1 ||
         (args.platformUsers.length > 0 && args.tenantUsers.length > 0)
     ) {
         return {
@@ -244,7 +248,44 @@ export function resolveRoleRecords(args: {
         };
     }
 
-    const activeTenantUser = activeTenantUsers[0];
+    const activeTenantUser =
+        activeTenantUsers.length > 1
+            ? resolveSelectedTenantMembership({
+                  activeTenantUsers,
+                  selectedTenantId: args.selectedTenantId,
+                  selectedTenantRole: args.selectedTenantRole,
+                  selectedTenantUserId: args.selectedTenantUserId,
+              })
+            : activeTenantUsers[0];
+
+    if (activeTenantUsers.length > 1 && !activeTenantUser) {
+        return {
+            accessState: "pending_access",
+            isActive: false,
+            isRoleResolved: false,
+            role: "unassigned",
+            scope: "none",
+        };
+    }
+
+    if (
+        activeTenantUsers.length === 1 &&
+        hasStaleTenantSelection({
+            activeTenantUser: activeTenantUsers[0],
+            selectedTenantId: args.selectedTenantId,
+            selectedTenantRole: args.selectedTenantRole,
+            selectedTenantUserId: args.selectedTenantUserId,
+        })
+    ) {
+        return {
+            accessState: "pending_access",
+            isActive: false,
+            isRoleResolved: false,
+            role: "unassigned",
+            scope: "none",
+        };
+    }
+
     if (activeTenantUser) {
         const activeTenantRole = activeTenantUser.role;
         if (!isAppRole(activeTenantRole) || !isTenantScopedRole(activeTenantRole)) {
@@ -264,6 +305,7 @@ export function resolveRoleRecords(args: {
             role: activeTenantRole,
             scope: "tenant",
             tenantId: activeTenantUser.tenantId,
+            tenantUserId: activeTenantUser.tenantUserId,
         };
     }
 
@@ -294,6 +336,82 @@ export function resolveRoleRecords(args: {
         role: "unassigned",
         scope: "none",
     };
+}
+
+function matchesSelectedTenantMembership(args: {
+    selectedTenantId?: string;
+    selectedTenantRole?: TenantScopedRole;
+    selectedTenantUserId?: string;
+    tenantUser: TenantUserRecordInput;
+}): boolean {
+    if (
+        args.selectedTenantUserId &&
+        args.tenantUser.tenantUserId !== args.selectedTenantUserId
+    ) {
+        return false;
+    }
+
+    if (
+        args.selectedTenantId &&
+        args.tenantUser.tenantId !== args.selectedTenantId
+    ) {
+        return false;
+    }
+
+    if (
+        args.selectedTenantRole &&
+        args.tenantUser.role !== args.selectedTenantRole
+    ) {
+        return false;
+    }
+
+    return (
+        Boolean(args.selectedTenantUserId) ||
+        Boolean(args.selectedTenantId) ||
+        Boolean(args.selectedTenantRole)
+    );
+}
+
+function resolveSelectedTenantMembership(args: {
+    activeTenantUsers: TenantUserRecordInput[];
+    selectedTenantId?: string;
+    selectedTenantRole?: TenantScopedRole;
+    selectedTenantUserId?: string;
+}): TenantUserRecordInput | undefined {
+    return args.activeTenantUsers.find((tenantUser) =>
+        matchesSelectedTenantMembership({
+            selectedTenantId: args.selectedTenantId,
+            selectedTenantRole: args.selectedTenantRole,
+            selectedTenantUserId: args.selectedTenantUserId,
+            tenantUser,
+        }),
+    );
+}
+
+function hasStaleTenantSelection(args: {
+    activeTenantUser: TenantUserRecordInput | undefined;
+    selectedTenantId?: string;
+    selectedTenantRole?: TenantScopedRole;
+    selectedTenantUserId?: string;
+}): boolean {
+    if (
+        !args.selectedTenantId &&
+        !args.selectedTenantRole &&
+        !args.selectedTenantUserId
+    ) {
+        return false;
+    }
+
+    if (!args.activeTenantUser) {
+        return true;
+    }
+
+    return !matchesSelectedTenantMembership({
+        selectedTenantId: args.selectedTenantId,
+        selectedTenantRole: args.selectedTenantRole,
+        selectedTenantUserId: args.selectedTenantUserId,
+        tenantUser: args.activeTenantUser,
+    });
 }
 
 export function evaluateRoleRouteAccess(args: {

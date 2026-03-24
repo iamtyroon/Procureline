@@ -121,7 +121,6 @@ function resolveRoleRecords(args) {
     const activeTenantUsers = args.tenantUsers.filter((tenantUser) => tenantUser.isActive);
     const inactiveTenantUsers = args.tenantUsers.filter((tenantUser) => !tenantUser.isActive);
     if (activePlatformUsers.length > 1 ||
-        activeTenantUsers.length > 1 ||
         (args.platformUsers.length > 0 && args.tenantUsers.length > 0)) {
         return {
             accessState: "misconfigured",
@@ -131,7 +130,38 @@ function resolveRoleRecords(args) {
             scope: "none",
         };
     }
-    const activeTenantUser = activeTenantUsers[0];
+    const activeTenantUser = activeTenantUsers.length > 1
+        ? resolveSelectedTenantMembership({
+            activeTenantUsers,
+            selectedTenantId: args.selectedTenantId,
+            selectedTenantRole: args.selectedTenantRole,
+            selectedTenantUserId: args.selectedTenantUserId,
+        })
+        : activeTenantUsers[0];
+    if (activeTenantUsers.length > 1 && !activeTenantUser) {
+        return {
+            accessState: "pending_access",
+            isActive: false,
+            isRoleResolved: false,
+            role: "unassigned",
+            scope: "none",
+        };
+    }
+    if (activeTenantUsers.length === 1 &&
+        hasStaleTenantSelection({
+            activeTenantUser: activeTenantUsers[0],
+            selectedTenantId: args.selectedTenantId,
+            selectedTenantRole: args.selectedTenantRole,
+            selectedTenantUserId: args.selectedTenantUserId,
+        })) {
+        return {
+            accessState: "pending_access",
+            isActive: false,
+            isRoleResolved: false,
+            role: "unassigned",
+            scope: "none",
+        };
+    }
     if (activeTenantUser) {
         const activeTenantRole = activeTenantUser.role;
         if (!isAppRole(activeTenantRole) || !isTenantScopedRole(activeTenantRole)) {
@@ -150,6 +180,7 @@ function resolveRoleRecords(args) {
             role: activeTenantRole,
             scope: "tenant",
             tenantId: activeTenantUser.tenantId,
+            tenantUserId: activeTenantUser.tenantUserId,
         };
     }
     if (activePlatformUsers.length === 1) {
@@ -179,6 +210,47 @@ function resolveRoleRecords(args) {
     };
 }
 exports.resolveRoleRecords = resolveRoleRecords;
+function matchesSelectedTenantMembership(args) {
+    if (args.selectedTenantUserId &&
+        args.tenantUser.tenantUserId !== args.selectedTenantUserId) {
+        return false;
+    }
+    if (args.selectedTenantId &&
+        args.tenantUser.tenantId !== args.selectedTenantId) {
+        return false;
+    }
+    if (args.selectedTenantRole &&
+        args.tenantUser.role !== args.selectedTenantRole) {
+        return false;
+    }
+    return (Boolean(args.selectedTenantUserId) ||
+        Boolean(args.selectedTenantId) ||
+        Boolean(args.selectedTenantRole));
+}
+function resolveSelectedTenantMembership(args) {
+    return args.activeTenantUsers.find((tenantUser) => matchesSelectedTenantMembership({
+        selectedTenantId: args.selectedTenantId,
+        selectedTenantRole: args.selectedTenantRole,
+        selectedTenantUserId: args.selectedTenantUserId,
+        tenantUser,
+    }));
+}
+function hasStaleTenantSelection(args) {
+    if (!args.selectedTenantId &&
+        !args.selectedTenantRole &&
+        !args.selectedTenantUserId) {
+        return false;
+    }
+    if (!args.activeTenantUser) {
+        return true;
+    }
+    return !matchesSelectedTenantMembership({
+        selectedTenantId: args.selectedTenantId,
+        selectedTenantRole: args.selectedTenantRole,
+        selectedTenantUserId: args.selectedTenantUserId,
+        tenantUser: args.activeTenantUser,
+    });
+}
 function evaluateRoleRouteAccess(args) {
     const platformAdminAuthStage = args.authContext.platformAdminAuthStage ?? "not_applicable";
     const requiresPlatformAdminVerification = args.authContext.requiresPlatformAdminVerification === true;

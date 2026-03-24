@@ -50,6 +50,7 @@ import {
     TENANT_ADMIN_VIEW_META,
     type TenantAdminView,
 } from "@/src/components/tenant-admin/TenantAdminViewContent";
+import { ProcurementOfficerManagementView } from "@/src/components/tenant-admin/po-management/ProcurementOfficerManagementView";
 import { cn } from "@/lib/utils";
 
 export function TenantAdminDashboard({
@@ -380,21 +381,25 @@ export function TenantAdminDashboard({
                                     </AlertDescription>
                                 </Alert>
                             ) : null}
-                            {renderTenantAdminView({
-                                liveCountdownLabel,
-                                onDirectoryQueryChange: setDirectoryQuery,
-                                onFiscalYearChange: (nextValue) =>
-                                    startTransition(() => {
-                                        setSelectedFiscalYear(nextValue);
-                                    }),
-                                procurementOfficerCount,
-                                resolvedSnapshotState,
-                                snapshot,
-                                view,
-                                visibleAuditItems,
-                                visibleDepartmentUsers,
-                                visibleProcurementOfficers,
-                            })}
+                            {view === "po-management" ? (
+                                <ProcurementOfficerManagementView snapshot={snapshot} />
+                            ) : (
+                                renderTenantAdminView({
+                                    liveCountdownLabel,
+                                    onDirectoryQueryChange: setDirectoryQuery,
+                                    onFiscalYearChange: (nextValue) =>
+                                        startTransition(() => {
+                                            setSelectedFiscalYear(nextValue);
+                                        }),
+                                    procurementOfficerCount,
+                                    resolvedSnapshotState,
+                                    snapshot,
+                                    view,
+                                    visibleAuditItems,
+                                    visibleDepartmentUsers,
+                                    visibleProcurementOfficers,
+                                })
+                            )}
                         </div>
                     </div>
                 </div>
