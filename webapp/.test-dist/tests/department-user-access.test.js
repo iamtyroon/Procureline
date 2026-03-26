@@ -50,6 +50,20 @@ async function runDepartmentUserAccessTests() {
         state: "ended",
     });
     completedTests.push("department submission windows distinguish pre-start, editable, grace, and ended states");
+    strict_1.default.equal((0, department_user_access_1.hasConfiguredDepartmentUserSubmissionWindow)({
+        submissionEndsAt: NOW + 3_600_000,
+        submissionStartsAt: NOW,
+    }), true);
+    strict_1.default.equal((0, department_user_access_1.hasConfiguredDepartmentUserSubmissionWindow)({
+        submissionEndsAt: NOW + 3_600_000,
+        submissionStartsAt: null,
+    }), false);
+    strict_1.default.equal((0, department_user_access_1.hasConfiguredDepartmentUserSubmissionWindow)({
+        submissionEndsAt: NOW,
+        submissionStartsAt: NOW + 3_600_000,
+    }), false);
+    strict_1.default.equal(department_user_access_1.DEPARTMENT_USER_SETUP_REQUIRED_MESSAGE, "Department setup is incomplete. Contact your Procurement Officer.");
+    completedTests.push("department-user submission-window guards fail closed when deadline configuration is missing or invalid after Story 4.2 makes those fields optional");
     strict_1.default.equal((0, department_user_access_1.getDepartmentUserSubmissionWindowMessage)({
         now: NOW,
         submissionEndsAt: NOW - 60_000,

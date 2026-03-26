@@ -27,6 +27,7 @@ import {
     DEPARTMENT_USER_ACCESS_LOCKOUT_WINDOW_MS,
     DEPARTMENT_USER_AUTH_PROVIDER,
     DEPARTMENT_USER_INVALID_VERIFICATION_CODE_MESSAGE,
+    DEPARTMENT_USER_SETUP_REQUIRED_MESSAGE,
     DEPARTMENT_USER_SUBMISSION_ENDED_MESSAGE,
     EXPIRED_ACCESS_CODE_MESSAGE,
     INCOMPATIBLE_DEPARTMENT_USER_EMAIL_MESSAGE,
@@ -37,11 +38,16 @@ import {
     getDepartmentUserAccessCodeSuffix,
     getDepartmentUserLockoutState,
     getDepartmentUserSubmissionWindowMessage,
+    hasConfiguredDepartmentUserSubmissionWindow,
     hashDepartmentUserAccessCode,
     isDepartmentUserOtpProviderFailureMessage,
     normalizeDepartmentUserAccessCode,
     type DepartmentUserAccessMode,
 } from "../../lib/auth/department-user-access";
+import {
+    normalizeDepartmentCode,
+    normalizeDepartmentName,
+} from "../../lib/procurement-officer/departments";
 import {
     normalizeAuthEmail,
     validateDepartmentUserAccessCodeInput,
@@ -298,10 +304,31 @@ async function evaluateAccessAttemptInternal(
         };
     }
 
+    if (
+        !hasConfiguredDepartmentUserSubmissionWindow({
+            submissionEndsAt: department.submissionEndsAt,
+            submissionStartsAt: department.submissionStartsAt,
+        })
+    ) {
+        return {
+            ok: false,
+            auditEvent: AUDIT_EVENT_NAMES.departmentUserWindowBlocked,
+            message: DEPARTMENT_USER_SETUP_REQUIRED_MESSAGE,
+            metadata: {
+                accessCodeId: String(accessCode._id),
+                departmentId: String(department._id),
+                normalizedEmail: args.normalizedEmail,
+                windowState: "setup_required",
+            },
+            outcome: AUDIT_OUTCOMES.blockedSubmissionWindow,
+            tenantId: accessCode.tenantId,
+        };
+    }
+
     const windowState = evaluateDepartmentUserSubmissionWindow({
         now,
-        submissionEndsAt: department.submissionEndsAt,
-        submissionStartsAt: department.submissionStartsAt,
+        submissionEndsAt: department.submissionEndsAt as number,
+        submissionStartsAt: department.submissionStartsAt as number,
     });
     if (windowState.state === "not_started" || windowState.state === "ended") {
         return {
@@ -310,8 +337,8 @@ async function evaluateAccessAttemptInternal(
             message:
                 getDepartmentUserSubmissionWindowMessage({
                     now,
-                    submissionEndsAt: department.submissionEndsAt,
-                    submissionStartsAt: department.submissionStartsAt,
+                    submissionEndsAt: department.submissionEndsAt as number,
+                    submissionStartsAt: department.submissionStartsAt as number,
                 }) ?? DEPARTMENT_USER_SUBMISSION_ENDED_MESSAGE,
             metadata: {
                 accessCodeId: String(accessCode._id),
@@ -496,8 +523,8 @@ async function evaluateAccessAttemptInternal(
         normalizedEmail: args.normalizedEmail,
         notice: getDepartmentUserSubmissionWindowMessage({
             now,
-            submissionEndsAt: department.submissionEndsAt,
-            submissionStartsAt: department.submissionStartsAt,
+            submissionEndsAt: department.submissionEndsAt as number,
+            submissionStartsAt: department.submissionStartsAt as number,
         }),
         tenantId: accessCode.tenantId,
         userIdHint,
@@ -890,11 +917,15 @@ export const bootstrapDepartmentAccessCode = internalMutation({
         const now = Date.now();
         const normalizedAccessCode = normalizeDepartmentUserAccessCode(args.accessCode);
         const codeHash = await hashDepartmentUserAccessCode(normalizedAccessCode);
+        const code = normalizeDepartmentCode(args.departmentCode);
+        const name = args.departmentName.trim();
         const departmentId = await ctx.db.insert("departments", {
-            code: args.departmentCode.trim().toUpperCase(),
+            code,
             createdAt: now,
             isActive: true,
-            name: args.departmentName.trim(),
+            name,
+            normalizedCode: code,
+            normalizedName: normalizeDepartmentName(name),
             procurementOfficerTenantUserId: args.procurementOfficerTenantUserId,
             submissionEndsAt: args.submissionEndsAt,
             submissionStartsAt: args.submissionStartsAt,

@@ -53,6 +53,12 @@ export interface DepartmentUserLaunchpadState {
     state: DepartmentUserDashboardState;
 }
 
+export interface DepartmentUserAnnouncement {
+    id: string;
+    message: string;
+    title: string;
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function getDepartmentUserFiscalYearForDate(timestamp: number): DepartmentUserFiscalYear {
@@ -375,4 +381,30 @@ export function formatDepartmentUserCount(
     plural = `${singular}s`,
 ): string {
     return `${count} ${count === 1 ? singular : plural}`;
+}
+
+export function buildDepartmentBudgetChangeAnnouncement(args: {
+    budgetAllocation?: number | null;
+    departmentId: string;
+    lastAuthenticatedAt?: number | null;
+    lastBudgetChangedAt?: number | null;
+}): DepartmentUserAnnouncement | null {
+    if (
+        typeof args.lastBudgetChangedAt !== "number" ||
+        (typeof args.lastAuthenticatedAt === "number" &&
+            args.lastBudgetChangedAt <= args.lastAuthenticatedAt)
+    ) {
+        return null;
+    }
+
+    return {
+        id: `budget-change:${args.departmentId}:${args.lastBudgetChangedAt}`,
+        message:
+            typeof args.budgetAllocation === "number" && args.budgetAllocation > 0
+                ? `Your department budget is now ${formatDepartmentUserCurrency(
+                      args.budgetAllocation,
+                  )}. Review any draft planning assumptions.`
+                : "Your Procurement Officer updated this department budget. Review any draft planning assumptions.",
+        title: "Budget allocation updated",
+    };
 }

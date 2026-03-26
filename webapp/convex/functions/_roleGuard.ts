@@ -7,7 +7,10 @@ import {
     SESSION_EXPIRED_REASON,
     SUBSCRIPTION_INACTIVE_REASON,
 } from "../../lib/auth/session";
-import { evaluateDepartmentUserSubmissionWindow } from "../../lib/auth/department-user-access";
+import {
+    evaluateDepartmentUserSubmissionWindow,
+    hasConfiguredDepartmentUserSubmissionWindow,
+} from "../../lib/auth/department-user-access";
 import {
     buildDashboardPath,
     FORBIDDEN_ACCESS_REASON,
@@ -532,11 +535,18 @@ export async function getAuthorizationContext(
         }
 
         departmentId = profile.departmentId;
-        const windowState = evaluateDepartmentUserSubmissionWindow({
-            submissionEndsAt: department.submissionEndsAt,
-            submissionStartsAt: department.submissionStartsAt,
-        });
-        departmentAccessMode = windowState.accessMode ?? undefined;
+        if (
+            hasConfiguredDepartmentUserSubmissionWindow({
+                submissionEndsAt: department.submissionEndsAt,
+                submissionStartsAt: department.submissionStartsAt,
+            })
+        ) {
+            const windowState = evaluateDepartmentUserSubmissionWindow({
+                submissionEndsAt: department.submissionEndsAt as number,
+                submissionStartsAt: department.submissionStartsAt as number,
+            });
+            departmentAccessMode = windowState.accessMode ?? undefined;
+        }
     }
 
     const tenantAdminOnboardingStage = resolveTenantAdminOnboardingStage({

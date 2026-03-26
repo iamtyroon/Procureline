@@ -229,6 +229,22 @@ function runDepartmentUserDashboardTests() {
     strict_1.default.equal(rejectedSnapshot.launchpad.primaryAction.label, "Edit Plan");
     strict_1.default.equal(rejectedSnapshot.launchpad.selectedCategoryIds[0], "cat-1");
     completedTests.push("department-user rejected plans surface revision comments prominently and reuse the canonical plan selection instead of implying a duplicate same-year draft");
+    const budgetAnnouncement = (0, dashboard_1.buildDepartmentBudgetChangeAnnouncement)({
+        budgetAllocation: 4_200_000,
+        departmentId: "department-1",
+        lastAuthenticatedAt: Date.UTC(2026, 7, 10, 9, 0, 0),
+        lastBudgetChangedAt: Date.UTC(2026, 7, 10, 10, 0, 0),
+    });
+    strict_1.default.ok(budgetAnnouncement);
+    strict_1.default.equal(budgetAnnouncement.title, "Budget allocation updated");
+    strict_1.default.match(budgetAnnouncement.message, /Review any draft planning assumptions\./);
+    strict_1.default.equal((0, dashboard_1.buildDepartmentBudgetChangeAnnouncement)({
+        budgetAllocation: 4_200_000,
+        departmentId: "department-1",
+        lastAuthenticatedAt: Date.UTC(2026, 7, 10, 10, 0, 0),
+        lastBudgetChangedAt: Date.UTC(2026, 7, 10, 9, 0, 0),
+    }), null);
+    completedTests.push("department-user budget change announcements only appear for newer procurement-officer updates and stay quiet for already-seen budget changes");
     const blockedSnapshot = (0, dashboard_snapshot_1.buildDepartmentUserDashboardSnapshot)({
         announcements: [],
         auth: {

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.scrubDepartmentUserAccessCodeFromUrl = exports.formatDepartmentUserLockoutMessage = exports.getDepartmentUserLockoutState = exports.isDepartmentUserOtpProviderFailureMessage = exports.getDepartmentUserSubmissionWindowMessage = exports.evaluateDepartmentUserSubmissionWindow = exports.getDepartmentUserAccessCodeSuffix = exports.hashDepartmentUserAccessCode = exports.normalizeDepartmentUserAccessCode = exports.DEPARTMENT_USER_REMINDER_PLACEHOLDER = exports.DEPARTMENT_USER_SUBMISSION_ENDED_MESSAGE = exports.SUBSCRIPTION_INACTIVE_MESSAGE = exports.INCOMPATIBLE_DEPARTMENT_USER_EMAIL_MESSAGE = exports.DEACTIVATED_DEPARTMENT_USER_MESSAGE = exports.EXPIRED_ACCESS_CODE_MESSAGE = exports.DEPARTMENT_USER_INVALID_VERIFICATION_CODE_MESSAGE = exports.INVALID_ACCESS_CODE_MESSAGE = exports.DEPARTMENT_USER_SUBMISSION_GRACE_WINDOW_MS = exports.DEPARTMENT_USER_ACCESS_LOCKOUT_WINDOW_MS = exports.DEPARTMENT_USER_ACCESS_LOCKOUT_THRESHOLD = exports.DEPARTMENT_USER_ACCESS_CHALLENGE_WINDOW_MS = exports.DEPARTMENT_USER_ACCESS_CODE_MAX_LENGTH = exports.DEPARTMENT_USER_AUTH_VERIFY_FLOW = exports.DEPARTMENT_USER_AUTH_START_FLOW = exports.DEPARTMENT_USER_AUTH_PROVIDER = void 0;
+exports.scrubDepartmentUserAccessCodeFromUrl = exports.formatDepartmentUserLockoutMessage = exports.getDepartmentUserLockoutState = exports.isDepartmentUserOtpProviderFailureMessage = exports.getDepartmentUserSubmissionWindowMessage = exports.evaluateDepartmentUserSubmissionWindow = exports.getDepartmentUserAccessCodeSuffix = exports.hashDepartmentUserAccessCode = exports.normalizeDepartmentUserAccessCode = exports.hasConfiguredDepartmentUserSubmissionWindow = exports.DEPARTMENT_USER_REMINDER_PLACEHOLDER = exports.DEPARTMENT_USER_SUBMISSION_ENDED_MESSAGE = exports.SUBSCRIPTION_INACTIVE_MESSAGE = exports.INCOMPATIBLE_DEPARTMENT_USER_EMAIL_MESSAGE = exports.DEPARTMENT_USER_SETUP_REQUIRED_MESSAGE = exports.DEACTIVATED_DEPARTMENT_USER_MESSAGE = exports.EXPIRED_ACCESS_CODE_MESSAGE = exports.DEPARTMENT_USER_INVALID_VERIFICATION_CODE_MESSAGE = exports.INVALID_ACCESS_CODE_MESSAGE = exports.DEPARTMENT_USER_SUBMISSION_GRACE_WINDOW_MS = exports.DEPARTMENT_USER_ACCESS_LOCKOUT_WINDOW_MS = exports.DEPARTMENT_USER_ACCESS_LOCKOUT_THRESHOLD = exports.DEPARTMENT_USER_ACCESS_CHALLENGE_WINDOW_MS = exports.DEPARTMENT_USER_ACCESS_CODE_MAX_LENGTH = exports.DEPARTMENT_USER_AUTH_VERIFY_FLOW = exports.DEPARTMENT_USER_AUTH_START_FLOW = exports.DEPARTMENT_USER_AUTH_PROVIDER = void 0;
 exports.DEPARTMENT_USER_AUTH_PROVIDER = "department-user-access";
 exports.DEPARTMENT_USER_AUTH_START_FLOW = "otp-start";
 exports.DEPARTMENT_USER_AUTH_VERIFY_FLOW = "otp-verify";
@@ -13,10 +13,17 @@ exports.INVALID_ACCESS_CODE_MESSAGE = "Invalid access code";
 exports.DEPARTMENT_USER_INVALID_VERIFICATION_CODE_MESSAGE = "Invalid verification code. Please try again.";
 exports.EXPIRED_ACCESS_CODE_MESSAGE = "Access code expired. Contact your Procurement Officer.";
 exports.DEACTIVATED_DEPARTMENT_USER_MESSAGE = "Account deactivated. Contact your Procurement Officer.";
+exports.DEPARTMENT_USER_SETUP_REQUIRED_MESSAGE = "Department setup is incomplete. Contact your Procurement Officer.";
 exports.INCOMPATIBLE_DEPARTMENT_USER_EMAIL_MESSAGE = "This email can't be used for Department User access. Contact your Procurement Officer.";
 exports.SUBSCRIPTION_INACTIVE_MESSAGE = "Subscription inactive. Contact your administrator.";
 exports.DEPARTMENT_USER_SUBMISSION_ENDED_MESSAGE = "Submission period has ended.";
 exports.DEPARTMENT_USER_REMINDER_PLACEHOLDER = "Need an access code reminder? Reminder requests will be added in a follow-up story.";
+function hasConfiguredDepartmentUserSubmissionWindow(args) {
+    return (typeof args.submissionStartsAt === "number" &&
+        typeof args.submissionEndsAt === "number" &&
+        args.submissionEndsAt > args.submissionStartsAt);
+}
+exports.hasConfiguredDepartmentUserSubmissionWindow = hasConfiguredDepartmentUserSubmissionWindow;
 function normalizeDepartmentUserAccessCode(input) {
     return input
         .trim()

@@ -7,6 +7,10 @@ import {
     normalizeDepartmentUserAccessCode,
 } from "../lib/auth/department-user-access";
 import {
+    normalizeDepartmentCode,
+    normalizeDepartmentName,
+} from "../lib/procurement-officer/departments";
+import {
     PASSWORD_MIN_LENGTH,
     PASSWORD_PATTERNS,
     validateEmailInput,
@@ -236,6 +240,265 @@ export const listTenantRoleAssignments = query({
         );
 
         return users.sort((left, right) => left.email.localeCompare(right.email));
+    },
+});
+
+/**
+ * Inspect auth and role records for a single email to support local/dev access fixes.
+ * Run via CLI:
+ * npx convex run seedData:inspectUserAccessByEmail "{ email: 'you@example.com' }"
+ */
+export const inspectUserAccessByEmail = query({
+    args: {
+        email: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const normalizedEmail = args.email.trim().toLowerCase();
+        const matchingUsers = await ctx.db
+            .query("users")
+            .withIndex("email", (q) => q.eq("email", normalizedEmail))
+            .collect();
+
+        return await Promise.all(
+            matchingUsers.map(async (user) => {
+                const [tenantUsers, platformUsers, authAccounts] = await Promise.all([
+                    ctx.db
+                        .query("tenantUsers")
+                        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+                        .collect(),
+                    ctx.db
+                        .query("platformUsers")
+                        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+                        .collect(),
+                    ctx.db
+                        .query("authAccounts")
+                        .withIndex("userIdAndProvider", (q) =>
+                            q.eq("userId", user._id).eq("provider", "password"),
+                        )
+                        .collect(),
+                ]);
+
+                const tenantMemberships = await Promise.all(
+                    tenantUsers.map(async (tenantUser) => ({
+                        isActive: tenantUser.isActive,
+                        role: tenantUser.role,
+                        tenantId: String(tenantUser.tenantId),
+                        tenantName: (await ctx.db.get(tenantUser.tenantId))?.name ?? "Unknown tenant",
+                        tenantUserId: String(tenantUser._id),
+                    })),
+                );
+
+                return {
+                    authAccounts: authAccounts.map((account) => ({
+                        authAccountId: String(account._id),
+                        provider: account.provider,
+                        providerAccountId: account.providerAccountId,
+                    })),
+                    email: user.email ?? normalizedEmail,
+                    name:
+                        typeof user.name === "string" && user.name.trim().length > 0
+                            ? user.name.trim()
+                            : null,
+                    platformRoles: platformUsers.map((platformUser) => ({
+                        isActive: platformUser.isActive,
+                        platformUserId: String(platformUser._id),
+                    })),
+                    tenantMemberships,
+                    userId: String(user._id),
+                };
+            }),
+        );
+    },
+});
+
+/**
+ * List tenants to support local/dev role attachment helpers.
+ * Run via CLI:
+ * npx convex run seedData:listTenantsForDev
+ */
+export const listTenantsForDev = query({
+    args: {},
+    handler: async (ctx) => {
+        const tenants = await ctx.db.query("tenants").collect();
+
+        return tenants
+            .map((tenant) => ({
+                createdAt: tenant.createdAt,
+                name: tenant.name,
+                status: tenant.status,
+                subdomain: tenant.subdomain,
+                tenantId: String(tenant._id),
+                tier: tenant.tier,
+            }))
+            .sort((left, right) => left.name.localeCompare(right.name));
+    },
+});
+
+/**
+ * Attach an existing auth account to a tenant role for local/dev validation.
+ * To avoid mixed-role misconfiguration, active platform-admin roles are deactivated.
+ *
+ * Run via CLI:
+ * npx convex run seedData:assignTenantRoleForDev "{ email: 'you@example.com', tenantId: '...', role: 'procurement_officer' }"
+ */
+export const assignTenantRoleForDev = mutation({
+    args: {
+        email: v.string(),
+        role: v.union(
+            v.literal("tenant_admin"),
+            v.literal("procurement_officer"),
+            v.literal("department_user"),
+        ),
+        tenantId: v.id("tenants"),
+    },
+    handler: async (ctx, args) => {
+        const emailResult = validateEmailInput(args.email);
+        if (!emailResult.ok) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: emailResult.issue.message,
+            });
+        }
+
+        const normalizedEmail = emailResult.value;
+        const matchingUsers = await ctx.db
+            .query("users")
+            .withIndex("email", (q) => q.eq("email", normalizedEmail))
+            .collect();
+
+        if (matchingUsers.length !== 1) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: `Expected exactly one auth user for ${normalizedEmail}.`,
+            });
+        }
+
+        const tenant = await ctx.db.get(args.tenantId);
+        if (!tenant || tenant.status !== "active") {
+            throw new ConvexError({
+                code: "NOT_FOUND",
+                message: "Target tenant not found or inactive.",
+            });
+        }
+
+        const user = firstOrThrow(matchingUsers, () =>
+            new ConvexError({
+                code: "NOT_FOUND",
+                message: `No auth user found for ${normalizedEmail}.`,
+            }),
+        );
+        const [tenantUsers, platformUsers] = await Promise.all([
+            ctx.db
+                .query("tenantUsers")
+                .withIndex("by_userId", (q) => q.eq("userId", user._id))
+                .collect(),
+            ctx.db
+                .query("platformUsers")
+                .withIndex("by_userId", (q) => q.eq("userId", user._id))
+                .collect(),
+        ]);
+
+        for (const platformUser of platformUsers) {
+            if (!platformUser.isActive) {
+                continue;
+            }
+
+            await ctx.db.patch(platformUser._id, {
+                isActive: false,
+            });
+        }
+
+        for (const tenantUser of tenantUsers) {
+            if (tenantUser.tenantId === args.tenantId) {
+                await ctx.db.patch(tenantUser._id, {
+                    isActive: true,
+                    role: args.role,
+                });
+
+                return {
+                    deactivatedPlatformRoles: platformUsers.filter((platformUser) => platformUser.isActive)
+                        .length,
+                    email: normalizedEmail,
+                    role: args.role,
+                    tenantId: String(args.tenantId),
+                    tenantName: tenant.name,
+                    tenantUserId: String(tenantUser._id),
+                    userId: String(user._id),
+                };
+            }
+        }
+
+        const tenantUserId = await ctx.db.insert("tenantUsers", {
+            isActive: true,
+            role: args.role,
+            tenantId: args.tenantId,
+            userId: user._id,
+        });
+
+        return {
+            deactivatedPlatformRoles: platformUsers.filter((platformUser) => platformUser.isActive)
+                .length,
+            email: normalizedEmail,
+            role: args.role,
+            tenantId: String(args.tenantId),
+            tenantName: tenant.name,
+            tenantUserId: String(tenantUserId),
+            userId: String(user._id),
+        };
+    },
+});
+
+/**
+ * Remove platform-admin role records for a local/dev account so a tenant role can resolve cleanly.
+ * Run via CLI:
+ * npx convex run seedData:removePlatformRoleForDevByEmail "{ email: 'you@example.com' }"
+ */
+export const removePlatformRoleForDevByEmail = mutation({
+    args: {
+        email: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const emailResult = validateEmailInput(args.email);
+        if (!emailResult.ok) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: emailResult.issue.message,
+            });
+        }
+
+        const normalizedEmail = emailResult.value;
+        const matchingUsers = await ctx.db
+            .query("users")
+            .withIndex("email", (q) => q.eq("email", normalizedEmail))
+            .collect();
+
+        if (matchingUsers.length !== 1) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: `Expected exactly one auth user for ${normalizedEmail}.`,
+            });
+        }
+
+        const user = firstOrThrow(matchingUsers, () =>
+            new ConvexError({
+                code: "NOT_FOUND",
+                message: `No auth user found for ${normalizedEmail}.`,
+            }),
+        );
+        const platformUsers = await ctx.db
+            .query("platformUsers")
+            .withIndex("by_userId", (q) => q.eq("userId", user._id))
+            .collect();
+
+        for (const platformUser of platformUsers) {
+            await ctx.db.delete(platformUser._id);
+        }
+
+        return {
+            email: normalizedEmail,
+            removedPlatformRoles: platformUsers.length,
+            userId: String(user._id),
+        };
     },
 });
 
@@ -562,21 +825,25 @@ export const bootstrapDepartmentUserByEmail = mutation({
         const budgetAllocation = args.budgetAllocation;
         const submissionStartsAt = now - 2 * 24 * 60 * 60 * 1000;
         const submissionEndsAt = now + 14 * 24 * 60 * 60 * 1000;
+        const normalizedDepartmentCode = normalizeDepartmentCode(departmentCode);
+        const normalizedDepartmentName = normalizeDepartmentName(departmentName);
 
         const existingDepartment = await ctx.db
             .query("departments")
-            .withIndex("by_tenantId_code", (q) =>
-                q.eq("tenantId", activeTenantUser.tenantId).eq("code", departmentCode),
+            .withIndex("by_tenantId_normalizedCode", (q) =>
+                q.eq("tenantId", activeTenantUser.tenantId).eq("normalizedCode", normalizedDepartmentCode),
             )
             .first();
 
         const departmentId =
             existingDepartment?._id ??
             (await ctx.db.insert("departments", {
-                code: departmentCode,
+                code: normalizedDepartmentCode,
                 createdAt: now,
                 isActive: true,
                 name: departmentName,
+                normalizedCode: normalizedDepartmentCode,
+                normalizedName: normalizedDepartmentName,
                 procurementOfficerTenantUserId: activeTenantUser._id,
                 submissionEndsAt,
                 submissionStartsAt,

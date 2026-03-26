@@ -91,11 +91,12 @@ export default function DashboardPage() {
     const showMembershipSelection =
         authContext?.accessState === "pending_access" &&
         membershipOptions.length > 0;
+    type MembershipOption = NonNullable<typeof membershipOptions>[number];
 
     async function handleMembershipSelection(args: {
-        tenantId: (typeof membershipOptions)[number]["tenantId"];
-        tenantRole: (typeof membershipOptions)[number]["tenantRole"];
-        tenantUserId: (typeof membershipOptions)[number]["tenantUserId"];
+        tenantId: MembershipOption["tenantId"];
+        tenantRole: MembershipOption["tenantRole"];
+        tenantUserId: MembershipOption["tenantUserId"];
     }): Promise<void> {
         const membershipKey = `${args.tenantId}:${args.tenantUserId}`;
         setSelectingMembershipKey(membershipKey);

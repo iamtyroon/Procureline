@@ -53,6 +53,50 @@ exports.default = (0, server_1.defineSchema)({
     })
         .index("by_normalizedEmail", ["normalizedEmail", "createdAt"])
         .index("by_invitationId", ["invitationId", "createdAt"]),
+    poInvitations: (0, server_1.defineTable)({
+        tenantId: values_1.v.id("tenants"),
+        email: values_1.v.string(),
+        normalizedEmail: values_1.v.string(),
+        fullName: values_1.v.string(),
+        phone: values_1.v.string(),
+        inviteTokenHash: values_1.v.string(),
+        activationCodeHash: values_1.v.string(),
+        activationCodeSuffix: values_1.v.string(),
+        issueVersion: values_1.v.number(),
+        status: values_1.v.union(values_1.v.literal("pending"), values_1.v.literal("accepted"), values_1.v.literal("expired"), values_1.v.literal("bounced"), values_1.v.literal("revoked")),
+        expiresAt: values_1.v.number(),
+        resentCount: values_1.v.number(),
+        createdByTenantUserId: values_1.v.id("tenantUsers"),
+        acceptedByUserId: values_1.v.optional(values_1.v.id("users")),
+        acceptedTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
+        acceptedAt: values_1.v.optional(values_1.v.number()),
+        providerMessageId: values_1.v.optional(values_1.v.string()),
+        lastEmailSentAt: values_1.v.optional(values_1.v.number()),
+        bounceReason: values_1.v.optional(values_1.v.string()),
+        bounceNotifiedAt: values_1.v.optional(values_1.v.number()),
+        createdAt: values_1.v.number(),
+        updatedAt: values_1.v.number(),
+    })
+        .index("by_tenantId", ["tenantId", "createdAt"])
+        .index("by_inviteTokenHash", ["inviteTokenHash"])
+        .index("by_activationCodeHash", ["activationCodeHash"])
+        .index("by_tenantId_email", ["tenantId", "normalizedEmail"])
+        .index("by_tenantId_status", ["tenantId", "status", "createdAt"])
+        .index("by_normalizedEmail", ["normalizedEmail", "createdAt"]),
+    procurementOfficerAuthChallenges: (0, server_1.defineTable)({
+        tenantId: values_1.v.id("tenants"),
+        invitationId: values_1.v.id("poInvitations"),
+        normalizedEmail: values_1.v.string(),
+        authAccountId: values_1.v.optional(values_1.v.id("authAccounts")),
+        authUserId: values_1.v.optional(values_1.v.id("users")),
+        expiresAt: values_1.v.number(),
+        consumedAt: values_1.v.optional(values_1.v.number()),
+        createdAt: values_1.v.number(),
+        updatedAt: values_1.v.number(),
+    })
+        .index("by_invitationId", ["invitationId", "createdAt"])
+        .index("by_normalizedEmail", ["normalizedEmail", "createdAt"])
+        .index("by_expiresAt", ["expiresAt"]),
     tenantUsers: (0, server_1.defineTable)({
         userId: values_1.v.id("users"),
         tenantId: values_1.v.id("tenants"),
@@ -276,6 +320,9 @@ exports.default = (0, server_1.defineSchema)({
         createdAt: values_1.v.number(),
         revokedAt: values_1.v.optional(values_1.v.number()),
         loggedOutAt: values_1.v.optional(values_1.v.number()),
+        activeTenantId: values_1.v.optional(values_1.v.id("tenants")),
+        activeTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
+        activeTenantRole: values_1.v.optional(values_1.v.union(values_1.v.literal("tenant_admin"), values_1.v.literal("procurement_officer"), values_1.v.literal("department_user"))),
         isPlatformAdminSession: values_1.v.optional(values_1.v.boolean()),
         platformAdminAuthStage: values_1.v.optional(values_1.v.union(values_1.v.literal("setup_required"), values_1.v.literal("verification_required"), values_1.v.literal("verified"), values_1.v.literal("reset_required"))),
         platformAdminChallengeId: values_1.v.optional(values_1.v.id("platformAdminChallenges")),

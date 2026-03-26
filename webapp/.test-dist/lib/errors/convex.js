@@ -28,6 +28,7 @@ const SAFE_DEPARTMENT_USER_ACCESS_MESSAGES = [
     department_user_access_1.INVALID_ACCESS_CODE_MESSAGE,
     department_user_access_1.EXPIRED_ACCESS_CODE_MESSAGE,
     department_user_access_1.DEACTIVATED_DEPARTMENT_USER_MESSAGE,
+    department_user_access_1.DEPARTMENT_USER_SETUP_REQUIRED_MESSAGE,
     department_user_access_1.INCOMPATIBLE_DEPARTMENT_USER_EMAIL_MESSAGE,
     department_user_access_1.SUBSCRIPTION_INACTIVE_MESSAGE,
     department_user_access_1.DEPARTMENT_USER_SUBMISSION_ENDED_MESSAGE,

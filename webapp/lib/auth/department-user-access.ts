@@ -15,6 +15,8 @@ export const EXPIRED_ACCESS_CODE_MESSAGE =
     "Access code expired. Contact your Procurement Officer.";
 export const DEACTIVATED_DEPARTMENT_USER_MESSAGE =
     "Account deactivated. Contact your Procurement Officer.";
+export const DEPARTMENT_USER_SETUP_REQUIRED_MESSAGE =
+    "Department setup is incomplete. Contact your Procurement Officer.";
 export const INCOMPATIBLE_DEPARTMENT_USER_EMAIL_MESSAGE =
     "This email can't be used for Department User access. Contact your Procurement Officer.";
 export const SUBSCRIPTION_INACTIVE_MESSAGE =
@@ -40,6 +42,17 @@ export interface DepartmentUserLockoutState {
     isLockedOut: boolean;
     lockedUntil: number | null;
     remainingMs: number;
+}
+
+export function hasConfiguredDepartmentUserSubmissionWindow(args: {
+    submissionEndsAt?: number | null;
+    submissionStartsAt?: number | null;
+}): boolean {
+    return (
+        typeof args.submissionStartsAt === "number" &&
+        typeof args.submissionEndsAt === "number" &&
+        args.submissionEndsAt > args.submissionStartsAt
+    );
 }
 
 export function normalizeDepartmentUserAccessCode(input: string): string {

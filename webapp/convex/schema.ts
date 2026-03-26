@@ -23,6 +23,7 @@ export default defineSchema({
         primaryContactName: v.optional(v.string()),
         primaryContactEmail: v.optional(v.string()),
         primaryContactPhone: v.optional(v.string()),
+        procurementBudgetCeiling: v.optional(v.number()),
         fiscalYearStartMonth: v.optional(v.number()),
         logoUrl: v.optional(v.string()),
         onboardingCompletedAt: v.optional(v.number()),
@@ -140,16 +141,25 @@ export default defineSchema({
         tenantId: v.id("tenants"),
         procurementOfficerTenantUserId: v.id("tenantUsers"),
         name: v.string(),
+        normalizedName: v.string(),
         code: v.string(),
+        normalizedCode: v.string(),
         budgetAllocation: v.optional(v.number()),
         isActive: v.boolean(),
-        submissionStartsAt: v.number(),
-        submissionEndsAt: v.number(),
+        submissionStartsAt: v.optional(v.number()),
+        submissionEndsAt: v.optional(v.number()),
+        deletedAt: v.optional(v.number()),
+        deletedByTenantUserId: v.optional(v.id("tenantUsers")),
+        lastBudgetChangedAt: v.optional(v.number()),
+        lastBudgetChangedByTenantUserId: v.optional(v.id("tenantUsers")),
         createdAt: v.number(),
         updatedAt: v.number(),
     })
         .index("by_tenantId", ["tenantId"])
+        .index("by_tenantId_isActive", ["tenantId", "isActive"])
         .index("by_tenantId_code", ["tenantId", "code"])
+        .index("by_tenantId_normalizedCode", ["tenantId", "normalizedCode"])
+        .index("by_tenantId_normalizedName", ["tenantId", "normalizedName"])
         .index("by_procurementOfficerTenantUserId", ["procurementOfficerTenantUserId"]),
 
     procurementCategories: defineTable({

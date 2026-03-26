@@ -1,7 +1,11 @@
 import { ConvexError } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import { evaluateDepartmentUserSubmissionWindow } from "../../lib/auth/department-user-access";
+import {
+    DEPARTMENT_USER_SETUP_REQUIRED_MESSAGE,
+    evaluateDepartmentUserSubmissionWindow,
+    hasConfiguredDepartmentUserSubmissionWindow,
+} from "../../lib/auth/department-user-access";
 import { requireTenantRole } from "./_roleGuard";
 
 type DepartmentUserCtx = QueryCtx | MutationCtx;
@@ -47,9 +51,18 @@ export async function requireDepartmentUserAccess(
         createUnauthorizedError("Department User access is required for this resource");
     }
 
+    if (
+        !hasConfiguredDepartmentUserSubmissionWindow({
+            submissionEndsAt: department.submissionEndsAt,
+            submissionStartsAt: department.submissionStartsAt,
+        })
+    ) {
+        createUnauthorizedError(DEPARTMENT_USER_SETUP_REQUIRED_MESSAGE);
+    }
+
     const windowState = evaluateDepartmentUserSubmissionWindow({
-        submissionEndsAt: department.submissionEndsAt,
-        submissionStartsAt: department.submissionStartsAt,
+        submissionEndsAt: department.submissionEndsAt as number,
+        submissionStartsAt: department.submissionStartsAt as number,
     });
     if (windowState.accessMode === null) {
         createUnauthorizedError("Submission period has ended.");

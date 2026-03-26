@@ -1,7 +1,9 @@
 import { ConvexError, v } from "convex/values";
 import { query } from "../_generated/server";
 import { requireTenantRole } from "./_roleGuard";
+import { buildDepartmentBudgetChangeAnnouncement } from "../../lib/department-user/dashboard";
 import { buildDepartmentUserDashboardSnapshot } from "../../lib/department-user/dashboard-snapshot";
+import { hasConfiguredDepartmentUserSubmissionWindow } from "../../lib/auth/department-user-access";
 
 const dashboardStateValidator = v.union(
     v.literal("available"),
@@ -256,6 +258,34 @@ export const getDepartmentUserDashboardSnapshot = query({
             });
         }
 
+        if (
+            !hasConfiguredDepartmentUserSubmissionWindow({
+                submissionEndsAt: department.submissionEndsAt,
+                submissionStartsAt: department.submissionStartsAt,
+            })
+        ) {
+            return buildDepartmentUserDashboardSnapshot({
+                announcements: [],
+                auth: {
+                    departmentAccessMode: authContext.departmentAccessMode,
+                    departmentId: departmentId ? String(departmentId) : undefined,
+                    tenantId: String(authContext.tenantId),
+                },
+                categories: [],
+                currentUser,
+                department: null,
+                items: [],
+                leaderboardEntries: [],
+                now: Date.now(),
+                plans: [],
+                procurementOfficer: null,
+                tenant: {
+                    id: String(tenant._id),
+                    name: tenant.name,
+                },
+            });
+        }
+
         const [categories, items, plans, procurementOfficerTenantUser] = await Promise.all([
             ctx.db
                 .query("procurementCategories")
@@ -282,9 +312,16 @@ export const getDepartmentUserDashboardSnapshot = query({
             procurementOfficerTenantUser.isActive
                 ? readAuthUserSummary(procurementOfficerUser, "Procurement Officer")
                 : null;
+        const budgetAnnouncement = buildDepartmentBudgetChangeAnnouncement({
+            budgetAllocation: department.budgetAllocation ?? null,
+            departmentId: String(department._id),
+            lastAuthenticatedAt: profile.lastAuthenticatedAt ?? null,
+            lastBudgetChangedAt: department.lastBudgetChangedAt ?? null,
+        });
+        const announcements = budgetAnnouncement ? [budgetAnnouncement] : [];
 
         return buildDepartmentUserDashboardSnapshot({
-            announcements: [],
+            announcements,
             auth: {
                 departmentAccessMode: authContext.departmentAccessMode,
                 departmentId: String(department._id),
@@ -301,8 +338,8 @@ export const getDepartmentUserDashboardSnapshot = query({
                 code: department.code,
                 id: String(department._id),
                 name: department.name,
-                submissionEndsAt: department.submissionEndsAt,
-                submissionStartsAt: department.submissionStartsAt,
+                submissionEndsAt: department.submissionEndsAt as number,
+                submissionStartsAt: department.submissionStartsAt as number,
             },
             items: items.map((item) => ({
                 categoryId: String(item.categoryId),

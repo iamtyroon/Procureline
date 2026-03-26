@@ -96,14 +96,18 @@ export const create = internalMutation({
 export const getById = query({
     args: { tenantId: v.id("tenants") },
     returns: v.union(tenantRecordValidator, v.null()),
-    handler: async (ctx, args) =>
-        await readTenantByIdForCurrentTenant(ctx, args.tenantId),
+    handler: async (ctx, args) => {
+        const tenant = await readTenantByIdForCurrentTenant(ctx, args.tenantId);
+        return tenant ? { ...tenant, profileComplete: tenant.profileComplete === true } : null;
+    },
 });
 
 /** Read a tenant by ID through the explicit audited platform-admin bypass path */
 export const getByIdForPlatformAdmin = mutation({
     args: { tenantId: v.id("tenants") },
     returns: v.union(tenantRecordValidator, v.null()),
-    handler: async (ctx, args) =>
-        await readTenantByIdWithPlatformAdminBypass(ctx, args.tenantId),
+    handler: async (ctx, args) => {
+        const tenant = await readTenantByIdWithPlatformAdminBypass(ctx, args.tenantId);
+        return tenant ? { ...tenant, profileComplete: tenant.profileComplete === true } : null;
+    },
 });

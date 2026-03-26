@@ -1,4 +1,8 @@
 export const AUDIT_EVENT_NAMES = {
+    departmentBudgetChanged: "department.budget_changed",
+    departmentCreated: "department.created",
+    departmentDeleted: "department.deleted",
+    departmentUpdated: "department.updated",
     departmentUserChallengeStarted: "du.access_code.challenge_started",
     departmentUserChallengeVerified: "du.access_code.challenge_verified",
     departmentUserCollision: "du.access_code.role_collision",

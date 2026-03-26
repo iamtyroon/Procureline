@@ -50,6 +50,7 @@ import type {
     ProcurementOfficerDashboardSummaryCard,
 } from "@/lib/procurement-officer/dashboard-snapshot";
 import { cn } from "@/lib/utils";
+import { ProcurementOfficerDepartmentsWorkspace } from "./ProcurementOfficerDepartmentsWorkspace";
 
 /* ─── Donut Ring ──────────────────────────────────────────────────── */
 
@@ -117,14 +118,17 @@ function StateBadge({ label, state }: { label?: string; state: ProcurementDashbo
     return (
         <span
             className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold shadow-sm",
                 state === "available" &&
-                    "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
-                state === "coming_soon" && "bg-primary/10 text-primary",
-                state === "empty" && "bg-muted text-muted-foreground",
+                    "border-emerald-300/80 bg-emerald-200 text-emerald-950 dark:border-emerald-800/80 dark:bg-emerald-950/80 dark:text-emerald-100",
+                state === "coming_soon" &&
+                    "border-sky-300/80 bg-sky-200 text-sky-950 dark:border-sky-800/80 dark:bg-sky-950/80 dark:text-sky-100",
+                state === "empty" &&
+                    "border-slate-300/80 bg-slate-200 text-slate-900 dark:border-slate-700/80 dark:bg-slate-900/80 dark:text-slate-100",
                 state === "setup_required" &&
-                    "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
-                state === "unavailable" && "bg-muted text-muted-foreground",
+                    "border-amber-300/80 bg-amber-200 text-amber-950 dark:border-amber-800/80 dark:bg-amber-950/80 dark:text-amber-100",
+                state === "unavailable" &&
+                    "border-slate-300/80 bg-slate-200 text-slate-900 dark:border-slate-700/80 dark:bg-slate-900/80 dark:text-slate-100",
             )}
         >
             <span
@@ -180,13 +184,14 @@ function IconBox({
                 "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-sm",
                 tone === "primary" &&
                     "bg-primary text-primary-foreground shadow-primary/25",
-                tone === "muted" && "bg-muted text-muted-foreground",
+                tone === "muted" &&
+                    "bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-100",
                 tone === "amber" &&
-                    "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+                    "bg-amber-200 text-amber-950 dark:bg-amber-950/80 dark:text-amber-100",
                 tone === "emerald" &&
-                    "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+                    "bg-emerald-200 text-emerald-950 dark:bg-emerald-950/80 dark:text-emerald-100",
                 tone === "info" &&
-                    "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+                    "bg-sky-200 text-sky-950 dark:bg-sky-950/80 dark:text-sky-100",
             )}
         >
             {children}
@@ -640,8 +645,8 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                                             <div className={cn(
                                                 "flex h-6 w-6 items-center justify-center rounded-lg",
                                                 snapshot.alerts.some(a => a.id === "deadline")
-                                                    ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300"
-                                                    : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                                                    ? "bg-rose-200 text-rose-950 dark:bg-rose-950/80 dark:text-rose-100"
+                                                    : "bg-emerald-200 text-emerald-950 dark:bg-emerald-950/80 dark:text-emerald-100"
                                             )}>
                                                 {snapshot.alerts.some(a => a.id === "deadline")
                                                     ? <AlertTriangle className="h-3 w-3" />
@@ -671,19 +676,16 @@ export function ProcurementOfficerDashboard(): JSX.Element {
             </div>
 
             {/* Workspace modal */}
-            <WorkspaceModal
-                accessCodeCard={accessCodeCard}
-                activeModal={activeModal}
-                categoriesPanel={categoriesPanel}
-                deadlineCard={deadlineCard}
-                departmentsConfiguredCard={departmentsConfiguredCard}
-                duCoverageCard={duCoverageCard}
-                fiscalYearLabel={fiscalYearLabel}
-                itemsPanel={itemsPanel}
-                readyDepartmentCount={readyDepartmentCount}
-                requestPanel={requestPanel}
-                snapshot={snapshot}
-                submissionPanel={submissionPanel}
+                <WorkspaceModal
+                    accessCodeCard={accessCodeCard}
+                    activeModal={activeModal}
+                    categoriesPanel={categoriesPanel}
+                    deadlineCard={deadlineCard}
+                    fiscalYearLabel={fiscalYearLabel}
+                    itemsPanel={itemsPanel}
+                    requestPanel={requestPanel}
+                    snapshot={snapshot}
+                    submissionPanel={submissionPanel}
                 onCategorySectionChange={(section) =>
                     setWorkspaceModal(
                         { modal: "categories", ...(section ? { section } : {}) },
@@ -714,9 +716,9 @@ function OrganizationStatPill({
                     "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
                     tone === "primary" && "bg-primary text-primary-foreground",
                     tone === "amber" &&
-                        "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+                        "bg-amber-200 text-amber-950 dark:bg-amber-950/80 dark:text-amber-100",
                     tone === "emerald" &&
-                        "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+                        "bg-emerald-200 text-emerald-950 dark:bg-emerald-950/80 dark:text-emerald-100",
                 )}
             >
                 {icon}
@@ -855,11 +857,8 @@ function WorkspaceModal({
     activeModal,
     categoriesPanel,
     deadlineCard,
-    departmentsConfiguredCard,
-    duCoverageCard,
     fiscalYearLabel,
     itemsPanel,
-    readyDepartmentCount,
     requestPanel,
     snapshot,
     submissionPanel,
@@ -870,18 +869,14 @@ function WorkspaceModal({
     activeModal: ProcurementOfficerWorkspaceModalState | null;
     categoriesPanel?: ProcurementOfficerDashboardFuturePanel;
     deadlineCard?: ProcurementOfficerDashboardSummaryCard;
-    departmentsConfiguredCard?: ProcurementOfficerDashboardSummaryCard;
-    duCoverageCard?: ProcurementOfficerDashboardSummaryCard;
     fiscalYearLabel: string;
     itemsPanel?: ProcurementOfficerDashboardFuturePanel;
-    readyDepartmentCount: number;
     requestPanel?: ProcurementOfficerDashboardFuturePanel;
     snapshot: ProcurementOfficerDashboardSnapshot;
     submissionPanel?: ProcurementOfficerDashboardFuturePanel;
     onCategorySectionChange: (section?: ProcurementOfficerWorkspaceSection) => void;
     onClose: () => void;
 }): JSX.Element {
-    const topDepartments = snapshot.departmentReadiness.items.slice(0, 4);
     const activeTab =
         activeModal?.modal === "categories" && activeModal.section === "items" ? "items" : "categories";
 
@@ -909,26 +904,7 @@ function WorkspaceModal({
 
                 <div className="max-h-[75vh] space-y-5 overflow-y-auto p-6">
                     {activeModal?.modal === "departments" ? (
-                        <>
-                            <div className="grid gap-3 md:grid-cols-4">
-                                <ModalMetricCard label="In scope" value={departmentsConfiguredCard?.value ?? "0"} />
-                                <ModalMetricCard label="Ready" value={String(readyDepartmentCount)} />
-                                <ModalMetricCard label="DU coverage" value={duCoverageCard?.value ?? "--"} />
-                                <ModalMetricCard label="Fiscal year" value={fiscalYearLabel} />
-                            </div>
-                            {topDepartments.length > 0 ? (
-                                <div className="space-y-3">
-                                    {topDepartments.map((item) => (
-                                        <CompactDepartmentCard key={item.id} item={item} />
-                                    ))}
-                                </div>
-                            ) : (
-                                <EmptyWorkspaceState
-                                    body="No active departments are configured yet, so the dashboard keeps this workspace focused on the first setup step."
-                                    title="No departments yet"
-                                />
-                            )}
-                        </>
+                        <ProcurementOfficerDepartmentsWorkspace />
                     ) : null}
 
                     {activeModal?.modal === "requests" ? (
@@ -1031,20 +1007,6 @@ function WorkspaceModal({
                         </>
                     ) : null}
 
-                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-muted/20 px-5 py-4">
-                        <div>
-                            <div className="font-semibold text-foreground">Consolidation stays separate</div>
-                            <div className="text-sm leading-6 text-muted-foreground">
-                                This is the only PO workflow that still opens as its own page.
-                            </div>
-                        </div>
-                        <Button asChild variant="outline" className="rounded-xl">
-                            <Link href="/po/consolidation">
-                                Open route
-                                <ArrowRight className="ml-2 h-4 w-4" />
-                            </Link>
-                        </Button>
-                    </div>
                 </div>
             </DialogContent>
         </Dialog>
@@ -1052,20 +1014,6 @@ function WorkspaceModal({
 }
 
 /* ─── Small sub-components ────────────────────────────────────────── */
-
-function CompactDepartmentCard({ item }: { item: ProcurementOfficerDashboardDepartmentReadinessItem }) {
-    return (
-        <div className="rounded-2xl border border-border/70 bg-card p-4">
-            <div className="flex items-start justify-between gap-3">
-                <div>
-                    <div className="font-semibold text-foreground">{item.name}</div>
-                    <div className="mt-1 text-sm leading-6 text-muted-foreground">{item.blockerSummary}</div>
-                </div>
-                <StateBadge state={item.overallState} />
-            </div>
-        </div>
-    );
-}
 
 function CompactStatusCard({ helper, label, state, value }: { helper: string; label: string; state: ProcurementDashboardState; value: string }) {
     return (
@@ -1156,7 +1104,7 @@ function getWorkspaceDescription(activeModal: ProcurementOfficerWorkspaceModalSt
         case "categories": return activeModal.section === "items" ? "Items are nested under categories on purpose, so the dashboard stays tighter and the catalog story can grow in one workspace." : "Categories now open inside the dashboard, with items folded into the same workspace instead of taking their own card.";
         case "access-codes": return "Access-code follow-up stays attached to the dashboard context, so you can audit missing coverage without bouncing into a placeholder page.";
         case "deadlines": return "Deadline warnings now resolve inside the dashboard, keeping fiscal-year signals, alerts, and department readiness in one flow.";
-        default: return "Department setup and readiness review now happen as a dashboard modal, while consolidation remains the only dedicated PO route.";
+        default: return "Create, edit, and review department readiness inside the dashboard modal.";
     }
 }
 

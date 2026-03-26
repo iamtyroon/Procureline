@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.formatDepartmentUserCount = exports.formatDepartmentUserCurrency = exports.deriveLaunchpadState = exports.deriveDeadlinePresentation = exports.derivePlanAction = exports.normalizeDepartmentUserPlanStatus = exports.sanitizeCategorySelection = exports.selectAllCategories = exports.toggleCategorySelection = exports.createCategorySelectionState = exports.formatDepartmentUserFiscalYearLabel = exports.getDepartmentUserFiscalYearForDate = void 0;
+exports.buildDepartmentBudgetChangeAnnouncement = exports.formatDepartmentUserCount = exports.formatDepartmentUserCurrency = exports.deriveLaunchpadState = exports.deriveDeadlinePresentation = exports.derivePlanAction = exports.normalizeDepartmentUserPlanStatus = exports.sanitizeCategorySelection = exports.selectAllCategories = exports.toggleCategorySelection = exports.createCategorySelectionState = exports.formatDepartmentUserFiscalYearLabel = exports.getDepartmentUserFiscalYearForDate = void 0;
 const department_user_access_1 = require("../auth/department-user-access");
 const DAY_MS = 24 * 60 * 60 * 1000;
 function getDepartmentUserFiscalYearForDate(timestamp) {
@@ -262,3 +262,18 @@ function formatDepartmentUserCount(count, singular, plural = `${singular}s`) {
     return `${count} ${count === 1 ? singular : plural}`;
 }
 exports.formatDepartmentUserCount = formatDepartmentUserCount;
+function buildDepartmentBudgetChangeAnnouncement(args) {
+    if (typeof args.lastBudgetChangedAt !== "number" ||
+        (typeof args.lastAuthenticatedAt === "number" &&
+            args.lastBudgetChangedAt <= args.lastAuthenticatedAt)) {
+        return null;
+    }
+    return {
+        id: `budget-change:${args.departmentId}:${args.lastBudgetChangedAt}`,
+        message: typeof args.budgetAllocation === "number" && args.budgetAllocation > 0
+            ? `Your department budget is now ${formatDepartmentUserCurrency(args.budgetAllocation)}. Review any draft planning assumptions.`
+            : "Your Procurement Officer updated this department budget. Review any draft planning assumptions.",
+        title: "Budget allocation updated",
+    };
+}
+exports.buildDepartmentBudgetChangeAnnouncement = buildDepartmentBudgetChangeAnnouncement;

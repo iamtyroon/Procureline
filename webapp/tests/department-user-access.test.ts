@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import {
     DEPARTMENT_USER_ACCESS_CODE_MAX_LENGTH,
     DEPARTMENT_USER_INVALID_VERIFICATION_CODE_MESSAGE,
+    DEPARTMENT_USER_SETUP_REQUIRED_MESSAGE,
     DEPARTMENT_USER_SUBMISSION_ENDED_MESSAGE,
     evaluateDepartmentUserSubmissionWindow,
     formatDepartmentUserLockoutMessage,
+    hasConfiguredDepartmentUserSubmissionWindow,
     getDepartmentUserLockoutState,
     getDepartmentUserSubmissionWindowMessage,
     hashDepartmentUserAccessCode,
@@ -88,6 +90,35 @@ export async function runDepartmentUserAccessTests(): Promise<string[]> {
     );
     completedTests.push(
         "department submission windows distinguish pre-start, editable, grace, and ended states",
+    );
+
+    assert.equal(
+        hasConfiguredDepartmentUserSubmissionWindow({
+            submissionEndsAt: NOW + 3_600_000,
+            submissionStartsAt: NOW,
+        }),
+        true,
+    );
+    assert.equal(
+        hasConfiguredDepartmentUserSubmissionWindow({
+            submissionEndsAt: NOW + 3_600_000,
+            submissionStartsAt: null,
+        }),
+        false,
+    );
+    assert.equal(
+        hasConfiguredDepartmentUserSubmissionWindow({
+            submissionEndsAt: NOW,
+            submissionStartsAt: NOW + 3_600_000,
+        }),
+        false,
+    );
+    assert.equal(
+        DEPARTMENT_USER_SETUP_REQUIRED_MESSAGE,
+        "Department setup is incomplete. Contact your Procurement Officer.",
+    );
+    completedTests.push(
+        "department-user submission-window guards fail closed when deadline configuration is missing or invalid after Story 4.2 makes those fields optional",
     );
 
     assert.equal(

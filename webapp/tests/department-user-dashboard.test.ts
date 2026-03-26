@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { getProtectedRouteRole } from "../lib/auth/roles";
 import {
+    buildDepartmentBudgetChangeAnnouncement,
     createCategorySelectionState,
     deriveDeadlinePresentation,
     deriveLaunchpadState,
@@ -297,6 +298,28 @@ export function runDepartmentUserDashboardTests(): string[] {
     assert.equal(rejectedSnapshot.launchpad.selectedCategoryIds[0], "cat-1");
     completedTests.push(
         "department-user rejected plans surface revision comments prominently and reuse the canonical plan selection instead of implying a duplicate same-year draft",
+    );
+
+    const budgetAnnouncement = buildDepartmentBudgetChangeAnnouncement({
+        budgetAllocation: 4_200_000,
+        departmentId: "department-1",
+        lastAuthenticatedAt: Date.UTC(2026, 7, 10, 9, 0, 0),
+        lastBudgetChangedAt: Date.UTC(2026, 7, 10, 10, 0, 0),
+    });
+    assert.ok(budgetAnnouncement);
+    assert.equal(budgetAnnouncement.title, "Budget allocation updated");
+    assert.match(budgetAnnouncement.message, /Review any draft planning assumptions\./);
+    assert.equal(
+        buildDepartmentBudgetChangeAnnouncement({
+            budgetAllocation: 4_200_000,
+            departmentId: "department-1",
+            lastAuthenticatedAt: Date.UTC(2026, 7, 10, 10, 0, 0),
+            lastBudgetChangedAt: Date.UTC(2026, 7, 10, 9, 0, 0),
+        }),
+        null,
+    );
+    completedTests.push(
+        "department-user budget change announcements only appear for newer procurement-officer updates and stay quiet for already-seen budget changes",
     );
 
     const blockedSnapshot = buildDepartmentUserDashboardSnapshot({

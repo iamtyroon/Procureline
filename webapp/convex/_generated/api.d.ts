@@ -24,6 +24,7 @@ import type * as functions_auditLogs from "../functions/auditLogs.js";
 import type * as functions_auth from "../functions/auth.js";
 import type * as functions_departmentUserAuth from "../functions/departmentUserAuth.js";
 import type * as functions_departmentUserDashboard from "../functions/departmentUserDashboard.js";
+import type * as functions_departments from "../functions/departments.js";
 import type * as functions_externalServices from "../functions/externalServices.js";
 import type * as functions_platformAdminAuth from "../functions/platformAdminAuth.js";
 import type * as functions_platformAdminDashboard from "../functions/platformAdminDashboard.js";
@@ -65,6 +66,7 @@ declare const fullApi: ApiFromModules<{
   "functions/auth": typeof functions_auth;
   "functions/departmentUserAuth": typeof functions_departmentUserAuth;
   "functions/departmentUserDashboard": typeof functions_departmentUserDashboard;
+  "functions/departments": typeof functions_departments;
   "functions/externalServices": typeof functions_externalServices;
   "functions/platformAdminAuth": typeof functions_platformAdminAuth;
   "functions/platformAdminDashboard": typeof functions_platformAdminDashboard;
