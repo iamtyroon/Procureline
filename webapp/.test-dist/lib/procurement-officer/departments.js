@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.buildDepartmentWorkspaceSummary = exports.buildDepartmentOverAllocationWarning = exports.summarizeDepartmentPlanningState = exports.buildDepartmentDeletionBlockers = exports.buildDepartmentTierLimitModalContent = exports.buildDepartmentTierLimitState = exports.isDepartmentCrudAuthorizationError = exports.getDepartmentCrudErrorMessage = exports.isDepartmentTierLimitMessage = exports.getDepartmentCrudRecoveryHref = exports.getDepartmentUpgradeHref = exports.formatDepartmentBudget = exports.departmentFormSchema = exports.validateDepartmentCode = exports.normalizeDepartmentCode = exports.normalizeDepartmentName = exports.DEPARTMENT_CODE_FORMAT_MESSAGE = exports.DEPARTMENT_CODE_REQUIRED_MESSAGE = exports.DEPARTMENT_NAME_REQUIRED_MESSAGE = exports.DEPARTMENT_SETUP_REQUIRED_MESSAGE = exports.DEPARTMENT_DELETE_GENERIC_ERROR_MESSAGE = exports.DEPARTMENT_SAVE_GENERIC_ERROR_MESSAGE = exports.DEPARTMENT_DELETE_DU_MESSAGE = exports.DEPARTMENT_DELETE_PLANS_MESSAGE = exports.DEPARTMENT_NOT_FOUND_MESSAGE = exports.DEPARTMENT_BUDGET_POSITIVE_MESSAGE = exports.DEPARTMENT_NAME_EXISTS_MESSAGE = exports.DEPARTMENT_CODE_EXISTS_MESSAGE = exports.DEPARTMENT_CODE_MAX_LENGTH = void 0;
+exports.suggestUniqueDepartmentCode = exports.buildDepartmentCodeBase = exports.buildDepartmentWorkspaceSummary = exports.buildDepartmentOverAllocationWarning = exports.summarizeDepartmentPlanningState = exports.buildDepartmentDeletionBlockers = exports.buildDepartmentTierLimitModalContent = exports.buildDepartmentTierLimitState = exports.isDepartmentCrudAuthorizationError = exports.getDepartmentCrudErrorMessage = exports.isDepartmentTierLimitMessage = exports.getDepartmentCrudRecoveryHref = exports.getDepartmentUpgradeHref = exports.formatDepartmentBudget = exports.departmentFormSchema = exports.validateDepartmentCode = exports.normalizeDepartmentCode = exports.normalizeDepartmentName = exports.DEPARTMENT_CODE_FORMAT_MESSAGE = exports.DEPARTMENT_ADMIN_EMAIL_INVALID_MESSAGE = exports.DEPARTMENT_CODE_REQUIRED_MESSAGE = exports.DEPARTMENT_NAME_REQUIRED_MESSAGE = exports.DEPARTMENT_SETUP_REQUIRED_MESSAGE = exports.DEPARTMENT_DELETE_GENERIC_ERROR_MESSAGE = exports.DEPARTMENT_SAVE_GENERIC_ERROR_MESSAGE = exports.DEPARTMENT_DELETE_DU_MESSAGE = exports.DEPARTMENT_DELETE_PLANS_MESSAGE = exports.DEPARTMENT_NOT_FOUND_MESSAGE = exports.DEPARTMENT_BUDGET_POSITIVE_MESSAGE = exports.DEPARTMENT_NAME_EXISTS_MESSAGE = exports.DEPARTMENT_CODE_EXISTS_MESSAGE = exports.DEPARTMENT_CODE_MAX_LENGTH = void 0;
 const zod_1 = require("zod");
 const roles_1 = require("../auth/roles");
 const input_1 = require("../security/input");
@@ -16,7 +16,9 @@ exports.DEPARTMENT_DELETE_GENERIC_ERROR_MESSAGE = "We could not delete the depar
 exports.DEPARTMENT_SETUP_REQUIRED_MESSAGE = "Department setup is incomplete. Contact your Procurement Officer.";
 exports.DEPARTMENT_NAME_REQUIRED_MESSAGE = "Department name is required";
 exports.DEPARTMENT_CODE_REQUIRED_MESSAGE = "Department code is required";
+exports.DEPARTMENT_ADMIN_EMAIL_INVALID_MESSAGE = "Invalid email format";
 exports.DEPARTMENT_CODE_FORMAT_MESSAGE = "Department code must be uppercase letters and numbers only, max 10 characters";
+const DEPARTMENT_CODE_FALLBACK_BASE = "DEPT";
 const TIER_LABELS = {
     enterprise: "Enterprise",
     free: "Free",
@@ -56,14 +58,26 @@ function validateDepartmentCode(code) {
 exports.validateDepartmentCode = validateDepartmentCode;
 exports.departmentFormSchema = zod_1.z
     .object({
+    adminEmail: zod_1.z.string().optional(),
     budgetAllocation: zod_1.z.coerce.number(),
     code: zod_1.z.string(),
     name: zod_1.z.string(),
 })
     .superRefine((value, ctx) => {
+    const adminEmail = (0, input_1.normalizeAuthEmail)(value.adminEmail ?? "");
     const normalizedName = normalizeDepartmentName(value.name);
     const normalizedCode = normalizeDepartmentCode(value.code);
     const codeValidation = validateDepartmentCode(normalizedCode);
+    if (adminEmail.length > 0) {
+        const emailValidation = (0, input_1.validateEmailInput)(adminEmail, "adminEmail");
+        if (!emailValidation.ok) {
+            ctx.addIssue({
+                code: zod_1.z.ZodIssueCode.custom,
+                message: emailValidation.issue.message,
+                path: ["adminEmail"],
+            });
+        }
+    }
     if (normalizedName.length === 0) {
         ctx.addIssue({
             code: zod_1.z.ZodIssueCode.custom,
@@ -96,9 +110,11 @@ exports.departmentFormSchema = zod_1.z
     }
 })
     .transform((value) => {
+    const adminEmail = (0, input_1.normalizeAuthEmail)(value.adminEmail ?? "");
     const code = normalizeDepartmentCode(value.code);
     const name = (0, input_1.normalizePlainText)(value.name);
     return {
+        adminEmail: adminEmail.length > 0 ? adminEmail : undefined,
         budgetAllocation: value.budgetAllocation,
         code,
         name,
@@ -290,3 +306,41 @@ function buildDepartmentWorkspaceSummary(args) {
     };
 }
 exports.buildDepartmentWorkspaceSummary = buildDepartmentWorkspaceSummary;
+function buildDepartmentCodeBase(name) {
+    const sanitized = (0, input_1.normalizePlainText)(name)
+        .toUpperCase()
+        .replace(/[^A-Z0-9 ]+/g, " ")
+        .trim();
+    const parts = sanitized.split(/\s+/).filter((part) => part.length > 0);
+    if (parts.length >= 2) {
+        const initials = parts.map((part) => part[0]).join("");
+        if (initials.length >= 2) {
+            return initials.slice(0, exports.DEPARTMENT_CODE_MAX_LENGTH);
+        }
+    }
+    const compact = sanitized.replace(/[^A-Z0-9]/g, "");
+    if (compact.length >= 2) {
+        return compact.slice(0, Math.min(6, exports.DEPARTMENT_CODE_MAX_LENGTH));
+    }
+    return DEPARTMENT_CODE_FALLBACK_BASE;
+}
+exports.buildDepartmentCodeBase = buildDepartmentCodeBase;
+function appendDepartmentCodeSuffix(base, suffix) {
+    const suffixText = String(suffix);
+    return `${base.slice(0, exports.DEPARTMENT_CODE_MAX_LENGTH - suffixText.length)}${suffixText}`;
+}
+function suggestUniqueDepartmentCode(args) {
+    const existingCodes = new Set(args.existingCodes.map((code) => normalizeDepartmentCode(code)));
+    const base = buildDepartmentCodeBase(args.name);
+    if (!existingCodes.has(base)) {
+        return base;
+    }
+    for (let suffix = 1; suffix < 100_000; suffix += 1) {
+        const candidate = appendDepartmentCodeSuffix(base, suffix);
+        if (!existingCodes.has(candidate)) {
+            return candidate;
+        }
+    }
+    return appendDepartmentCodeSuffix(DEPARTMENT_CODE_FALLBACK_BASE, Date.now() % 100_000);
+}
+exports.suggestUniqueDepartmentCode = suggestUniqueDepartmentCode;

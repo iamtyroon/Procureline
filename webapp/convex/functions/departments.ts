@@ -1,6 +1,14 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
-import { mutation, query, type MutationCtx, type QueryCtx } from "../_generated/server";
+import {
+    action,
+    internalQuery,
+    mutation,
+    query,
+    type ActionCtx,
+    type MutationCtx,
+    type QueryCtx,
+} from "../_generated/server";
 import {
     AUDIT_EVENT_NAMES,
     AUDIT_OUTCOMES,
@@ -11,13 +19,19 @@ import {
     buildDepartmentTierLimitState,
     buildDepartmentWorkspaceSummary,
     DEPARTMENT_CODE_EXISTS_MESSAGE,
+    DEPARTMENT_CODE_FORMAT_MESSAGE,
     DEPARTMENT_DELETE_DU_MESSAGE,
     DEPARTMENT_DELETE_PLANS_MESSAGE,
     DEPARTMENT_NAME_EXISTS_MESSAGE,
     DEPARTMENT_NOT_FOUND_MESSAGE,
     departmentFormSchema,
+    normalizeDepartmentCode,
+    suggestUniqueDepartmentCode,
     type DepartmentPlanStatus,
+    validateDepartmentCode,
 } from "../../lib/procurement-officer/departments";
+import { validateEmailInput } from "../../lib/security/input";
+import { getServiceActorContext } from "../actions/_helpers";
 import { appendAuditLogRequired } from "./_audit";
 import { requireTenantRole } from "./_roleGuard";
 import { getCurrentTenantUserMembership } from "./_tenantGuard";
@@ -371,6 +385,123 @@ export const deleteDepartment = mutation({
     },
 });
 
+export const getDepartmentCodeGenerationContext = internalQuery({
+    args: {
+        tenantId: v.id("tenants"),
+    },
+    returns: v.object({
+        activeCodes: v.array(v.string()),
+        tenantName: v.string(),
+    }),
+    handler: async (ctx, args) => {
+        const [tenant, departments] = await Promise.all([
+            ctx.db.get(args.tenantId),
+            ctx.db
+                .query("departments")
+                .withIndex("by_tenantId_isActive", (q) =>
+                    q.eq("tenantId", args.tenantId).eq("isActive", true),
+                )
+                .collect(),
+        ]);
+
+        if (!tenant) {
+            throw new ConvexError({
+                code: "NOT_FOUND",
+                message: "Tenant record not found",
+            });
+        }
+
+        return {
+            activeCodes: departments
+                .filter(isActiveDepartment)
+                .map((department) => department.normalizedCode),
+            tenantName: tenant.name,
+        };
+    },
+});
+
+export const generateDepartmentCode = action({
+    args: {
+        name: v.string(),
+    },
+    returns: v.object({
+        code: v.string(),
+    }),
+    handler: async (ctx, args) => {
+        const tenantUser = await loadDepartmentActionContext(ctx);
+        const generationContext: {
+            activeCodes: string[];
+            tenantName: string;
+        } = await ctx.runQuery(
+            "functions/departments:getDepartmentCodeGenerationContext" as any,
+            {
+                tenantId: tenantUser.tenantId,
+            },
+        );
+
+        return {
+            code: suggestUniqueDepartmentCode({
+                existingCodes: generationContext.activeCodes,
+                name: args.name,
+            }),
+        };
+    },
+});
+
+export const emailDepartmentCode = action({
+    args: {
+        code: v.string(),
+        departmentName: v.string(),
+        email: v.string(),
+    },
+    returns: v.object({
+        deliveryStatus: v.union(v.literal("failed"), v.literal("sent")),
+    }),
+    handler: async (ctx, args) => {
+        const tenantUser = await loadDepartmentActionContext(ctx);
+        const emailValidation = validateEmailInput(args.email, "adminEmail");
+        if (!emailValidation.ok) {
+            throw new Error(emailValidation.issue.message);
+        }
+
+        const normalizedCode = normalizeDepartmentCode(args.code);
+        if (normalizedCode.length === 0) {
+            throw new Error(DEPARTMENT_CODE_FORMAT_MESSAGE);
+        }
+
+        const codeValidation = validateDepartmentCode(normalizedCode);
+        if (!codeValidation.ok) {
+            throw new Error(codeValidation.message);
+        }
+
+        const generationContext: {
+            activeCodes: string[];
+            tenantName: string;
+        } = await ctx.runQuery(
+            "functions/departments:getDepartmentCodeGenerationContext" as any,
+            {
+                tenantId: tenantUser.tenantId,
+            },
+        );
+
+        if (generationContext.activeCodes.includes(normalizedCode)) {
+            throw new Error(`${DEPARTMENT_CODE_EXISTS_MESSAGE}. Generate a fresh code before emailing.`);
+        }
+
+        const delivery = await sendDepartmentCodeEmail({
+            code: normalizedCode,
+            departmentName: args.departmentName,
+            email: emailValidation.value,
+            idempotencyKey: `department-code:${tenantUser.tenantId}:${emailValidation.value}:${normalizedCode}`,
+            tenantName: generationContext.tenantName,
+        });
+
+        return {
+            deliveryStatus: delivery.sent ? ("sent" as const) : ("failed" as const),
+        };
+    },
+});
+
 async function loadDepartmentMutationContext(ctx: DepartmentMutationCtx) {
     const authContext = await requireTenantRole(ctx, ["procurement_officer"]);
     const [tenant, tenantUser] = await Promise.all([
@@ -397,6 +528,35 @@ async function loadDepartmentMutationContext(ctx: DepartmentMutationCtx) {
         tenant,
         tenantUser,
     };
+}
+
+async function loadDepartmentActionContext(
+    ctx: ActionCtx,
+) {
+    const actor = await getServiceActorContext(ctx);
+    if (actor.role !== "procurement_officer" || !actor.tenantId) {
+        throw new ConvexError({
+            code: "UNAUTHORIZED",
+            message: "Procurement Officer access is required for this resource.",
+        });
+    }
+
+    const tenantUser: {
+        _id: Id<"tenantUsers">;
+        isActive: boolean;
+        role: "department_user" | "procurement_officer" | "tenant_admin";
+        tenantId: Id<"tenants">;
+        userId: Id<"users">;
+    } = await ctx.runQuery("functions/users:getCurrentUserTenant" as any, {});
+
+    if (tenantUser.role !== "procurement_officer" || !tenantUser.isActive) {
+        throw new ConvexError({
+            code: "UNAUTHORIZED",
+            message: "Procurement Officer access is required for this resource.",
+        });
+    }
+
+    return tenantUser;
 }
 
 function parseDepartmentInput(args: {
@@ -627,4 +787,68 @@ function getComparableNormalizedName(
     department: Pick<DepartmentRecord, "name" | "normalizedName">,
 ): string {
     return department.normalizedName;
+}
+
+async function sendDepartmentCodeEmail(args: {
+    code: string;
+    departmentName: string;
+    email: string;
+    idempotencyKey: string;
+    tenantName: string;
+}): Promise<{ messageId?: string; sent: boolean }> {
+    const apiKey = process.env.AUTH_RESEND_KEY;
+    if (!apiKey) {
+        return { sent: false };
+    }
+
+    const fromAddress =
+        process.env.AUTH_RESET_RESEND_FROM ??
+        "Procureline <onboarding@resend.dev>";
+    const safeDepartmentName = args.departmentName.trim().length > 0
+        ? args.departmentName.trim()
+        : "your new department";
+    const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "Idempotency-Key": args.idempotencyKey,
+        },
+        body: JSON.stringify({
+            from: fromAddress,
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
+                    <h2 style="margin-bottom: 12px;">Department code ready</h2>
+                    <p>Hello,</p>
+                    <p>A Procurement Officer at <strong>${args.tenantName}</strong> generated a department code for <strong>${safeDepartmentName}</strong>.</p>
+                    <p style="margin-top: 18px;"><strong>Department code:</strong> ${args.code}</p>
+                    <p>Use this code while completing department setup in Procureline.</p>
+                </div>
+            `,
+            subject: `${args.tenantName} department code for ${safeDepartmentName}`,
+            tags: [
+                { name: "category", value: "department_code" },
+                { name: "tenant_name", value: args.tenantName },
+            ],
+            text: [
+                "Hello,",
+                "",
+                `A Procurement Officer at ${args.tenantName} generated a department code for ${safeDepartmentName}.`,
+                `Department code: ${args.code}`,
+                "",
+                "Use this code while completing department setup in Procureline.",
+            ].join("\n"),
+            to: [args.email],
+        }),
+    });
+
+    if (!response.ok) {
+        return { sent: false };
+    }
+
+    const payload = (await response.json()) as { id?: string };
+    return {
+        messageId: payload.id,
+        sent: true,
+    };
 }

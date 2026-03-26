@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+    buildDepartmentCodeBase,
     buildDepartmentDeletionBlockers,
     buildDepartmentOverAllocationWarning,
     buildDepartmentTierLimitModalContent,
@@ -16,6 +17,7 @@ import {
     isDepartmentCrudAuthorizationError,
     normalizeDepartmentCode,
     normalizeDepartmentName,
+    suggestUniqueDepartmentCode,
 } from "../lib/procurement-officer/departments";
 import { buildDashboardPath, FORBIDDEN_ACCESS_REASON } from "../lib/auth/roles";
 
@@ -38,7 +40,26 @@ export function runProcurementOfficerDepartmentTests(): string[] {
     assert.equal(parsedDepartment.code, "HR01");
     assert.equal(parsedDepartment.normalizedName, "human resources");
     assert.equal(parsedDepartment.normalizedCode, "HR01");
+    assert.equal(parsedDepartment.adminEmail, undefined);
     assert.equal(parsedDepartment.budgetAllocation, 2_500_000);
+    assert.equal(
+        departmentFormSchema.safeParse({
+            adminEmail: "du@example.com",
+            budgetAllocation: "2500000",
+            code: " ict ",
+            name: "Information Technology",
+        }).success,
+        true,
+    );
+    assert.equal(
+        departmentFormSchema.safeParse({
+            adminEmail: "not-an-email",
+            budgetAllocation: "2500000",
+            code: " ict ",
+            name: "Information Technology",
+        }).success,
+        false,
+    );
     assert.equal(
         departmentFormSchema.safeParse({
             budgetAllocation: 0,
@@ -57,6 +78,27 @@ export function runProcurementOfficerDepartmentTests(): string[] {
     );
     completedTests.push(
         "department form validation requires positive budgets and rejects non-alphanumeric department codes after normalization",
+    );
+
+    assert.equal(buildDepartmentCodeBase("Human Resources"), "HR");
+    assert.equal(buildDepartmentCodeBase("Finance"), "FINANC");
+    assert.equal(buildDepartmentCodeBase("  "), "DEPT");
+    assert.equal(
+        suggestUniqueDepartmentCode({
+            existingCodes: ["HR", "HR1", "HR2"],
+            name: "Human Resources",
+        }),
+        "HR3",
+    );
+    assert.equal(
+        suggestUniqueDepartmentCode({
+            existingCodes: ["FINANC"],
+            name: "Finance",
+        }),
+        "FINANC1",
+    );
+    completedTests.push(
+        "department code generation starts from a readable base and appends the first available numeric suffix when a tenant already uses the obvious code",
     );
 
     const freeTierLimit = buildDepartmentTierLimitState({

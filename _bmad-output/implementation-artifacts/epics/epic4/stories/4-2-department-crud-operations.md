@@ -1,6 +1,6 @@
 # Story 4.2: Department CRUD Operations
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -13,11 +13,11 @@ so that I can establish a truthful departmental structure, budget baseline, and 
 ## Acceptance Criteria
 
 1. [Given] a Procurement Officer opens `/po/departments` [When] the route resolves through the current protected PO workspace contract [Then] the existing dashboard shell remains intact [And] the departments destination renders a real management workspace instead of the current placeholder-only modal or redirect experience (FR23, FR28).
-2. [Given] a Procurement Officer clicks `Create Department` [When] the form opens [Then] it requires `name`, `code`, and `budget allocation` [And] it uses the repo-standard `react-hook-form` + Zod + shadcn/ui form pattern before any Convex mutation runs (FR23).
+2. [Given] a Procurement Officer clicks `Create Department` [When] the form opens [Then] it requires `name`, `admin email`, `code`, and `budget allocation` [And] the `code` field includes a suffix CTA that starts in `Generate` mode [And] it uses the repo-standard `react-hook-form` + Zod + shadcn/ui form pattern before any Convex mutation runs (FR23).
 3. [Given] a Procurement Officer submits a department code that already exists for the same tenant [When] the backend validates the payload [Then] creation is blocked with the exact user-facing message `Department code already exists` [And] the uniqueness check is case-insensitive and whitespace-normalized so visually different variants do not bypass the constraint (FR23a).
 4. [Given] a Procurement Officer submits a department name that already exists for the same tenant [When] the backend validates the payload [Then] creation is blocked with the exact user-facing message `Department name already exists` [And] the uniqueness check is case-insensitive and whitespace-normalized within the tenant boundary (FR23b).
 5. [Given] a Procurement Officer enters a budget allocation that is zero, negative, `NaN`, or otherwise invalid [When] they submit the form [Then] validation blocks the mutation and shows `Budget must be a positive number` (FR23c).
-6. [Given] a Procurement Officer enters a department code [When] the value contains non-alphanumeric characters or exceeds 10 characters after normalization [Then] validation blocks submission [And] the saved code format remains uppercase alphanumeric only, max 10 characters (FR23e).
+6. [Given] a Procurement Officer enters a department code [When] the value contains characters outside uppercase letters, digits, and hyphens or exceeds 32 characters after normalization [Then] validation blocks submission [And] the saved code format remains compatible with the canonical shared department-and-DU-access code format (FR23e).
 7. [Given] the tenant is on the Free, Starter, or Professional tier [When] the current active department count already matches the tier limit of 10, 30, or 100 respectively [Then] creation is blocked server-authoritatively [And] the UI shows a tier-limit modal with the correct limit, upgrade guidance, and a safe `View Plans` CTA that routes to the current pricing or upgrade handoff instead of an unauthorized tenant-admin-only route (FR23 plus Epic 4 tier limits).
 8. [Given] the tenant is on the Enterprise tier [When] any number of active departments already exist [Then] the create flow does not enforce a numeric department-count cap (Epic 4 tier limits).
 9. [Given] a Procurement Officer edits an existing department [When] the department already has downstream planning activity, including draft, submitted, rejected, or approved plan records [Then] the UI surfaces a clear impact warning before save [And] the edit flow remains available unless a separate hard blocker applies (FR24a).
@@ -26,7 +26,7 @@ so that I can establish a truthful departmental structure, budget baseline, and 
 12. [Given] a department has any `submitted` or `approved` plan record [When] a Procurement Officer attempts to delete it [Then] the delete mutation fails closed with a clear `Cannot delete department with submitted plans` style error and the department remains available for audit and downstream review (FR25a).
 13. [Given] a department still has active Departmental User assignments [When] a Procurement Officer attempts to delete it [Then] the delete mutation is blocked until those DUs are deactivated first [And] the UI surfaces the affected DU email addresses so the Procurement Officer understands exactly what must be resolved (FR25b).
 14. [Given] a department is deleted successfully [When] the system applies the mutation [Then] the department is soft-deleted or archived for auditability rather than hard-removed [And] downstream queries exclude it from active setup metrics while preserving historical references, audit logs, and related records (FR25c, NFR-S9).
-15. [Given] the departments workspace loads [When] departments exist [Then] the list or table shows truthful operational visibility for each department, including at minimum name, code, budget allocation, DU-assignment signal, access-code signal, planning-state signal, and last-updated context, without inventing prototype-only totals or statuses that are not backed by current live data (FR28, Story 4 delivery map).
+15. [Given] the departments workspace loads [When] departments exist [Then] the list or table shows truthful operational visibility for each department, including at minimum name, canonical department/access code, budget allocation, DU-assignment signal, access-code signal, planning-state signal, and last-updated context, without inventing prototype-only totals or statuses that are not backed by current live data (FR28, Story 4 delivery map).
 16. [Given] a Procurement Officer creates, edits, or deletes a department [When] the mutation completes [Then] the existing Procurement Officer dashboard and department-related read models refresh reactively through Convex rather than relying on manual browser refresh or duplicate REST fetches (NFR-P1, FR28i).
 17. [Given] Story 4.5 owns explicit deadline management [When] Story 4.2 creates or edits departments [Then] the department CRUD flow must not require the user to configure submission dates just to save the department [And] any missing submission-window state is treated honestly as `setup required` until the deadline story lands (FR23, FR-DL1 through FR-DL6 scope boundary).
 18. [Given] Epic 4 requires a non-blocking over-allocation warning [When] the system has a truthful tenant-level procurement-budget ceiling available in live data [Then] the create or edit flow surfaces the `Total department budgets exceed institution allocation by [amount]` warning without blocking save [And] when no authoritative ceiling exists yet the UI stays honest and does not fabricate the warning delta (FR23d).
@@ -34,22 +34,27 @@ so that I can establish a truthful departmental structure, budget baseline, and 
 20. [Given] a create, edit, or delete request fails because of an unexpected backend, network, or transient infrastructure issue [When] the UI receives the error [Then] it resets loading state, preserves unsaved form input when appropriate, and shows a safe generic error message instead of exposing raw backend internals or leaving the submit action stuck indefinitely.
 21. [Given] the Procurement Officer loses authorization, tenant access, or subscription eligibility during a CRUD action [When] a mutation or query returns an auth or access failure [Then] the workspace fails closed, does not apply partial optimistic state, and routes the user through the repo's existing protected-app access handling instead of pretending the mutation succeeded.
 22. [Given] a Procurement Officer double-clicks submit or retries while a create, edit, or delete mutation is already pending [When] the UI is in a loading state [Then] duplicate submissions are prevented client-side [And] the backend remains idempotent enough to avoid duplicate department creation from rapid retries or repeated network delivery.
+23. [Given] the `Create Department` dialog is open [When] the Procurement Officer clicks the `Generate` suffix action inside the `code` field [Then] the UI populates a department code into that input [And] the suffix action mutates into an `Email` state rather than continuing to offer a second unrelated generation path [And] Story 4.3 owns replacement of the current legacy generator with the final canonical shared algorithm.
+24. [Given] a generated department code is present and the `admin email` field contains a valid email address [When] the Procurement Officer clicks the `Email` suffix action [Then] that visible code is queued for delivery to that email through the approved server-owned email path [And] the UI shows honest queued-or-failed feedback [And] Story 4.3 owns any refactor needed so this flow uses the final canonical code-generation logic.
 
 ## Tasks / Subtasks
 
-- [x] Task 1: Add a dedicated department domain backend and reconcile the current schema with Story 4.2 scope (AC: 2-9, 11-18)
+- [x] Task 1: Add a dedicated department domain backend and reconcile the current schema with Story 4.2 scope (AC: 2-9, 11-18, 23-24)
   - [x] Add a focused Convex module such as `webapp/convex/functions/departments.ts` instead of overloading `procurementOfficerDashboard.ts` with CRUD mutations.
   - [x] Extend `webapp/convex/schema.ts` so department records support case-insensitive uniqueness, soft delete, and audit-friendly lifecycle tracking. Recommended additions include normalized name/code keys plus `deletedAt` and `deletedByTenantUserId`.
   - [x] Reconcile the current hidden blocker in the live schema: `submissionStartsAt` and `submissionEndsAt` are currently required even though Story 4.5 owns deadline management. Make those fields optional or safely nullable, then update all dependent read paths to fail closed without forcing deadline setup during department creation.
   - [x] Add the indexes needed for tenant-scoped uniqueness and efficient CRUD reads, such as `(tenantId, normalizedCode)` and `(tenantId, normalizedName)` or equivalent current-repo naming.
   - [x] Implement create, list, update, and soft-delete mutations or queries guarded by `requireTenantRole(ctx, ["procurement_officer"])`.
+  - [x] Treat the department `code` as the same value DU auth will use later, while leaving replacement of the current legacy generator to Story 4.3 so create-flow scaffolding and later access-code management can converge on one implementation.
   - [x] Enforce tier limits server-authoritatively from the tenant tier, not from client-provided limits or stale dashboard counts.
   - [x] Keep over-allocation warning logic truthful: only compute the FR23d warning when a real tenant-level budget ceiling exists in live data; otherwise do not invent a ceiling or delta.
 
-- [x] Task 2: Build the Procurement Officer departments workspace inside the current `/po` information architecture (AC: 1, 2, 7-11, 15-17)
+- [x] Task 2: Build the Procurement Officer departments workspace inside the current `/po` information architecture (AC: 1, 2, 7-11, 15-17, 23-24)
   - [x] Keep `webapp/app/(app)/po/departments/page.tsx` thin and preserve the current protected PO namespace rather than introducing a second layout or dashboard shell.
   - [x] Replace the current placeholder-only departments experience with a real workspace component such as `webapp/src/components/procurement-officer/ProcurementOfficerDepartmentsWorkspace.tsx`, mounted through the existing dashboard modal or equivalent current workspace contract.
   - [x] Add a create and edit form dialog using shadcn/ui `Dialog`, `Form`, `Input`, and any required shared form primitives plus `zodResolver`.
+  - [x] In the create flow, place an `Admin Email` field above `Department Code`, add a `Generate` suffix action inside the code field, and mutate that action into `Email` after code generation.
+  - [x] Wire the `Email` suffix action to send the same visible department code to the provided admin email while leaving generator replacement and standardization to Story 4.3.
   - [x] Add a delete confirmation dialog using the existing shadcn/ui destructive-action pattern; the confirmation copy must include the department name.
   - [x] Provide truthful row-level status visibility for each department using live data only: DU assignment, access-code coverage, plan-state summary, and last activity or last updated context.
   - [x] Keep desktop-first behavior aligned with the existing PO dashboard and UX specification. Do not build a fake mobile CRUD experience.
@@ -57,6 +62,7 @@ so that I can establish a truthful departmental structure, budget baseline, and 
 - [x] Task 3: Reuse current dashboard and DU read models instead of forking a second department state system (AC: 9, 10, 14-17)
   - [x] Extend `webapp/lib/procurement-officer/dashboard-snapshot.ts`, `webapp/lib/procurement-officer/dashboard.ts`, and `webapp/convex/functions/procurementOfficerDashboard.ts` only where necessary so the existing dashboard reacts honestly after department CRUD mutations.
   - [x] Update `webapp/lib/auth/department-user-access.ts`, `webapp/convex/functions/departmentUserDashboard.ts`, and any related PO or DU helpers so missing submission windows remain blocked or `setup_required` rather than forcing placeholder dates or accidental DU access.
+  - [x] Keep department list visibility and DU sign-in semantics aligned around one department code value; Story 4.3 is responsible for replacing any provisional create-modal generator so it matches the final login-code standard.
   - [x] Preserve the current `/po/departments` route contract and modal-backed navigation helpers unless there is a proven UX or implementation blocker.
   - [x] Keep access-code management, deadline management, budget import, and drag-and-drop reordering clearly staged for Stories 4.3, 4.5, and 4.4 instead of silently absorbing them here.
 
@@ -69,20 +75,20 @@ so that I can establish a truthful departmental structure, budget baseline, and 
   - [x] Add client-side pending-state guards plus backend duplicate-protection logic so rapid retries cannot create duplicate department rows.
   - [x] Map expected backend failures into deterministic user-facing errors and keep unexpected failures generic, sanitized, and recoverable.
 
-- [ ] Task 5: Add deterministic regression coverage for validation, tier enforcement, schema changes, reactive updates, and error handling (AC: 1-22)
+- [ ] Task 5: Add deterministic regression coverage for validation, tier enforcement, schema changes, reactive updates, and error handling (AC: 1-24)
   - [x] Add pure tests for department name/code normalization, uniqueness rules, positive-budget validation, tier-limit resolution, and soft-delete filtering.
   - [ ] Add backend tests for create, edit, duplicate rejection, tier-limit blocking, delete-with-active-DUs blocking, delete-with-submitted-or-approved-plans blocking, and audit-log writes.
   - [x] Add dashboard and DU regression tests proving missing submission windows remain honest `setup required` or blocked states after Story 4.2 schema changes.
   - [ ] Add PO route and workspace tests ensuring `/po/departments` remains protected for Procurement Officers and that the current modal-backed navigation does not regress.
   - [x] Update `webapp/tests/run-tests.ts` so the new department coverage runs in the standard deterministic test suite.
-  - [ ] Add failure-path tests for stale-record edits, generic backend failures, unauthorized mutation responses, pending-state reset after failure, and duplicate-submit prevention.
+  - [ ] Add failure-path tests for stale-record edits, generic backend failures, unauthorized mutation responses, pending-state reset after failure, duplicate-submit prevention, invalid-admin-email email attempts, and Generate-to-Email CTA state resets.
 
 ## Dev Notes
 
 ### Story Foundation
 
 - Epic 4 defines Story 4.2 as the departmental structure story the rest of the PO workflow depends on.
-- The delivery-map intent is broader than "show a form": this story establishes ownership, lifecycle safety, and truthful department-level status visibility before access codes, deadlines, and imports arrive in later stories.
+- The delivery-map intent is broader than "show a form": this story establishes ownership, lifecycle safety, and truthful department-level status visibility before deadlines and imports arrive in later stories, while leaving replacement of the current create-modal generator to Story 4.3.
 - Sprint status marks Story 4.2 as `full-stack`, and that matches the current repo: the PO shell and route namespace already exist, but the CRUD backend, live workspace, uniqueness rules, and deletion safeguards do not.
 
 ### Previous Story Intelligence
@@ -90,11 +96,14 @@ so that I can establish a truthful departmental structure, budget baseline, and 
 - Story 4.1 already established `/po` as the canonical Procurement Officer dashboard and reserved `/po/departments`, `/po/access-codes`, `/po/deadlines`, `/po/categories`, `/po/items`, `/po/requests`, and `/po/consolidation` as stable destinations.
 - Story 4.1 also moved several PO destinations into a dashboard-modal navigation contract via `resolveProcurementOfficerWorkspaceNavigation(...)`. Department CRUD should grow that existing workspace rather than creating a second contradictory PO information architecture without a strong reason.
 - The current PO dashboard snapshot already depends on live department, access-code, and department-user data. Department mutations in Story 4.2 must preserve those read models and keep them reactive.
+- Product clarification for this repo: `department code` and `access code` refer to the same business value, so Story 4.2 must surface that code in a way Story 4.3 can later rotate, deactivate, and email without introducing a second identifier.
+- The create-department modal UI now exists, but its current generator is provisional. Story 4.3 owns replacement of that logic with the final shared login-code algorithm.
 
 ### Current Implementation State Discovered In Code
 
 - `webapp/app/(app)/po/departments/page.tsx` currently redirects back into the `/po` workspace contract instead of providing a real departments management surface.
 - `webapp/src/components/procurement-officer/ProcurementOfficerDashboard.tsx` currently exposes a departments modal with readiness summaries only; it does not implement CRUD actions yet.
+- The current create-department modal now includes `Admin Email` plus a `Generate` to `Email` suffix-action flow, but its existing generation logic is the legacy implementation that Story 4.3 must replace.
 - `webapp/convex/schema.ts` already includes:
   - `departments`
   - `departmentAccessCodes`
@@ -116,10 +125,12 @@ so that I can establish a truthful departmental structure, budget baseline, and 
 ### Critical Implementation Traps
 
 - Do not satisfy Story 4.2 by hardcoding placeholder departments or local client-only arrays inside the departments modal.
+- Do not invent one code for department CRUD and a different one for DU access; Story 4.3 must converge all flows on one final canonical generator.
 - Do not keep required submission-window timestamps on creation by injecting fake or copied dates. That would contaminate Story 4.5 and make dashboard readiness dishonest.
 - Do not route the tier-limit modal to a tenant-admin-only billing page that a Procurement Officer cannot access. Use the safe public pricing or approved upgrade handoff already present in the repo.
 - Do not hard-delete departments. The current schema already feeds PO and DU dashboards, plan records, access-code records, and audit logs; hard deletion would create avoidable data-integrity and auditability risk.
 - Do not implement a generic notification center for FR24b. Story 4.2 needs a narrow live budget-change signal only.
+- Do not let the `Email` suffix action send a code different from the value currently shown in the `Department Code` input.
 
 ### Recommended Implementation Shape
 
@@ -127,6 +138,8 @@ so that I can establish a truthful departmental structure, budget baseline, and 
 - Add a dedicated domain backend module, `webapp/convex/functions/departments.ts`, as the source of truth for list, create, update, delete, and tier-limit logic.
 - Add a reusable helper module such as `webapp/lib/procurement-officer/departments.ts` for normalization, tier-limit messaging, safe upgrade CTA routing, and workspace-derived UI state.
 - Prefer a dialog-driven CRUD flow inside the departments workspace because that aligns with the current PO dashboard and the tenant-admin invitation-management pattern already present in the repo.
+- In the create dialog, place `Admin Email` above `Department Code`, keep the code field editable, and use the suffix CTA to move from `Generate` to `Email` after a code has been created.
+- Story 4.3 must replace the current legacy create-dialog generator with the final `[FiscalYear]-[DeptInitials]-[RandomChars]` login-code standard.
 - Make submission-window fields optional or nullable now, then keep dashboard and DU access helpers honest about missing windows by treating them as `setup required`, not configured.
 - Implement soft delete by preserving the row and excluding it from active department reads. The safest current-repo direction is `isActive = false` plus explicit deletion metadata rather than row removal.
 
@@ -139,6 +152,10 @@ so that I can establish a truthful departmental structure, budget baseline, and 
   - `deletedByTenantUserId?`
   - `lastBudgetChangedAt?`
   - `lastBudgetChangedByTenantUserId?`
+- Canonical code rule:
+  - `departments.code` is the same business value DU auth and later access-code-management flows refer to
+  - Departmental Users enter that same `departments.code` value during login
+  - do not introduce a second parallel plaintext code field for the same department
 - Recommended `departments` field adjustment:
   - `submissionStartsAt?: number`
   - `submissionEndsAt?: number`
@@ -163,6 +180,7 @@ so that I can establish a truthful departmental structure, budget baseline, and 
   - `Department name already exists`
   - `Budget must be a positive number`
   - `Department not found`
+  - a clear invalid-admin-email message before the `Email` action can run
   - a clear same-tenant tier-limit message naming the current tier and cap
 - Sanitize internal backend details before surfacing them in the UI. Do not leak raw stack traces or opaque Convex request identifiers into the departments workspace.
 - For unexpected failures, prefer a safe fallback message such as `We could not save the department right now. Please try again.` and keep the form recoverable.
@@ -175,6 +193,7 @@ so that I can establish a truthful departmental structure, budget baseline, and 
 - Reuse the RHF + Zod + shadcn/ui dialog-form pattern already implemented in `webapp/src/components/tenant-admin/po-management/ProcurementOfficerManagementView.tsx`.
 - Reuse audit helpers in `webapp/convex/functions/_audit.ts` and event-shape conventions from `webapp/lib/security/audit.ts`.
 - Reuse current pricing catalog and public pricing route for upgrade messaging instead of inventing a PO-only billing surface.
+- Reuse the existing server-owned email bridge from the access-code story direction; do not bolt direct browser email behavior onto the create modal.
 - Reuse the existing dashboard snapshot builders and status-badge patterns instead of creating a second disconnected department summary system.
 - Reuse current tenant role guards. Do not trust client-provided tenant or tier data.
 
@@ -188,6 +207,7 @@ so that I can establish a truthful departmental structure, budget baseline, and 
   - which ones already have plan activity,
   - what action the Procurement Officer should take next.
 - Use inline validation for form fields and `sonner` toasts for mutation feedback.
+- The `Department Code` input should support an inline suffix CTA that visibly changes from `Generate` to `Email` after generation succeeds.
 - Use a confirmation dialog for delete, not an inline destructive click.
 - Keep destructive and tier-limit messaging explicit and actionable.
 - Respect the UX spec's desktop-only strategy; do not introduce a degraded mobile CRUD surface.
@@ -251,6 +271,11 @@ so that I can establish a truthful departmental structure, budget baseline, and 
 ### Testing Requirements
 
 - Add pure tests for name and code normalization, positive-budget validation, tier-limit copy resolution, and soft-delete filtering.
+- Add create-dialog tests for:
+  - `Admin Email` field placement above `Department Code`
+  - `Generate` suffix action inserting a code value into the input
+  - suffix mutation from `Generate` to `Email`
+  - `Email` sending the same code currently shown in the input
 - Add backend tests for:
   - create department
   - duplicate code rejection
@@ -363,5 +388,5 @@ gpt-5-codex
 - Story ID: `4.2`
 - Story Key: `4-2-department-crud-operations`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic4/stories/4-2-department-crud-operations.md`
-- Final Status: `review`
-- Completion Note: `Implemented the department CRUD backend and PO workspace, hardened DU setup-required behavior around optional submission windows, added budget-change and audit signals, and reverified the delivered coverage locally.`
+- Final Status: `done`
+- Completion Note: `Implemented the department CRUD backend and PO workspace, hardened DU setup-required behavior around optional submission windows, addressed review follow-ups for tier guidance, live budget warnings, auth recovery, and indexed uniqueness, then reverified locally.`

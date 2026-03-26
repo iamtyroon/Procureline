@@ -22,7 +22,20 @@ function runProcurementOfficerDepartmentTests() {
     strict_1.default.equal(parsedDepartment.code, "HR01");
     strict_1.default.equal(parsedDepartment.normalizedName, "human resources");
     strict_1.default.equal(parsedDepartment.normalizedCode, "HR01");
+    strict_1.default.equal(parsedDepartment.adminEmail, undefined);
     strict_1.default.equal(parsedDepartment.budgetAllocation, 2_500_000);
+    strict_1.default.equal(departments_1.departmentFormSchema.safeParse({
+        adminEmail: "du@example.com",
+        budgetAllocation: "2500000",
+        code: " ict ",
+        name: "Information Technology",
+    }).success, true);
+    strict_1.default.equal(departments_1.departmentFormSchema.safeParse({
+        adminEmail: "not-an-email",
+        budgetAllocation: "2500000",
+        code: " ict ",
+        name: "Information Technology",
+    }).success, false);
     strict_1.default.equal(departments_1.departmentFormSchema.safeParse({
         budgetAllocation: 0,
         code: "HR",
@@ -34,6 +47,18 @@ function runProcurementOfficerDepartmentTests() {
         name: "Human Resources",
     }).success, false);
     completedTests.push("department form validation requires positive budgets and rejects non-alphanumeric department codes after normalization");
+    strict_1.default.equal((0, departments_1.buildDepartmentCodeBase)("Human Resources"), "HR");
+    strict_1.default.equal((0, departments_1.buildDepartmentCodeBase)("Finance"), "FINANC");
+    strict_1.default.equal((0, departments_1.buildDepartmentCodeBase)("  "), "DEPT");
+    strict_1.default.equal((0, departments_1.suggestUniqueDepartmentCode)({
+        existingCodes: ["HR", "HR1", "HR2"],
+        name: "Human Resources",
+    }), "HR3");
+    strict_1.default.equal((0, departments_1.suggestUniqueDepartmentCode)({
+        existingCodes: ["FINANC"],
+        name: "Finance",
+    }), "FINANC1");
+    completedTests.push("department code generation starts from a readable base and appends the first available numeric suffix when a tenant already uses the obvious code");
     const freeTierLimit = (0, departments_1.buildDepartmentTierLimitState)({
         activeDepartmentCount: 10,
         tier: "free",
