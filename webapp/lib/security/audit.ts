@@ -1,4 +1,10 @@
 export const AUDIT_EVENT_NAMES = {
+    accessCodeBulkGenerated: "access_code.bulk_generated",
+    accessCodeDeactivated: "access_code.deactivated",
+    accessCodeEmailFailed: "access_code.email_failed",
+    accessCodeEmailQueued: "access_code.email_queued",
+    accessCodeGenerated: "access_code.generated",
+    accessCodeRotated: "access_code.rotated",
     departmentBudgetChanged: "department.budget_changed",
     departmentCreated: "department.created",
     departmentDeleted: "department.deleted",
@@ -55,6 +61,8 @@ export const AUDIT_EVENT_NAMES = {
 
 export const AUDIT_OUTCOMES = {
     allowed: "allowed",
+    failed: "failed",
+    queued: "queued",
     allowedPlatformBypass: "allowed_platform_bypass",
     blockedChallengeExpired: "blocked_challenge_expired",
     blockedDataIntegrity: "blocked_data_integrity",

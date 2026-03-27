@@ -18,19 +18,18 @@ import {
 import {
     buildDepartmentTierLimitState,
     buildDepartmentWorkspaceSummary,
+    DEPARTMENT_CODE_EMAIL_AFTER_CREATE_MESSAGE,
     DEPARTMENT_CODE_EXISTS_MESSAGE,
-    DEPARTMENT_CODE_FORMAT_MESSAGE,
+    DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE,
     DEPARTMENT_DELETE_DU_MESSAGE,
     DEPARTMENT_DELETE_PLANS_MESSAGE,
     DEPARTMENT_NAME_EXISTS_MESSAGE,
     DEPARTMENT_NOT_FOUND_MESSAGE,
     departmentFormSchema,
     normalizeDepartmentCode,
-    suggestUniqueDepartmentCode,
     type DepartmentPlanStatus,
-    validateDepartmentCode,
 } from "../../lib/procurement-officer/departments";
-import { validateEmailInput } from "../../lib/security/input";
+import { buildCanonicalDepartmentAccessCode } from "../../lib/procurement-officer/access-codes";
 import { getServiceActorContext } from "../actions/_helpers";
 import { appendAuditLogRequired } from "./_audit";
 import { requireTenantRole } from "./_roleGuard";
@@ -259,6 +258,14 @@ export const updateDepartment = mutation({
         });
         const parsed = parseDepartmentInput(args);
 
+        if (parsed.normalizedCode !== department.normalizedCode) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                field: "code",
+                message: DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE,
+            });
+        }
+
         await assertDepartmentUnique(ctx, {
             excludeDepartmentId: args.departmentId,
             normalizedCode: parsed.normalizedCode,
@@ -438,13 +445,21 @@ export const generateDepartmentCode = action({
                 tenantId: tenantUser.tenantId,
             },
         );
+        const existingCodes = new Set(generationContext.activeCodes);
 
-        return {
-            code: suggestUniqueDepartmentCode({
-                existingCodes: generationContext.activeCodes,
-                name: args.name,
-            }),
-        };
+        for (let attempt = 0; attempt < 25; attempt += 1) {
+            const candidate = buildCanonicalDepartmentAccessCode({
+                departmentName: args.name,
+            });
+
+            if (!existingCodes.has(normalizeDepartmentCode(candidate))) {
+                return {
+                    code: candidate,
+                };
+            }
+        }
+
+        throw new Error("We could not generate a unique department code right now.");
     },
 });
 
@@ -457,48 +472,11 @@ export const emailDepartmentCode = action({
     returns: v.object({
         deliveryStatus: v.union(v.literal("failed"), v.literal("sent")),
     }),
-    handler: async (ctx, args) => {
-        const tenantUser = await loadDepartmentActionContext(ctx);
-        const emailValidation = validateEmailInput(args.email, "adminEmail");
-        if (!emailValidation.ok) {
-            throw new Error(emailValidation.issue.message);
-        }
-
-        const normalizedCode = normalizeDepartmentCode(args.code);
-        if (normalizedCode.length === 0) {
-            throw new Error(DEPARTMENT_CODE_FORMAT_MESSAGE);
-        }
-
-        const codeValidation = validateDepartmentCode(normalizedCode);
-        if (!codeValidation.ok) {
-            throw new Error(codeValidation.message);
-        }
-
-        const generationContext: {
-            activeCodes: string[];
-            tenantName: string;
-        } = await ctx.runQuery(
-            "functions/departments:getDepartmentCodeGenerationContext" as any,
-            {
-                tenantId: tenantUser.tenantId,
-            },
-        );
-
-        if (generationContext.activeCodes.includes(normalizedCode)) {
-            throw new Error(`${DEPARTMENT_CODE_EXISTS_MESSAGE}. Generate a fresh code before emailing.`);
-        }
-
-        const delivery = await sendDepartmentCodeEmail({
-            code: normalizedCode,
-            departmentName: args.departmentName,
-            email: emailValidation.value,
-            idempotencyKey: `department-code:${tenantUser.tenantId}:${emailValidation.value}:${normalizedCode}`,
-            tenantName: generationContext.tenantName,
+    handler: async () => {
+        throw new ConvexError({
+            code: "FORBIDDEN",
+            message: DEPARTMENT_CODE_EMAIL_AFTER_CREATE_MESSAGE,
         });
-
-        return {
-            deliveryStatus: delivery.sent ? ("sent" as const) : ("failed" as const),
-        };
     },
 });
 
@@ -787,68 +765,4 @@ function getComparableNormalizedName(
     department: Pick<DepartmentRecord, "name" | "normalizedName">,
 ): string {
     return department.normalizedName;
-}
-
-async function sendDepartmentCodeEmail(args: {
-    code: string;
-    departmentName: string;
-    email: string;
-    idempotencyKey: string;
-    tenantName: string;
-}): Promise<{ messageId?: string; sent: boolean }> {
-    const apiKey = process.env.AUTH_RESEND_KEY;
-    if (!apiKey) {
-        return { sent: false };
-    }
-
-    const fromAddress =
-        process.env.AUTH_RESET_RESEND_FROM ??
-        "Procureline <onboarding@resend.dev>";
-    const safeDepartmentName = args.departmentName.trim().length > 0
-        ? args.departmentName.trim()
-        : "your new department";
-    const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-            "Idempotency-Key": args.idempotencyKey,
-        },
-        body: JSON.stringify({
-            from: fromAddress,
-            html: `
-                <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
-                    <h2 style="margin-bottom: 12px;">Department code ready</h2>
-                    <p>Hello,</p>
-                    <p>A Procurement Officer at <strong>${args.tenantName}</strong> generated a department code for <strong>${safeDepartmentName}</strong>.</p>
-                    <p style="margin-top: 18px;"><strong>Department code:</strong> ${args.code}</p>
-                    <p>Use this code while completing department setup in Procureline.</p>
-                </div>
-            `,
-            subject: `${args.tenantName} department code for ${safeDepartmentName}`,
-            tags: [
-                { name: "category", value: "department_code" },
-                { name: "tenant_name", value: args.tenantName },
-            ],
-            text: [
-                "Hello,",
-                "",
-                `A Procurement Officer at ${args.tenantName} generated a department code for ${safeDepartmentName}.`,
-                `Department code: ${args.code}`,
-                "",
-                "Use this code while completing department setup in Procureline.",
-            ].join("\n"),
-            to: [args.email],
-        }),
-    });
-
-    if (!response.ok) {
-        return { sent: false };
-    }
-
-    const payload = (await response.json()) as { id?: string };
-    return {
-        messageId: payload.id,
-        sent: true,
-    };
 }

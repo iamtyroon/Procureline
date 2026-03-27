@@ -225,13 +225,71 @@ export default defineSchema({
         codeSuffix: v.string(),
         expiresAt: v.number(),
         isActive: v.boolean(),
+        issuedByTenantUserId: v.optional(v.id("tenantUsers")),
+        revokedAt: v.optional(v.number()),
+        revokedByTenantUserId: v.optional(v.id("tenantUsers")),
+        revocationReason: v.optional(v.union(
+            v.literal("deactivated"),
+            v.literal("rotated"),
+        )),
+        replacedByAccessCodeId: v.optional(v.id("departmentAccessCodes")),
+        deliveryAttemptCount: v.optional(v.number()),
+        lastDeliveryEmail: v.optional(v.string()),
+        lastDeliveryRequestedAt: v.optional(v.number()),
+        lastDeliveryQueuedAt: v.optional(v.number()),
+        lastDeliveredAt: v.optional(v.number()),
+        lastDeliveryIdempotencyKey: v.optional(v.string()),
+        lastDeliveryStatus: v.optional(v.union(
+            v.literal("failed"),
+            v.literal("queued"),
+            v.literal("sent"),
+        )),
+        lastDeliveryErrorCode: v.optional(v.string()),
         createdAt: v.number(),
         updatedAt: v.number(),
     })
         .index("by_tenantId", ["tenantId"])
         .index("by_departmentId", ["departmentId"])
+        .index("by_departmentId_isActive", ["departmentId", "isActive"])
         .index("by_codeHash", ["codeHash"])
-        .index("by_tenantId_codeHash", ["tenantId", "codeHash"]),
+        .index("by_tenantId_codeHash", ["tenantId", "codeHash"])
+        .index("by_tenantId_departmentId", ["tenantId", "departmentId"]),
+
+    departmentAccessCodeEvents: defineTable({
+        tenantId: v.id("tenants"),
+        departmentId: v.id("departments"),
+        accessCodeId: v.id("departmentAccessCodes"),
+        event: v.union(
+            v.literal("deactivated"),
+            v.literal("email_failed"),
+            v.literal("email_queued"),
+            v.literal("issued"),
+            v.literal("login_denied"),
+            v.literal("login_success"),
+            v.literal("rotated"),
+        ),
+        outcome: v.union(
+            v.literal("allowed"),
+            v.literal("blocked"),
+            v.literal("failed"),
+            v.literal("queued"),
+        ),
+        occurredAt: v.number(),
+        actorTenantUserId: v.optional(v.id("tenantUsers")),
+        actorUserId: v.optional(v.id("users")),
+        normalizedEmail: v.optional(v.string()),
+        requestOriginStatus: v.union(
+            v.literal("captured"),
+            v.literal("unavailable"),
+        ),
+        ipAddress: v.optional(v.string()),
+        userAgent: v.optional(v.string()),
+        message: v.optional(v.string()),
+        metadata: v.optional(v.any()),
+    })
+        .index("by_accessCodeId_occurredAt", ["accessCodeId", "occurredAt"])
+        .index("by_departmentId_occurredAt", ["departmentId", "occurredAt"])
+        .index("by_tenantId_occurredAt", ["tenantId", "occurredAt"]),
 
     departmentUserProfiles: defineTable({
         tenantId: v.id("tenants"),

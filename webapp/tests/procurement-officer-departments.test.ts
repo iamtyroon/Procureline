@@ -1,23 +1,24 @@
 import assert from "node:assert/strict";
 import {
-    buildDepartmentCodeBase,
     buildDepartmentDeletionBlockers,
     buildDepartmentOverAllocationWarning,
     buildDepartmentTierLimitModalContent,
     buildDepartmentTierLimitState,
     buildDepartmentWorkspaceSummary,
     DEPARTMENT_BUDGET_POSITIVE_MESSAGE,
+    DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE,
     DEPARTMENT_CODE_EXISTS_MESSAGE,
     DEPARTMENT_NAME_EXISTS_MESSAGE,
     DEPARTMENT_NOT_FOUND_MESSAGE,
     departmentFormSchema,
     formatDepartmentBudget,
+    getDepartmentCodeFieldDescription,
     getDepartmentCrudRecoveryHref,
     getDepartmentUpgradeHref,
+    getDepartmentCrudErrorMessage,
     isDepartmentCrudAuthorizationError,
     normalizeDepartmentCode,
     normalizeDepartmentName,
-    suggestUniqueDepartmentCode,
 } from "../lib/procurement-officer/departments";
 import { buildDashboardPath, FORBIDDEN_ACCESS_REASON } from "../lib/auth/roles";
 
@@ -25,28 +26,28 @@ export function runProcurementOfficerDepartmentTests(): string[] {
     const completedTests: string[] = [];
 
     assert.equal(normalizeDepartmentName("  Human   Resources  "), "human resources");
-    assert.equal(normalizeDepartmentCode(" hr 01 "), "HR01");
-    assert.equal(normalizeDepartmentCode(" ict "), "ICT");
+    assert.equal(normalizeDepartmentCode(" 2025 hr a7k9 "), "2025-HR-A7K9");
+    assert.equal(normalizeDepartmentCode("2025__it---a7k9"), "2025-IT-A7K9");
     completedTests.push(
-        "department normalization collapses whitespace, lowercases names for uniqueness, and stores codes as uppercase alphanumeric values",
+        "department normalization collapses whitespace, lowercases names for uniqueness, and stores department codes in the shared canonical access-code format",
     );
 
     const parsedDepartment = departmentFormSchema.parse({
         budgetAllocation: "2500000",
-        code: " hr 01 ",
+        code: "2025-hr-a7k9",
         name: " Human   Resources ",
     });
     assert.equal(parsedDepartment.name, "Human Resources");
-    assert.equal(parsedDepartment.code, "HR01");
+    assert.equal(parsedDepartment.code, "2025-HR-A7K9");
     assert.equal(parsedDepartment.normalizedName, "human resources");
-    assert.equal(parsedDepartment.normalizedCode, "HR01");
+    assert.equal(parsedDepartment.normalizedCode, "2025-HR-A7K9");
     assert.equal(parsedDepartment.adminEmail, undefined);
     assert.equal(parsedDepartment.budgetAllocation, 2_500_000);
     assert.equal(
         departmentFormSchema.safeParse({
             adminEmail: "du@example.com",
             budgetAllocation: "2500000",
-            code: " ict ",
+            code: "2025-IT-A7K9",
             name: "Information Technology",
         }).success,
         true,
@@ -55,7 +56,7 @@ export function runProcurementOfficerDepartmentTests(): string[] {
         departmentFormSchema.safeParse({
             adminEmail: "not-an-email",
             budgetAllocation: "2500000",
-            code: " ict ",
+            code: "2025-IT-A7K9",
             name: "Information Technology",
         }).success,
         false,
@@ -63,7 +64,7 @@ export function runProcurementOfficerDepartmentTests(): string[] {
     assert.equal(
         departmentFormSchema.safeParse({
             budgetAllocation: 0,
-            code: "HR",
+            code: "2025-HR-A7K9",
             name: "Human Resources",
         }).success,
         false,
@@ -71,34 +72,13 @@ export function runProcurementOfficerDepartmentTests(): string[] {
     assert.equal(
         departmentFormSchema.safeParse({
             budgetAllocation: 5_000,
-            code: "HR-01",
+            code: "HR01",
             name: "Human Resources",
         }).success,
         false,
     );
     completedTests.push(
-        "department form validation requires positive budgets and rejects non-alphanumeric department codes after normalization",
-    );
-
-    assert.equal(buildDepartmentCodeBase("Human Resources"), "HR");
-    assert.equal(buildDepartmentCodeBase("Finance"), "FINANC");
-    assert.equal(buildDepartmentCodeBase("  "), "DEPT");
-    assert.equal(
-        suggestUniqueDepartmentCode({
-            existingCodes: ["HR", "HR1", "HR2"],
-            name: "Human Resources",
-        }),
-        "HR3",
-    );
-    assert.equal(
-        suggestUniqueDepartmentCode({
-            existingCodes: ["FINANC"],
-            name: "Finance",
-        }),
-        "FINANC1",
-    );
-    completedTests.push(
-        "department code generation starts from a readable base and appends the first available numeric suffix when a tenant already uses the obvious code",
+        "department form validation requires positive budgets and only accepts the canonical access-code format for department codes",
     );
 
     const freeTierLimit = buildDepartmentTierLimitState({
@@ -228,12 +208,34 @@ export function runProcurementOfficerDepartmentTests(): string[] {
     );
 
     assert.equal(formatDepartmentBudget(1_500_000), "KES 1,500,000.00");
+    assert.equal(
+        getDepartmentCodeFieldDescription({ isCreateMode: true }),
+        "Generate a canonical code now, then manage future rotation, deactivation, and delivery from Access Codes.",
+    );
+    assert.equal(
+        getDepartmentCodeFieldDescription({ isCreateMode: false }),
+        "Department code changes are managed from Access Codes so the active DU sign-in code stays in sync.",
+    );
     assert.equal(DEPARTMENT_CODE_EXISTS_MESSAGE, "Department code already exists");
+    assert.equal(
+        DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE,
+        "Use Access Codes to rotate or replace the department code.",
+    );
     assert.equal(DEPARTMENT_NAME_EXISTS_MESSAGE, "Department name already exists");
     assert.equal(DEPARTMENT_BUDGET_POSITIVE_MESSAGE, "Budget must be a positive number");
     assert.equal(DEPARTMENT_NOT_FOUND_MESSAGE, "Department not found");
     completedTests.push(
         "department CRUD helpers preserve the exact user-facing validation and not-found messages required by Story 4.2",
+    );
+
+    assert.equal(
+        getDepartmentCrudErrorMessage(
+            new Error(DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE),
+        ),
+        DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE,
+    );
+    completedTests.push(
+        "department edit helpers now keep code rotation in the dedicated Access Codes flow instead of letting the edit dialog drift away from the active DU credential",
     );
 
     assert.equal(

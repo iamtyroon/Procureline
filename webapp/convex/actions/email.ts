@@ -11,6 +11,7 @@ export const queueTransactionalEmail = action({
     template: v.union(
       v.literal("generic-notification"),
       v.literal("billing-support"),
+      v.literal("access-code-delivery"),
     ),
     templateProps: v.optional(v.any()),
     to: v.string(),

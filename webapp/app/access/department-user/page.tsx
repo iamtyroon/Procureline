@@ -3,6 +3,7 @@ import {
     buildPublicEntrySelectionHref,
     getTrimmedSearchParam,
 } from "@/lib/auth/public-entry";
+import { readSignedDepartmentUserRequestContext } from "@/lib/auth/department-user-request-context";
 import { PublicAccessGate } from "@/src/components/auth/PublicAccessGate";
 import { DepartmentUserAccessForm } from "@/src/components/auth/DepartmentUserAccessForm";
 
@@ -20,6 +21,7 @@ export default async function DepartmentUserAccessPage({
     searchParams,
 }: DepartmentUserAccessPageProps): Promise<JSX.Element> {
     const resolvedSearchParams = await searchParams;
+    const signedRequestContext = await readSignedDepartmentUserRequestContext();
     const backHref = buildPublicEntrySelectionHref(
         "department_user",
         resolvedSearchParams,
@@ -35,6 +37,7 @@ export default async function DepartmentUserAccessPage({
                     <DepartmentUserAccessForm
                         backHref={backHref}
                         initialAccessCode={accessCode}
+                        signedRequestContext={signedRequestContext}
                     />
                 </div>
             </div>

@@ -40,11 +40,13 @@ import {
 interface DepartmentUserAccessFormProps {
     backHref: string;
     initialAccessCode?: string;
+    signedRequestContext: string;
 }
 
 export function DepartmentUserAccessForm({
     backHref,
     initialAccessCode,
+    signedRequestContext,
 }: DepartmentUserAccessFormProps): JSX.Element {
     const { signIn, signOut } = useAuthActions();
     const { isAuthenticated } = useConvexAuth();
@@ -160,6 +162,7 @@ export function DepartmentUserAccessForm({
             const result = await startAccessChallenge({
                 accessCode: values.accessCode,
                 email: normalizeAuthEmail(values.email),
+                signedRequestContext,
             });
 
             setChallengeId(String(result.challengeId));
@@ -190,6 +193,7 @@ export function DepartmentUserAccessForm({
             formData.set("challengeId", challengeId);
             formData.set("code", values.code.trim());
             formData.set("flow", DEPARTMENT_USER_AUTH_VERIFY_FLOW);
+            formData.set("signedRequestContext", signedRequestContext);
 
             await signIn(DEPARTMENT_USER_AUTH_PROVIDER, formData);
         } catch (error: unknown) {

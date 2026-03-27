@@ -45,6 +45,10 @@ import {
     type DepartmentUserAccessMode,
 } from "../../lib/auth/department-user-access";
 import {
+    DepartmentUserRequestContextSignatureError,
+    verifySignedDepartmentUserRequestContext,
+} from "../../lib/auth/department-user-request-context-token";
+import {
     normalizeDepartmentCode,
     normalizeDepartmentName,
 } from "../../lib/procurement-officer/departments";
@@ -53,6 +57,7 @@ import {
     validateDepartmentUserAccessCodeInput,
     validateEmailInput,
 } from "../../lib/security/input";
+import { type AccessCodeEventRequestOrigin, appendDepartmentAccessCodeEventBestEffort } from "./accessCodes";
 import { appendAuditLogBestEffort } from "./_audit";
 import { ResendOTP } from "../ResendOTP";
 
@@ -139,6 +144,38 @@ async function queueAuditFromAction(
         "functions/auditLogs:appendAuditLogFromAction" as any,
         serializeAuditEvent(entry),
     );
+}
+
+async function resolveDepartmentUserRequestOrigin(
+    signedRequestContext?: string,
+): Promise<AccessCodeEventRequestOrigin> {
+    if (!signedRequestContext) {
+        return {
+            requestOriginStatus: "unavailable",
+        };
+    }
+
+    try {
+        const requestContext = await verifySignedDepartmentUserRequestContext(
+            signedRequestContext,
+        );
+
+        return {
+            ipAddress: requestContext.ipAddress ?? undefined,
+            requestOriginStatus: "captured",
+            userAgent: requestContext.userAgent ?? undefined,
+        };
+    } catch (error) {
+        if (error instanceof DepartmentUserRequestContextSignatureError) {
+            return {
+                requestOriginStatus: "unavailable",
+            };
+        }
+
+        return {
+            requestOriginStatus: "unavailable",
+        };
+    }
 }
 
 async function lookupAccessCodeByNormalizedCode(
@@ -547,6 +584,36 @@ export const evaluateAccessAttempt = internalQuery({
         }),
 });
 
+export const getAccessCodeForNormalizedCode = internalQuery({
+    args: {
+        normalizedAccessCode: v.string(),
+    },
+    returns: v.union(
+        v.null(),
+        v.object({
+            accessCodeId: v.id("departmentAccessCodes"),
+            departmentId: v.id("departments"),
+            tenantId: v.id("tenants"),
+        }),
+    ),
+    handler: async (ctx, args) => {
+        const accessCode = await lookupAccessCodeByNormalizedCode(
+            ctx,
+            args.normalizedAccessCode,
+        );
+
+        if (!accessCode) {
+            return null;
+        }
+
+        return {
+            accessCodeId: accessCode._id,
+            departmentId: accessCode.departmentId,
+            tenantId: accessCode.tenantId,
+        };
+    },
+});
+
 export const createChallenge = internalMutation({
     args: {
         accessCodeId: v.id("departmentAccessCodes"),
@@ -688,7 +755,13 @@ export const recordFailedAttempt = internalMutation({
 export const finalizeSuccessfulAccess = internalMutation({
     args: {
         challengeId: v.id("departmentUserAuthChallenges"),
+        ipAddress: v.optional(v.string()),
+        requestOriginStatus: v.optional(v.union(
+            v.literal("captured"),
+            v.literal("unavailable"),
+        )),
         userId: v.id("users"),
+        userAgent: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         const now = Date.now();
@@ -894,6 +967,22 @@ export const finalizeSuccessfulAccess = internalMutation({
             }),
         );
 
+        await appendDepartmentAccessCodeEventBestEffort(ctx, {
+            accessCodeId: challenge.accessCodeId,
+            actorUserId: args.userId,
+            departmentId: challenge.departmentId,
+            event: "login_success",
+            normalizedEmail: challenge.normalizedEmail,
+            outcome: "allowed",
+            requestOrigin: {
+                ipAddress: args.ipAddress,
+                requestOriginStatus: args.requestOriginStatus ?? "unavailable",
+                userAgent: args.userAgent,
+            },
+            message: "Department User verification succeeded.",
+            tenantId: challenge.tenantId,
+        });
+
         return {
             accessMode: challenge.accessMode,
             departmentId: challenge.departmentId,
@@ -954,6 +1043,7 @@ export const startAccessChallenge = action({
     args: {
         accessCode: v.string(),
         email: v.string(),
+        signedRequestContext: v.optional(v.string()),
     },
     returns: v.object({
         accessMode: v.union(v.literal("editable"), v.literal("read_only_grace")),
@@ -976,6 +1066,9 @@ export const startAccessChallenge = action({
 
         const normalizedEmail = normalizeAuthEmail(emailResult.value);
         const normalizedAccessCode = accessCodeResult.value;
+        const requestOrigin = await resolveDepartmentUserRequestOrigin(
+            args.signedRequestContext,
+        );
         const attempt: AccessAttemptResult = await ctx.runQuery(
             "functions/departmentUserAuth:evaluateAccessAttempt" as any,
             {
@@ -985,6 +1078,12 @@ export const startAccessChallenge = action({
         );
 
         if (!attempt.ok) {
+            const matchedAccessCode = await ctx.runQuery(
+                "functions/departmentUserAuth:getAccessCodeForNormalizedCode" as any,
+                {
+                    normalizedAccessCode,
+                },
+            );
             let failureEvent = attempt.auditEvent;
             let failureMessage = attempt.message;
             let failureMetadata: Record<string, unknown> = {
@@ -1030,6 +1129,23 @@ export const startAccessChallenge = action({
                     targetTenantId: attempt.tenantId,
                 }),
             ).catch(() => undefined);
+            if (matchedAccessCode) {
+                await ctx.runMutation(
+                    "functions/accessCodes:appendDepartmentAccessCodeEventFromAction" as any,
+                    {
+                        accessCodeId: matchedAccessCode.accessCodeId,
+                        departmentId: matchedAccessCode.departmentId,
+                        event: "login_denied",
+                        ipAddress: requestOrigin.ipAddress,
+                        message: failureMessage,
+                        normalizedEmail,
+                        outcome: "blocked",
+                        requestOriginStatus: requestOrigin.requestOriginStatus,
+                        tenantId: matchedAccessCode.tenantId,
+                        userAgent: requestOrigin.userAgent,
+                    },
+                ).catch(() => undefined);
+            }
             throw new Error(failureMessage);
         }
 
@@ -1143,6 +1259,7 @@ export async function verifyDepartmentUserOtpChallenge(
     args: {
         challengeId: Id<"departmentUserAuthChallenges">;
         code: string;
+        signedRequestContext?: string;
     },
 ): Promise<{
     sessionId: Id<"authSessions">;
@@ -1165,6 +1282,9 @@ export async function verifyDepartmentUserOtpChallenge(
         },
     );
     if (!attempt.ok) {
+        const requestOrigin = await resolveDepartmentUserRequestOrigin(
+            args.signedRequestContext,
+        );
         await queueAuditFromAction(
             ctx,
             createAuditEntry({
@@ -1177,6 +1297,21 @@ export async function verifyDepartmentUserOtpChallenge(
                 outcome: attempt.outcome,
                 targetTenantId: attempt.tenantId,
             }),
+        ).catch(() => undefined);
+        await ctx.runMutation(
+            "functions/accessCodes:appendDepartmentAccessCodeEventFromAction" as any,
+            {
+                accessCodeId: challenge.accessCodeId,
+                departmentId: challenge.departmentId,
+                event: "login_denied",
+                ipAddress: requestOrigin.ipAddress,
+                message: attempt.message,
+                normalizedEmail: challenge.normalizedEmail,
+                outcome: "blocked",
+                requestOriginStatus: requestOrigin.requestOriginStatus,
+                tenantId: challenge.tenantId,
+                userAgent: requestOrigin.userAgent,
+            },
         ).catch(() => undefined);
         throw new Error(attempt.message);
     }
@@ -1197,6 +1332,9 @@ export async function verifyDepartmentUserOtpChallenge(
     }
 
     if (!signedIn) {
+        const requestOrigin = await resolveDepartmentUserRequestOrigin(
+            args.signedRequestContext,
+        );
         const failureState = await ctx.runMutation(
             "functions/departmentUserAuth:recordFailedAttempt" as any,
             {
@@ -1226,6 +1364,29 @@ export async function verifyDepartmentUserOtpChallenge(
                 targetTenantId: challenge.tenantId,
             }),
         ).catch(() => undefined);
+        await ctx.runMutation(
+            "functions/accessCodes:appendDepartmentAccessCodeEventFromAction" as any,
+            {
+                accessCodeId: challenge.accessCodeId,
+                departmentId: challenge.departmentId,
+                event: "login_denied",
+                ipAddress: requestOrigin.ipAddress,
+                message:
+                    failureState.lockedUntil
+                        ? formatDepartmentUserLockoutMessage(
+                            getDepartmentUserLockoutState({
+                                failedAttempts: failureState.failedAttempts,
+                                lockedUntil: failureState.lockedUntil,
+                            }).remainingMs,
+                        )
+                        : DEPARTMENT_USER_INVALID_VERIFICATION_CODE_MESSAGE,
+                normalizedEmail: challenge.normalizedEmail,
+                outcome: "blocked",
+                requestOriginStatus: requestOrigin.requestOriginStatus,
+                tenantId: challenge.tenantId,
+                userAgent: requestOrigin.userAgent,
+            },
+        ).catch(() => undefined);
 
         if (failureState.lockedUntil) {
             const lockoutState = getDepartmentUserLockoutState({
@@ -1240,13 +1401,20 @@ export async function verifyDepartmentUserOtpChallenge(
         throw new Error(DEPARTMENT_USER_INVALID_VERIFICATION_CODE_MESSAGE);
     }
 
-    await ctx.runMutation(
-        "functions/departmentUserAuth:finalizeSuccessfulAccess" as any,
-        {
-            challengeId: challenge._id,
-            userId: signedIn.userId,
-        },
-    );
+        const requestOrigin = await resolveDepartmentUserRequestOrigin(
+            args.signedRequestContext,
+        );
+
+        await ctx.runMutation(
+            "functions/departmentUserAuth:finalizeSuccessfulAccess" as any,
+            {
+                challengeId: challenge._id,
+                ipAddress: requestOrigin.ipAddress,
+                requestOriginStatus: requestOrigin.requestOriginStatus,
+                userId: signedIn.userId,
+                userAgent: requestOrigin.userAgent,
+            },
+        );
 
     return signedIn;
 }

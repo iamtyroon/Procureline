@@ -47,6 +47,10 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
           typeof params.flow === "string" ? params.flow : "";
         const challengeId =
           typeof params.challengeId === "string" ? params.challengeId : "";
+        const signedRequestContext =
+          typeof params.signedRequestContext === "string"
+            ? params.signedRequestContext
+            : "";
         const challengeDocId =
           challengeId as Id<"departmentUserAuthChallenges">;
 
@@ -71,6 +75,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
           return await verifyDepartmentUserOtpChallenge(ctx, {
             challengeId: challengeDocId,
             code: codeResult.value,
+            signedRequestContext,
           });
         }
 

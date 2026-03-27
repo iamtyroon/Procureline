@@ -20,6 +20,7 @@ import type * as functions__audit from "../functions/_audit.js";
 import type * as functions__departmentUserGuard from "../functions/_departmentUserGuard.js";
 import type * as functions__roleGuard from "../functions/_roleGuard.js";
 import type * as functions__tenantGuard from "../functions/_tenantGuard.js";
+import type * as functions_accessCodes from "../functions/accessCodes.js";
 import type * as functions_auditLogs from "../functions/auditLogs.js";
 import type * as functions_auth from "../functions/auth.js";
 import type * as functions_departmentUserAuth from "../functions/departmentUserAuth.js";
@@ -62,6 +63,7 @@ declare const fullApi: ApiFromModules<{
   "functions/_departmentUserGuard": typeof functions__departmentUserGuard;
   "functions/_roleGuard": typeof functions__roleGuard;
   "functions/_tenantGuard": typeof functions__tenantGuard;
+  "functions/accessCodes": typeof functions_accessCodes;
   "functions/auditLogs": typeof functions_auditLogs;
   "functions/auth": typeof functions_auth;
   "functions/departmentUserAuth": typeof functions_departmentUserAuth;

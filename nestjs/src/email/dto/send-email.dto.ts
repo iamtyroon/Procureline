@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsEmail, IsIn, IsObject, IsOptional, IsString, IsUUID } from "class-validator";
+import { IsEmail, IsIn, IsObject, IsOptional, IsString } from "class-validator";
 
 export class SendEmailDto {
   @ApiProperty()
@@ -10,9 +10,9 @@ export class SendEmailDto {
   @IsString()
   subject!: string;
 
-  @ApiProperty({ enum: ["generic-notification", "billing-support"] })
-  @IsIn(["generic-notification", "billing-support"])
-  template!: "generic-notification" | "billing-support";
+  @ApiProperty({ enum: ["generic-notification", "billing-support", "access-code-delivery"] })
+  @IsIn(["generic-notification", "billing-support", "access-code-delivery"])
+  template!: "generic-notification" | "billing-support" | "access-code-delivery";
 
   @ApiProperty({ required: false, additionalProperties: true })
   @IsOptional()
@@ -20,6 +20,6 @@ export class SendEmailDto {
   templateProps?: Record<string, unknown>;
 
   @ApiProperty()
-  @IsUUID()
+  @IsString()
   idempotencyKey!: string;
 }

@@ -10,55 +10,43 @@ const roles_1 = require("../lib/auth/roles");
 function runProcurementOfficerDepartmentTests() {
     const completedTests = [];
     strict_1.default.equal((0, departments_1.normalizeDepartmentName)("  Human   Resources  "), "human resources");
-    strict_1.default.equal((0, departments_1.normalizeDepartmentCode)(" hr 01 "), "HR01");
-    strict_1.default.equal((0, departments_1.normalizeDepartmentCode)(" ict "), "ICT");
-    completedTests.push("department normalization collapses whitespace, lowercases names for uniqueness, and stores codes as uppercase alphanumeric values");
+    strict_1.default.equal((0, departments_1.normalizeDepartmentCode)(" 2025 hr a7k9 "), "2025-HR-A7K9");
+    strict_1.default.equal((0, departments_1.normalizeDepartmentCode)("2025__it---a7k9"), "2025-IT-A7K9");
+    completedTests.push("department normalization collapses whitespace, lowercases names for uniqueness, and stores department codes in the shared canonical access-code format");
     const parsedDepartment = departments_1.departmentFormSchema.parse({
         budgetAllocation: "2500000",
-        code: " hr 01 ",
+        code: "2025-hr-a7k9",
         name: " Human   Resources ",
     });
     strict_1.default.equal(parsedDepartment.name, "Human Resources");
-    strict_1.default.equal(parsedDepartment.code, "HR01");
+    strict_1.default.equal(parsedDepartment.code, "2025-HR-A7K9");
     strict_1.default.equal(parsedDepartment.normalizedName, "human resources");
-    strict_1.default.equal(parsedDepartment.normalizedCode, "HR01");
+    strict_1.default.equal(parsedDepartment.normalizedCode, "2025-HR-A7K9");
     strict_1.default.equal(parsedDepartment.adminEmail, undefined);
     strict_1.default.equal(parsedDepartment.budgetAllocation, 2_500_000);
     strict_1.default.equal(departments_1.departmentFormSchema.safeParse({
         adminEmail: "du@example.com",
         budgetAllocation: "2500000",
-        code: " ict ",
+        code: "2025-IT-A7K9",
         name: "Information Technology",
     }).success, true);
     strict_1.default.equal(departments_1.departmentFormSchema.safeParse({
         adminEmail: "not-an-email",
         budgetAllocation: "2500000",
-        code: " ict ",
+        code: "2025-IT-A7K9",
         name: "Information Technology",
     }).success, false);
     strict_1.default.equal(departments_1.departmentFormSchema.safeParse({
         budgetAllocation: 0,
-        code: "HR",
+        code: "2025-HR-A7K9",
         name: "Human Resources",
     }).success, false);
     strict_1.default.equal(departments_1.departmentFormSchema.safeParse({
         budgetAllocation: 5_000,
-        code: "HR-01",
+        code: "HR01",
         name: "Human Resources",
     }).success, false);
-    completedTests.push("department form validation requires positive budgets and rejects non-alphanumeric department codes after normalization");
-    strict_1.default.equal((0, departments_1.buildDepartmentCodeBase)("Human Resources"), "HR");
-    strict_1.default.equal((0, departments_1.buildDepartmentCodeBase)("Finance"), "FINANC");
-    strict_1.default.equal((0, departments_1.buildDepartmentCodeBase)("  "), "DEPT");
-    strict_1.default.equal((0, departments_1.suggestUniqueDepartmentCode)({
-        existingCodes: ["HR", "HR1", "HR2"],
-        name: "Human Resources",
-    }), "HR3");
-    strict_1.default.equal((0, departments_1.suggestUniqueDepartmentCode)({
-        existingCodes: ["FINANC"],
-        name: "Finance",
-    }), "FINANC1");
-    completedTests.push("department code generation starts from a readable base and appends the first available numeric suffix when a tenant already uses the obvious code");
+    completedTests.push("department form validation requires positive budgets and only accepts the canonical access-code format for department codes");
     const freeTierLimit = (0, departments_1.buildDepartmentTierLimitState)({
         activeDepartmentCount: 10,
         tier: "free",
@@ -159,11 +147,16 @@ function runProcurementOfficerDepartmentTests() {
     strict_1.default.equal(editOverAllocationWarning?.message, "Total department budgets exceed institution allocation by KES 500,000.00");
     completedTests.push("department over-allocation warnings can be recomputed against the live draft budget so create and edit dialogs stay truthful before save");
     strict_1.default.equal((0, departments_1.formatDepartmentBudget)(1_500_000), "KES 1,500,000.00");
+    strict_1.default.equal((0, departments_1.getDepartmentCodeFieldDescription)({ isCreateMode: true }), "Generate a canonical code now, then manage future rotation, deactivation, and delivery from Access Codes.");
+    strict_1.default.equal((0, departments_1.getDepartmentCodeFieldDescription)({ isCreateMode: false }), "Department code changes are managed from Access Codes so the active DU sign-in code stays in sync.");
     strict_1.default.equal(departments_1.DEPARTMENT_CODE_EXISTS_MESSAGE, "Department code already exists");
+    strict_1.default.equal(departments_1.DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE, "Use Access Codes to rotate or replace the department code.");
     strict_1.default.equal(departments_1.DEPARTMENT_NAME_EXISTS_MESSAGE, "Department name already exists");
     strict_1.default.equal(departments_1.DEPARTMENT_BUDGET_POSITIVE_MESSAGE, "Budget must be a positive number");
     strict_1.default.equal(departments_1.DEPARTMENT_NOT_FOUND_MESSAGE, "Department not found");
     completedTests.push("department CRUD helpers preserve the exact user-facing validation and not-found messages required by Story 4.2");
+    strict_1.default.equal((0, departments_1.getDepartmentCrudErrorMessage)(new Error(departments_1.DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE)), departments_1.DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE);
+    completedTests.push("department edit helpers now keep code rotation in the dedicated Access Codes flow instead of letting the edit dialog drift away from the active DU credential");
     strict_1.default.equal((0, departments_1.isDepartmentCrudAuthorizationError)(new Error("Procurement Officer access is required for this resource.")), true);
     strict_1.default.equal((0, departments_1.isDepartmentCrudAuthorizationError)(new Error("Department code already exists")), false);
     strict_1.default.equal((0, departments_1.getDepartmentCrudRecoveryHref)(), (0, roles_1.buildDashboardPath)(roles_1.FORBIDDEN_ACCESS_REASON));

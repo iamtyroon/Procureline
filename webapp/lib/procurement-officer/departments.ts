@@ -8,8 +8,14 @@ import {
     normalizePlainText,
     validateEmailInput,
 } from "../security/input";
+import {
+    ACCESS_CODE_FORMAT_MESSAGE,
+    CANONICAL_ACCESS_CODE_MAX_LENGTH,
+    normalizeCanonicalDepartmentAccessCode,
+    validateCanonicalDepartmentAccessCode,
+} from "./access-codes";
 
-export const DEPARTMENT_CODE_MAX_LENGTH = 10;
+export const DEPARTMENT_CODE_MAX_LENGTH = CANONICAL_ACCESS_CODE_MAX_LENGTH;
 export const DEPARTMENT_CODE_EXISTS_MESSAGE = "Department code already exists";
 export const DEPARTMENT_NAME_EXISTS_MESSAGE = "Department name already exists";
 export const DEPARTMENT_BUDGET_POSITIVE_MESSAGE = "Budget must be a positive number";
@@ -18,6 +24,10 @@ export const DEPARTMENT_DELETE_PLANS_MESSAGE =
     "Cannot delete department with submitted plans";
 export const DEPARTMENT_DELETE_DU_MESSAGE =
     "Deactivate assigned Departmental Users before deleting this department.";
+export const DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE =
+    "Use Access Codes to rotate or replace the department code.";
+export const DEPARTMENT_CODE_EMAIL_AFTER_CREATE_MESSAGE =
+    "Create the department first, then queue the active code from Access Codes.";
 export const DEPARTMENT_SAVE_GENERIC_ERROR_MESSAGE =
     "We could not save the department right now. Please try again.";
 export const DEPARTMENT_DELETE_GENERIC_ERROR_MESSAGE =
@@ -86,9 +96,7 @@ export interface DepartmentWorkspaceSummary {
 
 export const DEPARTMENT_NAME_REQUIRED_MESSAGE = "Department name is required";
 export const DEPARTMENT_CODE_REQUIRED_MESSAGE = "Department code is required";
-export const DEPARTMENT_CODE_FORMAT_MESSAGE =
-    "Department code must be uppercase letters and numbers only, max 10 characters";
-const DEPARTMENT_CODE_FALLBACK_BASE = "DEPT";
+export const DEPARTMENT_CODE_FORMAT_MESSAGE = ACCESS_CODE_FORMAT_MESSAGE;
 
 const TIER_LABELS: Record<DepartmentTier, string> = {
     enterprise: "Enterprise",
@@ -115,21 +123,11 @@ export function normalizeDepartmentName(input: string): string {
 }
 
 export function normalizeDepartmentCode(input: string): string {
-    return normalizePlainText(input).replace(/\s+/g, "").toUpperCase();
+    return normalizeCanonicalDepartmentAccessCode(input);
 }
 
 export function validateDepartmentCode(code: string): DepartmentCodeValidationResult {
-    if (!/^[A-Z0-9]+$/.test(code) || code.length > DEPARTMENT_CODE_MAX_LENGTH) {
-        return {
-            message: DEPARTMENT_CODE_FORMAT_MESSAGE,
-            ok: false,
-        };
-    }
-
-    return {
-        message: "",
-        ok: true,
-    };
+    return validateCanonicalDepartmentAccessCode(code);
 }
 
 export const departmentFormSchema = z
@@ -207,6 +205,14 @@ export const departmentFormSchema = z
 
 export type DepartmentFormData = z.infer<typeof departmentFormSchema>;
 
+export function getDepartmentCodeFieldDescription(args: {
+    isCreateMode: boolean;
+}): string {
+    return args.isCreateMode
+        ? "Generate a canonical code now, then manage future rotation, deactivation, and delivery from Access Codes."
+        : "Department code changes are managed from Access Codes so the active DU sign-in code stays in sync.";
+}
+
 export function formatDepartmentBudget(amount: number): string {
     return `KES ${amount.toLocaleString("en-US", {
         maximumFractionDigits: 2,
@@ -239,6 +245,7 @@ export function getDepartmentCrudErrorMessage(error: unknown): string {
     if (
         [
             DEPARTMENT_BUDGET_POSITIVE_MESSAGE,
+            DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE,
             DEPARTMENT_CODE_EXISTS_MESSAGE,
             DEPARTMENT_DELETE_DU_MESSAGE,
             DEPARTMENT_DELETE_PLANS_MESSAGE,
@@ -456,54 +463,4 @@ export function buildDepartmentWorkspaceSummary(args: {
             planningStateLabel: summarizeDepartmentPlanningState(department.planStatuses),
         })),
     };
-}
-
-export function buildDepartmentCodeBase(name: string): string {
-    const sanitized = normalizePlainText(name)
-        .toUpperCase()
-        .replace(/[^A-Z0-9 ]+/g, " ")
-        .trim();
-    const parts = sanitized.split(/\s+/).filter((part) => part.length > 0);
-
-    if (parts.length >= 2) {
-        const initials = parts.map((part) => part[0]).join("");
-        if (initials.length >= 2) {
-            return initials.slice(0, DEPARTMENT_CODE_MAX_LENGTH);
-        }
-    }
-
-    const compact = sanitized.replace(/[^A-Z0-9]/g, "");
-    if (compact.length >= 2) {
-        return compact.slice(0, Math.min(6, DEPARTMENT_CODE_MAX_LENGTH));
-    }
-
-    return DEPARTMENT_CODE_FALLBACK_BASE;
-}
-
-function appendDepartmentCodeSuffix(base: string, suffix: number): string {
-    const suffixText = String(suffix);
-    return `${base.slice(0, DEPARTMENT_CODE_MAX_LENGTH - suffixText.length)}${suffixText}`;
-}
-
-export function suggestUniqueDepartmentCode(args: {
-    existingCodes: readonly string[];
-    name: string;
-}): string {
-    const existingCodes = new Set(
-        args.existingCodes.map((code) => normalizeDepartmentCode(code)),
-    );
-    const base = buildDepartmentCodeBase(args.name);
-
-    if (!existingCodes.has(base)) {
-        return base;
-    }
-
-    for (let suffix = 1; suffix < 100_000; suffix += 1) {
-        const candidate = appendDepartmentCodeSuffix(base, suffix);
-        if (!existingCodes.has(candidate)) {
-            return candidate;
-        }
-    }
-
-    return appendDepartmentCodeSuffix(DEPARTMENT_CODE_FALLBACK_BASE, Date.now() % 100_000);
 }

@@ -4,7 +4,9 @@ const convex_error_handling_test_1 = require("./convex-error-handling.test");
 const procurement_officer_departments_test_1 = require("./procurement-officer-departments.test");
 const department_user_dashboard_test_1 = require("./department-user-dashboard.test");
 const department_user_access_test_1 = require("./department-user-access.test");
+const department_user_request_context_test_1 = require("./department-user-request-context.test");
 const password_reset_test_1 = require("./password-reset.test");
+const procurement_officer_access_codes_test_1 = require("./procurement-officer-access-codes.test");
 const platform_admin_auth_test_1 = require("./platform-admin-auth.test");
 const platform_admin_dashboard_test_1 = require("./platform-admin-dashboard.test");
 const pricing_flow_test_1 = require("./pricing-flow.test");
@@ -25,8 +27,10 @@ async function main() {
     const completedTests = [
         ...(0, convex_error_handling_test_1.runConvexErrorHandlingTests)(),
         ...(0, procurement_officer_departments_test_1.runProcurementOfficerDepartmentTests)(),
+        ...(0, procurement_officer_access_codes_test_1.runProcurementOfficerAccessCodeTests)(),
         ...(0, department_user_dashboard_test_1.runDepartmentUserDashboardTests)(),
         ...(await (0, department_user_access_test_1.runDepartmentUserAccessTests)()),
+        ...(await (0, department_user_request_context_test_1.runDepartmentUserRequestContextTests)()),
         ...(0, password_reset_test_1.runPasswordResetTests)(),
         ...(await (0, platform_admin_auth_test_1.runPlatformAdminAuthTests)()),
         ...(await (0, platform_admin_dashboard_test_1.runPlatformAdminDashboardTests)()),

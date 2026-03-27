@@ -3,7 +3,7 @@
 # project_key: procureline
 # tracking_system: file-system
 # story_location: c:\Users\Tyroon\Downloads\project\Procureline\_bmad-output\implementation-artifacts
-# last_updated: 2026-03-24
+# last_updated: 2026-03-26
 # ==============================================================================
 
 # STATUS DEFINITIONS:
@@ -78,7 +78,7 @@ development_status:
   3-1-tenant-admin-institution-setup-flow: done
   3-3-po-management-add-invite: done # implementation reviewed, fixed, and reverified locally
   4-2-department-crud-operations: done
-  4-3-access-code-generation-management: ready-for-dev
+  4-3-access-code-generation-management: review
   4-5-submission-deadline-management: backlog
 
   5-2-blockly-workspace-core: backlog

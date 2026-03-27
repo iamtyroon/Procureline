@@ -2,7 +2,9 @@ import { runConvexErrorHandlingTests } from "./convex-error-handling.test";
 import { runProcurementOfficerDepartmentTests } from "./procurement-officer-departments.test";
 import { runDepartmentUserDashboardTests } from "./department-user-dashboard.test";
 import { runDepartmentUserAccessTests } from "./department-user-access.test";
+import { runDepartmentUserRequestContextTests } from "./department-user-request-context.test";
 import { runPasswordResetTests } from "./password-reset.test";
+import { runProcurementOfficerAccessCodeTests } from "./procurement-officer-access-codes.test";
 import { runPlatformAdminAuthTests } from "./platform-admin-auth.test";
 import { runPlatformAdminDashboardTests } from "./platform-admin-dashboard.test";
 import { runPricingFlowTests } from "./pricing-flow.test";
@@ -24,8 +26,10 @@ async function main(): Promise<void> {
     const completedTests = [
         ...runConvexErrorHandlingTests(),
         ...runProcurementOfficerDepartmentTests(),
+        ...runProcurementOfficerAccessCodeTests(),
         ...runDepartmentUserDashboardTests(),
         ...(await runDepartmentUserAccessTests()),
+        ...(await runDepartmentUserRequestContextTests()),
         ...runPasswordResetTests(),
         ...(await runPlatformAdminAuthTests()),
         ...(await runPlatformAdminDashboardTests()),

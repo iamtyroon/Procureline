@@ -28,6 +28,7 @@ import {
 import { Input } from "@/components/ui/input";
 import {
     buildDepartmentOverAllocationWarning,
+    getDepartmentCodeFieldDescription,
 } from "@/lib/procurement-officer/departments";
 import {
     departmentFormSchema,
@@ -35,7 +36,6 @@ import {
 } from "@/lib/validators/department";
 
 interface DepartmentFormInput {
-    adminEmail?: string;
     budgetAllocation: number;
     code: string;
     name: string;
@@ -74,16 +74,10 @@ export function DepartmentFormDialog({
     const generateDepartmentCode = useAction(
         api.functions.departments.generateDepartmentCode,
     );
-    const emailDepartmentCode = useAction(
-        api.functions.departments.emailDepartmentCode,
-    );
-    const [generatedCode, setGeneratedCode] = useState<string | null>(null);
     const [isGeneratingCode, setIsGeneratingCode] = useState(false);
-    const [isEmailingCode, setIsEmailingCode] = useState(false);
     const form = useForm<DepartmentFormInput, unknown, DepartmentFormData>({
         resolver: zodResolver(departmentFormSchema),
         defaultValues: {
-            adminEmail: "",
             budgetAllocation: department?.budgetAllocation ?? Number.NaN,
             code: department?.code ?? "",
             name: department?.name ?? "",
@@ -96,15 +90,12 @@ export function DepartmentFormDialog({
         }
 
         form.reset({
-            adminEmail: "",
             budgetAllocation: department?.budgetAllocation ?? Number.NaN,
             code: department?.code ?? "",
             name: department?.name ?? "",
         });
-        setGeneratedCode(null);
     }, [department, form, open]);
     const draftBudgetAllocation = form.watch("budgetAllocation");
-    const draftCode = form.watch("code");
     const draftName = form.watch("name");
     const overAllocationWarning = buildDepartmentOverAllocationWarning({
         budgetCeiling,
@@ -113,60 +104,14 @@ export function DepartmentFormDialog({
         departments: activeDepartments,
     });
     const isCreateMode = !department;
-    const isGeneratedCodeReady = isCreateMode && generatedCode === draftCode;
 
     const title = department ? `Edit ${department.name}` : "Create Department";
     const description = department
         ? "Update the department's live structure, budget, and ownership details."
         : "Add a department to anchor DU ownership, budgets, and procurement setup.";
 
-    useEffect(() => {
-        if (!isCreateMode) {
-            return;
-        }
-
-        if (!generatedCode) {
-            return;
-        }
-
-        if (draftCode !== generatedCode) {
-            setGeneratedCode(null);
-        }
-    }, [draftCode, generatedCode, isCreateMode]);
-
     async function handleCodeAction(): Promise<void> {
         if (!isCreateMode) {
-            return;
-        }
-
-        if (isGeneratedCodeReady) {
-            const isValid = await form.trigger(["adminEmail", "code"]);
-            if (!isValid) {
-                return;
-            }
-
-            setIsEmailingCode(true);
-            try {
-                const result = await emailDepartmentCode({
-                    code: form.getValues("code"),
-                    departmentName: draftName,
-                    email: form.getValues("adminEmail") ?? "",
-                });
-                if (result.deliveryStatus === "sent") {
-                    toast.success("Department code emailed.");
-                } else {
-                    toast.error("Email delivery is unavailable right now.");
-                }
-            } catch (error) {
-                const message =
-                    error instanceof Error
-                        ? error.message
-                        : "We could not email that department code right now.";
-                toast.error(message);
-            } finally {
-                setIsEmailingCode(false);
-            }
-
             return;
         }
 
@@ -179,7 +124,6 @@ export function DepartmentFormDialog({
                 shouldDirty: true,
                 shouldValidate: true,
             });
-            setGeneratedCode(result.code);
             toast.success("Department code generated.");
         } catch (error) {
             const message =
@@ -241,32 +185,6 @@ export function DepartmentFormDialog({
                             )}
                         />
 
-                        {isCreateMode ? (
-                            <FormField
-                                control={form.control}
-                                name="adminEmail"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Admin Email</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                autoComplete="email"
-                                                placeholder="du@institution.ac.ke"
-                                                type="email"
-                                                {...field}
-                                                value={field.value ?? ""}
-                                            />
-                                        </FormControl>
-                                        <FormDescription>
-                                            Use this address when you want to email the generated
-                                            department code directly from the modal.
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        ) : null}
-
                         <FormField
                             control={form.control}
                             name="code"
@@ -279,22 +197,17 @@ export function DepartmentFormDialog({
                                                 <Input
                                                     autoCapitalize="characters"
                                                     className="pr-28"
-                                                    placeholder="HR01"
+                                                    placeholder="2025-HR-A7K9"
                                                     {...field}
                                                 />
                                                 <Button
                                                     type="button"
                                                     size="sm"
-                                                    variant={
-                                                        isGeneratedCodeReady
-                                                            ? "secondary"
-                                                            : "outline"
-                                                    }
+                                                    variant="outline"
                                                     className="absolute right-1 top-1/2 h-7 -translate-y-1/2 rounded-md px-3"
                                                     disabled={
                                                         isSubmitting ||
-                                                        isGeneratingCode ||
-                                                        isEmailingCode
+                                                        isGeneratingCode
                                                     }
                                                     onClick={() => {
                                                         void handleCodeAction();
@@ -302,21 +215,23 @@ export function DepartmentFormDialog({
                                                 >
                                                     {isGeneratingCode
                                                         ? "Generating..."
-                                                        : isEmailingCode
-                                                          ? "Emailing..."
-                                                          : isGeneratedCodeReady
-                                                            ? "Email"
-                                                            : "Generate"}
+                                                        : "Generate"}
                                                 </Button>
                                             </div>
                                         ) : (
                                             <Input
                                                 autoCapitalize="characters"
-                                                placeholder="HR01"
+                                                placeholder="2025-HR-A7K9"
+                                                readOnly
                                                 {...field}
                                             />
                                         )}
                                     </FormControl>
+                                    <FormDescription>
+                                        {getDepartmentCodeFieldDescription({
+                                            isCreateMode,
+                                        })}
+                                    </FormDescription>
                                     <FormMessage />
                                 </FormItem>
                             )}

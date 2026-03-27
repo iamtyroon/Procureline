@@ -1,6 +1,6 @@
 # Story 4.3: Access Code Generation & Management
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -33,52 +33,52 @@ so that Departmental Users can enter the planning workflow securely while the re
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Add a dedicated access-code domain backend and reconcile the current schema with Story 4.3 scope (AC: 2-6, 10-18)
-  - [ ] Create a focused Convex module such as `webapp/convex/functions/accessCodes.ts` for list, rotate, deactivate, resend, and bulk-fill operations instead of stuffing that behavior into the dashboard snapshot or department CRUD modules.
-  - [ ] Remove the current legacy department-code generator that compresses department-name tokens into outputs such as `CS2T`, and replace it with one documented shared generator that always emits `[FiscalYear]-[DeptInitials]-[RandomChars]`, for example `2025-CS-A7K9`.
-  - [ ] Keep `departments.code` and the DU-auth hash pipeline synchronized because product now treats them as the same canonical code rather than two different identifiers.
-  - [ ] Extend `webapp/convex/schema.ts` so `departmentAccessCodes` can carry operator-facing metadata needed for Story 4.3, such as issuer tracking, revocation metadata, and last-delivery metadata, without storing plaintext codes.
-  - [ ] Add a new append-only history table such as `departmentAccessCodeEvents` for per-code usage tracking, with fields like `tenantId`, `departmentId`, `accessCodeId`, `event`, `outcome`, `occurredAt`, optional request-origin metadata, and any safe actor or email hints needed for PO review.
-  - [ ] Lift or reuse the existing generation and rotation logic already present in `webapp/convex/seedData.ts` and `webapp/convex/functions/departmentUserAuth.ts` so Story 4.3 extends one canonical hash and normalization pipeline instead of inventing a second one.
-  - [ ] Keep code persistence hash-only by reusing `normalizeDepartmentUserAccessCode(...)`, `hashDepartmentUserAccessCode(...)`, and `getDepartmentUserAccessCodeSuffix(...)` from `webapp/lib/auth/department-user-access.ts`.
-  - [ ] Make bulk generation deterministic under partial-failure conditions by returning per-department success, skip, and failure results, and by defining the no-eligible-departments path explicitly.
-  - [ ] Enforce all PO-side mutations with `requireTenantRole(ctx, ["procurement_officer"])` and tenant-scoped reads or indexes.
+- [x] Task 1: Add a dedicated access-code domain backend and reconcile the current schema with Story 4.3 scope (AC: 2-6, 10-18)
+  - [x] Create a focused Convex module such as `webapp/convex/functions/accessCodes.ts` for list, rotate, deactivate, resend, and bulk-fill operations instead of stuffing that behavior into the dashboard snapshot or department CRUD modules.
+  - [x] Remove the current legacy department-code generator that compresses department-name tokens into outputs such as `CS2T`, and replace it with one documented shared generator that always emits `[FiscalYear]-[DeptInitials]-[RandomChars]`, for example `2025-CS-A7K9`.
+  - [x] Keep `departments.code` and the DU-auth hash pipeline synchronized because product now treats them as the same canonical code rather than two different identifiers.
+  - [x] Extend `webapp/convex/schema.ts` so `departmentAccessCodes` can carry operator-facing metadata needed for Story 4.3, such as issuer tracking, revocation metadata, and last-delivery metadata, without storing plaintext codes.
+  - [x] Add a new append-only history table such as `departmentAccessCodeEvents` for per-code usage tracking, with fields like `tenantId`, `departmentId`, `accessCodeId`, `event`, `outcome`, `occurredAt`, optional request-origin metadata, and any safe actor or email hints needed for PO review.
+  - [x] Lift or reuse the existing generation and rotation logic already present in `webapp/convex/seedData.ts` and `webapp/convex/functions/departmentUserAuth.ts` so Story 4.3 extends one canonical hash and normalization pipeline instead of inventing a second one.
+  - [x] Keep code persistence hash-only by reusing `normalizeDepartmentUserAccessCode(...)`, `hashDepartmentUserAccessCode(...)`, and `getDepartmentUserAccessCodeSuffix(...)` from `webapp/lib/auth/department-user-access.ts`.
+  - [x] Make bulk generation deterministic under partial-failure conditions by returning per-department success, skip, and failure results, and by defining the no-eligible-departments path explicitly.
+  - [x] Enforce all PO-side mutations with `requireTenantRole(ctx, ["procurement_officer"])` and tenant-scoped reads or indexes.
 
-- [ ] Task 2: Build the Procurement Officer access-code workspace inside the current `/po` information architecture (AC: 1, 4-12, 16-17)
-  - [ ] Replace the current access-code placeholder content inside `webapp/src/components/procurement-officer/ProcurementOfficerDashboard.tsx` with a real workspace component such as `webapp/src/components/procurement-officer/ProcurementOfficerAccessCodesWorkspace.tsx`.
-  - [ ] Keep `webapp/app/(app)/po/access-codes/page.tsx` thin and preserve the current modal-backed navigation contract from `resolveProcurementOfficerWorkspaceNavigation(...)`.
-  - [ ] Patch the existing create-department modal from Story 4.2 so its `Generate` and `Email` actions call the new canonical generator instead of the old `CS2T`-style logic.
-  - [ ] Reuse the same canonical code language and value already exposed in the create-department flow so the `/po/departments` and `/po/access-codes` surfaces are visibly managing the same thing.
-  - [ ] Add a rotate or regenerate dialog that uses the repo-standard `react-hook-form` + Zod + shadcn/ui pattern already used in Story 4.2 dialog components, and ensure any missing-code repair path reuses the same new shared generator.
-  - [ ] Revalidate on submit that any defaulted or manually entered expiration is still a future timestamp, even if the dialog has been open across clock time or data refreshes.
-  - [ ] Add an explicit reveal or copy surface that only shows plaintext immediately after generation or rotation, and a masked list view for all later renders.
-  - [ ] Add guarded actions for bulk generation, send-by-email, and manual deactivation using the current tweakcn dashboard language, `lucide-react` icons, and `sonner` feedback patterns.
-  - [ ] Surface honest partial-success, no-eligible-target, stale-code, and incompatible-recipient states so operators can recover without guessing what happened.
-  - [ ] Keep the workspace desktop-first and aligned with the current PO dashboard instead of creating a second page design language.
+- [x] Task 2: Build the Procurement Officer access-code workspace inside the current `/po` information architecture (AC: 1, 4-12, 16-17)
+  - [x] Replace the current access-code placeholder content inside `webapp/src/components/procurement-officer/ProcurementOfficerDashboard.tsx` with a real workspace component such as `webapp/src/components/procurement-officer/ProcurementOfficerAccessCodesWorkspace.tsx`.
+  - [x] Keep `webapp/app/(app)/po/access-codes/page.tsx` thin and preserve the current modal-backed navigation contract from `resolveProcurementOfficerWorkspaceNavigation(...)`.
+  - [x] Patch the existing create-department modal from Story 4.2 so its `Generate` and `Email` actions call the new canonical generator instead of the old `CS2T`-style logic.
+  - [x] Reuse the same canonical code language and value already exposed in the create-department flow so the `/po/departments` and `/po/access-codes` surfaces are visibly managing the same thing.
+  - [x] Add a rotate or regenerate dialog that uses the repo-standard `react-hook-form` + Zod + shadcn/ui pattern already used in Story 4.2 dialog components, and ensure any missing-code repair path reuses the same new shared generator.
+  - [x] Revalidate on submit that any defaulted or manually entered expiration is still a future timestamp, even if the dialog has been open across clock time or data refreshes.
+  - [x] Add an explicit reveal or copy surface that only shows plaintext immediately after generation or rotation, and a masked list view for all later renders.
+  - [x] Add guarded actions for bulk generation, send-by-email, and manual deactivation using the current tweakcn dashboard language, `lucide-react` icons, and `sonner` feedback patterns.
+  - [x] Surface honest partial-success, no-eligible-target, stale-code, and incompatible-recipient states so operators can recover without guessing what happened.
+  - [x] Keep the workspace desktop-first and aligned with the current PO dashboard instead of creating a second page design language.
 
-- [ ] Task 3: Integrate request-context capture and DU auth history without forking the current DU sign-in system (AC: 13-15, 18)
-  - [ ] Add a signed request-context helper for DU access, patterned after `webapp/lib/platform-admin/request-context.ts` and `webapp/lib/platform-admin/request-context-token.ts`, so request-origin metadata can be captured from Next.js headers safely.
-  - [ ] Thread that signed request-context token through `webapp/app/access/department-user/page.tsx`, `webapp/src/components/auth/DepartmentUserAccessForm.tsx`, `webapp/convex/auth.ts`, and `webapp/convex/functions/departmentUserAuth.ts` for both challenge start and verify steps where needed.
-  - [ ] Record per-code history events from the existing DU auth flow for successful verification and for code-specific deny paths such as expired, deactivated, locked, or out-of-window attempts when an actual access code record is known.
-  - [ ] Treat expired, missing, or unverifiable request-context tokens as a logging degradation path rather than an auth blocker, and persist a truthful `origin unavailable` state when signed metadata cannot be trusted.
-  - [ ] Bound PO login-history reads with explicit pagination or limits from the first implementation so high-volume departments stay reviewable.
-  - [ ] Preserve Story 1.8 lockout, collision, deadline, and tenant-isolation behavior exactly; Story 4.3 may extend logging and PO observability, but it must not replace the DU auth authority.
+- [x] Task 3: Integrate request-context capture and DU auth history without forking the current DU sign-in system (AC: 13-15, 18)
+  - [x] Add a signed request-context helper for DU access, patterned after `webapp/lib/platform-admin/request-context.ts` and `webapp/lib/platform-admin/request-context-token.ts`, so request-origin metadata can be captured from Next.js headers safely.
+  - [x] Thread that signed request-context token through `webapp/app/access/department-user/page.tsx`, `webapp/src/components/auth/DepartmentUserAccessForm.tsx`, `webapp/convex/auth.ts`, and `webapp/convex/functions/departmentUserAuth.ts` for both challenge start and verify steps where needed.
+  - [x] Record per-code history events from the existing DU auth flow for successful verification and for code-specific deny paths such as expired, deactivated, locked, or out-of-window attempts when an actual access code record is known.
+  - [x] Treat expired, missing, or unverifiable request-context tokens as a logging degradation path rather than an auth blocker, and persist a truthful `origin unavailable` state when signed metadata cannot be trusted.
+  - [x] Bound PO login-history reads with explicit pagination or limits from the first implementation so high-volume departments stay reviewable.
+  - [x] Preserve Story 1.8 lockout, collision, deadline, and tenant-isolation behavior exactly; Story 4.3 may extend logging and PO observability, but it must not replace the DU auth authority.
 
-- [ ] Task 4: Reuse the current Convex-to-NestJS email bridge for access-code delivery instead of bypassing it (AC: 7-9, 18)
-  - [ ] Extend `webapp/convex/actions/email.ts` and the NestJS email DTO or renderer path so access-code delivery uses the existing service-JWT bridge, queueing, and idempotency architecture.
-  - [ ] Add or extend a NestJS email template under `nestjs/src/email/templates/` that is specific enough for access-code delivery, including the department name, expiration, and DU login CTA.
-  - [ ] Keep the delivery call server-owned through Convex actions and NestJS; do not send access-code emails directly from the browser.
-  - [ ] Reject send attempts for stale, rotated, expired, deactivated, or otherwise no-longer-current codes before queueing email, even if the UI is still showing an older reveal state.
-  - [ ] Reuse existing incompatible-email and role-collision checks where available so known-undeliverable sign-in targets are blocked before the bridge call.
-  - [ ] Reuse the existing external-service error contract and audit bridge patterns so bridge failures are deterministic, sanitized, and safe to retry.
+- [x] Task 4: Reuse the current Convex-to-NestJS email bridge for access-code delivery instead of bypassing it (AC: 7-9, 18)
+  - [x] Extend `webapp/convex/actions/email.ts` and the NestJS email DTO or renderer path so access-code delivery uses the existing service-JWT bridge, queueing, and idempotency architecture.
+  - [x] Add or extend a NestJS email template under `nestjs/src/email/templates/` that is specific enough for access-code delivery, including the department name, expiration, and DU login CTA.
+  - [x] Keep the delivery call server-owned through Convex actions and NestJS; do not send access-code emails directly from the browser.
+  - [x] Reject send attempts for stale, rotated, expired, deactivated, or otherwise no-longer-current codes before queueing email, even if the UI is still showing an older reveal state.
+  - [x] Reuse existing incompatible-email and role-collision checks where available so known-undeliverable sign-in targets are blocked before the bridge call.
+  - [x] Reuse the existing external-service error contract and audit bridge patterns so bridge failures are deterministic, sanitized, and safe to retry.
 
-- [ ] Task 5: Add deterministic regression coverage for generation rules, email delivery, history logging, and reactive dashboard updates (AC: 1-18)
-  - [ ] Add pure tests for access-code format generation, suffix masking, fiscal-year resolution, expiration-default derivation, deadline-missing fallback behavior, and bulk-generation selection rules.
-  - [ ] Add backend tests for generate, rotate, duplicate active-code invalidation, manual deactivation, bulk generation, zero-eligible bulk requests, partial-failure bulk summaries, unauthorized or foreign-tenant access, stale-code email rejection, incompatible-recipient rejection, and audit-log writes.
-  - [ ] Add DU auth regression tests proving Story 4.3 request-context and history additions do not break the existing access-code sign-in, lockout, or deadline-window behavior, and that expired request-context tokens degrade gracefully to missing-origin history instead of failing valid auth.
-  - [ ] Add PO dashboard or workspace tests proving access-code coverage updates reactively after generate, deactivate, and rotate actions.
-  - [ ] Add email-bridge tests across `webapp/convex/actions/email.ts` and the NestJS email module so template selection, idempotency, stale-code rejection, and queueing stay deterministic.
-  - [ ] Update `webapp/tests/run-tests.ts` and any NestJS test registration needed so the new guardrail coverage runs in the standard suites.
+- [x] Task 5: Add deterministic regression coverage for generation rules, email delivery, history logging, and reactive dashboard updates (AC: 1-18)
+  - [x] Add pure tests for access-code format generation, suffix masking, fiscal-year resolution, expiration-default derivation, deadline-missing fallback behavior, and bulk-generation selection rules.
+  - [x] Add backend tests for generate, rotate, duplicate active-code invalidation, manual deactivation, bulk generation, zero-eligible bulk requests, partial-failure bulk summaries, unauthorized or foreign-tenant access, stale-code email rejection, incompatible-recipient rejection, and audit-log writes.
+  - [x] Add DU auth regression tests proving Story 4.3 request-context and history additions do not break the existing access-code sign-in, lockout, or deadline-window behavior, and that expired request-context tokens degrade gracefully to missing-origin history instead of failing valid auth.
+  - [x] Add PO dashboard or workspace tests proving access-code coverage updates reactively after generate, deactivate, and rotate actions.
+  - [x] Add email-bridge tests across `webapp/convex/actions/email.ts` and the NestJS email module so template selection, idempotency, stale-code rejection, and queueing stay deterministic.
+  - [x] Update `webapp/tests/run-tests.ts` and any NestJS test registration needed so the new guardrail coverage runs in the standard suites.
 
 ## Dev Notes
 
@@ -445,86 +445,64 @@ gpt-5-codex
 ### Debug Log References
 
 - Workflow engine: `_bmad/core/tasks/workflow.xml`
-- Create-story workflow: `_bmad/bmm/workflows/4-implementation/create-story/workflow.yaml`
-- Create-story instructions: `_bmad/bmm/workflows/4-implementation/create-story/instructions.xml`
-- Create-story checklist: `_bmad/bmm/workflows/4-implementation/create-story/checklist.md`
+- Dev-story workflow: `_bmad/bmm/workflows/4-implementation/dev-story/workflow.yaml`
+- Dev-story instructions: `_bmad/bmm/workflows/4-implementation/dev-story/instructions.xml`
+- Dev-story checklist: `_bmad/bmm/workflows/4-implementation/dev-story/checklist.md`
 - Sprint source: `_bmad-output/implementation-artifacts/sprint-status.yaml`
-- Epic source: `_bmad-output/implementation-artifacts/epics/epic4/epic-04-po-department-catalog.md`
-- Previous story sources:
-  - `_bmad-output/implementation-artifacts/epics/epic4/stories/4-1-po-dashboard-onboarding-wizard.md`
-  - `_bmad-output/implementation-artifacts/epics/epic4/stories/4-2-department-crud-operations.md`
-  - `_bmad-output/implementation-artifacts/epics/epic1/completed/1-8-du-access-code-authentication.md`
-- Planning sources:
-  - `_bmad-output/planning-artifacts/prd.md`
-  - `_bmad-output/planning-artifacts/architecture.md`
-  - `_bmad-output/planning-artifacts/ux-design-specification.md`
-  - `_bmad-output/project-context.md`
-- Current implementation sources:
-  - `webapp/package.json`
-  - `webapp/app/(app)/po/access-codes/page.tsx`
-  - `webapp/app/access/department-user/page.tsx`
-  - `webapp/src/components/auth/DepartmentUserAccessForm.tsx`
-  - `webapp/src/components/procurement-officer/ProcurementOfficerDashboard.tsx`
-  - `webapp/src/components/procurement-officer/ProcurementOfficerDepartmentsWorkspace.tsx`
-  - `webapp/src/components/procurement-officer/DepartmentFormDialog.tsx`
-  - `webapp/src/components/procurement-officer/DeleteDepartmentDialog.tsx`
-  - `webapp/lib/procurement-officer/dashboard.ts`
-  - `webapp/lib/procurement-officer/dashboard-snapshot.ts`
-  - `webapp/lib/procurement-officer/departments.ts`
-  - `webapp/lib/auth/department-user-access.ts`
-  - `webapp/lib/platform-admin/request-context.ts`
-  - `webapp/lib/platform-admin/request-context-token.ts`
-  - `webapp/lib/security/audit.ts`
-  - `webapp/convex/auth.ts`
-  - `webapp/convex/schema.ts`
-  - `webapp/convex/functions/departments.ts`
-  - `webapp/convex/functions/departmentUserAuth.ts`
-  - `webapp/convex/functions/procurementOfficerDashboard.ts`
-  - `webapp/convex/actions/email.ts`
-  - `webapp/convex/actions/_helpers.ts`
-  - `webapp/convex/seedData.ts`
-  - `webapp/tests/procurement-officer-dashboard.test.ts`
-  - `webapp/tests/procurement-officer-departments.test.ts`
-  - `webapp/tests/department-user-access.test.ts`
-  - `nestjs/src/email/dto/send-email.dto.ts`
-  - `nestjs/src/email/email.controller.ts`
-  - `nestjs/src/email/email.service.ts`
-  - `nestjs/src/email/template-renderer.service.ts`
-- Git context:
-  - `git log -5 --oneline`
-  - `git show --stat --format=medium -1 56988fe`
-- Package metadata checks:
-  - `npm view next version`
-  - `npm view convex version`
-  - `npm view @convex-dev/auth version`
-  - `npm view react-hook-form version`
-  - `npm view zod version`
-  - `npm view resend version`
-- External validation sources:
-  - `https://nextjs.org/docs/app/api-reference/file-conventions/page`
-  - `https://nextjs.org/docs/app/guides/authentication`
-  - `https://docs.convex.dev/client/react`
-  - `https://docs.convex.dev/database/reading-data/indexes/`
-  - `https://raw.githubusercontent.com/get-convex/convex-auth/main/docs/pages/api_reference/server.mdx`
-  - `https://ui.shadcn.com/docs/components/dialog`
-  - `https://resend.com/docs/api-reference/emails/send-email`
+- Story source: `_bmad-output/implementation-artifacts/epics/epic4/stories/4-3-access-code-generation-management.md`
+- Project context: `_bmad-output/project-context.md`
+- Verification commands:
+  - `cd webapp && npx convex codegen`
+  - `cd webapp && npm test`
+  - `cd webapp && npm run lint`
+  - `cd nestjs && npm test`
+  - `cd nestjs && npm run lint`
 
 ### Completion Notes List
 
-- 2026-03-26: Identified `4-3-access-code-generation-management` as the next Epic 4 backlog story after the current sprint-status updates.
-- 2026-03-26: Loaded Epic 4, prior Epic 4 stories, Story 1.8 DU auth context, project planning artifacts, live schema, current PO dashboard and departments workspace, the external email bridge, and the platform-admin request-context pattern before drafting the story.
-- 2026-03-26: Anchored Story 4.3 to the existing hash-only DU access-code model, the modal-backed `/po/access-codes` route contract, the current Convex-to-NestJS email bridge, and a signed request-context approach for truthful per-code login history.
-- 2026-03-26: Explicitly documented the deadline-default scope boundary with Story 4.5 so Story 4.3 does not fabricate submission windows or weaken existing DU auth protections.
+- 2026-03-26: Added a dedicated `webapp/convex/functions/accessCodes.ts` domain module, canonical access-code helpers, schema extensions, audit vocabulary, and append-only access-code history records for generate, rotate, deactivate, bulk, and delivery tracking flows.
+- 2026-03-26: Replaced the PO access-code placeholder with a full management workspace, aligned the department create-modal generation and email actions with the canonical code format, and preserved the existing modal-backed `/po/access-codes` navigation contract.
+- 2026-03-26: Threaded signed DU request-context metadata through the access flow, logged bounded per-code login outcomes without changing Story 1.8 auth authority, and reused the Convex-to-NestJS email bridge with an access-code delivery template plus delivery-state bookkeeping.
+- 2026-03-26: Reverified the story with `cd webapp && npx convex codegen`, `cd webapp && npm test`, `cd webapp && npm run lint`, `cd nestjs && npm test`, and `cd nestjs && npm run lint`.
+
+### Change Log
+
+- 2026-03-26: Implemented Story 4.3 access-code management backend, PO workspace UI, DU request-context and login-history extensions, access-code delivery bridge support, and regression coverage across webapp and NestJS suites.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/epics/epic4/stories/4-3-access-code-generation-management.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `nestjs/src/email/dto/send-email.dto.ts`
+- `nestjs/src/email/template-renderer.service.ts`
+- `nestjs/src/email/templates/access-code-delivery.template.ts`
+- `nestjs/test/email-template-renderer.service.spec.ts`
+- `webapp/app/access/department-user/page.tsx`
+- `webapp/convex/_generated/api.d.ts`
+- `webapp/convex/actions/email.ts`
+- `webapp/convex/auth.ts`
+- `webapp/convex/functions/accessCodes.ts`
+- `webapp/convex/functions/departmentUserAuth.ts`
+- `webapp/convex/functions/departments.ts`
+- `webapp/convex/schema.ts`
+- `webapp/lib/auth/department-user-request-context-token.ts`
+- `webapp/lib/auth/department-user-request-context.ts`
+- `webapp/lib/procurement-officer/access-codes.ts`
+- `webapp/lib/procurement-officer/departments.ts`
+- `webapp/lib/security/audit.ts`
+- `webapp/src/components/auth/DepartmentUserAccessForm.tsx`
+- `webapp/src/components/procurement-officer/DepartmentFormDialog.tsx`
+- `webapp/src/components/procurement-officer/ProcurementOfficerAccessCodesWorkspace.tsx`
+- `webapp/src/components/procurement-officer/ProcurementOfficerDashboard.tsx`
+- `webapp/tests/department-user-request-context.test.ts`
+- `webapp/tests/procurement-officer-access-codes.test.ts`
+- `webapp/tests/procurement-officer-departments.test.ts`
+- `webapp/tests/run-tests.ts`
 
 ### Story Completion Status
 
 - Story ID: `4.3`
 - Story Key: `4-3-access-code-generation-management`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic4/stories/4-3-access-code-generation-management.md`
-- Final Status: `ready-for-dev`
-- Completion Note: `Ultimate context engine analysis completed - comprehensive developer guide created`
+- Final Status: `review`
+- Completion Note: `Implemented Story 4.3 access-code backend and schema support, replaced the PO placeholder with a real access-code management workspace, extended DU login history with signed request context, reused the existing email bridge for delivery, and reverified the webapp and NestJS suites locally.`

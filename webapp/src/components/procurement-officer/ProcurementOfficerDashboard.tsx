@@ -50,6 +50,7 @@ import type {
     ProcurementOfficerDashboardSummaryCard,
 } from "@/lib/procurement-officer/dashboard-snapshot";
 import { cn } from "@/lib/utils";
+import { ProcurementOfficerAccessCodesWorkspace } from "./ProcurementOfficerAccessCodesWorkspace";
 import { ProcurementOfficerDepartmentsWorkspace } from "./ProcurementOfficerDepartmentsWorkspace";
 
 /* ─── Donut Ring ──────────────────────────────────────────────────── */
@@ -618,8 +619,8 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                                 <div className="mt-auto rounded-xl border border-border/60 bg-muted/20 p-3">
                                     <div className="flex items-center justify-between gap-2">
                                         <div className="flex items-center gap-2">
-                                            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
-                                                <KeyRound className="h-3 w-3" />
+                                            <div className="flex h-7 w-7 items-center justify-center rounded-xl border border-amber-300/70 bg-amber-200 text-amber-950 shadow-sm dark:border-amber-300/25 dark:bg-amber-400/20 dark:text-amber-50">
+                                                <KeyRound className="h-3.5 w-3.5" />
                                             </div>
                                             <span className="text-[12px] font-semibold text-foreground">
                                                 Access Codes
@@ -643,14 +644,14 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                                     <div className="flex items-center justify-between gap-2">
                                         <div className="flex items-center gap-2">
                                             <div className={cn(
-                                                "flex h-6 w-6 items-center justify-center rounded-lg",
+                                                "flex h-7 w-7 items-center justify-center rounded-xl border shadow-sm",
                                                 snapshot.alerts.some(a => a.id === "deadline")
-                                                    ? "bg-rose-200 text-rose-950 dark:bg-rose-950/80 dark:text-rose-100"
-                                                    : "bg-emerald-200 text-emerald-950 dark:bg-emerald-950/80 dark:text-emerald-100"
+                                                    ? "border-rose-300/70 bg-rose-200 text-rose-950 dark:border-rose-300/25 dark:bg-rose-400/20 dark:text-rose-50"
+                                                    : "border-emerald-300/70 bg-emerald-200 text-emerald-950 dark:border-emerald-300/25 dark:bg-emerald-400/20 dark:text-emerald-50"
                                             )}>
                                                 {snapshot.alerts.some(a => a.id === "deadline")
-                                                    ? <AlertTriangle className="h-3 w-3" />
-                                                    : <CheckCircle2 className="h-3 w-3" />
+                                                    ? <AlertTriangle className="h-3.5 w-3.5" />
+                                                    : <CheckCircle2 className="h-3.5 w-3.5" />
                                                 }
                                             </div>
                                             <span className="text-[12px] font-semibold text-foreground">
@@ -677,7 +678,6 @@ export function ProcurementOfficerDashboard(): JSX.Element {
 
             {/* Workspace modal */}
                 <WorkspaceModal
-                    accessCodeCard={accessCodeCard}
                     activeModal={activeModal}
                     categoriesPanel={categoriesPanel}
                     deadlineCard={deadlineCard}
@@ -853,7 +853,6 @@ function InlineStatePill({ label, state, value }: { label: string; state: Procur
 /* ─── Workspace Modal ─────────────────────────────────────────────── */
 
 function WorkspaceModal({
-    accessCodeCard,
     activeModal,
     categoriesPanel,
     deadlineCard,
@@ -865,7 +864,6 @@ function WorkspaceModal({
     onCategorySectionChange,
     onClose,
 }: {
-    accessCodeCard?: ProcurementOfficerDashboardSummaryCard;
     activeModal: ProcurementOfficerWorkspaceModalState | null;
     categoriesPanel?: ProcurementOfficerDashboardFuturePanel;
     deadlineCard?: ProcurementOfficerDashboardSummaryCard;
@@ -949,34 +947,7 @@ function WorkspaceModal({
                     ) : null}
 
                     {activeModal?.modal === "access-codes" ? (
-                        <>
-                            <div className="grid gap-3 md:grid-cols-3">
-                                <ModalMetricCard label="Coverage" value={accessCodeCard?.value ?? "--"} />
-                                <ModalMetricCard
-                                    label="Departments ready"
-                                    value={String(snapshot.departmentReadiness.items.filter((i) => i.accessCode.state === "available").length)}
-                                />
-                                <ModalMetricCard label="Fiscal year" value={fiscalYearLabel} />
-                            </div>
-                            <div className="space-y-3">
-                                {snapshot.departmentReadiness.items.length === 0 ? (
-                                    <EmptyWorkspaceState
-                                        body="Access-code coverage unlocks once departments exist."
-                                        title="Waiting for departments"
-                                    />
-                                ) : (
-                                    snapshot.departmentReadiness.items.map((item) => (
-                                        <CompactStatusCard
-                                            key={item.id}
-                                            helper={item.blockerSummary}
-                                            label={item.name}
-                                            state={item.accessCode.state}
-                                            value={item.accessCode.label}
-                                        />
-                                    ))
-                                )}
-                            </div>
-                        </>
+                        <ProcurementOfficerAccessCodesWorkspace />
                     ) : null}
 
                     {activeModal?.modal === "deadlines" ? (
@@ -1014,20 +985,6 @@ function WorkspaceModal({
 }
 
 /* ─── Small sub-components ────────────────────────────────────────── */
-
-function CompactStatusCard({ helper, label, state, value }: { helper: string; label: string; state: ProcurementDashboardState; value: string }) {
-    return (
-        <div className="rounded-2xl border border-border/70 bg-card p-4">
-            <div className="flex items-start justify-between gap-3">
-                <div>
-                    <div className="font-semibold text-foreground">{label}</div>
-                    <div className="mt-1 text-sm leading-6 text-muted-foreground">{helper}</div>
-                </div>
-                <StateBadge state={state} label={value} />
-            </div>
-        </div>
-    );
-}
 
 function EmptyWorkspaceState({ body, title }: { body: string; title: string }) {
     return (
@@ -1092,7 +1049,7 @@ function getWorkspaceTitle(activeModal: ProcurementOfficerWorkspaceModalState | 
     switch (activeModal?.modal) {
         case "requests": return "Requests workspace";
         case "categories": return activeModal.section === "items" ? "Categories and items workspace" : "Categories workspace";
-        case "access-codes": return "Access-code coverage";
+        case "access-codes": return "Access-code management";
         case "deadlines": return "Deadline readiness";
         default: return "Departments workspace";
     }
@@ -1102,7 +1059,7 @@ function getWorkspaceDescription(activeModal: ProcurementOfficerWorkspaceModalSt
     switch (activeModal?.modal) {
         case "requests": return "Request inbox and submission monitoring now open as a dashboard modal, keeping the PO flow in one place until the live queue stories land.";
         case "categories": return activeModal.section === "items" ? "Items are nested under categories on purpose, so the dashboard stays tighter and the catalog story can grow in one workspace." : "Categories now open inside the dashboard, with items folded into the same workspace instead of taking their own card.";
-        case "access-codes": return "Access-code follow-up stays attached to the dashboard context, so you can audit missing coverage without bouncing into a placeholder page.";
+        case "access-codes": return "Access-code management now runs as a real dashboard workspace, so you can generate, rotate, deactivate, email, and review bounded login history without leaving the /po shell.";
         case "deadlines": return "Deadline warnings now resolve inside the dashboard, keeping fiscal-year signals, alerts, and department readiness in one flow.";
         default: return "Create, edit, and review department readiness inside the dashboard modal.";
     }
