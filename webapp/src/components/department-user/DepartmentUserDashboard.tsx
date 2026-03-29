@@ -23,6 +23,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatDeadlineCountdown } from "@/lib/procurement-officer/deadlines";
 import { sanitizeCategorySelection, selectAllCategories, toggleCategorySelection } from "@/lib/department-user/dashboard";
 import type { DepartmentUserDashboardSnapshot } from "@/lib/department-user/dashboard-snapshot";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ export function DepartmentUserDashboard(): JSX.Element {
     );
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
     const [isBudgetOpen, setIsBudgetOpen] = useState(false);
+    const [countdownNow, setCountdownNow] = useState(() => Date.now());
 
     useEffect(() => {
         if (!snapshot) {
@@ -54,6 +56,18 @@ export function DepartmentUserDashboard(): JSX.Element {
             }),
         );
     }, [snapshot]);
+
+    useEffect(() => {
+        if (!snapshot?.quickStats.deadline.targetAt) {
+            return;
+        }
+
+        const interval = window.setInterval(() => {
+            setCountdownNow(Date.now());
+        }, 30_000);
+
+        return () => window.clearInterval(interval);
+    }, [snapshot?.quickStats.deadline.targetAt]);
 
     if (!snapshot) {
         return <DepartmentUserDashboardSkeleton />;
@@ -136,7 +150,7 @@ export function DepartmentUserDashboard(): JSX.Element {
                             setIsBudgetOpen={setIsBudgetOpen}
                         />
                         <PlanStatCard plan={dashboardSnapshot.quickStats.plan} />
-                        <DeadlineCard deadline={dashboardSnapshot.quickStats.deadline} />
+                        <DeadlineCard countdownNow={countdownNow} deadline={dashboardSnapshot.quickStats.deadline} />
                     </div>
 
                     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
@@ -284,10 +298,21 @@ function PlanStatCard({ plan }: { plan: DepartmentUserDashboardSnapshot["quickSt
 }
 
 function DeadlineCard({
+    countdownNow,
     deadline,
 }: {
+    countdownNow: number;
     deadline: DepartmentUserDashboardSnapshot["quickStats"]["deadline"];
 }) {
+    const liveGaugeLabel =
+        deadline.targetAt &&
+        (deadline.state === "available" || deadline.state === "coming_soon")
+            ? formatDeadlineCountdown({
+                  deadlineAt: deadline.targetAt,
+                  now: countdownNow,
+              })
+            : deadline.gaugeLabel;
+
     return (
         <Card className="rounded-[26px] border-border/70 shadow-sm">
             <CardHeader className="space-y-3 pb-4">
@@ -308,12 +333,12 @@ function DeadlineCard({
                                 "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100",
                         )}
                     >
-                        {deadline.gaugeLabel}
+                        {liveGaugeLabel}
                     </Badge>
                 </div>
                 <div className="flex items-center gap-4">
                     <ThemedDeadlineRing
-                        label={deadline.gaugeLabel}
+                        label={liveGaugeLabel}
                         percent={deadline.gaugePercent}
                         state={deadline.state}
                         urgent={deadline.isUrgent}

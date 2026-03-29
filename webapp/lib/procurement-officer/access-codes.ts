@@ -1,6 +1,7 @@
 import {
     deriveSharedSubmissionDeadline,
     getProcurementFiscalYearForDate,
+    type ProcurementSubmissionDeadlineRecord,
     type ProcurementDepartmentWindowRecord,
 } from "./dashboard";
 import { normalizePlainText } from "../security/input";
@@ -186,15 +187,32 @@ export function maskCanonicalDepartmentAccessCode(code: string): string {
 }
 
 export function deriveAccessCodeExpirationDefault(args: {
+    deadlineRecord?: ProcurementSubmissionDeadlineRecord | null;
     departments: readonly ProcurementDepartmentWindowRecord[];
+    fiscalYearKey?: string;
+    fiscalYearStartMonth?: number | null;
+    tenantTimeZone?: string | null;
 }): AccessCodeExpirationDefault {
-    const sharedDeadline = deriveSharedSubmissionDeadline(args.departments);
+    const fiscalYearKey =
+        args.fiscalYearKey ??
+        getProcurementFiscalYearForDate(Date.now(), {
+            fiscalYearStartMonth: args.fiscalYearStartMonth,
+            timeZone: args.tenantTimeZone,
+        }).key;
+    const sharedDeadline = deriveSharedSubmissionDeadline({
+        deadlineRecord: args.deadlineRecord,
+        departments: args.departments,
+        fiscalYearKey,
+        fiscalYearStartMonth: args.fiscalYearStartMonth,
+        now: Date.now(),
+        tenantTimeZone: args.tenantTimeZone,
+    });
 
     return {
         deadlineAt: sharedDeadline.deadlineAt,
         label:
             sharedDeadline.state === "available"
-                ? sharedDeadline.label
+                ? `${sharedDeadline.label} (${sharedDeadline.timeZone})`
                 : "Manual expiration required",
         state: sharedDeadline.state,
     };

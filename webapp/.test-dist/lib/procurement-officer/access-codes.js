@@ -98,11 +98,23 @@ function maskCanonicalDepartmentAccessCode(code) {
 }
 exports.maskCanonicalDepartmentAccessCode = maskCanonicalDepartmentAccessCode;
 function deriveAccessCodeExpirationDefault(args) {
-    const sharedDeadline = (0, dashboard_1.deriveSharedSubmissionDeadline)(args.departments);
+    const fiscalYearKey = args.fiscalYearKey ??
+        (0, dashboard_1.getProcurementFiscalYearForDate)(Date.now(), {
+            fiscalYearStartMonth: args.fiscalYearStartMonth,
+            timeZone: args.tenantTimeZone,
+        }).key;
+    const sharedDeadline = (0, dashboard_1.deriveSharedSubmissionDeadline)({
+        deadlineRecord: args.deadlineRecord,
+        departments: args.departments,
+        fiscalYearKey,
+        fiscalYearStartMonth: args.fiscalYearStartMonth,
+        now: Date.now(),
+        tenantTimeZone: args.tenantTimeZone,
+    });
     return {
         deadlineAt: sharedDeadline.deadlineAt,
         label: sharedDeadline.state === "available"
-            ? sharedDeadline.label
+            ? `${sharedDeadline.label} (${sharedDeadline.timeZone})`
             : "Manual expiration required",
         state: sharedDeadline.state,
     };

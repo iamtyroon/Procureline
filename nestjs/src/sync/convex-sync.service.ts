@@ -71,16 +71,32 @@ export class ConvexSyncService {
     return this.postSyncCommand("fail", { ...input });
   }
 
+  async claimReminderDispatch(input: {
+    reminderJobId: string;
+  }): Promise<{
+    allowSend: boolean;
+    reason: "inactive" | "ready" | "superseded";
+    statusMessage: string | null;
+  }> {
+    return this.postJson("/api/services/deadlines/reminder-dispatch", {
+      reminderJobId: input.reminderJobId,
+    });
+  }
+
   private createPayloadHash(payload: unknown): string {
     return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
   }
 
   private async postSyncCommand<TResponse>(command: "claim" | "complete" | "fail", payload: Record<string, unknown>): Promise<TResponse> {
-    const response = await fetch(`${this.convexUrl}/api/services/sync`, {
-      body: JSON.stringify({
-        command,
-        ...payload,
-      }),
+    return this.postJson("/api/services/sync", {
+      command,
+      ...payload,
+    });
+  }
+
+  private async postJson<TResponse>(path: string, payload: Record<string, unknown>): Promise<TResponse> {
+    const response = await fetch(`${this.convexUrl}${path}`, {
+      body: JSON.stringify(payload),
       headers: {
         "content-type": "application/json",
         "x-procureline-sync-secret": this.syncSecret,

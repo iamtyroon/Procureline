@@ -25,6 +25,7 @@ export default defineSchema({
         primaryContactPhone: v.optional(v.string()),
         procurementBudgetCeiling: v.optional(v.number()),
         fiscalYearStartMonth: v.optional(v.number()),
+        timeZone: v.optional(v.string()),
         logoUrl: v.optional(v.string()),
         onboardingCompletedAt: v.optional(v.number()),
         createdAt: v.number(),
@@ -161,6 +162,60 @@ export default defineSchema({
         .index("by_tenantId_normalizedCode", ["tenantId", "normalizedCode"])
         .index("by_tenantId_normalizedName", ["tenantId", "normalizedName"])
         .index("by_procurementOfficerTenantUserId", ["procurementOfficerTenantUserId"]),
+
+    submissionDeadlines: defineTable({
+        announcementIssuedAt: v.optional(v.number()),
+        announcementMessage: v.optional(v.string()),
+        announcementTitle: v.optional(v.string()),
+        createdAt: v.number(),
+        createdByTenantUserId: v.id("tenantUsers"),
+        deadlineVersion: v.number(),
+        fiscalYearKey: v.string(),
+        lastChangeType: v.union(
+            v.literal("edited"),
+            v.literal("extension"),
+            v.literal("initial_setup"),
+            v.literal("tightened"),
+        ),
+        lastExtensionReason: v.optional(v.string()),
+        previousSubmissionEndsAt: v.optional(v.number()),
+        reminderOffsets: v.array(v.number()),
+        scheduledReminderOffsets: v.array(v.number()),
+        skippedReminderOffsets: v.array(v.number()),
+        submissionEndsAt: v.number(),
+        submissionStartsAt: v.number(),
+        tenantId: v.id("tenants"),
+        timeZone: v.string(),
+        updatedAt: v.number(),
+        updatedByTenantUserId: v.id("tenantUsers"),
+    })
+        .index("by_tenantId", ["tenantId", "updatedAt"])
+        .index("by_tenantId_fiscalYearKey", ["tenantId", "fiscalYearKey"]),
+
+    submissionDeadlineReminderJobs: defineTable({
+        createdAt: v.number(),
+        deadlineVersion: v.number(),
+        deliverAt: v.number(),
+        fiscalYearKey: v.string(),
+        idempotencyKey: v.string(),
+        jobId: v.optional(v.string()),
+        recipientEmail: v.string(),
+        reminderOffsetDays: v.number(),
+        status: v.union(
+            v.literal("cancelled"),
+            v.literal("failed"),
+            v.literal("scheduled"),
+            v.literal("skipped"),
+        ),
+        statusMessage: v.optional(v.string()),
+        submissionDeadlineId: v.id("submissionDeadlines"),
+        tenantId: v.id("tenants"),
+        updatedAt: v.number(),
+    })
+        .index("by_jobId", ["jobId"])
+        .index("by_idempotencyKey", ["idempotencyKey"])
+        .index("by_submissionDeadlineId_version", ["submissionDeadlineId", "deadlineVersion"])
+        .index("by_tenantId_fiscalYearKey", ["tenantId", "fiscalYearKey", "deadlineVersion"]),
 
     procurementCategories: defineTable({
         tenantId: v.id("tenants"),

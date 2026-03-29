@@ -6,6 +6,7 @@ describe("EmailService", () => {
   const webhookSecret = "resend-test-secret";
   const queueService = {
     enqueue: jest.fn().mockResolvedValue({ id: "job-1" }),
+    remove: jest.fn().mockResolvedValue({ removed: false }),
   };
   const convexSyncService = {
     claimSync: jest.fn().mockResolvedValue({ status: "claimed" }),
@@ -91,6 +92,46 @@ describe("EmailService", () => {
           error: expect.objectContaining({
             code: "QUEUE_ENQUEUE_FAILED",
           }),
+        }),
+      );
+    });
+
+    it("converts a deliverAt timestamp into a BullMQ delay", async () => {
+      await emailService.queueEmail(
+        {
+          deliverAt: Date.now() + 60_000,
+          idempotencyKey: "key-delay",
+          subject: "Reminder",
+          template: "deadline-reminder",
+          to: "test@example.com",
+        } as never,
+        { sub: "user_1", tenantId: "tenant_1", role: "tenant_admin" } as never,
+      );
+
+      expect(queueService.enqueue).toHaveBeenCalledWith(
+        "email.send",
+        expect.any(Object),
+        expect.objectContaining({
+          delay: expect.any(Number),
+          jobId: "key-delay",
+        }),
+      );
+    });
+  });
+
+  describe("cancelQueuedEmail", () => {
+    it("removes the queued job and completes the sync record", async () => {
+      queueService.remove = jest.fn().mockResolvedValue({ removed: true });
+
+      const result = await emailService.cancelQueuedEmail("key-1");
+
+      expect(result).toEqual({
+        cancelled: true,
+        eventKey: "email:key-1",
+      });
+      expect(convexSyncService.completeSync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventKey: "email:key-1",
         }),
       );
     });

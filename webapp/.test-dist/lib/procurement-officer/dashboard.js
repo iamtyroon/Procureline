@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.isValidDepartmentWindow = exports.formatCoverageValue = exports.deriveProcurementChecklist = exports.deriveSharedSubmissionDeadline = exports.buildAvailableProcurementFiscalYears = exports.getDepartmentFiscalYearKey = exports.resolveProcurementOfficerWorkspaceNavigation = exports.buildProcurementOfficerWorkspaceModalPath = exports.normalizeProcurementOfficerWorkspaceModalState = exports.isProcurementOfficerWorkspaceSection = exports.isProcurementOfficerWorkspaceModal = exports.formatProcurementFiscalYearLabel = exports.getProcurementFiscalYearForDate = exports.PROCUREMENT_OFFICER_WORKSPACE_SECTIONS = exports.PROCUREMENT_OFFICER_WORKSPACE_MODALS = void 0;
-const date_fns_1 = require("date-fns");
 const dashboard_1 = require("../tenant-admin/dashboard");
+const deadlines_1 = require("./deadlines");
 exports.PROCUREMENT_OFFICER_WORKSPACE_MODALS = [
     "access-codes",
     "categories",
@@ -11,8 +11,26 @@ exports.PROCUREMENT_OFFICER_WORKSPACE_MODALS = [
     "requests",
 ];
 exports.PROCUREMENT_OFFICER_WORKSPACE_SECTIONS = ["items"];
-function getProcurementFiscalYearForDate(input) {
-    return (0, dashboard_1.getFiscalYearForDate)(input);
+function getProcurementFiscalYearForDate(input, args) {
+    if (!args?.timeZone && !args?.fiscalYearStartMonth) {
+        return (0, dashboard_1.getFiscalYearForDate)(input);
+    }
+    const resolvedTimeZone = (0, deadlines_1.resolveDeadlineTimeZone)({
+        tenantTimeZone: args.timeZone,
+    });
+    const timestamp = input instanceof Date ? input.getTime() : input;
+    const fiscalYear = (0, deadlines_1.getFiscalYearForTimestampInTimeZone)({
+        fiscalYearStartMonth: args.fiscalYearStartMonth,
+        timeZone: resolvedTimeZone.timeZone,
+        timestamp,
+    });
+    return {
+        endYear: fiscalYear.endYear,
+        isCurrent: true,
+        key: fiscalYear.key,
+        label: `FY ${fiscalYear.label}`,
+        startYear: fiscalYear.startYear,
+    };
 }
 exports.getProcurementFiscalYearForDate = getProcurementFiscalYearForDate;
 function formatProcurementFiscalYearLabel(fiscalYearKey) {
@@ -115,86 +133,75 @@ function resolveProcurementOfficerWorkspaceNavigation(href) {
     }
 }
 exports.resolveProcurementOfficerWorkspaceNavigation = resolveProcurementOfficerWorkspaceNavigation;
-function getDepartmentFiscalYearKey(department) {
+function getDepartmentFiscalYearKey(department, args) {
     if (!department.isActive ||
         typeof department.submissionStartsAt !== "number" ||
         typeof department.submissionEndsAt !== "number" ||
         department.submissionEndsAt <= department.submissionStartsAt) {
         return null;
     }
-    const startFiscalYear = (0, dashboard_1.getFiscalYearForDate)(department.submissionStartsAt).key;
-    const endFiscalYear = (0, dashboard_1.getFiscalYearForDate)(department.submissionEndsAt).key;
+    const resolvedTimeZone = (0, deadlines_1.resolveDeadlineTimeZone)({
+        tenantTimeZone: args?.timeZone,
+    });
+    const startFiscalYear = (0, deadlines_1.getFiscalYearForTimestampInTimeZone)({
+        fiscalYearStartMonth: args?.fiscalYearStartMonth,
+        timeZone: resolvedTimeZone.timeZone,
+        timestamp: department.submissionStartsAt,
+    }).key;
+    const endFiscalYear = (0, deadlines_1.getFiscalYearForTimestampInTimeZone)({
+        fiscalYearStartMonth: args?.fiscalYearStartMonth,
+        timeZone: resolvedTimeZone.timeZone,
+        timestamp: department.submissionEndsAt,
+    }).key;
     return startFiscalYear === endFiscalYear ? startFiscalYear : null;
 }
 exports.getDepartmentFiscalYearKey = getDepartmentFiscalYearKey;
 function buildAvailableProcurementFiscalYears(args) {
-    const safeYears = new Set();
+    const safeYears = new Set(args.existingFiscalYearKeys ?? []);
     for (const department of args.departments) {
-        const fiscalYearKey = getDepartmentFiscalYearKey(department);
+        const fiscalYearKey = getDepartmentFiscalYearKey(department, {
+            fiscalYearStartMonth: args.fiscalYearStartMonth,
+            timeZone: args.timeZone,
+        });
         if (fiscalYearKey) {
             safeYears.add(fiscalYearKey);
         }
     }
-    return Array.from(safeYears).sort((left, right) => right.localeCompare(left));
+    return (0, deadlines_1.buildDeadlineFiscalYearOptions)({
+        existingFiscalYearKeys: Array.from(safeYears),
+        fiscalYearStartMonth: args.fiscalYearStartMonth,
+        now: args.now,
+        requestedFiscalYear: args.requestedFiscalYear,
+        timeZone: (0, deadlines_1.resolveDeadlineTimeZone)({
+            tenantTimeZone: args.timeZone,
+        }).timeZone,
+    });
 }
 exports.buildAvailableProcurementFiscalYears = buildAvailableProcurementFiscalYears;
-function deriveSharedSubmissionDeadline(departments) {
-    const activeDepartments = departments.filter((department) => department.isActive);
-    if (activeDepartments.length === 0) {
-        return {
-            deadlineAt: null,
-            label: "Not configured",
-            reason: "no_departments",
-            startAt: null,
-            state: "setup_required",
-        };
-    }
-    const starts = [];
-    const ends = [];
-    for (const department of activeDepartments) {
-        if (typeof department.submissionStartsAt !== "number" ||
-            typeof department.submissionEndsAt !== "number") {
-            return {
-                deadlineAt: null,
-                label: "Not configured",
-                reason: "missing_window",
-                startAt: null,
-                state: "setup_required",
-            };
-        }
-        if (department.submissionEndsAt <= department.submissionStartsAt) {
-            return {
-                deadlineAt: null,
-                label: "Not configured",
-                reason: "invalid_window",
-                startAt: null,
-                state: "setup_required",
-            };
-        }
-        starts.push(department.submissionStartsAt);
-        ends.push(department.submissionEndsAt);
-    }
-    const uniqueStarts = new Set(starts);
-    const uniqueEnds = new Set(ends);
-    if (uniqueStarts.size !== 1 || uniqueEnds.size !== 1) {
-        return {
-            deadlineAt: null,
-            label: "Not configured",
-            reason: "inconsistent_windows",
-            startAt: null,
-            state: "setup_required",
-        };
-    }
-    const startAt = starts[0] ?? null;
-    const deadlineAt = ends[0] ?? null;
+function deriveSharedSubmissionDeadline(args) {
+    const resolved = (0, deadlines_1.resolveSubmissionDeadline)({
+        deadlineRecord: args.deadlineRecord,
+        departments: args.departments,
+        fiscalYearKey: args.fiscalYearKey,
+        fiscalYearStartMonth: args.fiscalYearStartMonth,
+        now: args.now,
+        tenantTimeZone: args.tenantTimeZone,
+    });
+    const deadlineAt = resolved.submissionEndsAt;
     return {
-        deadlineAt,
+        countdownLabel: resolved.countdownLabel,
+        countdownTargetAt: resolved.countdownTargetAt,
+        deadlineAt: resolved.submissionEndsAt,
         label: deadlineAt === null
             ? "Not configured"
-            : (0, date_fns_1.format)(new Date(deadlineAt), "dd MMM yyyy"),
-        reason: "no_departments",
-        startAt,
-        state: startAt !== null && deadlineAt !== null ? "available" : "setup_required",
+            : (0, deadlines_1.formatDeadlineDate)(deadlineAt, resolved.timeZone),
+        reason: resolved.reason,
+        reminderOffsets: resolved.reminderOffsets,
+        source: resolved.source,
+        startAt: resolved.submissionStartsAt,
+        state: resolved.state,
+        timeZone: resolved.timeZone,
+        timeZoneUsesFallback: resolved.timeZoneUsesFallback,
     };
 }
 exports.deriveSharedSubmissionDeadline = deriveSharedSubmissionDeadline;
@@ -247,7 +254,7 @@ function deriveProcurementChecklist(args) {
             description: !hasDepartments
                 ? "A shared submission deadline is blocked until departments exist."
                 : sharedDeadlineReady
-                    ? `Shared submission deadline is set for ${args.sharedDeadline.label}.`
+                    ? `Shared submission deadline is set for ${args.sharedDeadline.label} in ${args.sharedDeadline.timeZone}.`
                     : "A safe tenant-wide submission deadline cannot be derived yet, so this step remains blocked.",
             href: "/po/deadlines",
             id: "set_deadline",

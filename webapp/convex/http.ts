@@ -1,6 +1,9 @@
 import { httpRouter } from "convex/server";
 import { auth } from "./auth";
-import { handleExternalServiceSync } from "./externalServicesHttp";
+import {
+  handleExternalServiceSync,
+  handleReminderDispatchClaim,
+} from "./externalServicesHttp";
 
 const http = httpRouter();
 
@@ -12,6 +15,11 @@ http.route({
   path: "/api/services/sync",
   method: "POST",
   handler: handleExternalServiceSync,
+});
+http.route({
+  path: "/api/services/deadlines/reminder-dispatch",
+  method: "POST",
+  handler: handleReminderDispatchClaim,
 });
 
 export default http;

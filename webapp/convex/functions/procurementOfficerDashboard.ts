@@ -19,7 +19,7 @@ export const getProcurementOfficerDashboardSnapshot = query({
             });
         }
 
-        const [departments, accessCodes, departmentUserProfiles] = await Promise.all([
+        const [departments, accessCodes, departmentUserProfiles, submissionDeadlines] = await Promise.all([
             ctx.db
                 .query("departments")
                 .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
@@ -30,6 +30,10 @@ export const getProcurementOfficerDashboardSnapshot = query({
                 .collect(),
             ctx.db
                 .query("departmentUserProfiles")
+                .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
+                .collect(),
+            ctx.db
+                .query("submissionDeadlines")
                 .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
                 .collect(),
         ]);
@@ -55,12 +59,26 @@ export const getProcurementOfficerDashboardSnapshot = query({
                 id: String(profile._id),
                 isActive: profile.isActive,
             })),
+            fiscalYearStartMonth: tenant.fiscalYearStartMonth,
             now: Date.now(),
             selectedFiscalYear: args.selectedFiscalYear,
+            submissionDeadlines: submissionDeadlines.map((deadline) => ({
+                announcementIssuedAt: deadline.announcementIssuedAt,
+                announcementMessage: deadline.announcementMessage,
+                announcementTitle: deadline.announcementTitle,
+                deadlineVersion: deadline.deadlineVersion,
+                fiscalYearKey: deadline.fiscalYearKey,
+                reminderOffsets: deadline.reminderOffsets,
+                submissionEndsAt: deadline.submissionEndsAt,
+                submissionStartsAt: deadline.submissionStartsAt,
+                timeZone: deadline.timeZone,
+                updatedAt: deadline.updatedAt,
+            })),
             tenant: {
                 id: String(tenant._id),
                 name: tenant.name,
             },
+            tenantTimeZone: tenant.timeZone,
         });
     },
 });

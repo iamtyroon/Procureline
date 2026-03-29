@@ -3,7 +3,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildDepartmentUserDashboardSnapshot = void 0;
 const dashboard_1 = require("./dashboard");
 function buildDepartmentUserDashboardSnapshot(args) {
-    const fallbackFiscalYear = (0, dashboard_1.getDepartmentUserFiscalYearForDate)(args.now).key;
+    const fallbackFiscalYear = (0, dashboard_1.getDepartmentUserFiscalYearForDate)(args.now, {
+        fiscalYearStartMonth: args.fiscalYearStartMonth,
+        timeZone: args.tenantTimeZone,
+    }).key;
     if (!args.department || !args.auth.departmentId) {
         return createBlockedSnapshot({
             auth: args.auth,
@@ -13,13 +16,19 @@ function buildDepartmentUserDashboardSnapshot(args) {
             tenant: args.tenant,
         });
     }
-    const fiscalYearKey = (0, dashboard_1.getDepartmentUserFiscalYearForDate)(args.department.submissionStartsAt).key;
+    const fiscalYearKey = (0, dashboard_1.getDepartmentUserFiscalYearForDate)(args.department.submissionStartsAt, {
+        fiscalYearStartMonth: args.fiscalYearStartMonth,
+        timeZone: args.department.submissionTimeZone ??
+            args.tenantTimeZone ??
+            "Africa/Nairobi",
+    }).key;
     const deadline = (0, dashboard_1.deriveDeadlinePresentation)({
         departmentAccessMode: args.auth.departmentAccessMode,
         fiscalYearKey,
         now: args.now,
         submissionEndsAt: args.department.submissionEndsAt,
         submissionStartsAt: args.department.submissionStartsAt,
+        timeZone: args.department.submissionTimeZone ?? "Africa/Nairobi",
     });
     const canonicalPlans = selectCanonicalPlans(args.plans);
     const currentPlan = canonicalPlans.find((plan) => plan.fiscalYear === fiscalYearKey) ?? null;
@@ -303,6 +312,8 @@ function createBlockedSnapshot(args) {
                 label: "Submission Deadline",
                 note: "Setup required",
                 state: "unavailable",
+                targetAt: null,
+                timeZone: "Africa/Nairobi",
             },
             plan: {
                 helperText: "No Plan",

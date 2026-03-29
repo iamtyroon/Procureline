@@ -1,6 +1,6 @@
 # Story 4.3: Access Code Generation & Management
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -504,5 +504,5 @@ gpt-5-codex
 - Story ID: `4.3`
 - Story Key: `4-3-access-code-generation-management`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic4/stories/4-3-access-code-generation-management.md`
-- Final Status: `review`
+- Final Status: `done`
 - Completion Note: `Implemented Story 4.3 access-code backend and schema support, replaced the PO placeholder with a real access-code management workspace, extended DU login history with signed request context, reused the existing email bridge for delivery, and reverified the webapp and NestJS suites locally.`

@@ -1,19 +1,20 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.buildDepartmentBudgetChangeAnnouncement = exports.formatDepartmentUserCount = exports.formatDepartmentUserCurrency = exports.deriveLaunchpadState = exports.deriveDeadlinePresentation = exports.derivePlanAction = exports.normalizeDepartmentUserPlanStatus = exports.sanitizeCategorySelection = exports.selectAllCategories = exports.toggleCategorySelection = exports.createCategorySelectionState = exports.formatDepartmentUserFiscalYearLabel = exports.getDepartmentUserFiscalYearForDate = void 0;
+exports.buildDepartmentDeadlineAnnouncement = exports.buildDepartmentBudgetChangeAnnouncement = exports.formatDepartmentUserCount = exports.formatDepartmentUserCurrency = exports.deriveLaunchpadState = exports.deriveDeadlinePresentation = exports.derivePlanAction = exports.normalizeDepartmentUserPlanStatus = exports.sanitizeCategorySelection = exports.selectAllCategories = exports.toggleCategorySelection = exports.createCategorySelectionState = exports.formatDepartmentUserFiscalYearLabel = exports.getDepartmentUserFiscalYearForDate = void 0;
 const department_user_access_1 = require("../auth/department-user-access");
+const deadlines_1 = require("../procurement-officer/deadlines");
 const DAY_MS = 24 * 60 * 60 * 1000;
-function getDepartmentUserFiscalYearForDate(timestamp) {
-    const date = new Date(timestamp);
-    const year = date.getUTCFullYear();
-    const month = date.getUTCMonth();
-    const startYear = month >= 6 ? year : year - 1;
-    const endYear = startYear + 1;
+function getDepartmentUserFiscalYearForDate(timestamp, args) {
+    const fiscalYear = (0, deadlines_1.getFiscalYearForTimestampInTimeZone)({
+        fiscalYearStartMonth: args?.fiscalYearStartMonth ?? 7,
+        timeZone: args?.timeZone ?? "Africa/Nairobi",
+        timestamp,
+    });
     return {
-        endYear,
-        key: `${startYear}-${endYear}`,
-        label: `${startYear}/${String(endYear).slice(-2)}`,
-        startYear,
+        endYear: fiscalYear.endYear,
+        key: fiscalYear.key,
+        label: fiscalYear.label,
+        startYear: fiscalYear.startYear,
     };
 }
 exports.getDepartmentUserFiscalYearForDate = getDepartmentUserFiscalYearForDate;
@@ -105,8 +106,13 @@ function deriveDeadlinePresentation(args) {
     });
     const resolvedAccessMode = args.departmentAccessMode ?? windowState.accessMode ?? null;
     const fiscalYearLabel = formatDepartmentUserFiscalYearLabel(args.fiscalYearKey);
-    const submissionStartsLabel = formatDepartmentUserDashboardDate(args.submissionStartsAt);
-    const submissionEndsLabel = formatDepartmentUserDashboardDate(args.submissionEndsAt);
+    const timeZone = args.timeZone ?? "Africa/Nairobi";
+    const submissionStartsLabel = (0, deadlines_1.formatDeadlineDateTime)(args.submissionStartsAt, timeZone, {
+        includeTimeZoneName: true,
+    });
+    const submissionEndsLabel = (0, deadlines_1.formatDeadlineDateTime)(args.submissionEndsAt, timeZone, {
+        includeTimeZoneName: true,
+    });
     if (windowState.state === "not_started") {
         return {
             deadlineDateLabel: submissionStartsLabel,
@@ -120,6 +126,8 @@ function deriveDeadlinePresentation(args) {
             label: "Submission Deadline",
             note: "Submission window not yet open",
             state: "coming_soon",
+            targetAt: args.submissionStartsAt,
+            timeZone,
         };
     }
     if (resolvedAccessMode === "read_only_grace" || windowState.state === "ended") {
@@ -135,6 +143,8 @@ function deriveDeadlinePresentation(args) {
             label: "Submission Deadline",
             note: "Read-only period",
             state: "read_only",
+            targetAt: args.submissionEndsAt,
+            timeZone,
         };
     }
     const rawDaysRemaining = Math.ceil(Math.max(args.submissionEndsAt - args.now, 0) / DAY_MS);
@@ -147,7 +157,10 @@ function deriveDeadlinePresentation(args) {
         daysRemaining: safeDaysRemaining,
         fiscalYearKey: args.fiscalYearKey,
         fiscalYearLabel,
-        gaugeLabel: `${safeDaysRemaining}d left`,
+        gaugeLabel: (0, deadlines_1.formatDeadlineCountdown)({
+            deadlineAt: args.submissionEndsAt,
+            now: args.now,
+        }),
         gaugePercent,
         helperText: safeDaysRemaining <= 7
             ? `Submission closes on ${submissionEndsLabel}.`
@@ -158,16 +171,11 @@ function deriveDeadlinePresentation(args) {
             ? "Deadline approaching"
             : "Submission window active",
         state: "available",
+        targetAt: args.submissionEndsAt,
+        timeZone,
     };
 }
 exports.deriveDeadlinePresentation = deriveDeadlinePresentation;
-function formatDepartmentUserDashboardDate(timestamp) {
-    return new Intl.DateTimeFormat("en-US", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-    }).format(new Date(timestamp));
-}
 function deriveLaunchpadState(args) {
     if (args.hasCanonicalPlan) {
         return {
@@ -277,3 +285,18 @@ function buildDepartmentBudgetChangeAnnouncement(args) {
     };
 }
 exports.buildDepartmentBudgetChangeAnnouncement = buildDepartmentBudgetChangeAnnouncement;
+function buildDepartmentDeadlineAnnouncement(args) {
+    if (typeof args.announcementIssuedAt !== "number" ||
+        !args.announcementTitle ||
+        !args.announcementMessage ||
+        (typeof args.lastAuthenticatedAt === "number" &&
+            args.announcementIssuedAt <= args.lastAuthenticatedAt)) {
+        return null;
+    }
+    return {
+        id: `deadline-announcement:${args.departmentId}:${args.announcementIssuedAt}`,
+        message: args.announcementMessage,
+        title: args.announcementTitle,
+    };
+}
+exports.buildDepartmentDeadlineAnnouncement = buildDepartmentDeadlineAnnouncement;

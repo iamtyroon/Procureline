@@ -2,6 +2,11 @@ import {
     evaluateDepartmentUserSubmissionWindow,
     type DepartmentUserAccessMode,
 } from "../auth/department-user-access";
+import {
+    formatDeadlineCountdown,
+    formatDeadlineDateTime,
+    getFiscalYearForTimestampInTimeZone,
+} from "../procurement-officer/deadlines";
 
 export type DepartmentUserDashboardState =
     | "available"
@@ -37,6 +42,8 @@ export interface DepartmentUserDeadlinePresentation {
     label: string;
     note: string;
     state: DepartmentUserDashboardState;
+    targetAt: number | null;
+    timeZone: string;
 }
 
 export interface DepartmentUserPlanAction {
@@ -61,18 +68,24 @@ export interface DepartmentUserAnnouncement {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export function getDepartmentUserFiscalYearForDate(timestamp: number): DepartmentUserFiscalYear {
-    const date = new Date(timestamp);
-    const year = date.getUTCFullYear();
-    const month = date.getUTCMonth();
-    const startYear = month >= 6 ? year : year - 1;
-    const endYear = startYear + 1;
+export function getDepartmentUserFiscalYearForDate(
+    timestamp: number,
+    args?: {
+        fiscalYearStartMonth?: number | null;
+        timeZone?: string | null;
+    },
+): DepartmentUserFiscalYear {
+    const fiscalYear = getFiscalYearForTimestampInTimeZone({
+        fiscalYearStartMonth: args?.fiscalYearStartMonth ?? 7,
+        timeZone: args?.timeZone ?? "Africa/Nairobi",
+        timestamp,
+    });
 
     return {
-        endYear,
-        key: `${startYear}-${endYear}`,
-        label: `${startYear}/${String(endYear).slice(-2)}`,
-        startYear,
+        endYear: fiscalYear.endYear,
+        key: fiscalYear.key,
+        label: fiscalYear.label,
+        startYear: fiscalYear.startYear,
     };
 }
 
@@ -183,6 +196,7 @@ export function deriveDeadlinePresentation(args: {
     now: number;
     submissionEndsAt: number;
     submissionStartsAt: number;
+    timeZone?: string;
 }): DepartmentUserDeadlinePresentation {
     const windowState = evaluateDepartmentUserSubmissionWindow({
         now: args.now,
@@ -191,8 +205,13 @@ export function deriveDeadlinePresentation(args: {
     });
     const resolvedAccessMode = args.departmentAccessMode ?? windowState.accessMode ?? null;
     const fiscalYearLabel = formatDepartmentUserFiscalYearLabel(args.fiscalYearKey);
-    const submissionStartsLabel = formatDepartmentUserDashboardDate(args.submissionStartsAt);
-    const submissionEndsLabel = formatDepartmentUserDashboardDate(args.submissionEndsAt);
+    const timeZone = args.timeZone ?? "Africa/Nairobi";
+    const submissionStartsLabel = formatDeadlineDateTime(args.submissionStartsAt, timeZone, {
+        includeTimeZoneName: true,
+    });
+    const submissionEndsLabel = formatDeadlineDateTime(args.submissionEndsAt, timeZone, {
+        includeTimeZoneName: true,
+    });
 
     if (windowState.state === "not_started") {
         return {
@@ -207,6 +226,8 @@ export function deriveDeadlinePresentation(args: {
             label: "Submission Deadline",
             note: "Submission window not yet open",
             state: "coming_soon",
+            targetAt: args.submissionStartsAt,
+            timeZone,
         };
     }
 
@@ -223,6 +244,8 @@ export function deriveDeadlinePresentation(args: {
             label: "Submission Deadline",
             note: "Read-only period",
             state: "read_only",
+            targetAt: args.submissionEndsAt,
+            timeZone,
         };
     }
 
@@ -242,7 +265,10 @@ export function deriveDeadlinePresentation(args: {
         daysRemaining: safeDaysRemaining,
         fiscalYearKey: args.fiscalYearKey,
         fiscalYearLabel,
-        gaugeLabel: `${safeDaysRemaining}d left`,
+        gaugeLabel: formatDeadlineCountdown({
+            deadlineAt: args.submissionEndsAt,
+            now: args.now,
+        }),
         gaugePercent,
         helperText:
             safeDaysRemaining <= 7
@@ -255,15 +281,9 @@ export function deriveDeadlinePresentation(args: {
                 ? "Deadline approaching"
                 : "Submission window active",
         state: "available",
+        targetAt: args.submissionEndsAt,
+        timeZone,
     };
-}
-
-function formatDepartmentUserDashboardDate(timestamp: number): string {
-    return new Intl.DateTimeFormat("en-US", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-    }).format(new Date(timestamp));
 }
 
 export function deriveLaunchpadState(args: {
@@ -406,5 +426,29 @@ export function buildDepartmentBudgetChangeAnnouncement(args: {
                   )}. Review any draft planning assumptions.`
                 : "Your Procurement Officer updated this department budget. Review any draft planning assumptions.",
         title: "Budget allocation updated",
+    };
+}
+
+export function buildDepartmentDeadlineAnnouncement(args: {
+    announcementIssuedAt?: number | null;
+    announcementMessage?: string | null;
+    announcementTitle?: string | null;
+    departmentId: string;
+    lastAuthenticatedAt?: number | null;
+}): DepartmentUserAnnouncement | null {
+    if (
+        typeof args.announcementIssuedAt !== "number" ||
+        !args.announcementTitle ||
+        !args.announcementMessage ||
+        (typeof args.lastAuthenticatedAt === "number" &&
+            args.announcementIssuedAt <= args.lastAuthenticatedAt)
+    ) {
+        return null;
+    }
+
+    return {
+        id: `deadline-announcement:${args.departmentId}:${args.announcementIssuedAt}`,
+        message: args.announcementMessage,
+        title: args.announcementTitle,
     };
 }

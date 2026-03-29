@@ -33,6 +33,16 @@ export class EmailController {
     return this.emailService.queueEmail(dto, user);
   }
 
+  @Post("cancel")
+  @ApiBearerAuth()
+  @UseGuards(ThrottlerGuard, ServiceAuthGuard)
+  @Throttle({ default: { limit: 120, ttl: 60_000 } })
+  cancelEmail(
+    @Body("idempotencyKey") idempotencyKey: string,
+  ): Promise<{ cancelled: boolean; eventKey: string }> {
+    return this.emailService.cancelQueuedEmail(idempotencyKey);
+  }
+
   @Post("webhooks/resend")
   @HttpCode(200)
   @UseGuards(ThrottlerGuard)

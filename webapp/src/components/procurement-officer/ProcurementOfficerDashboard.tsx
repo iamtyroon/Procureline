@@ -46,11 +46,12 @@ import {
 import type {
     ProcurementOfficerDashboardDepartmentReadinessItem,
     ProcurementOfficerDashboardFuturePanel,
-    ProcurementOfficerDashboardSnapshot,
     ProcurementOfficerDashboardSummaryCard,
 } from "@/lib/procurement-officer/dashboard-snapshot";
+import { formatDeadlineCountdown } from "@/lib/procurement-officer/deadlines";
 import { cn } from "@/lib/utils";
 import { ProcurementOfficerAccessCodesWorkspace } from "./ProcurementOfficerAccessCodesWorkspace";
+import { ProcurementOfficerDeadlinesWorkspace } from "./ProcurementOfficerDeadlinesWorkspace";
 import { ProcurementOfficerDepartmentsWorkspace } from "./ProcurementOfficerDepartmentsWorkspace";
 
 /* ─── Donut Ring ──────────────────────────────────────────────────── */
@@ -204,6 +205,7 @@ function IconBox({
 
 export function ProcurementOfficerDashboard(): JSX.Element {
     const [selectedFiscalYear, setSelectedFiscalYear] = useState<string | undefined>();
+    const [countdownNow, setCountdownNow] = useState(() => Date.now());
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -219,6 +221,18 @@ export function ProcurementOfficerDashboard(): JSX.Element {
         }
     }, [selectedFiscalYear, snapshot?.fiscalYears.selectedFiscalYear]);
 
+    useEffect(() => {
+        if (!snapshot?.deadlineOverview.targetAt) {
+            return;
+        }
+
+        const interval = window.setInterval(() => {
+            setCountdownNow(Date.now());
+        }, 30_000);
+
+        return () => window.clearInterval(interval);
+    }, [snapshot?.deadlineOverview.targetAt]);
+
     if (!snapshot) return <ProcurementOfficerDashboardSkeleton />;
 
     const activeModal = normalizeProcurementOfficerWorkspaceModalState({
@@ -231,6 +245,19 @@ export function ProcurementOfficerDashboard(): JSX.Element {
     const departmentsConfiguredCard = findSummaryCard(snapshot.summaryCards, "departments_configured");
     const accessCodeCard = findSummaryCard(snapshot.summaryCards, "access_code_coverage");
     const deadlineCard = findSummaryCard(snapshot.summaryCards, "deadline_readiness");
+    const liveDeadlineCard =
+        deadlineCard && snapshot.deadlineOverview.targetAt
+            ? {
+                  ...deadlineCard,
+                  value:
+                      snapshot.deadlineOverview.state === "available"
+                          ? formatDeadlineCountdown({
+                                deadlineAt: snapshot.deadlineOverview.targetAt,
+                                now: countdownNow,
+                            })
+                          : deadlineCard.value,
+              }
+            : deadlineCard;
     const duCoverageCard = findSummaryCard(snapshot.summaryCards, "du_assignment_coverage");
     const requestPanel = findFuturePanel(snapshot.futurePanels, "request_inbox");
     const submissionPanel = findFuturePanel(snapshot.futurePanels, "submission_monitoring");
@@ -456,7 +483,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                                                     tone="amber"
                                                 />
                                                 <OrganizationStatPill
-                                                    card={deadlineCard}
+                                                    card={liveDeadlineCard ?? deadlineCard}
                                                     icon={<CalendarClock className="h-3.5 w-3.5" />}
                                                     tone="emerald"
                                                 />
@@ -680,12 +707,13 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                 <WorkspaceModal
                     activeModal={activeModal}
                     categoriesPanel={categoriesPanel}
-                    deadlineCard={deadlineCard}
-                    fiscalYearLabel={fiscalYearLabel}
                     itemsPanel={itemsPanel}
                     requestPanel={requestPanel}
-                    snapshot={snapshot}
                     submissionPanel={submissionPanel}
+                    selectedFiscalYear={selectedFiscalYear}
+                    onSelectedFiscalYearChange={(fiscalYear) =>
+                        startTransition(() => setSelectedFiscalYear(fiscalYear))
+                    }
                 onCategorySectionChange={(section) =>
                     setWorkspaceModal(
                         { modal: "categories", ...(section ? { section } : {}) },
@@ -855,23 +883,21 @@ function InlineStatePill({ label, state, value }: { label: string; state: Procur
 function WorkspaceModal({
     activeModal,
     categoriesPanel,
-    deadlineCard,
-    fiscalYearLabel,
     itemsPanel,
     requestPanel,
-    snapshot,
+    selectedFiscalYear,
     submissionPanel,
+    onSelectedFiscalYearChange,
     onCategorySectionChange,
     onClose,
 }: {
     activeModal: ProcurementOfficerWorkspaceModalState | null;
     categoriesPanel?: ProcurementOfficerDashboardFuturePanel;
-    deadlineCard?: ProcurementOfficerDashboardSummaryCard;
-    fiscalYearLabel: string;
     itemsPanel?: ProcurementOfficerDashboardFuturePanel;
     requestPanel?: ProcurementOfficerDashboardFuturePanel;
-    snapshot: ProcurementOfficerDashboardSnapshot;
+    selectedFiscalYear?: string;
     submissionPanel?: ProcurementOfficerDashboardFuturePanel;
+    onSelectedFiscalYearChange: (fiscalYear: string) => void;
     onCategorySectionChange: (section?: ProcurementOfficerWorkspaceSection) => void;
     onClose: () => void;
 }): JSX.Element {
@@ -951,31 +977,10 @@ function WorkspaceModal({
                     ) : null}
 
                     {activeModal?.modal === "deadlines" ? (
-                        <>
-                            <div className="grid gap-3 md:grid-cols-3">
-                                <ModalMetricCard label="Readiness" value={deadlineCard?.value ?? "--"} />
-                                <ModalMetricCard label="Fiscal year" value={fiscalYearLabel} />
-                                <ModalMetricCard label="Alerts" value={String(snapshot.alerts.length)} />
-                            </div>
-                            {snapshot.alerts.length > 0 ? (
-                                <div className="space-y-3">
-                                    {snapshot.alerts.map((alert) => (
-                                        <div
-                                            key={alert.id}
-                                            className="rounded-2xl border border-amber-200/70 bg-amber-50/70 p-4 text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100"
-                                        >
-                                            <div className="font-semibold">{alert.title}</div>
-                                            <div className="mt-1 text-sm leading-6 opacity-90">{alert.message}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <EmptyWorkspaceState
-                                    body="Every in-scope department currently points to a safe shared submission window."
-                                    title="Shared deadline looks healthy"
-                                />
-                            )}
-                        </>
+                        <ProcurementOfficerDeadlinesWorkspace
+                            onSelectedFiscalYearChange={onSelectedFiscalYearChange}
+                            selectedFiscalYear={selectedFiscalYear}
+                        />
                     ) : null}
 
                 </div>

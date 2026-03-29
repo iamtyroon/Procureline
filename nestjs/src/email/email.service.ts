@@ -48,6 +48,10 @@ export class EmailService {
 
     let queuedJob: { id: string | undefined };
     try {
+      const delay =
+        typeof dto.deliverAt === "number"
+          ? Math.max(dto.deliverAt - Date.now(), 0)
+          : undefined;
       queuedJob = await this.queueService.enqueue(
         EMAIL_SEND_JOB,
         {
@@ -56,6 +60,7 @@ export class EmailService {
           eventKey,
         },
         {
+          delay,
           jobId: dto.idempotencyKey,
           priority: 5,
         },
@@ -75,6 +80,33 @@ export class EmailService {
       eventKey,
       jobId: queuedJob.id,
       queued: true,
+    };
+  }
+
+  async cancelQueuedEmail(
+    idempotencyKey: string,
+  ): Promise<{ cancelled: boolean; eventKey: string }> {
+    const eventKey = `email:${idempotencyKey}`;
+    const removed = await this.queueService.remove(idempotencyKey);
+
+    if (removed.removed) {
+      await this.convexSyncService.completeSync({
+        durableChanges: [
+          {
+            changeType: "email.cancelled",
+            idempotencyKey,
+          },
+        ],
+        eventKey,
+        result: {
+          cancelled: true,
+        },
+      }).catch(() => undefined);
+    }
+
+    return {
+      cancelled: removed.removed,
+      eventKey,
     };
   }
 

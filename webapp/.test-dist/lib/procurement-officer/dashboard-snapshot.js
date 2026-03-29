@@ -3,19 +3,29 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildProcurementOfficerDashboardSnapshot = void 0;
 const dashboard_1 = require("./dashboard");
 function buildProcurementOfficerDashboardSnapshot(args) {
-    const currentFiscalYear = (0, dashboard_1.getProcurementFiscalYearForDate)(args.now).key;
+    const currentFiscalYear = (0, dashboard_1.getProcurementFiscalYearForDate)(args.now, {
+        fiscalYearStartMonth: args.fiscalYearStartMonth,
+        timeZone: args.tenantTimeZone,
+    }).key;
     const activeDepartments = args.departments.filter((department) => department.isActive);
     const safeFiscalYears = (0, dashboard_1.buildAvailableProcurementFiscalYears)({
         departments: activeDepartments,
+        existingFiscalYearKeys: (args.submissionDeadlines ?? []).map((deadline) => deadline.fiscalYearKey),
+        fiscalYearStartMonth: args.fiscalYearStartMonth,
+        now: args.now,
+        requestedFiscalYear: args.selectedFiscalYear,
+        timeZone: args.tenantTimeZone,
     });
     const selectedFiscalYear = resolveSelectedFiscalYear({
         currentFiscalYear,
         requestedFiscalYear: args.selectedFiscalYear,
         safeFiscalYears,
     });
-    const departmentsInScope = selectedFiscalYear === null
-        ? activeDepartments
-        : activeDepartments.filter((department) => (0, dashboard_1.getDepartmentFiscalYearKey)(department) === selectedFiscalYear);
+    const matchedDepartments = activeDepartments.filter((department) => (0, dashboard_1.getDepartmentFiscalYearKey)(department, {
+        fiscalYearStartMonth: args.fiscalYearStartMonth,
+        timeZone: args.tenantTimeZone,
+    }) === selectedFiscalYear);
+    const departmentsInScope = matchedDepartments.length > 0 ? matchedDepartments : activeDepartments;
     const departmentIdsInScope = new Set(departmentsInScope.map((department) => department.id));
     const accessCodeCoverage = createCoverage({
         ids: args.accessCodes
@@ -39,12 +49,24 @@ function buildProcurementOfficerDashboardSnapshot(args) {
             .map((department) => department.id),
         totalCount: departmentsInScope.length,
     });
-    const sharedDeadline = (0, dashboard_1.deriveSharedSubmissionDeadline)(departmentsInScope);
+    const sharedDeadline = (0, dashboard_1.deriveSharedSubmissionDeadline)({
+        deadlineRecord: (args.submissionDeadlines ?? []).find((deadline) => deadline.fiscalYearKey === selectedFiscalYear) ?? null,
+        departments: departmentsInScope,
+        fiscalYearKey: selectedFiscalYear,
+        fiscalYearStartMonth: args.fiscalYearStartMonth,
+        now: args.now,
+        tenantTimeZone: args.tenantTimeZone,
+    });
     return {
         alerts: buildAlerts({
-            hasSafeFiscalYear: selectedFiscalYear !== null,
             sharedDeadline,
         }),
+        deadlineOverview: {
+            countdownLabel: sharedDeadline.countdownLabel,
+            state: sharedDeadline.state === "available" ? "available" : "setup_required",
+            targetAt: sharedDeadline.countdownTargetAt,
+            timeZone: sharedDeadline.timeZone,
+        },
         departmentReadiness: buildDepartmentReadiness({
             accessCodeDepartmentIds: createReadyDepartmentSet({
                 ids: args.accessCodes
@@ -67,7 +89,7 @@ function buildProcurementOfficerDashboardSnapshot(args) {
             currentFiscalYear,
             options: safeFiscalYears,
             selectedFiscalYear,
-            state: safeFiscalYears.length > 0 ? "available" : "unavailable",
+            state: "available",
         },
         futurePanels: buildFuturePanels(),
         hero: buildHero({
@@ -109,7 +131,7 @@ function resolveSelectedFiscalYear(args) {
     if (args.safeFiscalYears.includes(args.currentFiscalYear)) {
         return args.currentFiscalYear;
     }
-    return args.safeFiscalYears[0] ?? null;
+    return args.safeFiscalYears[0] ?? args.currentFiscalYear;
 }
 function createCoverage(args) {
     return {
@@ -122,19 +144,6 @@ function createReadyDepartmentSet(args) {
 }
 function buildAlerts(args) {
     const alerts = [];
-    if (!args.hasSafeFiscalYear) {
-        alerts.push({
-            cta: {
-                href: "/po/departments",
-                label: "Review department setup",
-                state: "setup_required",
-            },
-            id: "fiscal_year",
-            message: "Fiscal year not configured. Contact your Tenant Admin.",
-            state: "warning",
-            title: "Fiscal year unavailable",
-        });
-    }
     if (args.sharedDeadline.state !== "available") {
         alerts.push({
             cta: {
@@ -169,27 +178,9 @@ function buildHero(args) {
             title: "Build your procurement workspace",
         };
     }
-    if (args.selectedFiscalYear === null) {
-        return {
-            description: "Departments exist, but the active preparation view is still blocked until fiscal-year signals become safe to derive from live setup.",
-            eyebrow: "Preparation dashboard",
-            primaryAction: {
-                href: "/po/deadlines",
-                label: "Configure submission deadline",
-                state: "setup_required",
-            },
-            secondaryAction: {
-                href: "/po/departments",
-                label: "Open departments",
-                state: "available",
-            },
-            state: "setup_required",
-            title: "Resolve fiscal-year setup before DUs start planning",
-        };
-    }
     if (args.sharedDeadline.state !== "available") {
         return {
-            description: "Preparation work is underway, but DUs should not receive a deadline until every department aligns to one safe shared window.",
+            description: "Preparation work is underway, but DUs should not receive a deadline until one safe shared window is configured for every active department.",
             eyebrow: (0, dashboard_1.formatProcurementFiscalYearLabel)(args.selectedFiscalYear),
             primaryAction: {
                 href: "/po/deadlines",
@@ -241,9 +232,7 @@ function buildHero(args) {
     };
 }
 function buildSummaryCards(args) {
-    const selectedFiscalYearLabel = args.selectedFiscalYear === null
-        ? (0, dashboard_1.formatProcurementFiscalYearLabel)(args.currentFiscalYear)
-        : (0, dashboard_1.formatProcurementFiscalYearLabel)(args.selectedFiscalYear);
+    const selectedFiscalYearLabel = (0, dashboard_1.formatProcurementFiscalYearLabel)(args.selectedFiscalYear);
     return [
         {
             helperText: args.departmentCount === 0
@@ -310,7 +299,7 @@ function buildSummaryCards(args) {
             helperText: args.departmentCount === 0
                 ? "Deadline readiness appears after departments exist."
                 : args.sharedDeadline.state === "available"
-                    ? `Shared deadline safely resolves to ${args.sharedDeadline.label}.`
+                    ? `Shared deadline safely resolves to ${args.sharedDeadline.label} in ${args.sharedDeadline.timeZone}.`
                     : "Every department needs a valid window before the tenant-wide deadline can be trusted.",
             href: "/po/deadlines",
             id: "deadline_readiness",
@@ -328,7 +317,9 @@ function buildSummaryCards(args) {
             tone: args.departmentCount > 0 && args.sharedDeadline.state === "available"
                 ? "positive"
                 : "warning",
-            value: (0, dashboard_1.formatCoverageValue)(args.deadlineCoverage),
+            value: args.departmentCount > 0 && args.sharedDeadline.state === "available"
+                ? args.sharedDeadline.countdownLabel
+                : (0, dashboard_1.formatCoverageValue)(args.deadlineCoverage),
         },
     ];
 }

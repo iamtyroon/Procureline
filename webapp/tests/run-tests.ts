@@ -5,6 +5,7 @@ import { runDepartmentUserAccessTests } from "./department-user-access.test";
 import { runDepartmentUserRequestContextTests } from "./department-user-request-context.test";
 import { runPasswordResetTests } from "./password-reset.test";
 import { runProcurementOfficerAccessCodeTests } from "./procurement-officer-access-codes.test";
+import { runProcurementOfficerDeadlineTests } from "./procurement-officer-deadlines.test";
 import { runPlatformAdminAuthTests } from "./platform-admin-auth.test";
 import { runPlatformAdminDashboardTests } from "./platform-admin-dashboard.test";
 import { runPricingFlowTests } from "./pricing-flow.test";
@@ -27,6 +28,7 @@ async function main(): Promise<void> {
         ...runConvexErrorHandlingTests(),
         ...runProcurementOfficerDepartmentTests(),
         ...runProcurementOfficerAccessCodeTests(),
+        ...runProcurementOfficerDeadlineTests(),
         ...runDepartmentUserDashboardTests(),
         ...(await runDepartmentUserAccessTests()),
         ...(await runDepartmentUserRequestContextTests()),

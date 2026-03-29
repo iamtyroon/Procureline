@@ -52,6 +52,7 @@ import {
     normalizeDepartmentCode,
     normalizeDepartmentName,
 } from "../../lib/procurement-officer/departments";
+import { resolveDeadlineTimeZone } from "../../lib/procurement-officer/deadlines";
 import {
     normalizeAuthEmail,
     validateDepartmentUserAccessCodeInput,
@@ -289,6 +290,9 @@ async function evaluateAccessAttemptInternal(
     }
 
     const tenant = await ctx.db.get(accessCode.tenantId);
+    const deadlineTimeZone = resolveDeadlineTimeZone({
+        tenantTimeZone: tenant?.timeZone,
+    }).timeZone;
     if (!tenant || tenant.status !== "active") {
         return {
             ok: false,
@@ -376,6 +380,7 @@ async function evaluateAccessAttemptInternal(
                     now,
                     submissionEndsAt: department.submissionEndsAt as number,
                     submissionStartsAt: department.submissionStartsAt as number,
+                    timeZone: deadlineTimeZone,
                 }) ?? DEPARTMENT_USER_SUBMISSION_ENDED_MESSAGE,
             metadata: {
                 accessCodeId: String(accessCode._id),
@@ -562,6 +567,7 @@ async function evaluateAccessAttemptInternal(
             now,
             submissionEndsAt: department.submissionEndsAt as number,
             submissionStartsAt: department.submissionStartsAt as number,
+            timeZone: deadlineTimeZone,
         }),
         tenantId: accessCode.tenantId,
         userIdHint,

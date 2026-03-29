@@ -12,7 +12,15 @@ function runDepartmentUserDashboardTests() {
     const completedTests = [];
     strict_1.default.equal((0, dashboard_1.getDepartmentUserFiscalYearForDate)(Date.UTC(2026, 5, 30, 12, 0, 0)).key, "2025-2026");
     strict_1.default.equal((0, dashboard_1.getDepartmentUserFiscalYearForDate)(Date.UTC(2026, 6, 1, 12, 0, 0)).key, "2026-2027");
-    completedTests.push("department-user fiscal-year helpers honor the Kenya July boundary for DU dashboard labels");
+    strict_1.default.equal((0, dashboard_1.getDepartmentUserFiscalYearForDate)(Date.UTC(2026, 5, 30, 12, 30, 0), {
+        fiscalYearStartMonth: 7,
+        timeZone: "Pacific/Auckland",
+    }).key, "2026-2027");
+    strict_1.default.equal((0, dashboard_1.getDepartmentUserFiscalYearForDate)(Date.UTC(2026, 2, 31, 21, 30, 0), {
+        fiscalYearStartMonth: 4,
+        timeZone: "Africa/Nairobi",
+    }).key, "2026-2027");
+    completedTests.push("department-user fiscal-year helpers honor tenant-specific timezone and fiscal-year boundaries instead of assuming a fixed Kenya July rollover");
     const activeDeadline = (0, dashboard_1.deriveDeadlinePresentation)({
         departmentAccessMode: "editable",
         fiscalYearKey: "2026-2027",
@@ -36,12 +44,13 @@ function runDepartmentUserDashboardTests() {
     });
     strict_1.default.equal(activeDeadline.state, "available");
     strict_1.default.equal(activeDeadline.daysRemaining, 2);
-    strict_1.default.equal(activeDeadline.deadlineDateLabel, "Aug 20, 2026");
+    strict_1.default.match(activeDeadline.deadlineDateLabel, /20 Aug 2026/);
+    strict_1.default.match(activeDeadline.deadlineDateLabel, /GMT\+3/);
     strict_1.default.equal(activeDeadline.isUrgent, true);
     strict_1.default.notEqual(activeDeadline.gaugeLabel, "45d");
-    strict_1.default.equal(pendingDeadline.helperText, "Submission window opens on Aug 1, 2026.");
+    strict_1.default.equal(pendingDeadline.helperText, "Submission window opens on 1 Aug 2026, 15:00 GMT+3.");
     strict_1.default.equal(readOnlyDeadline.state, "read_only");
-    strict_1.default.equal(readOnlyDeadline.helperText, "Submission closed on Aug 20, 2026. Your plan is now read-only.");
+    strict_1.default.equal(readOnlyDeadline.helperText, "Submission closed on 20 Aug 2026, 15:00 GMT+3. Your plan is now read-only.");
     completedTests.push("department-user deadline derivation keeps live day counts, upcoming-window copy, and read-only messaging truthful without a hard-coded 45-day fallback");
     strict_1.default.deepEqual((0, dashboard_1.createCategorySelectionState)(["cat-b", "cat-a", "cat-a"]), ["cat-a", "cat-b"]);
     strict_1.default.deepEqual((0, dashboard_1.toggleCategorySelection)({

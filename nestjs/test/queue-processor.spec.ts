@@ -66,6 +66,41 @@ describe("PlatformQueueProcessor", () => {
     expect(job.updateProgress).toHaveBeenCalledWith(100);
   });
 
+  it("records skipped reminder emails without reporting them as sent", async () => {
+    emailDispatchService.send.mockResolvedValueOnce({
+      skipReason: "Reminder dispatch skipped because a newer deadline version is already active.",
+      skipped: true,
+    });
+    const job = {
+      name: "email.send",
+      data: {
+        dto: {
+          idempotencyKey: "key-reminder-1",
+          subject: "Reminder",
+          template: "deadline-reminder",
+          to: "user@example.com",
+        },
+        eventKey: "email:key-reminder-1",
+      },
+      updateProgress: jest.fn(),
+    };
+
+    await processor.process(job as never);
+
+    expect(convexSyncService.completeSync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        durableChanges: [
+          expect.objectContaining({
+            changeType: "email.skipped",
+            reason: expect.stringContaining("newer deadline version"),
+          }),
+        ],
+        eventKey: "email:key-reminder-1",
+      }),
+    );
+    expect(job.updateProgress).toHaveBeenCalledWith(100);
+  });
+
   it("processes a file export job and completes the sync", async () => {
     const job = {
       name: "files.export",

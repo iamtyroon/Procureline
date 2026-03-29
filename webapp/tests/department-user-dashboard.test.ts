@@ -23,8 +23,22 @@ export function runDepartmentUserDashboardTests(): string[] {
         getDepartmentUserFiscalYearForDate(Date.UTC(2026, 6, 1, 12, 0, 0)).key,
         "2026-2027",
     );
+    assert.equal(
+        getDepartmentUserFiscalYearForDate(Date.UTC(2026, 5, 30, 12, 30, 0), {
+            fiscalYearStartMonth: 7,
+            timeZone: "Pacific/Auckland",
+        }).key,
+        "2026-2027",
+    );
+    assert.equal(
+        getDepartmentUserFiscalYearForDate(Date.UTC(2026, 2, 31, 21, 30, 0), {
+            fiscalYearStartMonth: 4,
+            timeZone: "Africa/Nairobi",
+        }).key,
+        "2026-2027",
+    );
     completedTests.push(
-        "department-user fiscal-year helpers honor the Kenya July boundary for DU dashboard labels",
+        "department-user fiscal-year helpers honor tenant-specific timezone and fiscal-year boundaries instead of assuming a fixed Kenya July rollover",
     );
 
     const activeDeadline = deriveDeadlinePresentation({
@@ -50,17 +64,18 @@ export function runDepartmentUserDashboardTests(): string[] {
     });
     assert.equal(activeDeadline.state, "available");
     assert.equal(activeDeadline.daysRemaining, 2);
-    assert.equal(activeDeadline.deadlineDateLabel, "Aug 20, 2026");
+    assert.match(activeDeadline.deadlineDateLabel, /20 Aug 2026/);
+    assert.match(activeDeadline.deadlineDateLabel, /GMT\+3/);
     assert.equal(activeDeadline.isUrgent, true);
     assert.notEqual(activeDeadline.gaugeLabel, "45d");
     assert.equal(
         pendingDeadline.helperText,
-        "Submission window opens on Aug 1, 2026.",
+        "Submission window opens on 1 Aug 2026, 15:00 GMT+3.",
     );
     assert.equal(readOnlyDeadline.state, "read_only");
     assert.equal(
         readOnlyDeadline.helperText,
-        "Submission closed on Aug 20, 2026. Your plan is now read-only.",
+        "Submission closed on 20 Aug 2026, 15:00 GMT+3. Your plan is now read-only.",
     );
     completedTests.push(
         "department-user deadline derivation keeps live day counts, upcoming-window copy, and read-only messaging truthful without a hard-coded 45-day fallback",

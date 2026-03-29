@@ -72,7 +72,7 @@ exports.evaluateDepartmentUserSubmissionWindow = evaluateDepartmentUserSubmissio
 function getDepartmentUserSubmissionWindowMessage(args) {
     const evaluation = evaluateDepartmentUserSubmissionWindow(args);
     if (evaluation.state === "not_started") {
-        return `Submission period has not started yet. Please wait until ${formatDepartmentUserDate(args.submissionStartsAt, args.locale)}.`;
+        return `Submission period has not started yet. Please wait until ${formatDepartmentUserDate(args.submissionStartsAt, args.locale, args.timeZone)}.`;
     }
     if (evaluation.state === "read_only_grace") {
         return exports.DEPARTMENT_USER_SUBMISSION_ENDED_MESSAGE;
@@ -129,12 +129,13 @@ function scrubDepartmentUserAccessCodeFromUrl(pathname, search) {
     return nextSearch.length > 0 ? `${pathname}?${nextSearch}` : pathname;
 }
 exports.scrubDepartmentUserAccessCodeFromUrl = scrubDepartmentUserAccessCodeFromUrl;
-function formatDepartmentUserDate(timestamp, locale = "en-US") {
+function formatDepartmentUserDate(timestamp, locale = "en-US", timeZone) {
     return new Intl.DateTimeFormat(locale, {
         day: "numeric",
         hour: "numeric",
         minute: "2-digit",
         month: "short",
+        ...(timeZone ? { timeZone } : {}),
         year: "numeric",
     }).format(new Date(timestamp));
 }

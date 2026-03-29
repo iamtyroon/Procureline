@@ -1,9 +1,16 @@
 import { ConvexError, v } from "convex/values";
 import { query } from "../_generated/server";
 import { requireTenantRole } from "./_roleGuard";
-import { buildDepartmentBudgetChangeAnnouncement } from "../../lib/department-user/dashboard";
+import {
+    buildDepartmentBudgetChangeAnnouncement,
+    buildDepartmentDeadlineAnnouncement,
+} from "../../lib/department-user/dashboard";
 import { buildDepartmentUserDashboardSnapshot } from "../../lib/department-user/dashboard-snapshot";
 import { hasConfiguredDepartmentUserSubmissionWindow } from "../../lib/auth/department-user-access";
+import {
+    getFiscalYearForTimestampInTimeZone,
+    resolveDeadlineTimeZone,
+} from "../../lib/procurement-officer/deadlines";
 
 const dashboardStateValidator = v.union(
     v.literal("available"),
@@ -162,6 +169,8 @@ const dashboardSnapshotValidator = v.object({
             label: v.string(),
             note: v.string(),
             state: dashboardStateValidator,
+            targetAt: v.union(v.number(), v.null()),
+            timeZone: v.string(),
         }),
         plan: v.object({
             helperText: v.string(),
@@ -207,25 +216,27 @@ export const getDepartmentUserDashboardSnapshot = query({
 
         if (!tenantUser || tenantUser.role !== "department_user" || !tenantUser.isActive) {
             return buildDepartmentUserDashboardSnapshot({
-                announcements: [],
-                auth: {
-                    departmentAccessMode: authContext.departmentAccessMode,
-                    departmentId: authContext.departmentId ? String(authContext.departmentId) : undefined,
-                    tenantId: String(authContext.tenantId),
-                },
-                categories: [],
-                currentUser,
-                department: null,
-                items: [],
-                leaderboardEntries: [],
-                now: Date.now(),
-                plans: [],
-                procurementOfficer: null,
-                tenant: {
-                    id: String(tenant._id),
-                    name: tenant.name,
-                },
-            });
+            announcements: [],
+            auth: {
+                departmentAccessMode: authContext.departmentAccessMode,
+                departmentId: authContext.departmentId ? String(authContext.departmentId) : undefined,
+                tenantId: String(authContext.tenantId),
+            },
+            categories: [],
+            currentUser,
+            department: null,
+            fiscalYearStartMonth: tenant.fiscalYearStartMonth,
+            items: [],
+            leaderboardEntries: [],
+            now: Date.now(),
+            plans: [],
+            procurementOfficer: null,
+            tenant: {
+                id: String(tenant._id),
+                name: tenant.name,
+            },
+            tenantTimeZone: tenant.timeZone,
+        });
         }
 
         const profile = await ctx.db
@@ -246,6 +257,7 @@ export const getDepartmentUserDashboardSnapshot = query({
                 categories: [],
                 currentUser,
                 department: null,
+                fiscalYearStartMonth: tenant.fiscalYearStartMonth,
                 items: [],
                 leaderboardEntries: [],
                 now: Date.now(),
@@ -255,6 +267,7 @@ export const getDepartmentUserDashboardSnapshot = query({
                     id: String(tenant._id),
                     name: tenant.name,
                 },
+                tenantTimeZone: tenant.timeZone,
             });
         }
 
@@ -274,6 +287,7 @@ export const getDepartmentUserDashboardSnapshot = query({
                 categories: [],
                 currentUser,
                 department: null,
+                fiscalYearStartMonth: tenant.fiscalYearStartMonth,
                 items: [],
                 leaderboardEntries: [],
                 now: Date.now(),
@@ -283,10 +297,20 @@ export const getDepartmentUserDashboardSnapshot = query({
                     id: String(tenant._id),
                     name: tenant.name,
                 },
+                tenantTimeZone: tenant.timeZone,
             });
         }
 
-        const [categories, items, plans, procurementOfficerTenantUser] = await Promise.all([
+        const deadlineTimeZone = resolveDeadlineTimeZone({
+            tenantTimeZone: tenant.timeZone,
+        }).timeZone;
+        const deadlineFiscalYearKey = getFiscalYearForTimestampInTimeZone({
+            fiscalYearStartMonth: tenant.fiscalYearStartMonth,
+            timeZone: deadlineTimeZone,
+            timestamp: department.submissionEndsAt as number,
+        }).key;
+
+        const [categories, items, plans, procurementOfficerTenantUser, submissionDeadline] = await Promise.all([
             ctx.db
                 .query("procurementCategories")
                 .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
@@ -300,6 +324,15 @@ export const getDepartmentUserDashboardSnapshot = query({
                 .withIndex("by_departmentId", (q) => q.eq("departmentId", department._id))
                 .collect(),
             ctx.db.get(department.procurementOfficerTenantUserId),
+            ctx.db
+                .query("submissionDeadlines")
+                .withIndex("by_tenantId_fiscalYearKey", (q) =>
+                    q.eq("tenantId", authContext.tenantId).eq(
+                        "fiscalYearKey",
+                        deadlineFiscalYearKey,
+                    ),
+                )
+                .first(),
         ]);
 
         const procurementOfficerUser =
@@ -318,7 +351,16 @@ export const getDepartmentUserDashboardSnapshot = query({
             lastAuthenticatedAt: profile.lastAuthenticatedAt ?? null,
             lastBudgetChangedAt: department.lastBudgetChangedAt ?? null,
         });
-        const announcements = budgetAnnouncement ? [budgetAnnouncement] : [];
+        const deadlineAnnouncement = buildDepartmentDeadlineAnnouncement({
+            announcementIssuedAt: submissionDeadline?.announcementIssuedAt ?? null,
+            announcementMessage: submissionDeadline?.announcementMessage ?? null,
+            announcementTitle: submissionDeadline?.announcementTitle ?? null,
+            departmentId: String(department._id),
+            lastAuthenticatedAt: profile.lastAuthenticatedAt ?? null,
+        });
+        const announcements = [budgetAnnouncement, deadlineAnnouncement].filter(
+            (item): item is NonNullable<typeof item> => Boolean(item),
+        );
 
         return buildDepartmentUserDashboardSnapshot({
             announcements,
@@ -340,6 +382,7 @@ export const getDepartmentUserDashboardSnapshot = query({
                 name: department.name,
                 submissionEndsAt: department.submissionEndsAt as number,
                 submissionStartsAt: department.submissionStartsAt as number,
+                submissionTimeZone: submissionDeadline?.timeZone ?? deadlineTimeZone,
             },
             items: items.map((item) => ({
                 categoryId: String(item.categoryId),
@@ -378,6 +421,8 @@ export const getDepartmentUserDashboardSnapshot = query({
                 id: String(tenant._id),
                 name: tenant.name,
             },
+            fiscalYearStartMonth: tenant.fiscalYearStartMonth,
+            tenantTimeZone: tenant.timeZone,
         });
     },
 });

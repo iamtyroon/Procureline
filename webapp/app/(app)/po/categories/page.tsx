@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
-import { resolveProcurementOfficerWorkspaceNavigation } from "@/lib/procurement-officer/dashboard";
+import { ProcurementOfficerWorkspaceRouteRedirect } from "@/src/components/procurement-officer/ProcurementOfficerWorkspaceRouteRedirect";
 
 export default function ProcurementOfficerCategoriesPage() {
-    redirect(resolveProcurementOfficerWorkspaceNavigation("/po/categories").href);
+    return <ProcurementOfficerWorkspaceRouteRedirect href="/po/categories" />;
 }

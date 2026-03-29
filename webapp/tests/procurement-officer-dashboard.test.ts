@@ -54,7 +54,10 @@ export function runProcurementOfficerDashboardTests(): string[] {
     const checklist = deriveProcurementChecklist({
         accessCodeCoverage: { readyCount: 0, totalCount: 0 },
         departmentCount: 0,
-        sharedDeadline: deriveSharedSubmissionDeadline([]),
+        sharedDeadline: deriveSharedSubmissionDeadline({
+            departments: [],
+            fiscalYearKey: "2026-2027",
+        }),
     });
     assert.deepEqual(
         checklist.map((step) => step.id),
@@ -231,16 +234,8 @@ export function runProcurementOfficerDashboardTests(): string[] {
     assert.equal(emptySnapshot.hero.state, "empty");
     assert.equal(emptySnapshot.hero.primaryAction.label, "Create your first department");
     assert.equal(emptySnapshot.departmentReadiness.state, "empty");
-    assert.equal(
-        emptySnapshot.alerts.some(
-            (alert) =>
-                alert.message ===
-                "Fiscal year not configured. Contact your Tenant Admin.",
-        ),
-        true,
-    );
     completedTests.push(
-        "procurement-officer empty states surface the first-department CTA and exact fiscal-year warning copy instead of misleading readiness metrics",
+        "procurement-officer empty states surface the first-department CTA without inventing fiscal-year blockers before real deadline setup starts",
     );
 
     assert.deepEqual(

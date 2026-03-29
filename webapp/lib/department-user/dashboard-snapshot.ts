@@ -37,6 +37,7 @@ export interface DepartmentUserDashboardDepartmentRecord {
     name: string;
     submissionEndsAt: number;
     submissionStartsAt: number;
+    submissionTimeZone?: string | null;
 }
 
 export interface DepartmentUserDashboardSupportRecord {
@@ -203,18 +204,23 @@ export interface BuildDepartmentUserDashboardSnapshotArgs {
     categories: readonly DepartmentUserDashboardCategoryRecord[];
     currentUser: DepartmentUserDashboardCurrentUser;
     department: DepartmentUserDashboardDepartmentRecord | null;
+    fiscalYearStartMonth?: number | null;
     items: readonly DepartmentUserDashboardItemRecord[];
     leaderboardEntries: readonly DepartmentUserDashboardLeaderboardEntry[];
     now: number;
     plans: readonly DepartmentUserDashboardPlanRecord[];
     procurementOfficer: DepartmentUserDashboardSupportRecord | null;
     tenant: DepartmentUserDashboardTenantRecord;
+    tenantTimeZone?: string | null;
 }
 
 export function buildDepartmentUserDashboardSnapshot(
     args: BuildDepartmentUserDashboardSnapshotArgs,
 ): DepartmentUserDashboardSnapshot {
-    const fallbackFiscalYear = getDepartmentUserFiscalYearForDate(args.now).key;
+    const fallbackFiscalYear = getDepartmentUserFiscalYearForDate(args.now, {
+        fiscalYearStartMonth: args.fiscalYearStartMonth,
+        timeZone: args.tenantTimeZone,
+    }).key;
 
     if (!args.department || !args.auth.departmentId) {
         return createBlockedSnapshot({
@@ -228,6 +234,13 @@ export function buildDepartmentUserDashboardSnapshot(
 
     const fiscalYearKey = getDepartmentUserFiscalYearForDate(
         args.department.submissionStartsAt,
+        {
+            fiscalYearStartMonth: args.fiscalYearStartMonth,
+            timeZone:
+                args.department.submissionTimeZone ??
+                args.tenantTimeZone ??
+                "Africa/Nairobi",
+        },
     ).key;
     const deadline = deriveDeadlinePresentation({
         departmentAccessMode: args.auth.departmentAccessMode,
@@ -235,6 +248,7 @@ export function buildDepartmentUserDashboardSnapshot(
         now: args.now,
         submissionEndsAt: args.department.submissionEndsAt,
         submissionStartsAt: args.department.submissionStartsAt,
+        timeZone: args.department.submissionTimeZone ?? "Africa/Nairobi",
     });
     const canonicalPlans = selectCanonicalPlans(args.plans);
     const currentPlan =
@@ -559,6 +573,8 @@ function createBlockedSnapshot(args: {
                 label: "Submission Deadline",
                 note: "Setup required",
                 state: "unavailable",
+                targetAt: null,
+                timeZone: "Africa/Nairobi",
             },
             plan: {
                 helperText: "No Plan",

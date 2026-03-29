@@ -36,6 +36,10 @@ interface FailCommandBody {
 
 type SyncCommandBody = ClaimCommandBody | CompleteCommandBody | FailCommandBody;
 
+interface ReminderDispatchCommandBody {
+  reminderJobId: string;
+}
+
 function unauthorizedResponse(): Response {
   return Response.json(
     {
@@ -64,11 +68,14 @@ function constantTimeEqual(a: string, b: string): boolean {
   return result === 0;
 }
 
-export const handleExternalServiceSync = httpAction(async (ctx, request) => {
+function isAuthorizedExternalServiceRequest(request: Request): boolean {
   const providedSecret = request.headers.get("x-procureline-sync-secret") ?? "";
   const expectedSecret = resolveProcurelineConvexSyncSecret();
+  return constantTimeEqual(providedSecret, expectedSecret);
+}
 
-  if (!constantTimeEqual(providedSecret, expectedSecret)) {
+export const handleExternalServiceSync = httpAction(async (ctx, request) => {
+  if (!isAuthorizedExternalServiceRequest(request)) {
     return unauthorizedResponse();
   }
 
@@ -108,6 +115,22 @@ export const handleExternalServiceSync = httpAction(async (ctx, request) => {
     durableChanges: body.durableChanges,
     error: body.error,
     eventKey: body.eventKey,
+  });
+
+  return Response.json({
+    success: true,
+    data: result,
+  });
+});
+
+export const handleReminderDispatchClaim = httpAction(async (ctx, request) => {
+  if (!isAuthorizedExternalServiceRequest(request)) {
+    return unauthorizedResponse();
+  }
+
+  const body = (await request.json()) as ReminderDispatchCommandBody;
+  const result = await ctx.runMutation("functions/deadlines:claimReminderJobDispatch" as any, {
+    reminderJobId: body.reminderJobId as Id<"submissionDeadlineReminderJobs">,
   });
 
   return Response.json({

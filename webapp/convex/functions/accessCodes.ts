@@ -33,6 +33,7 @@ import {
     validateAccessCodeExpiration,
     type AccessCodeDeliveryStatus,
 } from "../../lib/procurement-officer/access-codes";
+import { getProcurementFiscalYearForDate } from "../../lib/procurement-officer/dashboard";
 import { normalizeDepartmentCode } from "../../lib/procurement-officer/departments";
 import {
     AUDIT_EVENT_NAMES,
@@ -647,9 +648,9 @@ export const getAccessCodesWorkspace = query({
     args: {},
     returns: v.any(),
     handler: async (ctx) => {
-        const { authContext } = await loadProcurementOfficerQueryContext(ctx);
+        const { authContext, tenant } = await loadProcurementOfficerQueryContext(ctx);
         const now = Date.now();
-        const [departments, accessCodes, events, profiles, tenantUsers] = await Promise.all([
+        const [departments, accessCodes, events, profiles, tenantUsers, submissionDeadlines] = await Promise.all([
             ctx.db
                 .query("departments")
                 .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
@@ -672,6 +673,10 @@ export const getAccessCodesWorkspace = query({
                 .query("tenantUsers")
                 .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
                 .collect(),
+            ctx.db
+                .query("submissionDeadlines")
+                .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
+                .collect(),
         ]);
 
         const activeDepartments = departments.filter(isActiveDepartment);
@@ -690,12 +695,23 @@ export const getAccessCodesWorkspace = query({
         );
         const usersById = new Map(userDocs);
         const expirationDefault = deriveAccessCodeExpirationDefault({
+            deadlineRecord:
+                submissionDeadlines.find(
+                    (deadline) =>
+                        deadline.fiscalYearKey ===
+                        getProcurementFiscalYearForDate(Date.now(), {
+                            fiscalYearStartMonth: tenant.fiscalYearStartMonth,
+                            timeZone: tenant.timeZone,
+                        }).key,
+                ) ?? null,
             departments: activeDepartments.map((department) => ({
                 id: String(department._id),
                 isActive: department.isActive,
                 submissionEndsAt: department.submissionEndsAt,
                 submissionStartsAt: department.submissionStartsAt,
             })),
+            fiscalYearStartMonth: tenant.fiscalYearStartMonth,
+            tenantTimeZone: tenant.timeZone,
         });
 
         const rows = await Promise.all(

@@ -121,6 +121,7 @@ export function getDepartmentUserSubmissionWindowMessage(args: {
     now?: number;
     submissionEndsAt: number;
     submissionStartsAt: number;
+    timeZone?: string;
 }): string | null {
     const evaluation = evaluateDepartmentUserSubmissionWindow(args);
 
@@ -128,6 +129,7 @@ export function getDepartmentUserSubmissionWindowMessage(args: {
         return `Submission period has not started yet. Please wait until ${formatDepartmentUserDate(
             args.submissionStartsAt,
             args.locale,
+            args.timeZone,
         )}.`;
     }
 
@@ -209,12 +211,14 @@ export function scrubDepartmentUserAccessCodeFromUrl(
 function formatDepartmentUserDate(
     timestamp: number,
     locale: string = "en-US",
+    timeZone?: string,
 ): string {
     return new Intl.DateTimeFormat(locale, {
         day: "numeric",
         hour: "numeric",
         minute: "2-digit",
         month: "short",
+        ...(timeZone ? { timeZone } : {}),
         year: "numeric",
     }).format(new Date(timestamp));
 }

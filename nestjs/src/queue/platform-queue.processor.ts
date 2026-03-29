@@ -30,7 +30,8 @@ export class PlatformQueueProcessor extends WorkerHost {
         await this.convexSyncService.completeSync({
           durableChanges: [
             {
-              changeType: "email.sent",
+              changeType: result.skipped === true ? "email.skipped" : "email.sent",
+              reason: result.skipped === true ? result.skipReason : undefined,
               to: dto.to,
             },
           ],

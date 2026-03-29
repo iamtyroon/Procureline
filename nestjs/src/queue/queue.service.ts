@@ -5,6 +5,7 @@ import { PLATFORM_QUEUE } from "@/queue/queue.constants";
 import { RedisProbeService } from "@/queue/redis-probe.service";
 
 interface QueueJobOptions {
+  delay?: number;
   jobId?: string;
   priority?: number;
 }
@@ -27,10 +28,21 @@ export class QueueService {
     }
 
     const job = await this.queue.add(name, payload, {
+      delay: options?.delay,
       jobId: options?.jobId,
       priority: options?.priority,
     });
 
     return { id: job.id?.toString() };
+  }
+
+  async remove(jobId: string): Promise<{ removed: boolean }> {
+    const job = await this.queue.getJob(jobId);
+    if (!job) {
+      return { removed: false };
+    }
+
+    await job.remove();
+    return { removed: true };
   }
 }
