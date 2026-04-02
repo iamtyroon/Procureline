@@ -38,7 +38,13 @@ export class EmailDispatchService {
     return this.resendProvider.sendEmail({
       html,
       idempotencyKey: dto.idempotencyKey,
+      metadata: {
+        template: dto.template,
+        templateProps: dto.templateProps,
+      },
+      messageType: `transactional_${dto.template}`,
       subject: dto.subject,
+      text: dto.templateProps ? JSON.stringify(dto.templateProps, null, 2) : undefined,
       to: dto.to,
     });
   }

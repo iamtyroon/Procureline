@@ -39,6 +39,11 @@ describe("EmailDispatchService", () => {
     expect(resendProvider.sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         idempotencyKey: "generic-1",
+        messageType: "transactional_generic-notification",
+        metadata: {
+          template: "generic-notification",
+          templateProps: undefined,
+        },
         subject: "Hello",
         to: "user@example.com",
       }),

@@ -41,11 +41,13 @@ import {
     createAuthenticatedAuditActor,
     type AuditEventName,
 } from "../../lib/security/audit";
+import { resolveEmailTransportMode } from "../../lib/email/transport";
 import { normalizeAuthEmail, validateEmailInput } from "../../lib/security/input";
 import { appendAuditLogRequired } from "./_audit";
 import { requireTenantRole } from "./_roleGuard";
 import { getCurrentTenantUserMembership } from "./_tenantGuard";
 import { getServiceActorContext } from "../actions/_helpers";
+import { sendAppEmail } from "../emailTransport";
 
 type AccessCodeRecord = Doc<"departmentAccessCodes">;
 type DepartmentRecord = Doc<"departments">;
@@ -617,6 +619,68 @@ async function evaluateRecipientEligibility(args: {
     }
 }
 
+function shouldCaptureAccessCodeEmailsDirectly(): boolean {
+    return resolveEmailTransportMode(process.env.AUTH_EMAIL_TRANSPORT) === "dev_inbox";
+}
+
+async function sendAccessCodeEmailDirect(args: {
+    accessCode: string;
+    departmentName: string;
+    email: string;
+    expirationLabel: string;
+    idempotencyKey: string;
+    loginUrl: string;
+    subject: string;
+    tenantName: string;
+}): Promise<void> {
+    const result = await sendAppEmail({
+        from:
+            process.env.AUTH_RESET_RESEND_FROM ??
+            "Procureline <onboarding@resend.dev>",
+        html: `
+            <div style="color: #0f172a; font-family: Georgia, serif; line-height: 1.6;">
+                <h1>${args.tenantName} department access code</h1>
+                <p>A Procurement Officer queued a department access code for ${args.departmentName}.</p>
+                <p>Access code: ${args.accessCode}</p>
+                <p>Expires: ${args.expirationLabel}</p>
+                <p>
+                    <a href="${args.loginUrl}" style="color: #0f172a; font-weight: bold;">
+                        Open Department User sign-in
+                    </a>
+                </p>
+            </div>
+        `,
+        idempotencyKey: args.idempotencyKey,
+        messageType: "transactional_access-code-delivery",
+        metadata: {
+            template: "access-code-delivery",
+            templateProps: {
+                accessCode: args.accessCode,
+                departmentName: args.departmentName,
+                expirationLabel: args.expirationLabel,
+                loginUrl: args.loginUrl,
+                tenantName: args.tenantName,
+            },
+        },
+        subject: args.subject,
+        text: [
+            `${args.tenantName} department access code`,
+            "",
+            `A Procurement Officer queued a department access code for ${args.departmentName}.`,
+            `Access code: ${args.accessCode}`,
+            `Expires: ${args.expirationLabel}`,
+            `Department User sign-in: ${args.loginUrl}`,
+        ].join("\n"),
+        to: [args.email],
+    });
+
+    if (!result.sent) {
+        throw new Error(
+            result.errorMessage ?? "Development inbox capture failed.",
+        );
+    }
+}
+
 function formatAccessCodeActivitySummary(
     latestEvent:
         | Doc<"departmentAccessCodeEvents">
@@ -1110,6 +1174,7 @@ export const bulkGenerateAccessCodes = mutation({
 export const prepareAccessCodeEmailDelivery = internalMutation({
     args: {
         accessCodeId: v.id("departmentAccessCodes"),
+        appUrl: v.optional(v.string()),
         departmentId: v.id("departments"),
         email: v.string(),
     },
@@ -1208,6 +1273,7 @@ export const prepareAccessCodeEmailDelivery = internalMutation({
                 formatAccessCodeDateTime(accessCode.expiresAt) ?? "Not configured",
             idempotencyKey,
             loginUrl: buildAbsoluteAccessCodeLoginUrl({
+                appUrl: args.appUrl,
                 loginPath: ACCESS_CODE_LOGIN_URL_PATH,
             }),
             tenantId: authContext.tenantId,
@@ -1291,6 +1357,7 @@ export const failAccessCodeEmailDelivery = internalMutation({
 export const sendAccessCodeEmail = action({
     args: {
         accessCodeId: v.id("departmentAccessCodes"),
+        appUrl: v.optional(v.string()),
         departmentId: v.id("departments"),
         email: v.string(),
     },
@@ -1301,24 +1368,43 @@ export const sendAccessCodeEmail = action({
             "functions/accessCodes:prepareAccessCodeEmailDelivery" as any,
             args,
         );
+        const subject = `${prepared.tenantName} access code for ${prepared.departmentName}`;
 
         try {
-            const queueResult = await ctx.runAction(
-                "actions/email:queueTransactionalEmail" as any,
-                {
-                    idempotencyKey: prepared.idempotencyKey,
-                    subject: `${prepared.tenantName} access code for ${prepared.departmentName}`,
-                    template: "access-code-delivery",
-                    templateProps: {
-                        accessCode: prepared.accessCodeValue,
-                        departmentName: prepared.departmentName,
-                        expirationLabel: prepared.expirationLabel,
-                        loginUrl: prepared.loginUrl,
-                        tenantName: prepared.tenantName,
-                    },
-                    to: prepared.email,
-                },
-            );
+            const queueResult = shouldCaptureAccessCodeEmailsDirectly()
+                ? prepared.duplicateQueuedRequest
+                    ? { duplicate: true }
+                    : await (async () => {
+                          await sendAccessCodeEmailDirect({
+                              accessCode: prepared.accessCodeValue,
+                              departmentName: prepared.departmentName,
+                              email: prepared.email,
+                              expirationLabel: prepared.expirationLabel,
+                              idempotencyKey: prepared.idempotencyKey,
+                              loginUrl: prepared.loginUrl,
+                              subject,
+                              tenantName: prepared.tenantName,
+                          });
+
+                          return {
+                              duplicate: false,
+                              eventKey: `dev-email:${prepared.idempotencyKey}`,
+                              queued: true,
+                          };
+                      })()
+                : await ctx.runAction("actions/email:queueTransactionalEmail" as any, {
+                      idempotencyKey: prepared.idempotencyKey,
+                      subject,
+                      template: "access-code-delivery",
+                      templateProps: {
+                          accessCode: prepared.accessCodeValue,
+                          departmentName: prepared.departmentName,
+                          expirationLabel: prepared.expirationLabel,
+                          loginUrl: prepared.loginUrl,
+                          tenantName: prepared.tenantName,
+                      },
+                      to: prepared.email,
+                  });
 
             await ctx.runMutation(
                 "functions/accessCodes:completeAccessCodeEmailDelivery" as any,
@@ -1359,7 +1445,9 @@ export const sendAccessCodeEmail = action({
 
             return {
                 deliveryStatus: "queued" as const,
-                duplicate: Boolean(queueResult?.duplicate),
+                duplicate:
+                    prepared.duplicateQueuedRequest ||
+                    Boolean(queueResult?.duplicate),
             };
         } catch (error) {
             await ctx.runMutation(

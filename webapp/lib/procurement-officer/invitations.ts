@@ -112,6 +112,22 @@ export function resolveProcurementOfficerBounceStatus(
     return status === "pending" ? "bounced" : status;
 }
 
+export function canReuseAcceptedProcurementOfficerInvitation(args: {
+    acceptedByUserId?: string;
+    acceptedTenantUserId?: string;
+    existingUserId?: string;
+    status: ProcurementOfficerInvitationStatus;
+    tenantMembershipId?: string;
+    tenantMembershipRole?: string;
+}): boolean {
+    return (
+        args.status === "accepted" &&
+        args.acceptedByUserId === args.existingUserId &&
+        args.acceptedTenantUserId === args.tenantMembershipId &&
+        args.tenantMembershipRole === "procurement_officer"
+    );
+}
+
 export function getProcurementOfficerInvitationAccessMessage(args: {
     expiresAt: number;
     now: number;
@@ -127,10 +143,6 @@ export function getProcurementOfficerInvitationAccessMessage(args: {
         now: args.now,
         status: args.status,
     });
-
-    if (effectiveStatus === "accepted") {
-        return PROCUREMENT_OFFICER_INVITATION_ACCEPTED_MESSAGE;
-    }
 
     if (effectiveStatus === "revoked") {
         return PROCUREMENT_OFFICER_INVITATION_REVOKED_MESSAGE;

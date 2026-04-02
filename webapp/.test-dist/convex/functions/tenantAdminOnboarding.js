@@ -744,7 +744,7 @@ exports.getCurrentOnboardingContext = (0, server_2.query)({
                 (typeof user?.email === "string" ? user.email : ""),
             primaryContactName: tenant.primaryContactName,
             primaryContactPhone: tenant.primaryContactPhone,
-            profileComplete: tenant.profileComplete,
+            profileComplete: tenant.profileComplete === true,
             tenantId: tenant._id,
             tenantName: tenant.name,
         };

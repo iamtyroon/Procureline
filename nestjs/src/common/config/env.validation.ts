@@ -2,6 +2,8 @@ import { z } from "zod";
 import type { AppConfig } from "@/common/config/app-config";
 
 const envSchema = z.object({
+  AUTH_DEV_INBOX_SECRET: z.string().trim().min(1).optional(),
+  AUTH_EMAIL_TRANSPORT: z.enum(["resend", "dev_inbox"]).default("resend"),
   CONVEX_URL: z.string().url(),
   INTASEND_PUBLISHABLE_KEY: z.string().trim().min(1),
   INTASEND_SECRET_KEY: z.string().trim().min(1),
@@ -11,9 +13,9 @@ const envSchema = z.object({
   PROCURELINE_CONVEX_SYNC_SECRET: z.string().trim().min(1),
   PROCURELINE_SERVICE_JWT_SECRET: z.string().trim().min(1),
   REDIS_URL: z.string().trim().min(1),
-  RESEND_API_KEY: z.string().trim().min(1),
-  RESEND_FROM_EMAIL: z.string().email(),
-  RESEND_WEBHOOK_SECRET: z.string().trim().min(1),
+  RESEND_API_KEY: z.string().trim().min(1).optional(),
+  RESEND_FROM_EMAIL: z.string().email().optional(),
+  RESEND_WEBHOOK_SECRET: z.string().trim().min(1).optional(),
   STRIPE_SECRET_KEY: z.string().trim().min(1),
   STRIPE_WEBHOOK_SECRET: z.string().trim().min(1),
   SWAGGER_ENABLED: z
@@ -29,7 +31,28 @@ export function validateEnvironment(config: Record<string, unknown>): AppConfig 
     throw new Error(`Invalid NestJS service environment: ${issues}`);
   }
 
+  if (parsed.data.AUTH_EMAIL_TRANSPORT === "resend") {
+    if (!parsed.data.RESEND_API_KEY) {
+      throw new Error("Invalid NestJS service environment: RESEND_API_KEY: Required when AUTH_EMAIL_TRANSPORT=resend");
+    }
+    if (!parsed.data.RESEND_FROM_EMAIL) {
+      throw new Error("Invalid NestJS service environment: RESEND_FROM_EMAIL: Required when AUTH_EMAIL_TRANSPORT=resend");
+    }
+    if (!parsed.data.RESEND_WEBHOOK_SECRET) {
+      throw new Error("Invalid NestJS service environment: RESEND_WEBHOOK_SECRET: Required when AUTH_EMAIL_TRANSPORT=resend");
+    }
+  }
+
+  if (
+    parsed.data.AUTH_EMAIL_TRANSPORT === "dev_inbox" &&
+    !parsed.data.AUTH_DEV_INBOX_SECRET
+  ) {
+    throw new Error("Invalid NestJS service environment: AUTH_DEV_INBOX_SECRET: Required when AUTH_EMAIL_TRANSPORT=dev_inbox");
+  }
+
   return {
+    emailDevInboxSecret: parsed.data.AUTH_DEV_INBOX_SECRET,
+    emailTransport: parsed.data.AUTH_EMAIL_TRANSPORT,
     convexUrl: parsed.data.CONVEX_URL,
     intasendPublishableKey: parsed.data.INTASEND_PUBLISHABLE_KEY,
     intasendSecretKey: parsed.data.INTASEND_SECRET_KEY,

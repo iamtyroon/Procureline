@@ -44,6 +44,29 @@ async function runProcurementOfficerInvitationTests() {
         tenantIsActive: false,
     }), invitations_1.PROCUREMENT_OFFICER_TENANT_INACTIVE_MESSAGE);
     completedTests.push("procurement officer invitation state helpers fail closed for superseded, expired, and inactive-tenant cases");
+    strict_1.default.equal((0, invitations_1.getProcurementOfficerInvitationAccessMessage)({
+        expiresAt: 100,
+        now: 50,
+        status: "accepted",
+        tenantIsActive: true,
+    }), null);
+    strict_1.default.equal((0, invitations_1.canReuseAcceptedProcurementOfficerInvitation)({
+        acceptedByUserId: "user-1",
+        acceptedTenantUserId: "tenant-user-1",
+        existingUserId: "user-1",
+        status: "accepted",
+        tenantMembershipId: "tenant-user-1",
+        tenantMembershipRole: "procurement_officer",
+    }), true);
+    strict_1.default.equal((0, invitations_1.canReuseAcceptedProcurementOfficerInvitation)({
+        acceptedByUserId: "user-1",
+        acceptedTenantUserId: "tenant-user-1",
+        existingUserId: "user-1",
+        status: "accepted",
+        tenantMembershipId: "tenant-user-1",
+        tenantMembershipRole: "tenant_admin",
+    }), false);
+    completedTests.push("accepted procurement officer invitations stay reusable for the originally onboarded procurement officer without reopening access to other roles");
     strict_1.default.equal((0, invitations_1.resolveProcurementOfficerBounceStatus)("pending"), "bounced");
     strict_1.default.equal((0, invitations_1.resolveProcurementOfficerBounceStatus)("accepted"), "accepted");
     strict_1.default.equal((0, invitations_1.resolveProcurementOfficerBounceStatus)("expired"), "expired");

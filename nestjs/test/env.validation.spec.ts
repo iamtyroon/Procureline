@@ -2,6 +2,7 @@ import { validateEnvironment } from "@/common/config/env.validation";
 
 describe("validateEnvironment", () => {
   const baseEnvironment = {
+    AUTH_EMAIL_TRANSPORT: "resend",
     CONVEX_URL: "https://example.convex.cloud",
     INTASEND_PUBLISHABLE_KEY: "publishable",
     INTASEND_SECRET_KEY: "secret",
@@ -32,5 +33,19 @@ describe("validateEnvironment", () => {
         PROCURELINE_SERVICE_JWT_SECRET: "",
       }),
     ).toThrow("PROCURELINE_SERVICE_JWT_SECRET");
+  });
+
+  it("accepts dev inbox mode without Resend credentials when the inbox secret is configured", () => {
+    const config = validateEnvironment({
+      ...baseEnvironment,
+      AUTH_DEV_INBOX_SECRET: "dev-inbox-secret",
+      AUTH_EMAIL_TRANSPORT: "dev_inbox",
+      RESEND_API_KEY: undefined,
+      RESEND_FROM_EMAIL: undefined,
+      RESEND_WEBHOOK_SECRET: undefined,
+    });
+
+    expect(config.emailTransport).toBe("dev_inbox");
+    expect(config.emailDevInboxSecret).toBe("dev-inbox-secret");
   });
 });

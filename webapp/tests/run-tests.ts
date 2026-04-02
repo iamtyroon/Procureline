@@ -1,6 +1,8 @@
 import { runConvexErrorHandlingTests } from "./convex-error-handling.test";
+import { runEmailTransportTests } from "./email-transport.test";
 import { runProcurementOfficerDepartmentTests } from "./procurement-officer-departments.test";
 import { runDepartmentUserDashboardTests } from "./department-user-dashboard.test";
+import { runDepartmentUserBlocklyWorkspaceTests } from "./department-user-blockly-workspace.test";
 import { runDepartmentUserAccessTests } from "./department-user-access.test";
 import { runDepartmentUserRequestContextTests } from "./department-user-request-context.test";
 import { runPasswordResetTests } from "./password-reset.test";
@@ -26,10 +28,12 @@ import { runTenantIsolationTests } from "./tenant-isolation.test";
 async function main(): Promise<void> {
     const completedTests = [
         ...runConvexErrorHandlingTests(),
+        ...runEmailTransportTests(),
         ...runProcurementOfficerDepartmentTests(),
         ...runProcurementOfficerAccessCodeTests(),
         ...runProcurementOfficerDeadlineTests(),
         ...runDepartmentUserDashboardTests(),
+        ...runDepartmentUserBlocklyWorkspaceTests(),
         ...(await runDepartmentUserAccessTests()),
         ...(await runDepartmentUserRequestContextTests()),
         ...runPasswordResetTests(),

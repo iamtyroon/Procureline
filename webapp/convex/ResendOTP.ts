@@ -1,9 +1,10 @@
-import { Resend as ResendAPI } from "resend";
 import { generateRandomString } from "@oslojs/crypto/random";
+import { sendAppEmail } from "./emailTransport";
 
 /**
- * Custom Resend OTP email provider for Convex Auth.
- * Conforms to the EmailConfig interface expected by Password({ verify }).
+ * Custom email OTP provider for Convex Auth.
+ * In production it sends through Resend, and in development it can
+ * capture messages into the Convex dev inbox transport.
  */
 export const ResendOTP: any = {
     id: "resend-otp",
@@ -13,14 +14,14 @@ export const ResendOTP: any = {
     maxAge: 60 * 15, // 15 minutes
 
     async generateVerificationToken(): Promise<string> {
-        const DIGITS = "0123456789";
+        const digits = "0123456789";
         return generateRandomString(
             {
                 read(bytes: Uint8Array): void {
                     crypto.getRandomValues(bytes);
                 },
             },
-            DIGITS,
+            digits,
             8,
         );
     },
@@ -30,25 +31,18 @@ export const ResendOTP: any = {
             identifier: string;
             url: string;
             expires: Date;
-            provider: { from?: string;[key: string]: unknown };
+            provider: { from?: string; [key: string]: unknown };
             token: string;
             request: Request;
             theme: { brandColor?: string; logo?: string };
         },
     ): Promise<void> {
         const { identifier: email, token, provider } = params;
-        const apiKey = process.env.AUTH_RESEND_KEY;
-        if (!apiKey) {
-            throw new Error("AUTH_RESEND_KEY environment variable is not set");
-        }
-
-        const fromAddress = (provider.from as string) || "Procureline <onboarding@resend.dev>";
-        const resend = new ResendAPI(apiKey);
-        const { error } = await resend.emails.send({
+        const fromAddress =
+            (provider.from as string) || "Procureline <onboarding@resend.dev>";
+        const result = await sendAppEmail({
+            debugCode: token,
             from: fromAddress,
-            to: [email],
-            subject: "Welcome to Procureline — Verify Your Email",
-            text: `Your verification code is: ${token}. It expires in 15 minutes.`,
             html: `
         <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
           <h2 style="color: #18b969; margin-bottom: 8px;">Welcome to Procureline!</h2>
@@ -59,10 +53,20 @@ export const ResendOTP: any = {
           <p style="color: #888; font-size: 13px;">This code expires in 15 minutes. If you didn't request this, you can safely ignore this email.</p>
         </div>
       `,
+            messageType: "auth_email_verification",
+            subject: "Welcome to Procureline - Verify Your Email",
+            text: `Your verification code is: ${token}. It expires in 15 minutes.`,
+            to: [email],
         });
-        if (error) {
-            console.error("Resend API error:", JSON.stringify(error));
-            throw new Error(`Could not send verification email: ${JSON.stringify(error)}`);
+
+        if (!result.sent) {
+            console.error(
+                "Email transport error:",
+                result.errorMessage ?? "unknown",
+            );
+            throw new Error(
+                `Could not send verification email: ${result.errorMessage ?? "unknown email transport error"}`,
+            );
         }
     },
 

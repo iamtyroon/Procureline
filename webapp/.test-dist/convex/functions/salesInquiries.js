@@ -27,43 +27,40 @@ exports.submitEnterpriseInquiry = (0, server_1.mutation)({
                 message: firstIssue.message,
             });
         }
-        const normalizedEmail = (0, sales_1.normalizeEnterpriseInquiryEmail)(parsed.data.email);
-        const organizationNameKey = (0, sales_1.normalizeEnterpriseInquiryOrganizationKey)(parsed.data.organizationName);
+        const enterpriseInquiryRecord = (0, sales_1.createEnterpriseInquiryRecord)({
+            contactName: parsed.data.contactName,
+            createdAt: Date.now(),
+            email: parsed.data.email,
+            message: parsed.data.message,
+            organizationName: parsed.data.organizationName,
+        });
         const [mostRecentEmailInquiry, mostRecentOrganizationInquiry] = await Promise.all([
             ctx.db
                 .query("salesInquiries")
-                .withIndex("by_email", (q) => q.eq("email", normalizedEmail))
+                .withIndex("by_email", (q) => q.eq("email", enterpriseInquiryRecord.email))
                 .order("desc")
                 .first(),
             ctx.db
                 .query("salesInquiries")
-                .withIndex("by_organizationNameKey", (q) => q.eq("organizationNameKey", organizationNameKey))
+                .withIndex("by_organizationNameKey", (q) => q.eq("organizationNameKey", enterpriseInquiryRecord.organizationNameKey))
                 .order("desc")
                 .first(),
         ]);
-        const mostRecentInquiryCreatedAt = Math.max(mostRecentEmailInquiry?.createdAt ?? 0, mostRecentOrganizationInquiry?.createdAt ?? 0);
-        const now = Date.now();
+        const mostRecentInquiryCreatedAt = (0, sales_1.getMostRecentEnterpriseInquiryCreatedAt)([
+            mostRecentEmailInquiry?.createdAt,
+            mostRecentOrganizationInquiry?.createdAt,
+        ]);
         if ((0, sales_1.isEnterpriseInquiryRateLimited)({
             cooldownMs: sales_1.ENTERPRISE_INQUIRY_COOLDOWN_MS,
-            lastSubmittedAt: mostRecentInquiryCreatedAt > 0 ? mostRecentInquiryCreatedAt : null,
-            now,
+            lastSubmittedAt: mostRecentInquiryCreatedAt,
+            now: enterpriseInquiryRecord.createdAt,
         })) {
             throw new values_1.ConvexError({
                 code: "RATE_LIMITED",
                 message: (0, sales_1.getEnterpriseInquiryCooldownMessage)(sales_1.ENTERPRISE_INQUIRY_COOLDOWN_MS),
             });
         }
-        const inquiryId = await ctx.db.insert("salesInquiries", {
-            contactName: parsed.data.contactName.trim(),
-            email: normalizedEmail,
-            message: parsed.data.message.trim(),
-            organizationName: parsed.data.organizationName.trim(),
-            organizationNameKey,
-            requestedTier: "enterprise",
-            source: "pricing_page",
-            status: "new",
-            createdAt: now,
-        });
+        const inquiryId = await ctx.db.insert("salesInquiries", enterpriseInquiryRecord);
         return { inquiryId };
     },
 });

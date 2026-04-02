@@ -25,6 +25,9 @@ export function runProxyRouteTests(): string[] {
     assert.equal(isKnownPublicRoute("/access/department-user"), true);
     completedTests.push("department-user continuation route is public");
 
+    assert.equal(isKnownPublicRoute("/dev/email-inbox"), true);
+    completedTests.push("development email inbox route is public");
+
     assert.equal(isKnownPublicRoute("/platform-admin/login"), true);
     assert.equal(isKnownPublicRoute("/platform-admin/setup-2fa"), true);
     assert.equal(isKnownPublicRoute("/platform-admin/verify"), true);
@@ -52,6 +55,7 @@ export function runProxyRouteTests(): string[] {
     assert.equal(PUBLIC_ROUTES.includes("/access"), true);
     assert.equal(PUBLIC_ROUTES.includes("/access/procurement-officer"), true);
     assert.equal(PUBLIC_ROUTES.includes("/access/department-user"), true);
+    assert.equal(PUBLIC_ROUTES.includes("/dev/email-inbox"), true);
     assert.equal(PUBLIC_ROUTES.includes("/platform-admin/login"), true);
     assert.equal(PUBLIC_ROUTES.includes("/platform-admin/setup-2fa"), true);
     assert.equal(PUBLIC_ROUTES.includes("/platform-admin/verify"), true);

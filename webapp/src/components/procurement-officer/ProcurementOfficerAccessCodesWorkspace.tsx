@@ -130,6 +130,14 @@ function formatTimestamp(timestamp: number | null): string {
     }).format(new Date(timestamp));
 }
 
+function resolveCurrentAppUrl(): string | undefined {
+    if (typeof window === "undefined") {
+        return undefined;
+    }
+
+    return window.location.origin;
+}
+
 export function ProcurementOfficerAccessCodesWorkspace(): JSX.Element {
     const workspace = useQuery(
         api.functions.accessCodes.getAccessCodesWorkspace,
@@ -302,6 +310,7 @@ export function ProcurementOfficerAccessCodesWorkspace(): JSX.Element {
         try {
             const result = await sendAccessCodeEmail({
                 accessCodeId: emailTarget.accessCodeId as any,
+                appUrl: resolveCurrentAppUrl(),
                 departmentId: emailTarget.id as any,
                 email: values.email,
             });

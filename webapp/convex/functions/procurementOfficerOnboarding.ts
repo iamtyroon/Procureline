@@ -7,6 +7,7 @@ import { generateRandomString } from "@oslojs/crypto/random";
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
+import { sendAppEmail } from "../emailTransport";
 import {
     action,
     internalMutation,
@@ -34,6 +35,7 @@ import {
     validatePlainTextInput,
 } from "../../lib/security/input";
 import {
+    canReuseAcceptedProcurementOfficerInvitation,
     PROCUREMENT_OFFICER_AUTH_CHALLENGE_WINDOW_MS,
     PROCUREMENT_OFFICER_AUTH_PROVIDER,
     PROCUREMENT_OFFICER_AUTH_START_FLOW,
@@ -289,24 +291,14 @@ async function sendInvitationEmail(args: {
     tenantId: string;
     tenantName: string;
 }): Promise<{ messageId?: string; sent: boolean }> {
-    const apiKey = process.env.AUTH_RESEND_KEY;
-    if (!apiKey) {
-        return { sent: false };
-    }
-
     const fromAddress =
         process.env.AUTH_RESET_RESEND_FROM ??
         "Procureline <onboarding@resend.dev>";
-    const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-            "Idempotency-Key": args.idempotencyKey,
-        },
-        body: JSON.stringify({
-            from: fromAddress,
-            html: `
+    const result = await sendAppEmail({
+        debugCode: args.activationCode,
+        debugLink: args.inviteUrl,
+        from: fromAddress,
+        html: `
                 <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
                     <h2 style="margin-bottom: 12px;">You're invited to Procureline</h2>
                     <p>Hello ${args.fullName},</p>
@@ -317,33 +309,33 @@ async function sendInvitationEmail(args: {
                     <p>This invitation expires in 7 days. Only the latest invitation remains valid after a resend.</p>
                 </div>
             `,
-            subject: `${args.tenantName} invited you to Procureline`,
-            tags: [
-                { name: "category", value: "po_invitation" },
-                { name: "invitation_id", value: args.invitationId },
-                { name: "tenant_id", value: args.tenantId },
-            ],
-            text: [
-                `Hello ${args.fullName},`,
-                "",
-                `Your Tenant Admin invited you to Procureline for ${args.tenantName}.`,
-                `Invite link: ${args.inviteUrl}`,
-                `Activation code: ${args.activationCode}`,
-                "",
-                "This invitation expires in 7 days. Only the latest invitation remains valid after a resend.",
-            ].join("\n"),
-            to: [args.email],
-        }),
+        idempotencyKey: args.idempotencyKey,
+        messageType: "procurement_officer_invitation",
+        metadata: {
+            invitationId: args.invitationId,
+            tenantId: args.tenantId,
+            tenantName: args.tenantName,
+        },
+        subject: `${args.tenantName} invited you to Procureline`,
+        tags: [
+            { name: "category", value: "po_invitation" },
+            { name: "invitation_id", value: args.invitationId },
+            { name: "tenant_id", value: args.tenantId },
+        ],
+        text: [
+            `Hello ${args.fullName},`,
+            "",
+            `Your Tenant Admin invited you to Procureline for ${args.tenantName}.`,
+            `Invite link: ${args.inviteUrl}`,
+            `Activation code: ${args.activationCode}`,
+            "",
+            "This invitation expires in 7 days. Only the latest invitation remains valid after a resend.",
+        ].join("\n"),
+        to: [args.email],
     });
-
-    if (!response.ok) {
-        return { sent: false };
-    }
-
-    const payload = (await response.json()) as { id?: string };
     return {
-        messageId: payload.id,
-        sent: true,
+        messageId: result.messageId,
+        sent: result.sent,
     };
 }
 
@@ -453,6 +445,29 @@ async function evaluateAccessAttemptInternal(
         (membership) => membership.tenantId === invitation.tenantId,
     );
     if (sameTenantMembership) {
+        if (
+            canReuseAcceptedProcurementOfficerInvitation({
+                acceptedByUserId: invitation.acceptedByUserId
+                    ? String(invitation.acceptedByUserId)
+                    : undefined,
+                acceptedTenantUserId: invitation.acceptedTenantUserId
+                    ? String(invitation.acceptedTenantUserId)
+                    : undefined,
+                existingUserId: String(existingUser._id),
+                status: invitation.status,
+                tenantMembershipId: String(sameTenantMembership._id),
+                tenantMembershipRole: sameTenantMembership.role,
+            })
+        ) {
+            return {
+                ok: true,
+                invitationId: invitation._id,
+                normalizedEmail: args.normalizedEmail,
+                tenantId: invitation.tenantId,
+                userIdHint: existingUser._id,
+            };
+        }
+
         return {
             ok: false,
             auditEvent: AUDIT_EVENT_NAMES.procurementOfficerInvitationBlocked,
@@ -1282,9 +1297,18 @@ export const finalizeSuccessfulAccess = internalMutation({
         );
         if (sameTenantMembership) {
             if (
-                invitation.status === "accepted" &&
-                invitation.acceptedByUserId === args.userId &&
-                invitation.acceptedTenantUserId === sameTenantMembership._id
+                canReuseAcceptedProcurementOfficerInvitation({
+                    acceptedByUserId: invitation.acceptedByUserId
+                        ? String(invitation.acceptedByUserId)
+                        : undefined,
+                    acceptedTenantUserId: invitation.acceptedTenantUserId
+                        ? String(invitation.acceptedTenantUserId)
+                        : undefined,
+                    existingUserId: String(args.userId),
+                    status: invitation.status,
+                    tenantMembershipId: String(sameTenantMembership._id),
+                    tenantMembershipRole: sameTenantMembership.role,
+                })
             ) {
                 return {
                     tenantId: invitation.tenantId,

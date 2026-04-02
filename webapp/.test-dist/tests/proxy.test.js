@@ -20,6 +20,8 @@ function runProxyRouteTests() {
     completedTests.push("procurement-officer placeholder route is public");
     strict_1.default.equal((0, public_routes_1.isKnownPublicRoute)("/access/department-user"), true);
     completedTests.push("department-user continuation route is public");
+    strict_1.default.equal((0, public_routes_1.isKnownPublicRoute)("/dev/email-inbox"), true);
+    completedTests.push("development email inbox route is public");
     strict_1.default.equal((0, public_routes_1.isKnownPublicRoute)("/platform-admin/login"), true);
     strict_1.default.equal((0, public_routes_1.isKnownPublicRoute)("/platform-admin/setup-2fa"), true);
     strict_1.default.equal((0, public_routes_1.isKnownPublicRoute)("/platform-admin/verify"), true);
@@ -36,6 +38,7 @@ function runProxyRouteTests() {
     strict_1.default.equal(public_routes_1.PUBLIC_ROUTES.includes("/access"), true);
     strict_1.default.equal(public_routes_1.PUBLIC_ROUTES.includes("/access/procurement-officer"), true);
     strict_1.default.equal(public_routes_1.PUBLIC_ROUTES.includes("/access/department-user"), true);
+    strict_1.default.equal(public_routes_1.PUBLIC_ROUTES.includes("/dev/email-inbox"), true);
     strict_1.default.equal(public_routes_1.PUBLIC_ROUTES.includes("/platform-admin/login"), true);
     strict_1.default.equal(public_routes_1.PUBLIC_ROUTES.includes("/platform-admin/setup-2fa"), true);
     strict_1.default.equal(public_routes_1.PUBLIC_ROUTES.includes("/platform-admin/verify"), true);

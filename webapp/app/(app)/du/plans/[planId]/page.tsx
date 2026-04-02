@@ -1,5 +1,5 @@
-import { DepartmentUserRoutePlaceholder } from "@/src/components/department-user/DepartmentUserRoutePlaceholder";
+import { DepartmentUserBlocklyWorkspace } from "@/src/components/department-user/DepartmentUserBlocklyWorkspace";
 
 export default function DepartmentUserPlanDetailPage() {
-    return <DepartmentUserRoutePlaceholder mode="detail" />;
+    return <DepartmentUserBlocklyWorkspace routeMode="detail" />;
 }

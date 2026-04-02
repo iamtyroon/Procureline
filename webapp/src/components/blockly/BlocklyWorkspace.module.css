@@ -1,0 +1,51 @@
+.editorGrid {
+    display: grid;
+    grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+    gap: 1rem;
+    min-height: calc(100vh - 16rem);
+}
+
+.hostCard {
+    min-height: calc(100vh - 16rem);
+}
+
+.hostShell {
+    border-radius: 1.75rem;
+    overflow: hidden;
+}
+
+.toolboxRail {
+    background:
+        radial-gradient(circle at top, rgba(24, 185, 105, 0.09), transparent 45%),
+        linear-gradient(180deg, rgba(250, 250, 249, 0.98), rgba(244, 244, 245, 0.98));
+}
+
+.blocklyViewport {
+    min-height: calc(100vh - 16rem);
+    width: 100%;
+}
+
+:global(.blockly-host .blocklyToolboxDiv) {
+    background: rgba(255, 255, 255, 0.72);
+    border-right: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+:global(.blockly-host .blocklyFlyout) {
+    fill: rgba(255, 255, 255, 0.95);
+}
+
+:global(.blockly-host .dept-block-collapsed .blocklyPath) {
+    fill: #18b969 !important;
+}
+
+:global(.blockly-host .dept-block-expanded .blocklyPath) {
+    fill: #15925a !important;
+}
+
+:global(.blockly-host .item-block-collapsed .blocklyPath) {
+    fill: #f5a623 !important;
+}
+
+:global(.blockly-host .item-block-expanded .blocklyPath) {
+    fill: #dd941f !important;
+}

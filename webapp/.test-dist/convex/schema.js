@@ -3,6 +3,18 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const server_1 = require("convex/server");
 const values_1 = require("convex/values");
 const server_2 = require("@convex-dev/auth/server");
+const blocklyWorkspaceStateValidator = values_1.v.object({
+    format: values_1.v.literal("blockly_json"),
+    schemaVersion: values_1.v.number(),
+    workspaceJson: values_1.v.any(),
+    editorMetadata: values_1.v.object({
+        lastSavedAt: values_1.v.number(),
+        lastSavedByUserId: values_1.v.string(),
+        recoveredAt: values_1.v.union(values_1.v.number(), values_1.v.null()),
+        revision: values_1.v.number(),
+        saveSource: values_1.v.union(values_1.v.literal("workspace_seed"), values_1.v.literal("workspace_sync")),
+    }),
+});
 exports.default = (0, server_1.defineSchema)({
     ...server_2.authTables,
     tenants: (0, server_1.defineTable)({
@@ -14,7 +26,9 @@ exports.default = (0, server_1.defineSchema)({
         primaryContactName: values_1.v.optional(values_1.v.string()),
         primaryContactEmail: values_1.v.optional(values_1.v.string()),
         primaryContactPhone: values_1.v.optional(values_1.v.string()),
+        procurementBudgetCeiling: values_1.v.optional(values_1.v.number()),
         fiscalYearStartMonth: values_1.v.optional(values_1.v.number()),
+        timeZone: values_1.v.optional(values_1.v.string()),
         logoUrl: values_1.v.optional(values_1.v.string()),
         onboardingCompletedAt: values_1.v.optional(values_1.v.number()),
         createdAt: values_1.v.number(),
@@ -110,17 +124,68 @@ exports.default = (0, server_1.defineSchema)({
         tenantId: values_1.v.id("tenants"),
         procurementOfficerTenantUserId: values_1.v.id("tenantUsers"),
         name: values_1.v.string(),
+        normalizedName: values_1.v.string(),
         code: values_1.v.string(),
+        normalizedCode: values_1.v.string(),
         budgetAllocation: values_1.v.optional(values_1.v.number()),
         isActive: values_1.v.boolean(),
-        submissionStartsAt: values_1.v.number(),
-        submissionEndsAt: values_1.v.number(),
+        submissionStartsAt: values_1.v.optional(values_1.v.number()),
+        submissionEndsAt: values_1.v.optional(values_1.v.number()),
+        deletedAt: values_1.v.optional(values_1.v.number()),
+        deletedByTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
+        lastBudgetChangedAt: values_1.v.optional(values_1.v.number()),
+        lastBudgetChangedByTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
         createdAt: values_1.v.number(),
         updatedAt: values_1.v.number(),
     })
         .index("by_tenantId", ["tenantId"])
+        .index("by_tenantId_isActive", ["tenantId", "isActive"])
         .index("by_tenantId_code", ["tenantId", "code"])
+        .index("by_tenantId_normalizedCode", ["tenantId", "normalizedCode"])
+        .index("by_tenantId_normalizedName", ["tenantId", "normalizedName"])
         .index("by_procurementOfficerTenantUserId", ["procurementOfficerTenantUserId"]),
+    submissionDeadlines: (0, server_1.defineTable)({
+        announcementIssuedAt: values_1.v.optional(values_1.v.number()),
+        announcementMessage: values_1.v.optional(values_1.v.string()),
+        announcementTitle: values_1.v.optional(values_1.v.string()),
+        createdAt: values_1.v.number(),
+        createdByTenantUserId: values_1.v.id("tenantUsers"),
+        deadlineVersion: values_1.v.number(),
+        fiscalYearKey: values_1.v.string(),
+        lastChangeType: values_1.v.union(values_1.v.literal("edited"), values_1.v.literal("extension"), values_1.v.literal("initial_setup"), values_1.v.literal("tightened")),
+        lastExtensionReason: values_1.v.optional(values_1.v.string()),
+        previousSubmissionEndsAt: values_1.v.optional(values_1.v.number()),
+        reminderOffsets: values_1.v.array(values_1.v.number()),
+        scheduledReminderOffsets: values_1.v.array(values_1.v.number()),
+        skippedReminderOffsets: values_1.v.array(values_1.v.number()),
+        submissionEndsAt: values_1.v.number(),
+        submissionStartsAt: values_1.v.number(),
+        tenantId: values_1.v.id("tenants"),
+        timeZone: values_1.v.string(),
+        updatedAt: values_1.v.number(),
+        updatedByTenantUserId: values_1.v.id("tenantUsers"),
+    })
+        .index("by_tenantId", ["tenantId", "updatedAt"])
+        .index("by_tenantId_fiscalYearKey", ["tenantId", "fiscalYearKey"]),
+    submissionDeadlineReminderJobs: (0, server_1.defineTable)({
+        createdAt: values_1.v.number(),
+        deadlineVersion: values_1.v.number(),
+        deliverAt: values_1.v.number(),
+        fiscalYearKey: values_1.v.string(),
+        idempotencyKey: values_1.v.string(),
+        jobId: values_1.v.optional(values_1.v.string()),
+        recipientEmail: values_1.v.string(),
+        reminderOffsetDays: values_1.v.number(),
+        status: values_1.v.union(values_1.v.literal("cancelled"), values_1.v.literal("failed"), values_1.v.literal("scheduled"), values_1.v.literal("skipped")),
+        statusMessage: values_1.v.optional(values_1.v.string()),
+        submissionDeadlineId: values_1.v.id("submissionDeadlines"),
+        tenantId: values_1.v.id("tenants"),
+        updatedAt: values_1.v.number(),
+    })
+        .index("by_jobId", ["jobId"])
+        .index("by_idempotencyKey", ["idempotencyKey"])
+        .index("by_submissionDeadlineId_version", ["submissionDeadlineId", "deadlineVersion"])
+        .index("by_tenantId_fiscalYearKey", ["tenantId", "fiscalYearKey", "deadlineVersion"]),
     procurementCategories: (0, server_1.defineTable)({
         tenantId: values_1.v.id("tenants"),
         name: values_1.v.string(),
@@ -137,6 +202,11 @@ exports.default = (0, server_1.defineSchema)({
         categoryId: values_1.v.id("procurementCategories"),
         name: values_1.v.string(),
         description: values_1.v.optional(values_1.v.string()),
+        unitOfMeasurement: values_1.v.optional(values_1.v.string()),
+        unitPrice: values_1.v.optional(values_1.v.number()),
+        procurementMethod: values_1.v.optional(values_1.v.string()),
+        sourceOfFunds: values_1.v.optional(values_1.v.string()),
+        sortOrder: values_1.v.optional(values_1.v.number()),
         isActive: values_1.v.boolean(),
         createdAt: values_1.v.number(),
         updatedAt: values_1.v.number(),
@@ -158,6 +228,7 @@ exports.default = (0, server_1.defineSchema)({
             amount: values_1.v.number(),
             itemCount: values_1.v.number(),
         })),
+        workspaceState: values_1.v.optional(blocklyWorkspaceStateValidator),
         rejectionComment: values_1.v.optional(values_1.v.string()),
         createdAt: values_1.v.number(),
         updatedAt: values_1.v.number(),
@@ -176,13 +247,47 @@ exports.default = (0, server_1.defineSchema)({
         codeSuffix: values_1.v.string(),
         expiresAt: values_1.v.number(),
         isActive: values_1.v.boolean(),
+        issuedByTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
+        revokedAt: values_1.v.optional(values_1.v.number()),
+        revokedByTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
+        revocationReason: values_1.v.optional(values_1.v.union(values_1.v.literal("deactivated"), values_1.v.literal("rotated"))),
+        replacedByAccessCodeId: values_1.v.optional(values_1.v.id("departmentAccessCodes")),
+        deliveryAttemptCount: values_1.v.optional(values_1.v.number()),
+        lastDeliveryEmail: values_1.v.optional(values_1.v.string()),
+        lastDeliveryRequestedAt: values_1.v.optional(values_1.v.number()),
+        lastDeliveryQueuedAt: values_1.v.optional(values_1.v.number()),
+        lastDeliveredAt: values_1.v.optional(values_1.v.number()),
+        lastDeliveryIdempotencyKey: values_1.v.optional(values_1.v.string()),
+        lastDeliveryStatus: values_1.v.optional(values_1.v.union(values_1.v.literal("failed"), values_1.v.literal("queued"), values_1.v.literal("sent"))),
+        lastDeliveryErrorCode: values_1.v.optional(values_1.v.string()),
         createdAt: values_1.v.number(),
         updatedAt: values_1.v.number(),
     })
         .index("by_tenantId", ["tenantId"])
         .index("by_departmentId", ["departmentId"])
+        .index("by_departmentId_isActive", ["departmentId", "isActive"])
         .index("by_codeHash", ["codeHash"])
-        .index("by_tenantId_codeHash", ["tenantId", "codeHash"]),
+        .index("by_tenantId_codeHash", ["tenantId", "codeHash"])
+        .index("by_tenantId_departmentId", ["tenantId", "departmentId"]),
+    departmentAccessCodeEvents: (0, server_1.defineTable)({
+        tenantId: values_1.v.id("tenants"),
+        departmentId: values_1.v.id("departments"),
+        accessCodeId: values_1.v.id("departmentAccessCodes"),
+        event: values_1.v.union(values_1.v.literal("deactivated"), values_1.v.literal("email_failed"), values_1.v.literal("email_queued"), values_1.v.literal("issued"), values_1.v.literal("login_denied"), values_1.v.literal("login_success"), values_1.v.literal("rotated")),
+        outcome: values_1.v.union(values_1.v.literal("allowed"), values_1.v.literal("blocked"), values_1.v.literal("failed"), values_1.v.literal("queued")),
+        occurredAt: values_1.v.number(),
+        actorTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
+        actorUserId: values_1.v.optional(values_1.v.id("users")),
+        normalizedEmail: values_1.v.optional(values_1.v.string()),
+        requestOriginStatus: values_1.v.union(values_1.v.literal("captured"), values_1.v.literal("unavailable")),
+        ipAddress: values_1.v.optional(values_1.v.string()),
+        userAgent: values_1.v.optional(values_1.v.string()),
+        message: values_1.v.optional(values_1.v.string()),
+        metadata: values_1.v.optional(values_1.v.any()),
+    })
+        .index("by_accessCodeId_occurredAt", ["accessCodeId", "occurredAt"])
+        .index("by_departmentId_occurredAt", ["departmentId", "occurredAt"])
+        .index("by_tenantId_occurredAt", ["tenantId", "occurredAt"]),
     departmentUserProfiles: (0, server_1.defineTable)({
         tenantId: values_1.v.id("tenants"),
         tenantUserId: values_1.v.id("tenantUsers"),
@@ -437,4 +542,26 @@ exports.default = (0, server_1.defineSchema)({
         .index("by_eventKey", ["eventKey"])
         .index("by_provider_status", ["provider", "status", "updatedAt"])
         .index("by_status", ["status", "updatedAt"]),
+    devEmailMessages: (0, server_1.defineTable)({
+        createdAt: values_1.v.number(),
+        debugCode: values_1.v.optional(values_1.v.string()),
+        debugLink: values_1.v.optional(values_1.v.string()),
+        from: values_1.v.string(),
+        html: values_1.v.optional(values_1.v.string()),
+        idempotencyKey: values_1.v.optional(values_1.v.string()),
+        messageType: values_1.v.string(),
+        metadata: values_1.v.optional(values_1.v.any()),
+        primaryRecipient: values_1.v.string(),
+        subject: values_1.v.string(),
+        tags: values_1.v.optional(values_1.v.array(values_1.v.object({
+            name: values_1.v.string(),
+            value: values_1.v.string(),
+        }))),
+        text: values_1.v.optional(values_1.v.string()),
+        to: values_1.v.array(values_1.v.string()),
+        transport: values_1.v.literal("dev_inbox"),
+    })
+        .index("by_createdAt", ["createdAt"])
+        .index("by_idempotencyKey", ["idempotencyKey"])
+        .index("by_primaryRecipient_createdAt", ["primaryRecipient", "createdAt"]),
 });

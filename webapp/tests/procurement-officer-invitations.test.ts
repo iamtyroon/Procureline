@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import {
+    canReuseAcceptedProcurementOfficerInvitation,
     PROCUREMENT_OFFICER_CONFLICTING_HANDOFF_MESSAGE,
     PROCUREMENT_OFFICER_INVITATION_EXPIRED_MESSAGE,
     PROCUREMENT_OFFICER_TENANT_INACTIVE_MESSAGE,
@@ -95,6 +96,41 @@ export async function runProcurementOfficerInvitationTests(): Promise<string[]> 
     );
     completedTests.push(
         "procurement officer invitation state helpers fail closed for superseded, expired, and inactive-tenant cases",
+    );
+
+    assert.equal(
+        getProcurementOfficerInvitationAccessMessage({
+            expiresAt: 100,
+            now: 50,
+            status: "accepted",
+            tenantIsActive: true,
+        }),
+        null,
+    );
+    assert.equal(
+        canReuseAcceptedProcurementOfficerInvitation({
+            acceptedByUserId: "user-1",
+            acceptedTenantUserId: "tenant-user-1",
+            existingUserId: "user-1",
+            status: "accepted",
+            tenantMembershipId: "tenant-user-1",
+            tenantMembershipRole: "procurement_officer",
+        }),
+        true,
+    );
+    assert.equal(
+        canReuseAcceptedProcurementOfficerInvitation({
+            acceptedByUserId: "user-1",
+            acceptedTenantUserId: "tenant-user-1",
+            existingUserId: "user-1",
+            status: "accepted",
+            tenantMembershipId: "tenant-user-1",
+            tenantMembershipRole: "tenant_admin",
+        }),
+        false,
+    );
+    completedTests.push(
+        "accepted procurement officer invitations stay reusable for the originally onboarded procurement officer without reopening access to other roles",
     );
 
     assert.equal(resolveProcurementOfficerBounceStatus("pending"), "bounced");

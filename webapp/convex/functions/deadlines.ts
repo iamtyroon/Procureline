@@ -562,9 +562,10 @@ export const saveSubmissionDeadlineState = mutation({
             };
         }
 
+        const currentDeadlineVersion = currentRecord?.deadlineVersion ?? 0;
         const nextVersion = configChanged
-            ? (currentRecord?.deadlineVersion ?? 0) + 1
-            : currentRecord?.deadlineVersion ?? 1;
+            ? currentDeadlineVersion + 1
+            : currentDeadlineVersion || 1;
         const submissionDeadlineId = currentRecord
             ? currentRecord._id
             : await ctx.db.insert("submissionDeadlines", {

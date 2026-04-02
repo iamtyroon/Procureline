@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.formatProcurementOfficerInvitationStatusLabel = exports.resolveProcurementOfficerHandoff = exports.invalidateSupersededProcurementOfficerInvitations = exports.getProcurementOfficerInvitationAccessMessage = exports.resolveProcurementOfficerBounceStatus = exports.evaluateProcurementOfficerInvitationStatus = exports.scrubProcurementOfficerHandoffFromUrl = exports.formatProcurementOfficerActivationCode = exports.getProcurementOfficerActivationCodeSuffix = exports.hashProcurementOfficerSecret = exports.normalizeProcurementOfficerActivationCode = exports.PROCUREMENT_OFFICER_BOUNCED_MESSAGE = exports.PROCUREMENT_OFFICER_INVALID_VERIFICATION_CODE_MESSAGE = exports.PROCUREMENT_OFFICER_CONFLICTING_HANDOFF_MESSAGE = exports.PROCUREMENT_OFFICER_DUPLICATE_MEMBERSHIP_MESSAGE = exports.PROCUREMENT_OFFICER_TENANT_INACTIVE_MESSAGE = exports.PROCUREMENT_OFFICER_INVITATION_ACCEPTED_MESSAGE = exports.PROCUREMENT_OFFICER_INVITATION_REVOKED_MESSAGE = exports.PROCUREMENT_OFFICER_INVITATION_EXPIRED_MESSAGE = exports.PROCUREMENT_OFFICER_INVITATION_INVALID_MESSAGE = exports.PROCUREMENT_OFFICER_ACTIVATION_CODE_MAX_LENGTH = exports.PROCUREMENT_OFFICER_AUTH_CHALLENGE_WINDOW_MS = exports.PROCUREMENT_OFFICER_INVITATION_TTL_MS = exports.PROCUREMENT_OFFICER_AUTH_VERIFY_FLOW = exports.PROCUREMENT_OFFICER_AUTH_START_FLOW = exports.PROCUREMENT_OFFICER_AUTH_PROVIDER = void 0;
+exports.formatProcurementOfficerInvitationStatusLabel = exports.resolveProcurementOfficerHandoff = exports.invalidateSupersededProcurementOfficerInvitations = exports.getProcurementOfficerInvitationAccessMessage = exports.canReuseAcceptedProcurementOfficerInvitation = exports.resolveProcurementOfficerBounceStatus = exports.evaluateProcurementOfficerInvitationStatus = exports.scrubProcurementOfficerHandoffFromUrl = exports.formatProcurementOfficerActivationCode = exports.getProcurementOfficerActivationCodeSuffix = exports.hashProcurementOfficerSecret = exports.normalizeProcurementOfficerActivationCode = exports.PROCUREMENT_OFFICER_BOUNCED_MESSAGE = exports.PROCUREMENT_OFFICER_INVALID_VERIFICATION_CODE_MESSAGE = exports.PROCUREMENT_OFFICER_CONFLICTING_HANDOFF_MESSAGE = exports.PROCUREMENT_OFFICER_DUPLICATE_MEMBERSHIP_MESSAGE = exports.PROCUREMENT_OFFICER_TENANT_INACTIVE_MESSAGE = exports.PROCUREMENT_OFFICER_INVITATION_ACCEPTED_MESSAGE = exports.PROCUREMENT_OFFICER_INVITATION_REVOKED_MESSAGE = exports.PROCUREMENT_OFFICER_INVITATION_EXPIRED_MESSAGE = exports.PROCUREMENT_OFFICER_INVITATION_INVALID_MESSAGE = exports.PROCUREMENT_OFFICER_ACTIVATION_CODE_MAX_LENGTH = exports.PROCUREMENT_OFFICER_AUTH_CHALLENGE_WINDOW_MS = exports.PROCUREMENT_OFFICER_INVITATION_TTL_MS = exports.PROCUREMENT_OFFICER_AUTH_VERIFY_FLOW = exports.PROCUREMENT_OFFICER_AUTH_START_FLOW = exports.PROCUREMENT_OFFICER_AUTH_PROVIDER = void 0;
 const public_entry_1 = require("../auth/public-entry");
 exports.PROCUREMENT_OFFICER_AUTH_PROVIDER = "procurement-officer-access";
 exports.PROCUREMENT_OFFICER_AUTH_START_FLOW = "otp-start";
@@ -61,6 +61,13 @@ function resolveProcurementOfficerBounceStatus(status) {
     return status === "pending" ? "bounced" : status;
 }
 exports.resolveProcurementOfficerBounceStatus = resolveProcurementOfficerBounceStatus;
+function canReuseAcceptedProcurementOfficerInvitation(args) {
+    return (args.status === "accepted" &&
+        args.acceptedByUserId === args.existingUserId &&
+        args.acceptedTenantUserId === args.tenantMembershipId &&
+        args.tenantMembershipRole === "procurement_officer");
+}
+exports.canReuseAcceptedProcurementOfficerInvitation = canReuseAcceptedProcurementOfficerInvitation;
 function getProcurementOfficerInvitationAccessMessage(args) {
     if (!args.tenantIsActive) {
         return exports.PROCUREMENT_OFFICER_TENANT_INACTIVE_MESSAGE;
@@ -70,9 +77,6 @@ function getProcurementOfficerInvitationAccessMessage(args) {
         now: args.now,
         status: args.status,
     });
-    if (effectiveStatus === "accepted") {
-        return exports.PROCUREMENT_OFFICER_INVITATION_ACCEPTED_MESSAGE;
-    }
     if (effectiveStatus === "revoked") {
         return exports.PROCUREMENT_OFFICER_INVITATION_REVOKED_MESSAGE;
     }

@@ -1,6 +1,6 @@
 import { generateRandomString } from "@oslojs/crypto/random";
-import { Resend as ResendAPI } from "resend";
 import { buildPasswordResetLink } from "../lib/auth/password-reset";
+import { sendAppEmail } from "./emailTransport";
 
 export const PASSWORD_RESET_PROVIDER_ID = "resend-password-reset";
 export const PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24;
@@ -39,32 +39,18 @@ export const ResendPasswordReset: any = {
         },
     ): Promise<void> {
         const { identifier: email, expires, provider, token } = params;
-        const apiKey = process.env.AUTH_RESEND_KEY;
-        if (!apiKey) {
-            throw new Error("AUTH_RESEND_KEY environment variable is not set");
-        }
-
         const resetUrl = buildPasswordResetLink(params.url, email, expires);
-
         const providerFrom =
             typeof provider.from === "string" ? provider.from : undefined;
         const fromAddress =
             providerFrom ??
             process.env.AUTH_RESET_RESEND_FROM ??
             "Procureline <onboarding@resend.dev>";
-        const resend = new ResendAPI(apiKey);
         const formattedExpiry = expires.toUTCString();
-        const { error } = await resend.emails.send({
+        const result = await sendAppEmail({
+            debugCode: token,
+            debugLink: resetUrl,
             from: fromAddress,
-            to: [email],
-            subject: "Reset your Procureline password",
-            text: [
-                "We received a request to reset your Procureline password.",
-                `Use this code: ${token}`,
-                `Or open this link: ${resetUrl}`,
-                `This reset link expires on ${formattedExpiry}.`,
-                "If you did not request this, you can safely ignore this email.",
-            ].join("\n"),
             html: `
         <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px;">
           <h2 style="color: #18b969; margin-bottom: 8px;">Reset your Procureline password</h2>
@@ -88,11 +74,21 @@ export const ResendPasswordReset: any = {
           </p>
         </div>
       `,
+            messageType: "password_reset",
+            subject: "Reset your Procureline password",
+            text: [
+                "We received a request to reset your Procureline password.",
+                `Use this code: ${token}`,
+                `Or open this link: ${resetUrl}`,
+                `This reset link expires on ${formattedExpiry}.`,
+                "If you did not request this, you can safely ignore this email.",
+            ].join("\n"),
+            to: [email],
         });
 
-        if (error) {
+        if (!result.sent) {
             throw new Error(
-                `Could not send password reset email: ${JSON.stringify(error)}`,
+                `Could not send password reset email: ${result.errorMessage ?? "unknown email transport error"}`,
             );
         }
     },

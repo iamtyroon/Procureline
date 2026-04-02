@@ -1,6 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { generateRandomString } from "@oslojs/crypto/random";
-import { Resend as ResendAPI } from "resend";
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
@@ -51,6 +50,7 @@ import {
 } from "../../lib/security/input";
 import { appendAuditLogBestEffort } from "./_audit";
 import { loadCurrentSessionDocuments } from "./sessions";
+import { sendAppEmail } from "../emailTransport";
 import {
     getAuthorizationContext,
     requirePlatformAdminSession,
@@ -141,12 +141,6 @@ async function sendVerificationEmail(args: {
     purpose: PlatformAdminChallengePurpose;
     riskReasons: PlatformAdminRiskReason[];
 }): Promise<void> {
-    const apiKey = process.env.AUTH_RESEND_KEY;
-    if (!apiKey) {
-        throw new Error("AUTH_RESEND_KEY environment variable is not set");
-    }
-
-    const resend = new ResendAPI(apiKey);
     const fromAddress = resolvePlatformAdminVerificationEmailSender();
     const headline =
         args.purpose === "setup"
@@ -157,11 +151,9 @@ async function sendVerificationEmail(args: {
             ? "We noticed a new or unusual sign-in context, so extra verification is required before this admin session is trusted."
             : "Enter this code to continue into the Platform Admin workspace.";
 
-    const { error } = await resend.emails.send({
+    const result = await sendAppEmail({
+        debugCode: args.code,
         from: fromAddress,
-        to: [args.email],
-        subject: headline,
-        text: `${contextLine}\n\nYour code is ${args.code}. It expires in 15 minutes.`,
         html: `
             <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px;">
                 <p style="margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #0f172a;">
@@ -179,10 +171,20 @@ async function sendVerificationEmail(args: {
                 </p>
             </div>
         `,
+        messageType: "platform_admin_verification",
+        metadata: {
+            purpose: args.purpose,
+            riskReasons: args.riskReasons,
+        },
+        subject: headline,
+        text: `${contextLine}\n\nYour code is ${args.code}. It expires in 15 minutes.`,
+        to: [args.email],
     });
 
-    if (error) {
-        throw new Error(`Could not send verification email: ${JSON.stringify(error)}`);
+    if (!result.sent) {
+        throw new Error(
+            `Could not send verification email: ${result.errorMessage ?? "unknown email transport error"}`,
+        );
     }
 }
 

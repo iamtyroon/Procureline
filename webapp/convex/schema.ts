@@ -2,6 +2,22 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
 
+const blocklyWorkspaceStateValidator = v.object({
+    format: v.literal("blockly_json"),
+    schemaVersion: v.number(),
+    workspaceJson: v.any(),
+    editorMetadata: v.object({
+        lastSavedAt: v.number(),
+        lastSavedByUserId: v.string(),
+        recoveredAt: v.union(v.number(), v.null()),
+        revision: v.number(),
+        saveSource: v.union(
+            v.literal("workspace_seed"),
+            v.literal("workspace_sync"),
+        ),
+    }),
+});
+
 export default defineSchema({
     ...authTables,
 
@@ -234,6 +250,11 @@ export default defineSchema({
         categoryId: v.id("procurementCategories"),
         name: v.string(),
         description: v.optional(v.string()),
+        unitOfMeasurement: v.optional(v.string()),
+        unitPrice: v.optional(v.number()),
+        procurementMethod: v.optional(v.string()),
+        sourceOfFunds: v.optional(v.string()),
+        sortOrder: v.optional(v.number()),
         isActive: v.boolean(),
         createdAt: v.number(),
         updatedAt: v.number(),
@@ -261,6 +282,7 @@ export default defineSchema({
             amount: v.number(),
             itemCount: v.number(),
         })),
+        workspaceState: v.optional(blocklyWorkspaceStateValidator),
         rejectionComment: v.optional(v.string()),
         createdAt: v.number(),
         updatedAt: v.number(),
@@ -705,5 +727,28 @@ export default defineSchema({
         .index("by_eventKey", ["eventKey"])
         .index("by_provider_status", ["provider", "status", "updatedAt"])
         .index("by_status", ["status", "updatedAt"]),
+
+    devEmailMessages: defineTable({
+        createdAt: v.number(),
+        debugCode: v.optional(v.string()),
+        debugLink: v.optional(v.string()),
+        from: v.string(),
+        html: v.optional(v.string()),
+        idempotencyKey: v.optional(v.string()),
+        messageType: v.string(),
+        metadata: v.optional(v.any()),
+        primaryRecipient: v.string(),
+        subject: v.string(),
+        tags: v.optional(v.array(v.object({
+            name: v.string(),
+            value: v.string(),
+        }))),
+        text: v.optional(v.string()),
+        to: v.array(v.string()),
+        transport: v.literal("dev_inbox"),
+    })
+        .index("by_createdAt", ["createdAt"])
+        .index("by_idempotencyKey", ["idempotencyKey"])
+        .index("by_primaryRecipient_createdAt", ["primaryRecipient", "createdAt"]),
 });
 

@@ -1,5 +1,5 @@
-import { DepartmentUserRoutePlaceholder } from "@/src/components/department-user/DepartmentUserRoutePlaceholder";
+import { redirect } from "next/navigation";
 
 export default function DepartmentUserPlansPage() {
-    return <DepartmentUserRoutePlaceholder mode="index" />;
+    redirect("/du");
 }
