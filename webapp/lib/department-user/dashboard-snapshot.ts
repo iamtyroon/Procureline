@@ -1,5 +1,6 @@
 import type { DepartmentUserAccessMode } from "../auth/department-user-access";
 import {
+    createCategorySelectionState,
     deriveDeadlinePresentation,
     deriveLaunchpadState,
     derivePlanAction,
@@ -47,9 +48,13 @@ export interface DepartmentUserDashboardSupportRecord {
 }
 
 export interface DepartmentUserDashboardCategoryRecord {
+    archivedAt?: number | null;
+    color?: string | null;
     id: string;
+    icon?: string | null;
     isActive: boolean;
     name: string;
+    sortOrder?: number | null;
 }
 
 export interface DepartmentUserDashboardItemRecord {
@@ -113,6 +118,8 @@ export interface DepartmentUserDashboardSnapshot {
     };
     launchpad: {
         categories: Array<{
+            disabled: boolean;
+            disabledReason: string | null;
             id: string;
             isSelected: boolean;
             itemCount: number;
@@ -268,10 +275,16 @@ export function buildDepartmentUserDashboardSnapshot(
         status: currentPlanStatus,
     });
 
-    const activeCategories = args.categories
-        .filter((category) => category.isActive)
-        .sort((left, right) => left.name.localeCompare(right.name));
-    const activeCategoryIds = activeCategories.map((category) => category.id);
+    const orderedCategories = [...args.categories].sort(
+        (left, right) =>
+            (left.sortOrder ?? Number.MAX_SAFE_INTEGER) -
+                (right.sortOrder ?? Number.MAX_SAFE_INTEGER) ||
+            left.name.localeCompare(right.name),
+    );
+    const categoriesById = new Map(
+        orderedCategories.map((category) => [category.id, category] as const),
+    );
+    const activeCategories = orderedCategories.filter((category) => category.isActive);
     const itemCountByCategory = new Map<string, number>();
     for (const item of args.items) {
         if (!item.isActive) {
@@ -284,9 +297,10 @@ export function buildDepartmentUserDashboardSnapshot(
         );
     }
 
-    const hasCatalogItems = activeCategories.some(
-        (category) => (itemCountByCategory.get(category.id) ?? 0) > 0,
-    );
+    const selectableCategoryIds = activeCategories
+        .filter((category) => (itemCountByCategory.get(category.id) ?? 0) > 0)
+        .map((category) => category.id);
+    const hasCatalogItems = selectableCategoryIds.length > 0;
     const catalogState: DepartmentUserDashboardState =
         activeCategories.length === 0 || !hasCatalogItems
             ? "setup_required"
@@ -295,9 +309,24 @@ export function buildDepartmentUserDashboardSnapshot(
         currentPlan === null
             ? []
             : sanitizeCategorySelection({
-                  availableCategoryIds: activeCategoryIds,
+                  availableCategoryIds: createCategorySelectionState(
+                      currentPlan.selectedCategoryIds.filter((categoryId) =>
+                          categoriesById.has(categoryId),
+                      ),
+                  ),
                   selectedCategoryIds: currentPlan.selectedCategoryIds,
               });
+    const visibleCategoryIds = new Set<string>(
+        currentPlan === null
+            ? activeCategories.map((category) => category.id)
+            : [
+                  ...activeCategories.map((category) => category.id),
+                  ...selectedCategoryIds,
+              ],
+    );
+    const visibleCategories = orderedCategories.filter((category) =>
+        visibleCategoryIds.has(category.id),
+    );
 
     const budgetAmount = args.department.budgetAllocation ?? null;
     const usedBudget = currentPlan?.estimatedBudgetUsed ?? 0;
@@ -374,9 +403,16 @@ export function buildDepartmentUserDashboardSnapshot(
             tenantName: args.tenant.name,
         },
         launchpad: {
-            categories: activeCategories.map((category) => {
+            categories: visibleCategories.map((category) => {
                 const itemCount = itemCountByCategory.get(category.id) ?? 0;
+                const isDisabled = !category.isActive || itemCount === 0;
                 return {
+                    disabled: isDisabled,
+                    disabledReason: !category.isActive
+                        ? "Archived categories remain visible on existing plans but are unavailable for new selection."
+                        : itemCount === 0
+                          ? "No active catalog items are available in this category yet."
+                          : null,
                     id: category.id,
                     isSelected: selectedCategoryIds.includes(category.id),
                     itemCount,

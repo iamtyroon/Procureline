@@ -236,14 +236,22 @@ export default defineSchema({
     procurementCategories: defineTable({
         tenantId: v.id("tenants"),
         name: v.string(),
+        normalizedName: v.optional(v.string()),
         description: v.optional(v.string()),
+        color: v.optional(v.string()),
+        icon: v.optional(v.string()),
         isActive: v.boolean(),
+        archivedAt: v.optional(v.number()),
+        archivedByTenantUserId: v.optional(v.id("tenantUsers")),
         sortOrder: v.number(),
+        revision: v.optional(v.number()),
         createdAt: v.number(),
         updatedAt: v.number(),
     })
         .index("by_tenantId", ["tenantId"])
-        .index("by_tenantId_isActive", ["tenantId", "isActive"]),
+        .index("by_tenantId_isActive", ["tenantId", "isActive"])
+        .index("by_tenantId_normalizedName", ["tenantId", "normalizedName"])
+        .index("by_tenantId_sortOrder", ["tenantId", "sortOrder"]),
 
     procurementItems: defineTable({
         tenantId: v.id("tenants"),

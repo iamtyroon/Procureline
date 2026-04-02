@@ -195,9 +195,9 @@ export function runDepartmentUserBlocklyWorkspaceTests(): string[] {
 
     const categorySelection = sanitizeDepartmentUserWorkspaceCategorySelection({
         categories: [
-            { id: "cat-it", isActive: true, name: "ICT Equipment", sortOrder: 1 },
-            { id: "cat-office", isActive: true, name: "Office Supplies", sortOrder: 2 },
-            { id: "cat-archived", isActive: false, name: "Archived", sortOrder: 3 },
+            { color: "#0B6E4F", icon: "cpu", id: "cat-it", isActive: true, name: "ICT Equipment", sortOrder: 1 },
+            { color: "#4A90D9", icon: "boxes", id: "cat-office", isActive: true, name: "Office Supplies", sortOrder: 2 },
+            { color: "#7A7A7A", icon: "archive", id: "cat-archived", isActive: false, name: "Archived", sortOrder: 3 },
         ],
         items: [
             {
@@ -239,10 +239,41 @@ export function runDepartmentUserBlocklyWorkspaceTests(): string[] {
         "department-user workspace category sanitization drops duplicates, inactive ids, missing ids, and empty categories before the toolbox is built",
     );
 
+    const preservedCategorySelection = sanitizeDepartmentUserWorkspaceCategorySelection({
+        categories: [
+            { color: "#0B6E4F", icon: "cpu", id: "cat-it", isActive: true, name: "ICT Equipment", sortOrder: 1 },
+            { color: "#7A7A7A", icon: "archive", id: "cat-archived", isActive: false, name: "Archived", sortOrder: 2 },
+        ],
+        items: [
+            {
+                categoryId: "cat-it",
+                description: "Laptop devices",
+                id: "item-1",
+                isActive: true,
+                name: "Laptops",
+                procurementMethod: "RFQ",
+                sortOrder: 1,
+                sourceOfFunds: "GOK",
+                unitOfMeasurement: "Each",
+                unitPrice: 50_000,
+            },
+        ],
+        preserveUnavailableRequestedCategories: true,
+        requestedCategoryIds: ["cat-it", "cat-archived"],
+    });
+    assert.deepEqual(preservedCategorySelection.sanitizedCategoryIds, ["cat-it", "cat-archived"]);
+    assert.match(
+        preservedCategorySelection.unavailableCategories[0]?.reason ?? "",
+        /existing plans/i,
+    );
+    completedTests.push(
+        "department-user workspace selection can preserve archived requested categories for existing plans while still flagging them as unavailable for new planning",
+    );
+
     const toolbox = buildDepartmentUserToolbox({
         categories: [
-            { id: "cat-it", isActive: true, name: "ICT Equipment", sortOrder: 2 },
-            { id: "cat-office", isActive: true, name: "Office Supplies", sortOrder: 1 },
+            { color: "#0B6E4F", icon: "cpu", id: "cat-it", isActive: true, name: "ICT Equipment", sortOrder: 2 },
+            { color: "#4A90D9", icon: "boxes", id: "cat-office", isActive: true, name: "Office Supplies", sortOrder: 1 },
         ],
         department: {
             budgetAllocation: 2_500_000,
@@ -281,9 +312,14 @@ export function runDepartmentUserBlocklyWorkspaceTests(): string[] {
     const toolboxContents = toolbox.toolboxDefinition.contents as Array<Record<string, unknown>>;
     assert.equal(toolboxContents[0]?.name, "Dept Info");
     assert.equal(toolboxContents[1]?.name, "ICT Equipment");
+    assert.equal(toolboxContents[1]?.colour, "#0B6E4F");
+    assert.equal(
+        (toolboxContents[1]?.cssConfig as { container?: string } | undefined)?.container,
+        "pl-toolbox-category pl-toolbox-category--cpu",
+    );
     assert.equal(toolboxContents.length, 2);
     completedTests.push(
-        "department-user Blockly toolbox construction keeps the department source block plus only the selected live categories and items",
+        "department-user Blockly toolbox construction keeps the department source block plus only the selected live categories and items while flowing stored category styling metadata into Blockly cssConfig hooks",
     );
 
     const parsedLaunch = parseDepartmentUserLaunchContext(

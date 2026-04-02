@@ -70,12 +70,12 @@ export function runProcurementOfficerDashboardTests(): string[] {
         ],
     );
     assert.equal(checklist[0]?.state, "setup_required");
-    assert.equal(checklist[1]?.state, "coming_soon");
+    assert.equal(checklist[1]?.state, "available");
     assert.equal(checklist[2]?.state, "coming_soon");
     assert.equal(checklist[3]?.state, "setup_required");
     assert.equal(checklist[4]?.state, "setup_required");
     completedTests.push(
-        "procurement-officer onboarding keeps the required five-step order and marks later-story catalog steps as coming soon instead of fabricating readiness",
+        "procurement-officer onboarding keeps the required five-step order while exposing live category management and leaving item management honestly staged",
     );
 
     const snapshot = buildProcurementOfficerDashboardSnapshot({
@@ -215,10 +215,10 @@ export function runProcurementOfficerDashboardTests(): string[] {
         ),
         true,
     );
-    assert.equal(snapshot.futurePanels.find((panel) => panel.id === "categories")?.state, "coming_soon");
+    assert.equal(snapshot.futurePanels.find((panel) => panel.id === "categories")?.state, "available");
     assert.equal(snapshot.futurePanels.find((panel) => panel.id === "request_inbox")?.state, "unavailable");
     completedTests.push(
-        "procurement-officer snapshot shaping deduplicates access-code and DU coverage by department, keeps shared-deadline warnings honest, and leaves future panels explicitly unavailable",
+        "procurement-officer snapshot shaping deduplicates access-code and DU coverage by department, keeps shared-deadline warnings honest, and promotes categories into a live dashboard workspace",
     );
 
     const emptySnapshot = buildProcurementOfficerDashboardSnapshot({

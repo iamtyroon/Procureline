@@ -9,6 +9,7 @@ const department_user_access_test_1 = require("./department-user-access.test");
 const department_user_request_context_test_1 = require("./department-user-request-context.test");
 const password_reset_test_1 = require("./password-reset.test");
 const procurement_officer_access_codes_test_1 = require("./procurement-officer-access-codes.test");
+const procurement_officer_categories_test_1 = require("./procurement-officer-categories.test");
 const procurement_officer_deadlines_test_1 = require("./procurement-officer-deadlines.test");
 const platform_admin_auth_test_1 = require("./platform-admin-auth.test");
 const platform_admin_dashboard_test_1 = require("./platform-admin-dashboard.test");
@@ -31,6 +32,7 @@ async function main() {
         ...(0, convex_error_handling_test_1.runConvexErrorHandlingTests)(),
         ...(0, email_transport_test_1.runEmailTransportTests)(),
         ...(0, procurement_officer_departments_test_1.runProcurementOfficerDepartmentTests)(),
+        ...(0, procurement_officer_categories_test_1.runProcurementOfficerCategoryTests)(),
         ...(0, procurement_officer_access_codes_test_1.runProcurementOfficerAccessCodeTests)(),
         ...(0, procurement_officer_deadlines_test_1.runProcurementOfficerDeadlineTests)(),
         ...(0, department_user_dashboard_test_1.runDepartmentUserDashboardTests)(),

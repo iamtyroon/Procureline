@@ -645,15 +645,15 @@ function buildFuturePanels(): ProcurementOfficerDashboardFuturePanel[] {
         {
             cta: {
                 href: "/po/categories",
-                label: "Categories coming soon",
-                state: "coming_soon",
+                label: "Open categories workspace",
+                state: "available",
             },
             description:
-                "Category management is reserved for a later Epic 4 story, so this panel intentionally avoids fake totals.",
+                "Category management now runs inside the PO dashboard modal with live catalog counts and ordering controls.",
             id: "categories",
             label: "Categories",
-            state: "coming_soon",
-            statusLabel: "Awaiting later story",
+            state: "available",
+            statusLabel: "Live workspace",
         },
         {
             cta: {

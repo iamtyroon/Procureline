@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildDepartmentUserToolbox = exports.sanitizeDepartmentUserWorkspaceCategorySelection = void 0;
+const categories_1 = require("../procurement-officer/categories");
 function sortCategories(categories) {
     return [...categories].sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name));
 }
@@ -20,11 +21,25 @@ function sanitizeDepartmentUserWorkspaceCategorySelection(args) {
     const unavailableCategories = [];
     for (const categoryId of Array.from(new Set(args.requestedCategoryIds.filter(Boolean)))) {
         const category = categoriesById.get(categoryId);
-        if (!category || !category.isActive) {
+        if (!category) {
             continue;
         }
         const activeItemCount = activeItemCounts.get(category.id) ?? 0;
+        if (!category.isActive) {
+            if (args.preserveUnavailableRequestedCategories) {
+                sanitizedCategoryIds.push(category.id);
+                unavailableCategories.push({
+                    id: category.id,
+                    name: category.name,
+                    reason: "This category is archived for new planning but still visible on existing plans.",
+                });
+            }
+            continue;
+        }
         if (activeItemCount === 0) {
+            if (args.preserveUnavailableRequestedCategories) {
+                sanitizedCategoryIds.push(category.id);
+            }
             unavailableCategories.push({
                 id: category.id,
                 name: category.name,
@@ -51,6 +66,7 @@ function buildDepartmentUserToolbox(args) {
     const { sanitizedCategoryIds, unavailableCategories } = sanitizeDepartmentUserWorkspaceCategorySelection({
         categories: args.categories,
         items: args.items,
+        preserveUnavailableRequestedCategories: args.preserveUnavailableRequestedCategories,
         requestedCategoryIds: args.selectedCategoryIds,
     });
     const categoriesById = new Map(sortCategories(args.categories).map((category) => [category.id, category]));
@@ -89,8 +105,12 @@ function buildDepartmentUserToolbox(args) {
         if (categoryItems.length === 0) {
             continue;
         }
+        const toolboxStyle = (0, categories_1.buildCategoryToolboxStyle)({
+            color: category.color ?? null,
+            icon: category.icon ?? null,
+        });
         contents.push({
-            colour: "#4a90d9",
+            colour: toolboxStyle.colour,
             contents: [
                 createToolboxBlock({
                     fields: {
@@ -112,6 +132,7 @@ function buildDepartmentUserToolbox(args) {
                     type: "item_block",
                 })),
             ],
+            cssConfig: toolboxStyle.cssConfig,
             kind: "category",
             name: category.name,
         });

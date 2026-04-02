@@ -82,12 +82,12 @@ development_status:
   4-5-submission-deadline-management: done
 
   5-2-blockly-workspace-core: done
+  4-7-category-management: done
+  4-8-item-catalog-management: backlog
   5-6-budget-meter-calculations: backlog
   5-7-blockly-toolbox-block-management: backlog
   5-3-blockly-validation-constraints: backlog
   5-4-plan-persistence-recovery: backlog
-  4-7-category-management: backlog
-  4-8-item-catalog-management: backlog
   4-9-catalog-search-export: backlog
   5-5-item-category-requests-du-side: backlog
   4-10-item-category-request-processing: backlog

@@ -142,9 +142,9 @@ function runDepartmentUserBlocklyWorkspaceTests() {
     completedTests.push("department-user budget meter states distinguish unallocated, warning, and over-budget cases without divide-by-zero math");
     const categorySelection = (0, du_toolbox_1.sanitizeDepartmentUserWorkspaceCategorySelection)({
         categories: [
-            { id: "cat-it", isActive: true, name: "ICT Equipment", sortOrder: 1 },
-            { id: "cat-office", isActive: true, name: "Office Supplies", sortOrder: 2 },
-            { id: "cat-archived", isActive: false, name: "Archived", sortOrder: 3 },
+            { color: "#0B6E4F", icon: "cpu", id: "cat-it", isActive: true, name: "ICT Equipment", sortOrder: 1 },
+            { color: "#4A90D9", icon: "boxes", id: "cat-office", isActive: true, name: "Office Supplies", sortOrder: 2 },
+            { color: "#7A7A7A", icon: "archive", id: "cat-archived", isActive: false, name: "Archived", sortOrder: 3 },
         ],
         items: [
             {
@@ -183,10 +183,35 @@ function runDepartmentUserBlocklyWorkspaceTests() {
         },
     ]);
     completedTests.push("department-user workspace category sanitization drops duplicates, inactive ids, missing ids, and empty categories before the toolbox is built");
+    const preservedCategorySelection = (0, du_toolbox_1.sanitizeDepartmentUserWorkspaceCategorySelection)({
+        categories: [
+            { color: "#0B6E4F", icon: "cpu", id: "cat-it", isActive: true, name: "ICT Equipment", sortOrder: 1 },
+            { color: "#7A7A7A", icon: "archive", id: "cat-archived", isActive: false, name: "Archived", sortOrder: 2 },
+        ],
+        items: [
+            {
+                categoryId: "cat-it",
+                description: "Laptop devices",
+                id: "item-1",
+                isActive: true,
+                name: "Laptops",
+                procurementMethod: "RFQ",
+                sortOrder: 1,
+                sourceOfFunds: "GOK",
+                unitOfMeasurement: "Each",
+                unitPrice: 50_000,
+            },
+        ],
+        preserveUnavailableRequestedCategories: true,
+        requestedCategoryIds: ["cat-it", "cat-archived"],
+    });
+    strict_1.default.deepEqual(preservedCategorySelection.sanitizedCategoryIds, ["cat-it", "cat-archived"]);
+    strict_1.default.match(preservedCategorySelection.unavailableCategories[0]?.reason ?? "", /existing plans/i);
+    completedTests.push("department-user workspace selection can preserve archived requested categories for existing plans while still flagging them as unavailable for new planning");
     const toolbox = (0, du_toolbox_1.buildDepartmentUserToolbox)({
         categories: [
-            { id: "cat-it", isActive: true, name: "ICT Equipment", sortOrder: 2 },
-            { id: "cat-office", isActive: true, name: "Office Supplies", sortOrder: 1 },
+            { color: "#0B6E4F", icon: "cpu", id: "cat-it", isActive: true, name: "ICT Equipment", sortOrder: 2 },
+            { color: "#4A90D9", icon: "boxes", id: "cat-office", isActive: true, name: "Office Supplies", sortOrder: 1 },
         ],
         department: {
             budgetAllocation: 2_500_000,
@@ -225,8 +250,10 @@ function runDepartmentUserBlocklyWorkspaceTests() {
     const toolboxContents = toolbox.toolboxDefinition.contents;
     strict_1.default.equal(toolboxContents[0]?.name, "Dept Info");
     strict_1.default.equal(toolboxContents[1]?.name, "ICT Equipment");
+    strict_1.default.equal(toolboxContents[1]?.colour, "#0B6E4F");
+    strict_1.default.equal(toolboxContents[1]?.cssConfig?.container, "pl-toolbox-category pl-toolbox-category--cpu");
     strict_1.default.equal(toolboxContents.length, 2);
-    completedTests.push("department-user Blockly toolbox construction keeps the department source block plus only the selected live categories and items");
+    completedTests.push("department-user Blockly toolbox construction keeps the department source block plus only the selected live categories and items while flowing stored category styling metadata into Blockly cssConfig hooks");
     const parsedLaunch = (0, du_plan_routes_1.parseDepartmentUserLaunchContext)(new URLSearchParams("fiscalYear=2026-2027&categories=cat-it,cat-office,cat-it"));
     strict_1.default.equal(parsedLaunch.isValid, true);
     strict_1.default.deepEqual(parsedLaunch.categoryIds, ["cat-it", "cat-office"]);

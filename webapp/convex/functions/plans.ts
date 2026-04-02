@@ -5,6 +5,7 @@ import {
     createBlocklyWorkspaceRecord,
     normalizeBlocklyWorkspaceRecord,
 } from "../../lib/blockly/blockly-serialization";
+import { normalizeCategoryIcon } from "../../lib/procurement-officer/categories";
 import { buildPersistedDepartmentUserWorkspaceState } from "../../lib/blockly/workspace-save";
 import { resolveDepartmentUserCategoryCatalogIdentity } from "../../lib/blockly/workspace-catalog-identity";
 import {
@@ -61,7 +62,9 @@ const workspaceItemValidator = v.object({
 });
 
 const workspaceCategoryValidator = v.object({
+    color: v.union(v.string(), v.null()),
     id: v.string(),
+    icon: v.union(v.string(), v.null()),
     isActive: v.boolean(),
     name: v.string(),
     sortOrder: v.number(),
@@ -211,7 +214,9 @@ async function loadTenantCatalog(ctx: DataCtx, tenantId: Id<"tenants">) {
 
     return {
         categories: categories.map((category) => ({
+            color: category.color ?? null,
             id: String(category._id),
+            icon: normalizeCategoryIcon(category.icon ?? null) ?? null,
             isActive: category.isActive,
             name: category.name,
             sortOrder: category.sortOrder,
@@ -527,6 +532,7 @@ export const getDepartmentUserPlanWorkspace = query({
             requestedCategoryIds: plan.selectedCategoryIds.map((categoryId) =>
                 String(categoryId),
             ),
+            preserveUnavailableRequestedCategories: true,
         });
         const mode = resolveDepartmentUserWorkspaceMode({
             accessMode: base.authContext.departmentAccessMode,
@@ -632,6 +638,7 @@ export const saveDepartmentUserWorkspaceDraft = mutation({
             categories: catalog.categories,
             items: catalog.items,
             requestedCategoryIds: args.selectedCategoryIds,
+            preserveUnavailableRequestedCategories: true,
         });
         const categoryDocIdsByString = new Map(
             categoryDocs.map((category) => [String(category._id), category._id] as const),

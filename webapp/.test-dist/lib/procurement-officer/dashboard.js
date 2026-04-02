@@ -223,12 +223,12 @@ function deriveProcurementChecklist(args) {
             statusLabel: hasDepartments ? "Complete" : "Start here",
         },
         {
-            description: "Categories will stay honest until Story 4.7 lands with live data and management flows.",
+            description: "Create, reorder, archive, and maintain category metadata from the shared PO dashboard workspace.",
             href: "/po/categories",
             id: "add_categories",
             label: "Add Categories",
-            state: "coming_soon",
-            statusLabel: "Awaiting later story",
+            state: "available",
+            statusLabel: "Live workspace",
         },
         {
             description: "Item catalog setup is reserved for Story 4.8, so the dashboard keeps this step explicitly staged.",

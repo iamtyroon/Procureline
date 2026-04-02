@@ -178,8 +178,8 @@ function runDepartmentUserDashboardTests() {
             tenantId: "tenant-1",
         },
         categories: [
-            { id: "cat-1", isActive: true, name: "ICT Equipment" },
-            { id: "cat-2", isActive: true, name: "Office Supplies" },
+            { id: "cat-1", isActive: true, name: "ICT Equipment", sortOrder: 2 },
+            { id: "cat-2", isActive: true, name: "Office Supplies", sortOrder: 1 },
         ],
         currentUser: {
             email: "du@example.com",
@@ -238,6 +238,61 @@ function runDepartmentUserDashboardTests() {
     strict_1.default.equal(rejectedSnapshot.launchpad.primaryAction.label, "Edit Plan");
     strict_1.default.equal(rejectedSnapshot.launchpad.selectedCategoryIds[0], "cat-1");
     completedTests.push("department-user rejected plans surface revision comments prominently and reuse the canonical plan selection instead of implying a duplicate same-year draft");
+    const archivedCategorySnapshot = (0, dashboard_snapshot_1.buildDepartmentUserDashboardSnapshot)({
+        announcements: [],
+        auth: {
+            departmentAccessMode: "editable",
+            departmentId: "department-1",
+            tenantId: "tenant-1",
+        },
+        categories: [
+            { id: "cat-zero", isActive: true, name: "Office Supplies", sortOrder: 1 },
+            { id: "cat-live", isActive: true, name: "ICT Equipment", sortOrder: 2 },
+            { archivedAt: Date.UTC(2026, 8, 1, 9, 0, 0), id: "cat-archived", isActive: false, name: "Legacy Items", sortOrder: 3 },
+        ],
+        currentUser: {
+            email: "du@example.com",
+            initials: "DU",
+            name: "Department User",
+        },
+        department: {
+            budgetAllocation: 8_000_000,
+            code: "CS",
+            id: "department-1",
+            name: "Computer Science",
+            submissionEndsAt: Date.UTC(2026, 7, 20, 12, 0, 0),
+            submissionStartsAt: Date.UTC(2026, 7, 1, 12, 0, 0),
+        },
+        items: [
+            { categoryId: "cat-live", id: "item-1", isActive: true },
+        ],
+        leaderboardEntries: [],
+        now: Date.UTC(2026, 7, 10, 12, 0, 0),
+        plans: [
+            {
+                categorySummaries: [],
+                createdAt: Date.UTC(2026, 7, 1, 10, 0, 0),
+                estimatedBudgetUsed: 0,
+                fiscalYear: "2026-2027",
+                id: "plan-2",
+                itemCount: 0,
+                rejectionComment: null,
+                selectedCategoryIds: ["cat-live", "cat-archived"],
+                status: "draft",
+                updatedAt: Date.UTC(2026, 7, 8, 10, 0, 0),
+            },
+        ],
+        procurementOfficer: null,
+        tenant: {
+            id: "tenant-1",
+            name: "Pwani University",
+        },
+    });
+    strict_1.default.deepEqual(archivedCategorySnapshot.launchpad.categories.map((category) => category.id), ["cat-zero", "cat-live", "cat-archived"]);
+    strict_1.default.equal(archivedCategorySnapshot.launchpad.categories.find((category) => category.id === "cat-zero")?.disabled, true);
+    strict_1.default.equal(archivedCategorySnapshot.launchpad.categories.find((category) => category.id === "cat-archived")?.isSelected, true);
+    strict_1.default.equal(archivedCategorySnapshot.launchpad.categories.find((category) => category.id === "cat-archived")?.disabled, true);
+    completedTests.push("department-user launchpad ordering now follows managed category order, disables zero-item categories for new selection, and still preserves archived category references on existing plans");
     const budgetAnnouncement = (0, dashboard_1.buildDepartmentBudgetChangeAnnouncement)({
         budgetAllocation: 4_200_000,
         departmentId: "department-1",

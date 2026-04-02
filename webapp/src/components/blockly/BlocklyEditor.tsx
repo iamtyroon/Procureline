@@ -90,6 +90,7 @@ export function BlocklyEditor(props: {
                     voteNumber: props.department.voteNumber,
                 },
                 items: props.items,
+                preserveUnavailableRequestedCategories: true,
                 selectedCategoryIds: props.selectedCategoryIds,
             }),
         [props.categories, props.department, props.items, props.selectedCategoryIds],

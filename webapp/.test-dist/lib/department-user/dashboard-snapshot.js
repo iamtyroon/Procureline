@@ -44,10 +44,11 @@ function buildDepartmentUserDashboardSnapshot(args) {
         planHref: currentPlanHref,
         status: currentPlanStatus,
     });
-    const activeCategories = args.categories
-        .filter((category) => category.isActive)
-        .sort((left, right) => left.name.localeCompare(right.name));
-    const activeCategoryIds = activeCategories.map((category) => category.id);
+    const orderedCategories = [...args.categories].sort((left, right) => (left.sortOrder ?? Number.MAX_SAFE_INTEGER) -
+        (right.sortOrder ?? Number.MAX_SAFE_INTEGER) ||
+        left.name.localeCompare(right.name));
+    const categoriesById = new Map(orderedCategories.map((category) => [category.id, category]));
+    const activeCategories = orderedCategories.filter((category) => category.isActive);
     const itemCountByCategory = new Map();
     for (const item of args.items) {
         if (!item.isActive) {
@@ -55,16 +56,26 @@ function buildDepartmentUserDashboardSnapshot(args) {
         }
         itemCountByCategory.set(item.categoryId, (itemCountByCategory.get(item.categoryId) ?? 0) + 1);
     }
-    const hasCatalogItems = activeCategories.some((category) => (itemCountByCategory.get(category.id) ?? 0) > 0);
+    const selectableCategoryIds = activeCategories
+        .filter((category) => (itemCountByCategory.get(category.id) ?? 0) > 0)
+        .map((category) => category.id);
+    const hasCatalogItems = selectableCategoryIds.length > 0;
     const catalogState = activeCategories.length === 0 || !hasCatalogItems
         ? "setup_required"
         : "available";
     const selectedCategoryIds = currentPlan === null
         ? []
         : (0, dashboard_1.sanitizeCategorySelection)({
-            availableCategoryIds: activeCategoryIds,
+            availableCategoryIds: (0, dashboard_1.createCategorySelectionState)(currentPlan.selectedCategoryIds.filter((categoryId) => categoriesById.has(categoryId))),
             selectedCategoryIds: currentPlan.selectedCategoryIds,
         });
+    const visibleCategoryIds = new Set(currentPlan === null
+        ? activeCategories.map((category) => category.id)
+        : [
+            ...activeCategories.map((category) => category.id),
+            ...selectedCategoryIds,
+        ]);
+    const visibleCategories = orderedCategories.filter((category) => visibleCategoryIds.has(category.id));
     const budgetAmount = args.department.budgetAllocation ?? null;
     const usedBudget = currentPlan?.estimatedBudgetUsed ?? 0;
     const budgetState = typeof budgetAmount === "number" && budgetAmount > 0 ? "available" : "empty";
@@ -132,9 +143,16 @@ function buildDepartmentUserDashboardSnapshot(args) {
             tenantName: args.tenant.name,
         },
         launchpad: {
-            categories: activeCategories.map((category) => {
+            categories: visibleCategories.map((category) => {
                 const itemCount = itemCountByCategory.get(category.id) ?? 0;
+                const isDisabled = !category.isActive || itemCount === 0;
                 return {
+                    disabled: isDisabled,
+                    disabledReason: !category.isActive
+                        ? "Archived categories remain visible on existing plans but are unavailable for new selection."
+                        : itemCount === 0
+                            ? "No active catalog items are available in this category yet."
+                            : null,
                     id: category.id,
                     isSelected: selectedCategoryIds.includes(category.id),
                     itemCount,

@@ -370,9 +370,13 @@ export const getDepartmentUserDashboardSnapshot = query({
                 tenantId: String(authContext.tenantId),
             },
             categories: categories.map((category) => ({
+                archivedAt: category.archivedAt ?? null,
+                color: category.color ?? null,
                 id: String(category._id),
+                icon: category.icon ?? null,
                 isActive: category.isActive,
                 name: category.name,
+                sortOrder: category.sortOrder,
             })),
             currentUser,
             department: {

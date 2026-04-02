@@ -43,7 +43,9 @@ export function DepartmentUserDashboard(): JSX.Element {
             return;
         }
 
-        const availableCategoryIds = snapshot.launchpad.categories.map((category) => category.id);
+        const availableCategoryIds = snapshot.launchpad.categories
+            .filter((category) => !category.disabled)
+            .map((category) => category.id);
         if (!snapshot.launchpad.canSelectCategories) {
             setSelectedCategoryIds(snapshot.launchpad.selectedCategoryIds);
             return;
@@ -440,7 +442,13 @@ function LaunchpadCard({
     subtitle,
     title,
 }: {
-    categories: Array<{ id: string; itemCountLabel: string; name: string }>;
+    categories: Array<{
+        disabled: boolean;
+        disabledReason: string | null;
+        id: string;
+        itemCountLabel: string;
+        name: string;
+    }>;
     canSelectCategories: boolean;
     disabledReason: string | null;
     launchpadActionLabel: string;
@@ -513,13 +521,14 @@ function LaunchpadCard({
                                     key={category.id}
                                     type="button"
                                     aria-pressed={isSelected}
-                                    disabled={!canSelectCategories}
+                                    disabled={!canSelectCategories || category.disabled}
                                     className={cn(
                                         "flex min-w-[180px] items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition-colors",
                                         isSelected
                                             ? "border-primary bg-primary/10 text-primary"
                                             : "border-border/70 bg-background text-foreground",
-                                        !canSelectCategories && "cursor-not-allowed opacity-70",
+                                        (!canSelectCategories || category.disabled) &&
+                                            "cursor-not-allowed opacity-70",
                                     )}
                                     onClick={() =>
                                         setSelectedCategoryIds((current) =>
@@ -533,7 +542,7 @@ function LaunchpadCard({
                                     <div>
                                         <div className="font-medium">{category.name}</div>
                                         <div className="text-xs text-muted-foreground">
-                                            {category.itemCountLabel}
+                                            {category.disabledReason ?? category.itemCountLabel}
                                         </div>
                                     </div>
                                     <Layers3 className="h-4 w-4" />

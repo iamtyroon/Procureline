@@ -49,3 +49,38 @@
 :global(.blockly-host .item-block-expanded .blocklyPath) {
     fill: #dd941f !important;
 }
+
+:global(.blockly-host .pl-toolbox-category .blocklyTreeRowContentContainer) {
+    gap: 0.4rem;
+}
+
+:global(.blockly-host .pl-toolbox-category__icon::before) {
+    color: rgba(15, 23, 42, 0.8);
+    content: "C";
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+:global(.blockly-host .pl-toolbox-category--archive .pl-toolbox-category__icon::before) {
+    content: "A";
+}
+
+:global(.blockly-host .pl-toolbox-category--boxes .pl-toolbox-category__icon::before) {
+    content: "S";
+}
+
+:global(.blockly-host .pl-toolbox-category--building .pl-toolbox-category__icon::before) {
+    content: "B";
+}
+
+:global(.blockly-host .pl-toolbox-category--cpu .pl-toolbox-category__icon::before) {
+    content: "T";
+}
+
+:global(.blockly-host .pl-toolbox-category--folder .pl-toolbox-category__icon::before) {
+    content: "C";
+}
+
+:global(.blockly-host .pl-toolbox-category--wrench .pl-toolbox-category__icon::before) {
+    content: "M";
+}

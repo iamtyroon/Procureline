@@ -43,6 +43,10 @@ import {
     type ProcurementOfficerWorkspaceModalState,
     type ProcurementOfficerWorkspaceSection,
 } from "@/lib/procurement-officer/dashboard";
+import {
+    CATEGORY_DRAFT_STORAGE_KEY,
+    hasStoredCategoryDraft,
+} from "@/lib/procurement-officer/categories";
 import type {
     ProcurementOfficerDashboardDepartmentReadinessItem,
     ProcurementOfficerDashboardFuturePanel,
@@ -51,6 +55,7 @@ import type {
 import { formatDeadlineCountdown } from "@/lib/procurement-officer/deadlines";
 import { cn } from "@/lib/utils";
 import { ProcurementOfficerAccessCodesWorkspace } from "./ProcurementOfficerAccessCodesWorkspace";
+import { ProcurementOfficerCategoriesWorkspace } from "./ProcurementOfficerCategoriesWorkspace";
 import { ProcurementOfficerDeadlinesWorkspace } from "./ProcurementOfficerDeadlinesWorkspace";
 import { ProcurementOfficerDepartmentsWorkspace } from "./ProcurementOfficerDepartmentsWorkspace";
 
@@ -706,7 +711,6 @@ export function ProcurementOfficerDashboard(): JSX.Element {
             {/* Workspace modal */}
                 <WorkspaceModal
                     activeModal={activeModal}
-                    categoriesPanel={categoriesPanel}
                     itemsPanel={itemsPanel}
                     requestPanel={requestPanel}
                     submissionPanel={submissionPanel}
@@ -882,7 +886,6 @@ function InlineStatePill({ label, state, value }: { label: string; state: Procur
 
 function WorkspaceModal({
     activeModal,
-    categoriesPanel,
     itemsPanel,
     requestPanel,
     selectedFiscalYear,
@@ -892,7 +895,6 @@ function WorkspaceModal({
     onClose,
 }: {
     activeModal: ProcurementOfficerWorkspaceModalState | null;
-    categoriesPanel?: ProcurementOfficerDashboardFuturePanel;
     itemsPanel?: ProcurementOfficerDashboardFuturePanel;
     requestPanel?: ProcurementOfficerDashboardFuturePanel;
     selectedFiscalYear?: string;
@@ -903,9 +905,29 @@ function WorkspaceModal({
 }): JSX.Element {
     const activeTab =
         activeModal?.modal === "categories" && activeModal.section === "items" ? "items" : "categories";
+    const [isCloseConfirmationOpen, setIsCloseConfirmationOpen] = useState(false);
+
+    function hasOpenCategoryDraft(): boolean {
+        if (typeof window === "undefined") {
+            return false;
+        }
+
+        return hasStoredCategoryDraft(
+            window.sessionStorage.getItem(CATEGORY_DRAFT_STORAGE_KEY),
+        );
+    }
+
+    function requestClose(): void {
+        if (activeModal?.modal === "categories" && hasOpenCategoryDraft()) {
+            setIsCloseConfirmationOpen(true);
+            return;
+        }
+
+        onClose();
+    }
 
     return (
-        <Dialog open={Boolean(activeModal)} onOpenChange={(open) => !open && onClose()}>
+        <Dialog open={Boolean(activeModal)} onOpenChange={(open) => !open && requestClose()}>
             <DialogContent className="max-w-4xl overflow-hidden border-border/70 p-0 sm:rounded-[28px]">
                 <div className="border-b border-border/70 bg-muted/35 px-6 py-5">
                     <DialogHeader className="space-y-3 text-left">
@@ -956,11 +978,7 @@ function WorkspaceModal({
                                 <TabsTrigger className="rounded-full px-4 py-2" value="items">Items</TabsTrigger>
                             </TabsList>
                             <TabsContent className="mt-4 space-y-4" value="categories">
-                                <ModalMetricCard label="Status" value={categoriesPanel?.statusLabel ?? "Later story"} />
-                                <EmptyWorkspaceState
-                                    body={categoriesPanel?.description ?? "Category management stays staged until the catalog story lands."}
-                                    title={categoriesPanel?.label ?? "Categories"}
-                                />
+                                <ProcurementOfficerCategoriesWorkspace />
                             </TabsContent>
                             <TabsContent className="mt-4 space-y-4" value="items">
                                 <ModalMetricCard label="Status" value={itemsPanel?.statusLabel ?? "Later story"} />
@@ -984,6 +1002,52 @@ function WorkspaceModal({
                     ) : null}
 
                 </div>
+
+                <Dialog open={isCloseConfirmationOpen} onOpenChange={setIsCloseConfirmationOpen}>
+                    <DialogContent className="sm:max-w-lg">
+                        <DialogHeader>
+                            <DialogTitle>Close the categories workspace?</DialogTitle>
+                            <DialogDescription>
+                                An unsaved category draft is still open in this flow.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="rounded-2xl border border-border/70 bg-muted/20 px-4 py-4 text-sm leading-6 text-muted-foreground">
+                            Keep the draft if you want it restored the next time categories opens, or discard it now to close cleanly.
+                        </div>
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsCloseConfirmationOpen(false)}
+                            >
+                                Keep editing
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    setIsCloseConfirmationOpen(false);
+                                    onClose();
+                                }}
+                            >
+                                Keep draft & close
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                onClick={() => {
+                                    if (typeof window !== "undefined") {
+                                        window.sessionStorage.removeItem(CATEGORY_DRAFT_STORAGE_KEY);
+                                    }
+                                    setIsCloseConfirmationOpen(false);
+                                    onClose();
+                                }}
+                            >
+                                Discard draft
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
             </DialogContent>
         </Dialog>
     );

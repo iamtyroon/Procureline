@@ -1,3 +1,5 @@
+import { buildCategoryToolboxStyle, type CategoryIconName } from "../procurement-officer/categories";
+
 export interface DepartmentUserWorkspaceDepartmentSource {
     budgetAllocation: number | null;
     departmentId: string;
@@ -6,7 +8,9 @@ export interface DepartmentUserWorkspaceDepartmentSource {
 }
 
 export interface DepartmentUserWorkspaceCategoryRecord {
+    color?: string | null;
     id: string;
+    icon?: CategoryIconName | null;
     isActive: boolean;
     name: string;
     sortOrder: number;
@@ -58,6 +62,7 @@ function sortItems(
 export function sanitizeDepartmentUserWorkspaceCategorySelection(args: {
     categories: readonly DepartmentUserWorkspaceCategoryRecord[];
     items: readonly DepartmentUserWorkspaceItemRecord[];
+    preserveUnavailableRequestedCategories?: boolean;
     requestedCategoryIds: readonly string[];
 }): {
     sanitizedCategoryIds: string[];
@@ -84,12 +89,27 @@ export function sanitizeDepartmentUserWorkspaceCategorySelection(args: {
 
     for (const categoryId of Array.from(new Set(args.requestedCategoryIds.filter(Boolean)))) {
         const category = categoriesById.get(categoryId);
-        if (!category || !category.isActive) {
+        if (!category) {
             continue;
         }
 
         const activeItemCount = activeItemCounts.get(category.id) ?? 0;
+        if (!category.isActive) {
+            if (args.preserveUnavailableRequestedCategories) {
+                sanitizedCategoryIds.push(category.id);
+                unavailableCategories.push({
+                    id: category.id,
+                    name: category.name,
+                    reason: "This category is archived for new planning but still visible on existing plans.",
+                });
+            }
+            continue;
+        }
+
         if (activeItemCount === 0) {
+            if (args.preserveUnavailableRequestedCategories) {
+                sanitizedCategoryIds.push(category.id);
+            }
             unavailableCategories.push({
                 id: category.id,
                 name: category.name,
@@ -122,12 +142,15 @@ export function buildDepartmentUserToolbox(args: {
     categories: readonly DepartmentUserWorkspaceCategoryRecord[];
     department: DepartmentUserWorkspaceDepartmentSource;
     items: readonly DepartmentUserWorkspaceItemRecord[];
+    preserveUnavailableRequestedCategories?: boolean;
     selectedCategoryIds: readonly string[];
 }): DepartmentUserToolboxBuildResult {
     const { sanitizedCategoryIds, unavailableCategories } =
         sanitizeDepartmentUserWorkspaceCategorySelection({
             categories: args.categories,
             items: args.items,
+            preserveUnavailableRequestedCategories:
+                args.preserveUnavailableRequestedCategories,
             requestedCategoryIds: args.selectedCategoryIds,
         });
 
@@ -175,8 +198,12 @@ export function buildDepartmentUserToolbox(args: {
             continue;
         }
 
+        const toolboxStyle = buildCategoryToolboxStyle({
+            color: category.color ?? null,
+            icon: category.icon ?? null,
+        });
         contents.push({
-            colour: "#4a90d9",
+            colour: toolboxStyle.colour,
             contents: [
                 createToolboxBlock({
                     fields: {
@@ -200,6 +227,7 @@ export function buildDepartmentUserToolbox(args: {
                     }),
                 ),
             ],
+            cssConfig: toolboxStyle.cssConfig,
             kind: "category",
             name: category.name,
         });
