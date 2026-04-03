@@ -47,6 +47,10 @@ import {
     CATEGORY_DRAFT_STORAGE_KEY,
     hasStoredCategoryDraft,
 } from "@/lib/procurement-officer/categories";
+import {
+    hasStoredItemDraft,
+    ITEM_DRAFT_STORAGE_KEY,
+} from "@/lib/procurement-officer/items";
 import type {
     ProcurementOfficerDashboardDepartmentReadinessItem,
     ProcurementOfficerDashboardFuturePanel,
@@ -58,6 +62,7 @@ import { ProcurementOfficerAccessCodesWorkspace } from "./ProcurementOfficerAcce
 import { ProcurementOfficerCategoriesWorkspace } from "./ProcurementOfficerCategoriesWorkspace";
 import { ProcurementOfficerDeadlinesWorkspace } from "./ProcurementOfficerDeadlinesWorkspace";
 import { ProcurementOfficerDepartmentsWorkspace } from "./ProcurementOfficerDepartmentsWorkspace";
+import { ProcurementOfficerItemsWorkspace } from "./ProcurementOfficerItemsWorkspace";
 
 /* ─── Donut Ring ──────────────────────────────────────────────────── */
 
@@ -711,7 +716,6 @@ export function ProcurementOfficerDashboard(): JSX.Element {
             {/* Workspace modal */}
                 <WorkspaceModal
                     activeModal={activeModal}
-                    itemsPanel={itemsPanel}
                     requestPanel={requestPanel}
                     submissionPanel={submissionPanel}
                     selectedFiscalYear={selectedFiscalYear}
@@ -886,7 +890,6 @@ function InlineStatePill({ label, state, value }: { label: string; state: Procur
 
 function WorkspaceModal({
     activeModal,
-    itemsPanel,
     requestPanel,
     selectedFiscalYear,
     submissionPanel,
@@ -895,7 +898,6 @@ function WorkspaceModal({
     onClose,
 }: {
     activeModal: ProcurementOfficerWorkspaceModalState | null;
-    itemsPanel?: ProcurementOfficerDashboardFuturePanel;
     requestPanel?: ProcurementOfficerDashboardFuturePanel;
     selectedFiscalYear?: string;
     submissionPanel?: ProcurementOfficerDashboardFuturePanel;
@@ -917,8 +919,21 @@ function WorkspaceModal({
         );
     }
 
+    function hasOpenItemDraft(): boolean {
+        if (typeof window === "undefined") {
+            return false;
+        }
+
+        return hasStoredItemDraft(
+            window.sessionStorage.getItem(ITEM_DRAFT_STORAGE_KEY),
+        );
+    }
+
     function requestClose(): void {
-        if (activeModal?.modal === "categories" && hasOpenCategoryDraft()) {
+        if (
+            activeModal?.modal === "categories" &&
+            (hasOpenCategoryDraft() || hasOpenItemDraft())
+        ) {
             setIsCloseConfirmationOpen(true);
             return;
         }
@@ -981,11 +996,7 @@ function WorkspaceModal({
                                 <ProcurementOfficerCategoriesWorkspace />
                             </TabsContent>
                             <TabsContent className="mt-4 space-y-4" value="items">
-                                <ModalMetricCard label="Status" value={itemsPanel?.statusLabel ?? "Later story"} />
-                                <EmptyWorkspaceState
-                                    body={itemsPanel?.description ?? "Items now live under categories."}
-                                    title={itemsPanel?.label ?? "Items"}
-                                />
+                                <ProcurementOfficerItemsWorkspace />
                             </TabsContent>
                         </Tabs>
                     ) : null}
@@ -1008,11 +1019,11 @@ function WorkspaceModal({
                         <DialogHeader>
                             <DialogTitle>Close the categories workspace?</DialogTitle>
                             <DialogDescription>
-                                An unsaved category draft is still open in this flow.
+                                An unsaved category or item draft is still open in this flow.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="rounded-2xl border border-border/70 bg-muted/20 px-4 py-4 text-sm leading-6 text-muted-foreground">
-                            Keep the draft if you want it restored the next time categories opens, or discard it now to close cleanly.
+                            Keep the draft if you want it restored the next time this workspace opens, or discard it now to close cleanly.
                         </div>
                         <div className="flex justify-end gap-2">
                             <Button
@@ -1038,6 +1049,7 @@ function WorkspaceModal({
                                 onClick={() => {
                                     if (typeof window !== "undefined") {
                                         window.sessionStorage.removeItem(CATEGORY_DRAFT_STORAGE_KEY);
+                                        window.sessionStorage.removeItem(ITEM_DRAFT_STORAGE_KEY);
                                     }
                                     setIsCloseConfirmationOpen(false);
                                     onClose();
@@ -1055,23 +1067,6 @@ function WorkspaceModal({
 
 /* ─── Small sub-components ────────────────────────────────────────── */
 
-function EmptyWorkspaceState({ body, title }: { body: string; title: string }) {
-    return (
-        <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 p-5">
-            <div className="font-semibold text-foreground">{title}</div>
-            <div className="mt-2 text-sm leading-6 text-muted-foreground">{body}</div>
-        </div>
-    );
-}
-
-function ModalMetricCard({ label, value }: { label: string; value: string }) {
-    return (
-        <div className="rounded-2xl border border-border/70 bg-card p-4">
-            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
-            <div className="mt-3 text-xl font-black tracking-[-0.04em] text-foreground">{value}</div>
-        </div>
-    );
-}
 
 /* ─── Skeleton ────────────────────────────────────────────────────── */
 
@@ -1127,7 +1122,7 @@ function getWorkspaceTitle(activeModal: ProcurementOfficerWorkspaceModalState | 
 function getWorkspaceDescription(activeModal: ProcurementOfficerWorkspaceModalState | null): string {
     switch (activeModal?.modal) {
         case "requests": return "Request inbox and submission monitoring now open as a dashboard modal, keeping the PO flow in one place until the live queue stories land.";
-        case "categories": return activeModal.section === "items" ? "Items are nested under categories on purpose, so the dashboard stays tighter and the catalog story can grow in one workspace." : "Categories now open inside the dashboard, with items folded into the same workspace instead of taking their own card.";
+        case "categories": return activeModal.section === "items" ? "Items now run as a live catalog workspace inside the shared categories modal, preserving category handoff context and workbook import in one operator flow." : "Categories now open inside the dashboard, with items folded into the same workspace instead of taking their own card.";
         case "access-codes": return "Access-code management now runs as a real dashboard workspace, so you can generate, rotate, deactivate, email, and review bounded login history without leaving the /po shell.";
         case "deadlines": return "Deadline warnings now resolve inside the dashboard, keeping fiscal-year signals, alerts, and department readiness in one flow.";
         default: return "Create, edit, and review department readiness inside the dashboard modal.";

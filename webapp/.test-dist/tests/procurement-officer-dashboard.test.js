@@ -52,10 +52,10 @@ function runProcurementOfficerDashboardTests() {
     ]);
     strict_1.default.equal(checklist[0]?.state, "setup_required");
     strict_1.default.equal(checklist[1]?.state, "available");
-    strict_1.default.equal(checklist[2]?.state, "coming_soon");
+    strict_1.default.equal(checklist[2]?.state, "available");
     strict_1.default.equal(checklist[3]?.state, "setup_required");
     strict_1.default.equal(checklist[4]?.state, "setup_required");
-    completedTests.push("procurement-officer onboarding keeps the required five-step order while exposing live category management and leaving item management honestly staged");
+    completedTests.push("procurement-officer onboarding keeps the required five-step order while exposing live category and item management inside the dashboard flow");
     const snapshot = (0, dashboard_snapshot_1.buildProcurementOfficerDashboardSnapshot)({
         accessCodes: [
             {
@@ -173,8 +173,9 @@ function runProcurementOfficerDashboardTests() {
     strict_1.default.equal(snapshot.alerts.some((alert) => alert.message ===
         "Submission deadline not set. Configure before DUs can submit."), true);
     strict_1.default.equal(snapshot.futurePanels.find((panel) => panel.id === "categories")?.state, "available");
+    strict_1.default.equal(snapshot.futurePanels.find((panel) => panel.id === "items")?.state, "available");
     strict_1.default.equal(snapshot.futurePanels.find((panel) => panel.id === "request_inbox")?.state, "unavailable");
-    completedTests.push("procurement-officer snapshot shaping deduplicates access-code and DU coverage by department, keeps shared-deadline warnings honest, and promotes categories into a live dashboard workspace");
+    completedTests.push("procurement-officer snapshot shaping deduplicates access-code and DU coverage by department, keeps shared-deadline warnings honest, and promotes categories plus items into live dashboard workspaces");
     const emptySnapshot = (0, dashboard_snapshot_1.buildProcurementOfficerDashboardSnapshot)({
         accessCodes: [],
         departments: [],

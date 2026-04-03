@@ -41,7 +41,11 @@ export function BlocklyWorkspace(props: {
         categoryId: string;
         description: string | null;
         id: string;
+        lastPriceChangedAt: number | null;
         name: string;
+        procurementMethod: string | null;
+        sourceOfFunds: string | null;
+        unitOfMeasurement: string | null;
         unitPrice: number | null;
     }>;
     onBudgetStateChange: (state: DepartmentUserBudgetMeterState) => void;
@@ -60,6 +64,15 @@ export function BlocklyWorkspace(props: {
     const initialWorkspaceStateRef = useRef<BlocklyWorkspaceRecord | null>(props.workspaceState);
     const onBudgetStateChangeRef = useRef(props.onBudgetStateChange);
     const onWorkspaceChangeRef = useRef(props.onWorkspaceChange);
+    const recalculateWorkspaceRef = useRef<
+        | ((
+              Blockly: BlocklyModule,
+              workspace: BlocklyWorkspaceSvg,
+              shouldPersist: boolean,
+          ) => DepartmentUserDepartmentRollup | null)
+        | null
+    >(null);
+    const toolboxDefinitionRef = useRef(props.toolboxDefinition);
     const [retryKey, setRetryKey] = useState(0);
     const [initializationError, setInitializationError] = useState<string | null>(null);
 
@@ -70,6 +83,10 @@ export function BlocklyWorkspace(props: {
     useEffect(() => {
         onWorkspaceChangeRef.current = props.onWorkspaceChange;
     }, [props.onWorkspaceChange]);
+
+    useEffect(() => {
+        toolboxDefinitionRef.current = props.toolboxDefinition;
+    }, [props.toolboxDefinition]);
 
     useEffect(() => {
         previousWorkspaceRecordRef.current = props.workspaceState;
@@ -152,6 +169,10 @@ export function BlocklyWorkspace(props: {
     }, [props.categories, props.items, queueWorkspaceSnapshot, syncBudgetState]);
 
     useEffect(() => {
+        recalculateWorkspaceRef.current = recalculateWorkspace;
+    }, [recalculateWorkspace]);
+
+    useEffect(() => {
         let isDisposed = false;
 
         async function initializeWorkspace(): Promise<void> {
@@ -175,7 +196,7 @@ export function BlocklyWorkspace(props: {
                     scrollbars: true,
                     toolbox:
                         props.editorMode === "edit"
-                            ? (props.toolboxDefinition as never)
+                            ? (toolboxDefinitionRef.current as never)
                             : undefined,
                     trashcan: true,
                     zoom: {
@@ -199,11 +220,15 @@ export function BlocklyWorkspace(props: {
                         return;
                     }
 
-                    recalculateWorkspace(Blockly, workspace, props.editorMode === "edit");
+                    recalculateWorkspaceRef.current?.(
+                        Blockly,
+                        workspace,
+                        props.editorMode === "edit",
+                    );
                 };
 
                 workspace.addChangeListener(handleWorkspaceChange);
-                recalculateWorkspace(Blockly, workspace, false);
+                recalculateWorkspaceRef.current?.(Blockly, workspace, false);
             } catch (error) {
                 if (isDisposed) {
                     return;
@@ -229,7 +254,7 @@ export function BlocklyWorkspace(props: {
             workspaceRef.current?.dispose();
             workspaceRef.current = null;
         };
-    }, [props.editorMode, props.toolboxDefinition, recalculateWorkspace, retryKey]);
+    }, [props.editorMode, retryKey]);
 
     useEffect(() => {
         if (!workspaceRef.current || props.editorMode !== "edit") {
@@ -238,6 +263,18 @@ export function BlocklyWorkspace(props: {
 
         workspaceRef.current.updateToolbox(props.toolboxDefinition as never);
     }, [props.editorMode, props.toolboxDefinition]);
+
+    useEffect(() => {
+        if (!blocklyRef.current || !workspaceRef.current) {
+            return;
+        }
+
+        recalculateWorkspace(
+            blocklyRef.current,
+            workspaceRef.current,
+            props.editorMode === "edit",
+        );
+    }, [props.categories, props.editorMode, props.items, recalculateWorkspace]);
 
     if (initializationError) {
         return (

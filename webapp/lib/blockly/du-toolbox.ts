@@ -21,6 +21,7 @@ export interface DepartmentUserWorkspaceItemRecord {
     description: string | null;
     id: string;
     isActive: boolean;
+    lastPriceChangedAt?: number | null;
     name: string;
     procurementMethod: string | null;
     sortOrder: number;

@@ -614,7 +614,7 @@ function CategoryEditorDialog({
             description: watchedDescription ?? null,
             icon: (watchedIcon as CategoryIconName | undefined) ?? null,
             id: category?.id ?? "",
-            name: watchedName ?? "",
+            name: watchedName,
             revision: category?.revision ?? 0,
         };
         onDraftChange(

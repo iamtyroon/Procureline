@@ -13,6 +13,7 @@ import { runPlatformAdminAuthTests } from "./platform-admin-auth.test";
 import { runPlatformAdminDashboardTests } from "./platform-admin-dashboard.test";
 import { runPricingFlowTests } from "./pricing-flow.test";
 import { runProcurementOfficerDashboardTests } from "./procurement-officer-dashboard.test";
+import { runProcurementOfficerItemTests } from "./procurement-officer-items.test";
 import { runProcurementOfficerInvitationTests } from "./procurement-officer-invitations.test";
 import { runPublicAuthEntryTests } from "./public-auth-entry.test";
 import { runProxyRouteTests } from "./proxy.test";
@@ -32,6 +33,7 @@ async function main(): Promise<void> {
         ...runEmailTransportTests(),
         ...runProcurementOfficerDepartmentTests(),
         ...runProcurementOfficerCategoryTests(),
+        ...(await runProcurementOfficerItemTests()),
         ...runProcurementOfficerAccessCodeTests(),
         ...runProcurementOfficerDeadlineTests(),
         ...runDepartmentUserDashboardTests(),

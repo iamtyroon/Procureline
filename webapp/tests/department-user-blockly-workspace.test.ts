@@ -467,14 +467,80 @@ export function runDepartmentUserBlocklyWorkspaceTests(): string[] {
                 description: "Portable computers",
                 id: "item-laptop",
                 name: "Laptops",
+                procurementMethod: "RFQ",
+                sourceOfFunds: "GOK",
+                unitOfMeasurement: "each",
                 unitPrice: 50_000,
             },
         ],
     });
     assert.equal(categoryBlock.getFieldValue("CATEGORY_ID"), "cat-it");
     assert.equal(itemBlock.getFieldValue("ITEM_ID"), "item-laptop");
+    assert.equal(itemBlock.getFieldValue("ITEM_DESCRIPTION"), "Portable computers");
+    assert.equal(itemBlock.getFieldValue("UNIT_OF_MEASUREMENT"), "each");
+    assert.equal(itemBlock.getFieldValue("PROC_METHOD"), "RFQ");
+    assert.equal(itemBlock.getFieldValue("SOURCE_OF_FUNDS"), "GOK");
     completedTests.push(
-        "legacy Blockly workspaces now rehydrate missing hidden category and item ids before rollups run so older blocks can still save against stable catalog ids",
+        "legacy Blockly workspaces now rehydrate missing hidden ids and refresh live item metadata before rollups run so older blocks can still save against stable catalog ids",
+    );
+
+    const movedCategoryBlock = new TestBlock("category_block", {
+        CATEGORY_ID: "cat-it",
+        CATEGORY_NAME: "ICT Equipment",
+    });
+    const movedItemBlock = new TestBlock("item_block", {
+        ITEM_DESC: "Laptops",
+        ITEM_DESCRIPTION: "Portable computers",
+        ITEM_ID: "item-laptop",
+        PROC_METHOD: "RFQ",
+        SOURCE_OF_FUNDS: "GOK",
+        UNIT_OF_MEASUREMENT: "each",
+        UNIT_PRICE: "50000",
+    });
+    departmentBlock.linkInput("CATEGORIES", movedCategoryBlock);
+    movedCategoryBlock.linkInput("ITEMS", movedItemBlock);
+
+    synchronizeDepartmentUserWorkspaceCatalogIdentity({
+        categories: [
+            { id: "cat-it", name: "ICT Equipment" },
+            { id: "cat-admin", name: "Administrative Services" },
+        ],
+        departmentBlock,
+        items: [
+            {
+                categoryId: "cat-admin",
+                description: "Portable computers refreshed",
+                id: "item-laptop",
+                name: "Executive Laptops",
+                procurementMethod: "Framework",
+                sourceOfFunds: "Donor",
+                unitOfMeasurement: "set",
+                unitPrice: 65_000,
+            },
+        ],
+    });
+    assert.equal(
+        movedCategoryBlock.getFieldValue("CATEGORY_ID"),
+        "cat-admin",
+    );
+    assert.equal(
+        movedCategoryBlock.getFieldValue("CATEGORY_NAME"),
+        "Administrative Services",
+    );
+    assert.equal(
+        movedItemBlock.getFieldValue("ITEM_DESC"),
+        "Executive Laptops",
+    );
+    assert.equal(
+        movedItemBlock.getFieldValue("ITEM_DESCRIPTION"),
+        "Portable computers refreshed",
+    );
+    assert.equal(movedItemBlock.getFieldValue("UNIT_PRICE"), "65000");
+    assert.equal(movedItemBlock.getFieldValue("PROC_METHOD"), "Framework");
+    assert.equal(movedItemBlock.getFieldValue("SOURCE_OF_FUNDS"), "Donor");
+    assert.equal(movedItemBlock.getFieldValue("UNIT_OF_MEASUREMENT"), "set");
+    completedTests.push(
+        "department-user workspace identity resolution now keeps stable item ids resolvable after catalog moves or renames by refreshing both item metadata and the parent category attribution from the current catalog record",
     );
 
     const duPresentation = buildPlanningWorkspacePresentation({

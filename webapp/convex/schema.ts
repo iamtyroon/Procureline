@@ -257,19 +257,45 @@ export default defineSchema({
         tenantId: v.id("tenants"),
         categoryId: v.id("procurementCategories"),
         name: v.string(),
+        normalizedName: v.optional(v.string()),
         description: v.optional(v.string()),
         unitOfMeasurement: v.optional(v.string()),
         unitPrice: v.optional(v.number()),
         procurementMethod: v.optional(v.string()),
         sourceOfFunds: v.optional(v.string()),
+        minQuantity: v.optional(v.number()),
+        maxQuantity: v.optional(v.number()),
+        complianceFlags: v.optional(v.array(v.union(
+            v.literal("agpo"),
+            v.literal("pwd"),
+            v.literal("local_content"),
+        ))),
         sortOrder: v.optional(v.number()),
         isActive: v.boolean(),
+        archivedAt: v.optional(v.number()),
+        archivedByTenantUserId: v.optional(v.id("tenantUsers")),
+        lastPriceChangedAt: v.optional(v.number()),
+        lastPriceChangedByTenantUserId: v.optional(v.id("tenantUsers")),
+        revision: v.optional(v.number()),
         createdAt: v.number(),
         updatedAt: v.number(),
     })
         .index("by_tenantId", ["tenantId"])
         .index("by_categoryId", ["categoryId"])
-        .index("by_tenantId_isActive", ["tenantId", "isActive"]),
+        .index("by_tenantId_isActive", ["tenantId", "isActive"])
+        .index("by_tenantId_categoryId", ["tenantId", "categoryId"])
+        .index("by_tenantId_categoryId_normalizedName", ["tenantId", "categoryId", "normalizedName"]),
+
+    procurementItemPriceHistory: defineTable({
+        tenantId: v.id("tenants"),
+        itemId: v.id("procurementItems"),
+        previousUnitPrice: v.union(v.number(), v.null()),
+        nextUnitPrice: v.number(),
+        changedAt: v.number(),
+        changedByTenantUserId: v.id("tenantUsers"),
+    })
+        .index("by_itemId_changedAt", ["itemId", "changedAt"])
+        .index("by_tenantId_changedAt", ["tenantId", "changedAt"]),
 
     plans: defineTable({
         tenantId: v.id("tenants"),

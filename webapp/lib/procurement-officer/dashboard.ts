@@ -381,12 +381,12 @@ export function deriveProcurementChecklist(args: {
         },
         {
             description:
-                "Item catalog setup is reserved for Story 4.8, so the dashboard keeps this step explicitly staged.",
+                "Add, move, archive, and import live catalog items inside the shared categories and items workspace.",
             href: "/po/items",
             id: "add_items",
             label: "Add Items",
-            state: "coming_soon",
-            statusLabel: "Awaiting later story",
+            state: "available",
+            statusLabel: "Live workspace",
         },
         {
             description: !hasDepartments

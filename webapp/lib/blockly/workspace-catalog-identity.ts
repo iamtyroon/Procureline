@@ -9,8 +9,11 @@ export interface DepartmentUserCatalogItem {
     categoryId: string;
     description?: string | null;
     id: string;
-    name: string;
+    procurementMethod?: string | null;
+    sourceOfFunds?: string | null;
+    unitOfMeasurement?: string | null;
     unitPrice?: number | null;
+    name: string;
 }
 
 function normalizeText(value: string | null | undefined): string {
@@ -74,7 +77,7 @@ export function resolveDepartmentUserItemCatalogIdentity(args: {
 
     if (normalizedItemId.length > 0) {
         const matchingItem = args.items.find((item) => item.id === normalizedItemId);
-        if (matchingItem && (!normalizedCategoryId || matchingItem.categoryId === normalizedCategoryId)) {
+        if (matchingItem) {
             return matchingItem;
         }
     }
@@ -142,7 +145,7 @@ export function synchronizeDepartmentUserWorkspaceCatalogIdentity(args: {
             categoryId: categoryBlock.getFieldValue("CATEGORY_ID"),
             categoryName: categoryBlock.getFieldValue("CATEGORY_NAME"),
         });
-        const categoryId = resolvedCategory?.id ?? "";
+        let categoryId = resolvedCategory?.id ?? "";
 
         if (
             resolvedCategory &&
@@ -150,8 +153,15 @@ export function synchronizeDepartmentUserWorkspaceCatalogIdentity(args: {
         ) {
             categoryBlock.setFieldValue(resolvedCategory.id, "CATEGORY_ID");
         }
+        if (
+            resolvedCategory &&
+            categoryBlock.getFieldValue("CATEGORY_NAME") !== resolvedCategory.name
+        ) {
+            categoryBlock.setFieldValue(resolvedCategory.name, "CATEGORY_NAME");
+        }
 
         let itemBlock = categoryBlock.getInput("ITEMS")?.connection?.targetBlock() ?? null;
+        const resolvedItemCategoryIds = new Set<string>();
         while (itemBlock && itemBlock.type === "item_block") {
             const resolvedItem = resolveDepartmentUserItemCatalogIdentity({
                 categoryId,
@@ -161,12 +171,89 @@ export function synchronizeDepartmentUserWorkspaceCatalogIdentity(args: {
                 items: args.items,
                 unitPrice: itemBlock.getFieldValue("UNIT_PRICE"),
             });
+            if (resolvedItem) {
+                resolvedItemCategoryIds.add(resolvedItem.categoryId);
+            }
 
             if (resolvedItem && itemBlock.getFieldValue("ITEM_ID") !== resolvedItem.id) {
                 itemBlock.setFieldValue(resolvedItem.id, "ITEM_ID");
             }
+            if (resolvedItem && itemBlock.getFieldValue("ITEM_DESC") !== resolvedItem.name) {
+                itemBlock.setFieldValue(resolvedItem.name, "ITEM_DESC");
+            }
+            if (
+                resolvedItem &&
+                itemBlock.getFieldValue("ITEM_DESCRIPTION") !==
+                    (resolvedItem.description ?? resolvedItem.name)
+            ) {
+                itemBlock.setFieldValue(
+                    resolvedItem.description ?? resolvedItem.name,
+                    "ITEM_DESCRIPTION",
+                );
+            }
+            if (
+                resolvedItem &&
+                itemBlock.getFieldValue("UNIT_OF_MEASUREMENT") !==
+                    (resolvedItem.unitOfMeasurement ?? "Not set")
+            ) {
+                itemBlock.setFieldValue(
+                    resolvedItem.unitOfMeasurement ?? "Not set",
+                    "UNIT_OF_MEASUREMENT",
+                );
+            }
+            if (
+                resolvedItem &&
+                itemBlock.getFieldValue("UNIT_PRICE") !==
+                    String(getFiniteNumber(resolvedItem.unitPrice) ?? 0)
+            ) {
+                itemBlock.setFieldValue(
+                    String(getFiniteNumber(resolvedItem.unitPrice) ?? 0),
+                    "UNIT_PRICE",
+                );
+            }
+            if (
+                resolvedItem &&
+                itemBlock.getFieldValue("PROC_METHOD") !==
+                    (resolvedItem.procurementMethod ?? "Not set")
+            ) {
+                itemBlock.setFieldValue(
+                    resolvedItem.procurementMethod ?? "Not set",
+                    "PROC_METHOD",
+                );
+            }
+            if (
+                resolvedItem &&
+                itemBlock.getFieldValue("SOURCE_OF_FUNDS") !==
+                    (resolvedItem.sourceOfFunds ?? "Not set")
+            ) {
+                itemBlock.setFieldValue(
+                    resolvedItem.sourceOfFunds ?? "Not set",
+                    "SOURCE_OF_FUNDS",
+                );
+            }
 
             itemBlock = itemBlock.getNextBlock();
+        }
+
+        const resolvedItemCategoryId =
+            resolvedItemCategoryIds.size === 1
+                ? Array.from(resolvedItemCategoryIds)[0] ?? null
+                : null;
+        const resolvedItemCategory =
+            resolvedItemCategoryId === null
+                ? null
+                : args.categories.find((category) => category.id === resolvedItemCategoryId) ??
+                  null;
+
+        if (resolvedItemCategory) {
+            categoryId = resolvedItemCategory.id;
+
+            if (categoryBlock.getFieldValue("CATEGORY_ID") !== resolvedItemCategory.id) {
+                categoryBlock.setFieldValue(resolvedItemCategory.id, "CATEGORY_ID");
+            }
+            if (categoryBlock.getFieldValue("CATEGORY_NAME") !== resolvedItemCategory.name) {
+                categoryBlock.setFieldValue(resolvedItemCategory.name, "CATEGORY_NAME");
+            }
         }
 
         categoryBlock = categoryBlock.getNextBlock();

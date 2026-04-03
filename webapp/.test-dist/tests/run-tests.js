@@ -15,6 +15,7 @@ const platform_admin_auth_test_1 = require("./platform-admin-auth.test");
 const platform_admin_dashboard_test_1 = require("./platform-admin-dashboard.test");
 const pricing_flow_test_1 = require("./pricing-flow.test");
 const procurement_officer_dashboard_test_1 = require("./procurement-officer-dashboard.test");
+const procurement_officer_items_test_1 = require("./procurement-officer-items.test");
 const procurement_officer_invitations_test_1 = require("./procurement-officer-invitations.test");
 const public_auth_entry_test_1 = require("./public-auth-entry.test");
 const proxy_test_1 = require("./proxy.test");
@@ -33,6 +34,7 @@ async function main() {
         ...(0, email_transport_test_1.runEmailTransportTests)(),
         ...(0, procurement_officer_departments_test_1.runProcurementOfficerDepartmentTests)(),
         ...(0, procurement_officer_categories_test_1.runProcurementOfficerCategoryTests)(),
+        ...(await (0, procurement_officer_items_test_1.runProcurementOfficerItemTests)()),
         ...(0, procurement_officer_access_codes_test_1.runProcurementOfficerAccessCodeTests)(),
         ...(0, procurement_officer_deadlines_test_1.runProcurementOfficerDeadlineTests)(),
         ...(0, department_user_dashboard_test_1.runDepartmentUserDashboardTests)(),

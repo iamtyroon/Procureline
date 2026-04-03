@@ -50,9 +50,13 @@ const workspaceCategorySummaryValidator = v.object({
 
 const workspaceItemValidator = v.object({
     categoryId: v.string(),
+    complianceFlags: v.optional(v.array(v.string())),
     description: v.union(v.string(), v.null()),
     id: v.string(),
     isActive: v.boolean(),
+    lastPriceChangedAt: v.union(v.number(), v.null()),
+    maxQuantity: v.union(v.number(), v.null()),
+    minQuantity: v.union(v.number(), v.null()),
     name: v.string(),
     procurementMethod: v.union(v.string(), v.null()),
     sortOrder: v.number(),
@@ -223,9 +227,13 @@ async function loadTenantCatalog(ctx: DataCtx, tenantId: Id<"tenants">) {
         })),
         items: items.map((item) => ({
             categoryId: String(item.categoryId),
+            complianceFlags: item.complianceFlags ?? [],
             description: item.description ?? null,
             id: String(item._id),
             isActive: item.isActive,
+            lastPriceChangedAt: item.lastPriceChangedAt ?? null,
+            maxQuantity: item.maxQuantity ?? null,
+            minQuantity: item.minQuantity ?? null,
             name: item.name,
             procurementMethod: item.procurementMethod ?? null,
             sortOrder: item.sortOrder ?? Number.MAX_SAFE_INTEGER,

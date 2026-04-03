@@ -658,15 +658,15 @@ function buildFuturePanels(): ProcurementOfficerDashboardFuturePanel[] {
         {
             cta: {
                 href: "/po/categories/items",
-                label: "Items coming soon",
-                state: "coming_soon",
+                label: "Open items workspace",
+                state: "available",
             },
             description:
-                "Item catalog setup stays staged until live item sources land, rather than copying prototype internals into production early.",
+                "Item catalog management now reuses the live procurementItems source, with single-item entry, category handoff, and workbook import in one workspace.",
             id: "items",
             label: "Items",
-            state: "coming_soon",
-            statusLabel: "Awaiting later story",
+            state: "available",
+            statusLabel: "Live workspace",
         },
         {
             cta: {

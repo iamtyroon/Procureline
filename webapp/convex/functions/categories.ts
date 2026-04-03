@@ -913,7 +913,7 @@ async function appendCategoryFailureAudit(
             action: args.action,
             actor,
             entityType: "category",
-            event: args.event,
+            event: args.event as AuditEventName,
             metadata: {
                 ...args.metadata,
                 attemptedCategoryName: args.attemptedCategoryName,

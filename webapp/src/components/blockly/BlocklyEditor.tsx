@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { startTransition, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { ArrowLeft, FileDown, Layers3, PackagePlus, Send } from "lucide-react";
 import { toast } from "sonner";
@@ -22,6 +22,7 @@ import {
     type DepartmentUserBudgetMeterState,
 } from "@/lib/blockly/du-workspace-calculations";
 import { buildDepartmentUserWorkspaceDraftSaveInput } from "@/lib/blockly/workspace-save";
+import { PROCUREMENT_ITEM_PRICE_CHANGE_NOTICE } from "@/lib/procurement-officer/items";
 import styles from "./BlocklyWorkspace.module.css";
 
 const LazyBlocklyWorkspace = dynamic(
@@ -59,6 +60,7 @@ export function BlocklyEditor(props: {
         description: string | null;
         id: string;
         isActive: boolean;
+        lastPriceChangedAt: number | null;
         name: string;
         procurementMethod: string | null;
         sortOrder: number;
@@ -105,6 +107,7 @@ export function BlocklyEditor(props: {
     const [lastSavedAt, setLastSavedAt] = useState<number | null>(
         props.workspaceState?.editorMetadata.lastSavedAt ?? null,
     );
+    const previousItemsRef = useRef(props.items);
     const presentation = useMemo(
         () =>
             buildPlanningWorkspacePresentation({
@@ -114,6 +117,43 @@ export function BlocklyEditor(props: {
             }),
         [props.actor, props.actorLabel, props.mode],
     );
+
+    useEffect(() => {
+        const previousItems = previousItemsRef.current;
+        previousItemsRef.current = props.items;
+
+        if (previousItems === props.items) {
+            return;
+        }
+
+        const selectedCategoryIds = new Set(props.selectedCategoryIds);
+        const previousItemsById = new Map(
+            previousItems.map((item) => [item.id, item] as const),
+        );
+        const hasSelectedCatalogPriceChange = props.items.some((item) => {
+            const previousItem = previousItemsById.get(item.id);
+            if (!previousItem) {
+                return false;
+            }
+
+            const isSelectedCatalogItem =
+                selectedCategoryIds.has(item.categoryId) ||
+                selectedCategoryIds.has(previousItem.categoryId);
+            if (!isSelectedCatalogItem) {
+                return false;
+            }
+
+            return (
+                (previousItem.unitPrice ?? null) !== (item.unitPrice ?? null) ||
+                (previousItem.lastPriceChangedAt ?? null) !==
+                    (item.lastPriceChangedAt ?? null)
+            );
+        });
+
+        if (hasSelectedCatalogPriceChange) {
+            toast.info(PROCUREMENT_ITEM_PRICE_CHANGE_NOTICE);
+        }
+    }, [props.items, props.selectedCategoryIds]);
 
     async function handleWorkspaceChange(payload: BlocklyWorkspaceChangePayload): Promise<void> {
         setBudgetState(
