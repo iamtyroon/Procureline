@@ -2,9 +2,9 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "convex/react";
-import { ArrowLeft, FileDown, Layers3, PackagePlus, Send } from "lucide-react";
+import { ArrowLeft, FileDown, PackagePlus, Send } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BlocklyBudgetHeader } from "@/src/components/blockly/BlocklyBudgetHeader";
 import { BlocklyComplianceSummary } from "@/src/components/blockly/BlocklyComplianceSummary";
 import { BlocklyLoadingSkeleton } from "@/src/components/blockly/BlocklyLoadingSkeleton";
+import { BlocklyToolboxRail } from "@/src/components/blockly/BlocklyToolboxRail";
 import type { BlocklyWorkspaceChangePayload } from "@/src/components/blockly/BlocklyWorkspace";
 import { buildPlanningWorkspacePresentation } from "@/lib/blockly/editor-contract";
 import type { BlocklyWorkspaceRecord } from "@/lib/blockly/blockly-serialization";
@@ -30,8 +31,13 @@ import {
     type DepartmentUserWorkspaceSummary,
 } from "@/lib/blockly/du-workspace-calculations";
 import { buildDepartmentUserWorkspaceDraftSaveInput } from "@/lib/blockly/workspace-save";
+import {
+    collectDepartmentUserWorkspaceSourceUsage,
+    type DepartmentUserWorkspaceSourceUsage,
+} from "@/lib/blockly/workspace-catalog-identity";
 import { calculateProcurementComplianceSnapshot } from "@/lib/procurement/compliance";
 import { PROCUREMENT_ITEM_PRICE_CHANGE_NOTICE } from "@/lib/procurement-officer/items";
+import type { CategoryIconName } from "@/lib/procurement-officer/categories";
 import styles from "./BlocklyWorkspace.module.css";
 
 const LazyBlocklyWorkspace = dynamic(
@@ -50,7 +56,9 @@ export function BlocklyEditor(props: {
     actor: "department_user" | "procurement_officer";
     actorLabel: string;
     categories: Array<{
+        color?: string | null;
         id: string;
+        icon?: CategoryIconName | null;
         isActive: boolean;
         name: string;
         sortOrder: number;
@@ -92,6 +100,23 @@ export function BlocklyEditor(props: {
     workspaceState: BlocklyWorkspaceRecord | null;
 }) {
     const saveWorkspaceDraft = useMutation(api.functions.plans.saveDepartmentUserWorkspaceDraft);
+    const [searchQuery, setSearchQuery] = useState("");
+    const deferredSearchQuery = useDeferredValue(searchQuery);
+    const initialSourceUsage = useMemo(
+        () =>
+            collectDepartmentUserWorkspaceSourceUsage({
+                categories: props.categories.map((category) => ({
+                    id: category.id,
+                    name: category.name,
+                })),
+                items: props.items,
+                workspaceState: props.workspaceState,
+            }),
+        [props.categories, props.items, props.workspaceState],
+    );
+    const [sourceUsage, setSourceUsage] = useState<DepartmentUserWorkspaceSourceUsage>(
+        initialSourceUsage,
+    );
     const toolbox = useMemo(
         () =>
             buildDepartmentUserToolbox({
@@ -102,11 +127,22 @@ export function BlocklyEditor(props: {
                     departmentName: props.department.name,
                     voteNumber: props.department.voteNumber,
                 },
+                editorMode: props.mode,
                 items: props.items,
                 preserveUnavailableRequestedCategories: true,
+                searchQuery: deferredSearchQuery,
                 selectedCategoryIds: props.selectedCategoryIds,
+                sourceUsage,
             }),
-        [props.categories, props.department, props.items, props.selectedCategoryIds],
+        [
+            deferredSearchQuery,
+            props.categories,
+            props.department,
+            props.items,
+            props.mode,
+            props.selectedCategoryIds,
+            sourceUsage,
+        ],
     );
     const initialSummary = useMemo(
         () =>
@@ -181,6 +217,8 @@ export function BlocklyEditor(props: {
         previousResetKeyRef.current = resetKey;
         latestLocalWorkspaceRevisionRef.current = incomingRevision;
         allowEditModePersistedFallbackRef.current = true;
+        setSourceUsage(initialSourceUsage);
+        setSearchQuery("");
         setWorkspaceSummary(preferredInitialSummary);
         setBudgetState(
             preferredInitialSummary?.budgetState ??
@@ -194,6 +232,7 @@ export function BlocklyEditor(props: {
             ? getDepartmentUserWorkspaceAnnouncement(preferredInitialSummary).key
             : null;
     }, [
+        initialSourceUsage,
         preferredInitialSummary,
         props.department.budgetAllocation,
         props.planId,
@@ -272,7 +311,6 @@ export function BlocklyEditor(props: {
                     usedAmount: 0,
                 }),
         );
-
         if (props.mode !== "edit") {
             return;
         }
@@ -461,51 +499,17 @@ export function BlocklyEditor(props: {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="rounded-2xl border border-border/60 bg-background/90 px-4 py-3 text-sm text-muted-foreground">
-                            {props.mode === "edit"
-                                ? "The live Blockly toolbox stays scoped to these categories and the department source block."
-                                : "Read-only mode keeps the selected category context visible even when Blockly toolbox editing is disabled."}
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                            {toolbox.sanitizedCategoryIds.length === 0 ? (
-                                <Badge variant="secondary" className="rounded-full">
-                                    No active categories available
-                                </Badge>
-                            ) : (
-                                toolbox.sanitizedCategoryIds.map((categoryId) => {
-                                    const category = props.categories.find(
-                                        (candidate) => candidate.id === categoryId,
-                                    );
-                                    return (
-                                        <Badge
-                                            key={categoryId}
-                                            variant="secondary"
-                                            className="rounded-full"
-                                        >
-                                            <Layers3 className="mr-1 h-3.5 w-3.5" />
-                                            {category?.name ?? categoryId}
-                                        </Badge>
-                                    );
-                                })
-                            )}
-                        </div>
-
-                        <div className="rounded-2xl border border-border/60 bg-background/90 px-4 py-4 text-sm">
-                            <div className="font-semibold text-foreground">
-                                Department source
-                            </div>
-                            <div className="mt-2 space-y-1 text-muted-foreground">
-                                <div>{props.department.name}</div>
-                                <div>Vote: {props.department.voteNumber}</div>
-                                <div>
-                                    Budget:{" "}
-                                    {props.department.budgetAllocation === null
-                                        ? "Not allocated"
-                                        : formatKenyanCurrency(props.department.budgetAllocation)}
-                                </div>
-                            </div>
-                        </div>
+                        <BlocklyToolboxRail
+                            categories={toolbox.categoryStates}
+                            department={{
+                                budgetAllocation: props.department.budgetAllocation,
+                                name: props.department.name,
+                                voteNumber: props.department.voteNumber,
+                            }}
+                            mode={props.mode}
+                            onSearchQueryChange={setSearchQuery}
+                            searchQuery={searchQuery}
+                        />
                     </CardContent>
                 </Card>
 
@@ -533,6 +537,9 @@ export function BlocklyEditor(props: {
                     onWorkspaceChange={(payload) => {
                         void handleWorkspaceChange(payload);
                     }}
+                    onWorkspaceStructureChange={(nextSourceUsage) => {
+                        setSourceUsage(nextSourceUsage);
+                    }}
                     onWorkspaceSummaryChange={(nextSummary) => {
                         const persistedPlanSummary =
                             getPersistedPlanSummaryForWorkspaceSummaryChange({
@@ -552,6 +559,7 @@ export function BlocklyEditor(props: {
                             }),
                         );
                     }}
+                    planId={props.planId}
                     selectedCategoryIds={toolbox.sanitizedCategoryIds}
                     toolboxDefinition={toolbox.toolboxDefinition}
                     workspaceState={props.workspaceState}
@@ -559,13 +567,4 @@ export function BlocklyEditor(props: {
             </div>
         </div>
     );
-}
-
-function formatKenyanCurrency(amount: number): string {
-    return new Intl.NumberFormat("en-KE", {
-        currency: "KES",
-        maximumFractionDigits: 2,
-        minimumFractionDigits: 2,
-        style: "currency",
-    }).format(amount);
 }

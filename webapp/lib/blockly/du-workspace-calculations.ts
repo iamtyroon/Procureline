@@ -110,6 +110,7 @@ export interface BlocklyConnectionLike {
 
 export interface BlocklyInputLike {
     connection?: BlocklyConnectionLike | null;
+    setVisible?(visible: boolean): void;
 }
 
 export interface BlocklyWritableBlockLike {
@@ -864,6 +865,11 @@ function writeRollupBackToWorkspace(
             categoryRollup.totalCost.toFixed(2),
             "CATEGORY_GRAND_TOTAL",
         );
+        writableCategory.setFieldValue(
+            categoryRollup.itemCount === 0 ? "Drag items here" : "",
+            "CATEGORY_EMPTY_STATE",
+        );
+        writableCategory.getInput("EMPTY_STATE")?.setVisible?.(categoryRollup.itemCount === 0);
 
         let writableItem = writableCategory.getInput("ITEMS")?.connection?.targetBlock() ?? null;
         for (const itemRollup of categoryRollup.items) {

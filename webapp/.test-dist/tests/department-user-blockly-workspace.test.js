@@ -7,6 +7,9 @@ exports.runDepartmentUserBlocklyWorkspaceTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
 const blockly_serialization_1 = require("../lib/blockly/blockly-serialization");
 const du_toolbox_1 = require("../lib/blockly/du-toolbox");
+const workspace_ui_state_1 = require("../lib/blockly/workspace-ui-state");
+const workspace_events_1 = require("../lib/blockly/workspace-events");
+const workspace_runtime_1 = require("../lib/blockly/workspace-runtime");
 const du_workspace_calculations_1 = require("../lib/blockly/du-workspace-calculations");
 const workspace_save_1 = require("../lib/blockly/workspace-save");
 const workspace_catalog_identity_1 = require("../lib/blockly/workspace-catalog-identity");
@@ -126,7 +129,10 @@ async function runDepartmentUserBlocklyWorkspaceTests() {
     strict_1.default.deepEqual(categorySelection.sanitizedCategoryIds, ["cat-it"]);
     completedTests.push("workspace category selection still filters out categories without active catalog items");
     const toolbox = (0, du_toolbox_1.buildDepartmentUserToolbox)({
-        categories: [{ color: "#0B6E4F", icon: "cpu", id: "cat-it", isActive: true, name: "ICT Equipment", sortOrder: 1 }],
+        categories: [
+            { color: "#0B6E4F", icon: "cpu", id: "cat-it", isActive: true, name: "ICT Equipment", sortOrder: 2 },
+            { color: "#B45309", icon: "boxes", id: "cat-office", isActive: true, name: "Office Supplies", sortOrder: 1 },
+        ],
         department: {
             budgetAllocation: 2_500_000,
             departmentId: "department-1",
@@ -146,11 +152,222 @@ async function runDepartmentUserBlocklyWorkspaceTests() {
                 unitOfMeasurement: "Each",
                 unitPrice: 50_000,
             },
+            {
+                categoryId: "cat-office",
+                description: "All-purpose paper",
+                id: "item-2",
+                isActive: true,
+                name: "Printer Paper",
+                procurementMethod: "Shopping",
+                sortOrder: 1,
+                sourceOfFunds: "GOK",
+                unitOfMeasurement: "Ream",
+                unitPrice: 1_500,
+            },
         ],
-        selectedCategoryIds: ["cat-it"],
+        selectedCategoryIds: ["cat-it", "cat-office"],
+        sourceUsage: {
+            categoryIds: ["cat-it"],
+            itemIds: ["item-1"],
+        },
     });
-    strict_1.default.equal(toolbox.toolboxDefinition.contents.length, 2);
-    completedTests.push("department-user toolbox generation keeps the department source block plus selected live categories");
+    const toolboxContents = toolbox.toolboxDefinition.contents;
+    strict_1.default.deepEqual(toolbox.sanitizedCategoryIds, ["cat-office", "cat-it"]);
+    strict_1.default.equal(toolboxContents.length, 2);
+    strict_1.default.equal(toolboxContents[1]?.name, "Office Supplies");
+    strict_1.default.equal(toolbox.categoryStates[0]?.id, "cat-office");
+    strict_1.default.equal(toolbox.categoryStates[1]?.isUsedOnWorkspace, true);
+    strict_1.default.equal(toolboxContents.some((content) => content.name === "ICT Equipment"), false);
+    completedTests.push("department-user toolbox generation now preserves PO-managed category order and hides used item source blocks by stable ids");
+    const categorySearchToolbox = (0, du_toolbox_1.buildDepartmentUserToolbox)({
+        categories: [
+            { color: "#B45309", icon: "boxes", id: "cat-office", isActive: true, name: "Office Supplies", sortOrder: 2 },
+        ],
+        department: {
+            budgetAllocation: 2_500_000,
+            departmentId: "department-1",
+            departmentName: "Computer Science",
+            voteNumber: "CS-2026",
+        },
+        items: [
+            {
+                categoryId: "cat-office",
+                description: "All-purpose paper",
+                id: "item-2",
+                isActive: true,
+                name: "Printer Paper",
+                procurementMethod: "Shopping",
+                sortOrder: 1,
+                sourceOfFunds: "GOK",
+                unitOfMeasurement: "Ream",
+                unitPrice: 1_500,
+            },
+        ],
+        searchQuery: "office",
+        selectedCategoryIds: ["cat-office"],
+    });
+    const officeCategory = categorySearchToolbox.toolboxDefinition.contents[1];
+    strict_1.default.equal((officeCategory?.contents).length, 1);
+    strict_1.default.equal((officeCategory?.contents)[0]?.type, "category_block");
+    completedTests.push("category-name toolbox search keeps the source block visible without repopulating non-matching item blocks");
+    const itemSearchToolbox = (0, du_toolbox_1.buildDepartmentUserToolbox)({
+        categories: [
+            { color: "#B45309", icon: "boxes", id: "cat-office", isActive: true, name: "Office Supplies", sortOrder: 1 },
+        ],
+        department: {
+            budgetAllocation: 2_500_000,
+            departmentId: "department-1",
+            departmentName: "Computer Science",
+            voteNumber: "CS-2026",
+        },
+        items: [
+            {
+                categoryId: "cat-office",
+                description: "All-purpose paper",
+                id: "item-paper",
+                isActive: true,
+                name: "Printer Paper",
+                procurementMethod: "Shopping",
+                sortOrder: 1,
+                sourceOfFunds: "GOK",
+                unitOfMeasurement: "Ream",
+                unitPrice: 1_500,
+            },
+            {
+                categoryId: "cat-office",
+                description: "Staples for binders",
+                id: "item-staples",
+                isActive: true,
+                name: "Staples",
+                procurementMethod: "Shopping",
+                sortOrder: 2,
+                sourceOfFunds: "GOK",
+                unitOfMeasurement: "Box",
+                unitPrice: 800,
+            },
+        ],
+        searchQuery: "paper",
+        selectedCategoryIds: ["cat-office"],
+        sourceUsage: {
+            categoryIds: ["cat-office"],
+            itemIds: ["item-paper"],
+        },
+    });
+    const searchedCategory = itemSearchToolbox.toolboxDefinition.contents[1];
+    strict_1.default.equal(searchedCategory?.contents?.length ?? 0, 0);
+    strict_1.default.equal(itemSearchToolbox.categoryStates[0]?.matchingItemCount, 0);
+    completedTests.push("toolbox search now stays anchored to item ids so already-used matching items do not leak back into category flyouts");
+    const categoryUsage = (0, workspace_catalog_identity_1.collectDepartmentUserWorkspaceSourceUsage)({
+        categories: [
+            { id: "cat-it", name: "ICT Equipment" },
+            { id: "cat-office", name: "Office Supplies" },
+        ],
+        items: [
+            {
+                categoryId: "cat-it",
+                description: "Shared name",
+                id: "item-it",
+                name: "Shared Item",
+                unitPrice: 1_000,
+            },
+            {
+                categoryId: "cat-office",
+                description: "Shared name",
+                id: "item-office",
+                name: "Shared Item",
+                unitPrice: 2_000,
+            },
+        ],
+        workspaceState: (0, blockly_serialization_1.createBlocklyWorkspaceRecord)({
+            workspaceJson: {
+                blocks: {
+                    blocks: [
+                        {
+                            type: "department_block",
+                            inputs: {
+                                CATEGORIES: {
+                                    block: {
+                                        fields: {
+                                            CATEGORY_ID: "cat-office",
+                                            CATEGORY_NAME: "Office Supplies",
+                                        },
+                                        inputs: {
+                                            ITEMS: {
+                                                block: {
+                                                    fields: {
+                                                        ITEM_DESC: "Shared Item",
+                                                        ITEM_DESCRIPTION: "Shared name",
+                                                        ITEM_ID: "item-office",
+                                                        UNIT_PRICE: 2000,
+                                                    },
+                                                    type: "item_block",
+                                                },
+                                            },
+                                        },
+                                        next: {
+                                            block: {
+                                                fields: {
+                                                    CATEGORY_ID: "cat-it",
+                                                    CATEGORY_NAME: "ICT Equipment",
+                                                },
+                                                type: "category_block",
+                                            },
+                                        },
+                                        type: "category_block",
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                    languageVersion: 0,
+                },
+            },
+        }),
+    });
+    strict_1.default.deepEqual(categoryUsage.categoryIds, ["cat-office", "cat-it"]);
+    strict_1.default.deepEqual(categoryUsage.itemIds, ["item-office"]);
+    completedTests.push("workspace source-usage tracking stays anchored to stable category and item ids even when names collide");
+    const liveUsageDepartment = new TestBlock("department_block");
+    const liveUsageOffice = new TestBlock("category_block", {
+        CATEGORY_ID: "cat-office",
+        CATEGORY_NAME: "Office Supplies",
+    });
+    const liveUsageItem = new TestBlock("item_block", {
+        ITEM_DESC: "Shared Item",
+        ITEM_DESCRIPTION: "Shared name",
+        ITEM_ID: "item-office",
+        UNIT_PRICE: "2000",
+    });
+    liveUsageDepartment.linkInput("CATEGORIES", liveUsageOffice);
+    liveUsageOffice.linkInput("ITEMS", liveUsageItem);
+    const liveSourceUsage = (0, workspace_catalog_identity_1.collectDepartmentUserWorkspaceSourceUsageFromDepartmentBlock)({
+        categories: [
+            { id: "cat-it", name: "ICT Equipment" },
+            { id: "cat-office", name: "Office Supplies" },
+        ],
+        departmentBlock: liveUsageDepartment,
+        items: [
+            {
+                categoryId: "cat-it",
+                description: "Shared name",
+                id: "item-it",
+                name: "Shared Item",
+                unitPrice: 1_000,
+            },
+            {
+                categoryId: "cat-office",
+                description: "Shared name",
+                id: "item-office",
+                name: "Shared Item",
+                unitPrice: 2_000,
+            },
+        ],
+    });
+    strict_1.default.deepEqual(liveSourceUsage, {
+        categoryIds: ["cat-office"],
+        itemIds: ["item-office"],
+    });
+    completedTests.push("workspace source-usage refresh can now read the live Blockly chain without reserializing the full workspace");
     const resolvedItem = (0, workspace_catalog_identity_1.resolveDepartmentUserItemCatalogIdentity)({
         categoryId: "cat-it",
         itemDescription: "Portable computers",
@@ -237,6 +454,158 @@ async function runDepartmentUserBlocklyWorkspaceTests() {
     strict_1.default.equal(liveSummary?.budgetState.state, "over_budget");
     strict_1.default.equal(liveRollupDepartment.svgGroup_.classList.classes.has("dept-block-budget-over"), true);
     completedTests.push("live Blockly rollups now share one budget-aware summary path for visuals and warnings");
+    const emptyCategoryDepartment = new TestBlock("department_block");
+    const emptyCategoryBlock = new TestBlock("category_block", {
+        CATEGORY_ID: "cat-empty",
+        CATEGORY_NAME: "Empty Category",
+    });
+    emptyCategoryDepartment.linkInput("CATEGORIES", emptyCategoryBlock);
+    const emptyCategorySummary = (0, du_workspace_calculations_1.applyDepartmentWorkspaceRollup)({
+        departmentBlock: emptyCategoryDepartment,
+        items: [],
+        totalBudget: 100_000,
+    });
+    strict_1.default.ok(emptyCategorySummary);
+    strict_1.default.equal(emptyCategoryBlock.getFieldValue("CATEGORY_EMPTY_STATE"), "Drag items here");
+    completedTests.push("category rollups now expose the empty-state hint directly on empty category blocks");
+    const deletionConfirmation = (0, workspace_events_1.getDepartmentUserCategoryDeletionConfirmation)({
+        blockId: "category-block-1",
+        oldJson: {
+            fields: {
+                CATEGORY_ID: "cat-it",
+                CATEGORY_NAME: "ICT Equipment",
+            },
+            inputs: {
+                ITEMS: {
+                    block: {
+                        type: "item_block",
+                    },
+                },
+            },
+            type: "category_block",
+        },
+        type: "delete",
+    });
+    strict_1.default.deepEqual(deletionConfirmation, {
+        blockId: "category-block-1",
+        categoryId: "cat-it",
+        categoryName: "ICT Equipment",
+        itemCount: 1,
+        message: "Remove ICT Equipment and all its items?",
+    });
+    strict_1.default.equal((0, workspace_events_1.shouldRefreshDepartmentUserToolboxForEvent)({ type: "move" }), true);
+    strict_1.default.equal((0, workspace_events_1.shouldRefreshDepartmentUserToolboxForEvent)({ type: "change" }), false);
+    const deleteResolution = (0, workspace_events_1.resolveDepartmentUserWorkspaceEvent)({
+        approvedCategoryDeletionIds: new Set(),
+        editorMode: "edit",
+        event: {
+            blockId: "category-block-1",
+            oldJson: {
+                fields: {
+                    CATEGORY_ID: "cat-it",
+                    CATEGORY_NAME: "ICT Equipment",
+                },
+                inputs: {
+                    ITEMS: {
+                        block: {
+                            type: "item_block",
+                        },
+                    },
+                },
+                type: "category_block",
+            },
+            run: () => undefined,
+            type: "delete",
+        },
+    });
+    strict_1.default.equal(deleteResolution.shouldUndoDelete, true);
+    strict_1.default.equal(deleteResolution.shouldRecalculate, false);
+    strict_1.default.equal(deleteResolution.categoryDeletionConfirmation?.message, "Remove ICT Equipment and all its items?");
+    const approvedDeleteResolution = (0, workspace_events_1.resolveDepartmentUserWorkspaceEvent)({
+        approvedCategoryDeletionIds: new Set(["category-block-1"]),
+        editorMode: "edit",
+        event: {
+            blockId: "category-block-1",
+            oldJson: {
+                fields: {
+                    CATEGORY_ID: "cat-it",
+                    CATEGORY_NAME: "ICT Equipment",
+                },
+                inputs: {
+                    ITEMS: {
+                        block: {
+                            type: "item_block",
+                        },
+                    },
+                },
+                type: "category_block",
+            },
+            run: () => undefined,
+            type: "delete",
+        },
+    });
+    strict_1.default.equal(approvedDeleteResolution.shouldUndoDelete, false);
+    strict_1.default.equal(approvedDeleteResolution.shouldQueueStructureRefresh, true);
+    strict_1.default.equal(approvedDeleteResolution.shouldRecalculate, true);
+    const viewportResolution = (0, workspace_events_1.resolveDepartmentUserWorkspaceEvent)({
+        editorMode: "edit",
+        event: {
+            scale: 0.95,
+            type: "viewport_change",
+            viewLeft: 120,
+            viewTop: 80,
+        },
+    });
+    strict_1.default.deepEqual(viewportResolution.viewportState, {
+        scale: 0.95,
+        viewLeft: 120,
+        viewTop: 80,
+    });
+    completedTests.push("workspace event helpers now cover delete-confirmation interception, structural refresh, and viewport persistence decisions");
+    const viewportStateKey = (0, workspace_ui_state_1.createDepartmentUserWorkspaceUiStateStorageKey)({
+        planId: "plan-123",
+        userId: "du-user-1",
+    });
+    strict_1.default.equal(viewportStateKey, "procureline:blockly-ui:du-user-1:plan-123");
+    const serializedViewportState = (0, workspace_ui_state_1.serializeDepartmentUserWorkspaceUiState)({
+        scale: 0.95,
+        viewLeft: 120,
+        viewTop: 80,
+    });
+    strict_1.default.equal((0, workspace_ui_state_1.parseDepartmentUserWorkspaceUiState)(serializedViewportState)?.viewLeft, 120);
+    strict_1.default.equal((0, workspace_ui_state_1.parseDepartmentUserWorkspaceUiState)("{bad json}"), null);
+    const restoredViewportCalls = [];
+    strict_1.default.equal((0, workspace_ui_state_1.restoreDepartmentUserWorkspaceUiState)({
+        state: (0, workspace_ui_state_1.parseDepartmentUserWorkspaceUiState)(serializedViewportState),
+        workspace: {
+            scroll(left, top) {
+                restoredViewportCalls.push(["scroll", left, top]);
+            },
+            setScale(scale) {
+                restoredViewportCalls.push(["scale", scale]);
+            },
+        },
+    }), true);
+    strict_1.default.deepEqual(restoredViewportCalls, [
+        ["scale", 0.95],
+        ["scroll", -120, -80],
+    ]);
+    completedTests.push("plan-local workspace viewport state now round-trips safely, restores the saved canvas position, and fails closed on malformed storage");
+    const editInjectionOptions = (0, workspace_runtime_1.buildDepartmentUserBlocklyInjectionOptions)({
+        editorMode: "edit",
+        toolboxDefinition: { kind: "categoryToolbox" },
+    });
+    const viewInjectionOptions = (0, workspace_runtime_1.buildDepartmentUserBlocklyInjectionOptions)({
+        editorMode: "view",
+        toolboxDefinition: { kind: "categoryToolbox" },
+    });
+    strict_1.default.equal(editInjectionOptions.readOnly, false);
+    strict_1.default.equal(editInjectionOptions.trashcan, true);
+    strict_1.default.deepEqual(editInjectionOptions.toolbox, { kind: "categoryToolbox" });
+    strict_1.default.equal(viewInjectionOptions.readOnly, true);
+    strict_1.default.equal(viewInjectionOptions.trashcan, false);
+    strict_1.default.equal(viewInjectionOptions.toolbox, undefined);
+    completedTests.push("workspace injection options now keep read-only plans non-destructive instead of showing edit-only toolbox or trash affordances");
     const workspaceState = (0, blockly_serialization_1.createBlocklyWorkspaceRecord)({
         lastSavedAt: 100,
         lastSavedByUserId: "old-user",

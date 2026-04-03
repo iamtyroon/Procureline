@@ -3,6 +3,16 @@
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { registerDepartmentUserBlocklyBlocks } from "@/lib/blockly/block-definitions";
 import {
@@ -20,8 +30,20 @@ import {
 } from "@/lib/blockly/du-workspace-calculations";
 import {
     synchronizeDepartmentUserWorkspaceCatalogIdentity,
+    collectDepartmentUserWorkspaceSourceUsageFromDepartmentBlock,
+    type DepartmentUserWorkspaceSourceUsage,
     type DepartmentUserCatalogItem,
 } from "@/lib/blockly/workspace-catalog-identity";
+import {
+    resolveDepartmentUserWorkspaceEvent,
+    type DepartmentUserCategoryDeletionConfirmation,
+} from "@/lib/blockly/workspace-events";
+import {
+    readDepartmentUserWorkspaceUiState,
+    restoreDepartmentUserWorkspaceUiState,
+    writeDepartmentUserWorkspaceUiState,
+} from "@/lib/blockly/workspace-ui-state";
+import { buildDepartmentUserBlocklyInjectionOptions } from "@/lib/blockly/workspace-runtime";
 import styles from "./BlocklyWorkspace.module.css";
 
 type BlocklyModule = typeof import("blockly");
@@ -47,7 +69,9 @@ export function BlocklyWorkspace(props: {
     >;
     onBudgetStateChange: (state: DepartmentUserBudgetMeterState) => void;
     onWorkspaceChange: (payload: BlocklyWorkspaceChangePayload) => void;
+    onWorkspaceStructureChange: (sourceUsage: DepartmentUserWorkspaceSourceUsage) => void;
     onWorkspaceSummaryChange: (summary: DepartmentUserWorkspaceSummary | null) => void;
+    planId: string;
     selectedCategoryIds: string[];
     toolboxDefinition: Record<string, unknown>;
     workspaceState: BlocklyWorkspaceRecord | null;
@@ -56,12 +80,15 @@ export function BlocklyWorkspace(props: {
     const workspaceRef = useRef<BlocklyWorkspaceSvg | null>(null);
     const blocklyRef = useRef<BlocklyModule | null>(null);
     const saveTimerRef = useRef<number | null>(null);
+    const structureRefreshTimerRef = useRef<number | null>(null);
+    const viewportPersistenceTimerRef = useRef<number | null>(null);
     const previousWorkspaceRecordRef = useRef<BlocklyWorkspaceRecord | null>(
         props.workspaceState,
     );
     const initialWorkspaceStateRef = useRef<BlocklyWorkspaceRecord | null>(props.workspaceState);
     const onBudgetStateChangeRef = useRef(props.onBudgetStateChange);
     const onWorkspaceChangeRef = useRef(props.onWorkspaceChange);
+    const onWorkspaceStructureChangeRef = useRef(props.onWorkspaceStructureChange);
     const onWorkspaceSummaryChangeRef = useRef(props.onWorkspaceSummaryChange);
     const recalculateWorkspaceRef = useRef<
         | ((
@@ -72,8 +99,11 @@ export function BlocklyWorkspace(props: {
         | null
     >(null);
     const toolboxDefinitionRef = useRef(props.toolboxDefinition);
+    const approvedCategoryDeletionIdsRef = useRef<Set<string>>(new Set());
     const [retryKey, setRetryKey] = useState(0);
     const [initializationError, setInitializationError] = useState<string | null>(null);
+    const [pendingCategoryDeletion, setPendingCategoryDeletion] =
+        useState<DepartmentUserCategoryDeletionConfirmation | null>(null);
 
     useEffect(() => {
         onBudgetStateChangeRef.current = props.onBudgetStateChange;
@@ -82,6 +112,10 @@ export function BlocklyWorkspace(props: {
     useEffect(() => {
         onWorkspaceChangeRef.current = props.onWorkspaceChange;
     }, [props.onWorkspaceChange]);
+
+    useEffect(() => {
+        onWorkspaceStructureChangeRef.current = props.onWorkspaceStructureChange;
+    }, [props.onWorkspaceStructureChange]);
 
     useEffect(() => {
         onWorkspaceSummaryChangeRef.current = props.onWorkspaceSummaryChange;
@@ -138,6 +172,63 @@ export function BlocklyWorkspace(props: {
             saveTimerRef.current = null;
         }, 700);
     }, [emitWorkspaceSnapshot, props.editorMode]);
+
+    const queueStructureSourceUsageRefresh = useCallback((): void => {
+        if (!workspaceRef.current) {
+            return;
+        }
+
+        if (structureRefreshTimerRef.current !== null) {
+            window.clearTimeout(structureRefreshTimerRef.current);
+        }
+
+        structureRefreshTimerRef.current = window.setTimeout(() => {
+            const departmentBlock =
+                workspaceRef.current
+                    ?.getTopBlocks(false)
+                    .find((block) => block.type === "department_block") ?? null;
+            const nextSourceUsage = collectDepartmentUserWorkspaceSourceUsageFromDepartmentBlock({
+                categories: props.categories,
+                departmentBlock: departmentBlock as Parameters<
+                    typeof collectDepartmentUserWorkspaceSourceUsageFromDepartmentBlock
+                >[0]["departmentBlock"],
+                items: props.items,
+            });
+            onWorkspaceStructureChangeRef.current(nextSourceUsage);
+            structureRefreshTimerRef.current = null;
+        }, 150);
+    }, [props.categories, props.items]);
+
+    const queueViewportPersistence = useCallback((viewportState: {
+        scale?: number;
+        viewLeft?: number;
+        viewTop?: number;
+    }): void => {
+        if (
+            viewportState.scale === undefined ||
+            viewportState.viewLeft === undefined ||
+            viewportState.viewTop === undefined
+        ) {
+            return;
+        }
+
+        if (viewportPersistenceTimerRef.current !== null) {
+            window.clearTimeout(viewportPersistenceTimerRef.current);
+        }
+
+        viewportPersistenceTimerRef.current = window.setTimeout(() => {
+            writeDepartmentUserWorkspaceUiState({
+                planId: props.planId,
+                state: {
+                    scale: viewportState.scale!,
+                    viewLeft: viewportState.viewLeft!,
+                    viewTop: viewportState.viewTop!,
+                },
+                userId: props.currentUserId,
+            });
+            viewportPersistenceTimerRef.current = null;
+        }, 150);
+    }, [props.currentUserId, props.planId]);
 
     const recalculateWorkspace = useCallback((
         Blockly: BlocklyModule,
@@ -200,39 +291,72 @@ export function BlocklyWorkspace(props: {
                 }
 
                 registerDepartmentUserBlocklyBlocks(Blockly);
-                const workspace = Blockly.inject(hostRef.current, {
-                    grid: {
-                        colour: "#d4d4d8",
-                        length: 3,
-                        snap: true,
-                        spacing: 20,
-                    },
-                    readOnly: props.editorMode === "view",
-                    scrollbars: true,
-                    toolbox:
-                        props.editorMode === "edit"
-                            ? (toolboxDefinitionRef.current as never)
-                            : undefined,
-                    trashcan: true,
-                    zoom: {
-                        controls: true,
-                        startScale: 0.9,
-                        wheel: true,
-                    },
-                });
+                const workspace = Blockly.inject(
+                    hostRef.current,
+                    buildDepartmentUserBlocklyInjectionOptions({
+                        editorMode: props.editorMode,
+                        toolboxDefinition: toolboxDefinitionRef.current,
+                    }) as never,
+                );
 
                 blocklyRef.current = Blockly;
                 workspaceRef.current = workspace;
 
-                loadBlocklyWorkspace({
-                    Blockly,
-                    record: initialWorkspaceStateRef.current,
-                    workspace,
-                });
+                const handleWorkspaceChange = (
+                    event: {
+                        blockId?: string;
+                        oldJson?: Record<string, unknown>;
+                        run?: (forward: boolean) => void;
+                        scale?: number;
+                        type: string;
+                        viewLeft?: number;
+                        viewTop?: number;
+                    },
+                ) => {
+                    const eventResolution = resolveDepartmentUserWorkspaceEvent({
+                        approvedCategoryDeletionIds:
+                            approvedCategoryDeletionIdsRef.current,
+                        editorMode: props.editorMode,
+                        event,
+                    });
 
-                const handleWorkspaceChange = (event: { type: string }) => {
-                    if (event.type === "ui") {
+                    if (eventResolution.viewportState) {
+                        queueViewportPersistence(eventResolution.viewportState);
                         return;
+                    }
+
+                    if (
+                        eventResolution.shouldUndoDelete &&
+                        eventResolution.categoryDeletionConfirmation &&
+                        event.run
+                    ) {
+                        Blockly.Events.disable();
+                        try {
+                            event.run(false);
+                        } finally {
+                            Blockly.Events.enable();
+                        }
+                        recalculateWorkspaceRef.current?.(Blockly, workspace, false);
+                        setPendingCategoryDeletion(
+                            eventResolution.categoryDeletionConfirmation,
+                        );
+                        return;
+                    }
+
+                    if (
+                        event.type === "delete" &&
+                        event.blockId &&
+                        approvedCategoryDeletionIdsRef.current.has(event.blockId)
+                    ) {
+                        approvedCategoryDeletionIdsRef.current.delete(event.blockId);
+                    }
+
+                    if (!eventResolution.shouldRecalculate) {
+                        return;
+                    }
+
+                    if (eventResolution.shouldQueueStructureRefresh) {
+                        queueStructureSourceUsageRefresh();
                     }
 
                     recalculateWorkspaceRef.current?.(
@@ -243,6 +367,20 @@ export function BlocklyWorkspace(props: {
                 };
 
                 workspace.addChangeListener(handleWorkspaceChange);
+
+                loadBlocklyWorkspace({
+                    Blockly,
+                    record: initialWorkspaceStateRef.current,
+                    workspace,
+                });
+                const persistedUiState = readDepartmentUserWorkspaceUiState({
+                    planId: props.planId,
+                    userId: props.currentUserId,
+                });
+                restoreDepartmentUserWorkspaceUiState({
+                    state: persistedUiState,
+                    workspace,
+                });
                 recalculateWorkspaceRef.current?.(Blockly, workspace, false);
             } catch (error) {
                 if (isDisposed) {
@@ -265,11 +403,26 @@ export function BlocklyWorkspace(props: {
                 window.clearTimeout(saveTimerRef.current);
                 saveTimerRef.current = null;
             }
+            if (structureRefreshTimerRef.current !== null) {
+                window.clearTimeout(structureRefreshTimerRef.current);
+                structureRefreshTimerRef.current = null;
+            }
+            if (viewportPersistenceTimerRef.current !== null) {
+                window.clearTimeout(viewportPersistenceTimerRef.current);
+                viewportPersistenceTimerRef.current = null;
+            }
 
             workspaceRef.current?.dispose();
             workspaceRef.current = null;
         };
-    }, [props.editorMode, retryKey]);
+    }, [
+        props.currentUserId,
+        props.editorMode,
+        props.planId,
+        queueStructureSourceUsageRefresh,
+        queueViewportPersistence,
+        retryKey,
+    ]);
 
     useEffect(() => {
         if (!workspaceRef.current || props.editorMode !== "edit") {
@@ -289,7 +442,14 @@ export function BlocklyWorkspace(props: {
             workspaceRef.current,
             props.editorMode === "edit",
         );
-    }, [props.categories, props.editorMode, props.items, recalculateWorkspace]);
+        queueStructureSourceUsageRefresh();
+    }, [
+        props.categories,
+        props.editorMode,
+        props.items,
+        queueStructureSourceUsageRefresh,
+        recalculateWorkspace,
+    ]);
 
     if (initializationError) {
         return (
@@ -322,8 +482,54 @@ export function BlocklyWorkspace(props: {
     }
 
     return (
-        <div className={`${styles.hostShell} blockly-host`}>
-            <div className={styles.blocklyViewport} ref={hostRef} />
-        </div>
+        <>
+            <AlertDialog
+                open={pendingCategoryDeletion !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPendingCategoryDeletion(null);
+                    }
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Remove category branch?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {pendingCategoryDeletion?.message ??
+                                "This category and its nested items will be removed."}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={(event) => {
+                                event.preventDefault();
+                                if (!pendingCategoryDeletion || !workspaceRef.current) {
+                                    setPendingCategoryDeletion(null);
+                                    return;
+                                }
+
+                                approvedCategoryDeletionIdsRef.current.add(
+                                    pendingCategoryDeletion.blockId,
+                                );
+                                const block = workspaceRef.current.getBlockById(
+                                    pendingCategoryDeletion.blockId,
+                                );
+                                setPendingCategoryDeletion(null);
+                                block?.dispose(true);
+                            }}
+                        >
+                            Remove category and items
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <div className={`${styles.hostShell} blockly-host`}>
+                <div className={styles.blocklyViewport} ref={hostRef} />
+            </div>
+        </>
     );
 }

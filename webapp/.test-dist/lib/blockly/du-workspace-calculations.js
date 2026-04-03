@@ -511,6 +511,8 @@ function writeRollupBackToWorkspace(departmentBlock, summary, totalBudget) {
         writableCategory.setFieldValue(categoryRollup.quarterTotals.q3.toFixed(2), "CAT_Q3_TOTAL");
         writableCategory.setFieldValue(categoryRollup.quarterTotals.q4.toFixed(2), "CAT_Q4_TOTAL");
         writableCategory.setFieldValue(categoryRollup.totalCost.toFixed(2), "CATEGORY_GRAND_TOTAL");
+        writableCategory.setFieldValue(categoryRollup.itemCount === 0 ? "Drag items here" : "", "CATEGORY_EMPTY_STATE");
+        writableCategory.getInput("EMPTY_STATE")?.setVisible?.(categoryRollup.itemCount === 0);
         let writableItem = writableCategory.getInput("ITEMS")?.connection?.targetBlock() ?? null;
         for (const itemRollup of categoryRollup.items) {
             if (!writableItem || writableItem.type !== "item_block") {

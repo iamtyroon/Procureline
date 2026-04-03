@@ -33,6 +33,25 @@ export interface DepartmentUserCatalogItem {
     name: string;
 }
 
+export interface DepartmentUserWorkspaceSourceUsage {
+    categoryIds: string[];
+    itemIds: string[];
+}
+
+interface SerializedBlocklyBlock {
+    fields?: Record<string, unknown>;
+    inputs?: Record<
+        string,
+        {
+            block?: SerializedBlocklyBlock | null;
+        }
+    >;
+    next?: {
+        block?: SerializedBlocklyBlock | null;
+    };
+    type?: unknown;
+}
+
 function normalizeText(value: string | null | undefined): string {
     return value?.trim().toLocaleLowerCase() ?? "";
 }
@@ -50,6 +69,59 @@ function getFiniteNumber(value: string | number | null | undefined): number | nu
     }
 
     return null;
+}
+
+function getSerializedFieldValue(
+    block: SerializedBlocklyBlock,
+    fieldName: string,
+): string {
+    const value = block.fields?.[fieldName];
+
+    if (typeof value === "string") {
+        return value;
+    }
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return String(value);
+    }
+
+    return "";
+}
+
+function getSerializedInputBlock(
+    block: SerializedBlocklyBlock,
+    inputName: string,
+): SerializedBlocklyBlock | null {
+    const input = block.inputs?.[inputName];
+    const childBlock = input?.block;
+
+    return childBlock && typeof childBlock === "object" ? childBlock : null;
+}
+
+function getSerializedNextBlock(
+    block: SerializedBlocklyBlock,
+): SerializedBlocklyBlock | null {
+    const nextBlock = block.next?.block;
+    return nextBlock && typeof nextBlock === "object" ? nextBlock : null;
+}
+
+function getSerializedTopBlocks(
+    workspaceJson: Record<string, unknown> | null | undefined,
+): SerializedBlocklyBlock[] {
+    const blocksRecord =
+        workspaceJson && typeof workspaceJson.blocks === "object" && workspaceJson.blocks !== null
+            ? (workspaceJson.blocks as Record<string, unknown>)
+            : null;
+    const blocks = blocksRecord?.blocks;
+
+    if (!Array.isArray(blocks)) {
+        return [];
+    }
+
+    return blocks.filter(
+        (block): block is SerializedBlocklyBlock =>
+            Boolean(block) && typeof block === "object",
+    );
 }
 
 export function resolveDepartmentUserCategoryCatalogIdentity(args: {
@@ -140,6 +212,132 @@ export function resolveDepartmentUserItemCatalogIdentity(args: {
     }
 
     return matchingItems.length === 1 ? (matchingItems[0] ?? null) : null;
+}
+
+export function collectDepartmentUserWorkspaceSourceUsage(args: {
+    categories: DepartmentUserCatalogCategory[];
+    items: DepartmentUserCatalogItem[];
+    workspaceState: {
+        workspaceJson?: Record<string, unknown> | null;
+    } | null | undefined;
+}): DepartmentUserWorkspaceSourceUsage {
+    const topBlocks = getSerializedTopBlocks(args.workspaceState?.workspaceJson);
+    const departmentBlock =
+        topBlocks.find((block) => block.type === "department_block") ?? null;
+
+    if (!departmentBlock) {
+        return {
+            categoryIds: [],
+            itemIds: [],
+        };
+    }
+
+    return collectDepartmentUserWorkspaceSourceUsageFromSerializedDepartmentBlock({
+        categories: args.categories,
+        departmentBlock,
+        items: args.items,
+    });
+}
+
+export function collectDepartmentUserWorkspaceSourceUsageFromDepartmentBlock(args: {
+    categories: DepartmentUserCatalogCategory[];
+    departmentBlock: BlocklyWritableBlockLike | null;
+    items: DepartmentUserCatalogItem[];
+}): DepartmentUserWorkspaceSourceUsage {
+    if (!args.departmentBlock || args.departmentBlock.type !== "department_block") {
+        return {
+            categoryIds: [],
+            itemIds: [],
+        };
+    }
+
+    const categoryIds = new Set<string>();
+    const itemIds = new Set<string>();
+    let categoryBlock =
+        args.departmentBlock.getInput("CATEGORIES")?.connection?.targetBlock() ?? null;
+    while (categoryBlock && categoryBlock.type === "category_block") {
+        const resolvedCategory = resolveDepartmentUserCategoryCatalogIdentity({
+            categories: args.categories,
+            categoryId: categoryBlock.getFieldValue("CATEGORY_ID"),
+            categoryName: categoryBlock.getFieldValue("CATEGORY_NAME"),
+        });
+
+        if (resolvedCategory) {
+            categoryIds.add(resolvedCategory.id);
+        }
+
+        let itemBlock = categoryBlock.getInput("ITEMS")?.connection?.targetBlock() ?? null;
+        while (itemBlock && itemBlock.type === "item_block") {
+            const resolvedItem = resolveDepartmentUserItemCatalogIdentity({
+                categoryId: resolvedCategory?.id ?? categoryBlock.getFieldValue("CATEGORY_ID"),
+                itemDescription: itemBlock.getFieldValue("ITEM_DESCRIPTION"),
+                itemId: itemBlock.getFieldValue("ITEM_ID"),
+                itemName: itemBlock.getFieldValue("ITEM_DESC"),
+                items: args.items,
+                unitPrice: itemBlock.getFieldValue("UNIT_PRICE"),
+            });
+
+            if (resolvedItem) {
+                itemIds.add(resolvedItem.id);
+            }
+
+            itemBlock = itemBlock.getNextBlock();
+        }
+
+        categoryBlock = categoryBlock.getNextBlock();
+    }
+
+    return {
+        categoryIds: Array.from(categoryIds),
+        itemIds: Array.from(itemIds),
+    };
+}
+
+function collectDepartmentUserWorkspaceSourceUsageFromSerializedDepartmentBlock(args: {
+    categories: DepartmentUserCatalogCategory[];
+    departmentBlock: SerializedBlocklyBlock;
+    items: DepartmentUserCatalogItem[];
+}): DepartmentUserWorkspaceSourceUsage {
+    const categoryIds = new Set<string>();
+    const itemIds = new Set<string>();
+    let categoryBlock = getSerializedInputBlock(args.departmentBlock, "CATEGORIES");
+
+    while (categoryBlock && categoryBlock.type === "category_block") {
+        const resolvedCategory = resolveDepartmentUserCategoryCatalogIdentity({
+            categories: args.categories,
+            categoryId: getSerializedFieldValue(categoryBlock, "CATEGORY_ID"),
+            categoryName: getSerializedFieldValue(categoryBlock, "CATEGORY_NAME"),
+        });
+
+        if (resolvedCategory) {
+            categoryIds.add(resolvedCategory.id);
+        }
+
+        let itemBlock = getSerializedInputBlock(categoryBlock, "ITEMS");
+        while (itemBlock && itemBlock.type === "item_block") {
+            const resolvedItem = resolveDepartmentUserItemCatalogIdentity({
+                categoryId: resolvedCategory?.id ?? getSerializedFieldValue(categoryBlock, "CATEGORY_ID"),
+                itemDescription: getSerializedFieldValue(itemBlock, "ITEM_DESCRIPTION"),
+                itemId: getSerializedFieldValue(itemBlock, "ITEM_ID"),
+                itemName: getSerializedFieldValue(itemBlock, "ITEM_DESC"),
+                items: args.items,
+                unitPrice: getSerializedFieldValue(itemBlock, "UNIT_PRICE"),
+            });
+
+            if (resolvedItem) {
+                itemIds.add(resolvedItem.id);
+            }
+
+            itemBlock = getSerializedNextBlock(itemBlock);
+        }
+
+        categoryBlock = getSerializedNextBlock(categoryBlock);
+    }
+
+    return {
+        categoryIds: Array.from(categoryIds),
+        itemIds: Array.from(itemIds),
+    };
 }
 
 export function synchronizeDepartmentUserWorkspaceCatalogIdentity(args: {

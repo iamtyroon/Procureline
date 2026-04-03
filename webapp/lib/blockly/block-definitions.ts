@@ -129,6 +129,12 @@ export function registerDepartmentUserBlocklyBlocks(BlocklyBase: BlocklyModule):
 
             this.appendStatementInput("ITEMS").setCheck("category_item_statement");
 
+            this.appendDummyInput("EMPTY_STATE")
+                .appendField(
+                    new Blockly.FieldLabelSerializable("Drag items here"),
+                    "CATEGORY_EMPTY_STATE",
+                );
+
             this.appendDummyInput("TOTALS")
                 .appendField("Q1")
                 .appendField(

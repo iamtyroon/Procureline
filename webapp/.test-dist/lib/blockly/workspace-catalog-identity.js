@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.synchronizeDepartmentUserWorkspaceCatalogIdentity = exports.resolveDepartmentUserItemCatalogIdentity = exports.resolveDepartmentUserCategoryCatalogIdentity = void 0;
+exports.synchronizeDepartmentUserWorkspaceCatalogIdentity = exports.collectDepartmentUserWorkspaceSourceUsageFromDepartmentBlock = exports.collectDepartmentUserWorkspaceSourceUsage = exports.resolveDepartmentUserItemCatalogIdentity = exports.resolveDepartmentUserCategoryCatalogIdentity = void 0;
 const compliance_1 = require("../procurement/compliance");
 function normalizeText(value) {
     return value?.trim().toLocaleLowerCase() ?? "";
@@ -16,6 +16,35 @@ function getFiniteNumber(value) {
         }
     }
     return null;
+}
+function getSerializedFieldValue(block, fieldName) {
+    const value = block.fields?.[fieldName];
+    if (typeof value === "string") {
+        return value;
+    }
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return String(value);
+    }
+    return "";
+}
+function getSerializedInputBlock(block, inputName) {
+    const input = block.inputs?.[inputName];
+    const childBlock = input?.block;
+    return childBlock && typeof childBlock === "object" ? childBlock : null;
+}
+function getSerializedNextBlock(block) {
+    const nextBlock = block.next?.block;
+    return nextBlock && typeof nextBlock === "object" ? nextBlock : null;
+}
+function getSerializedTopBlocks(workspaceJson) {
+    const blocksRecord = workspaceJson && typeof workspaceJson.blocks === "object" && workspaceJson.blocks !== null
+        ? workspaceJson.blocks
+        : null;
+    const blocks = blocksRecord?.blocks;
+    if (!Array.isArray(blocks)) {
+        return [];
+    }
+    return blocks.filter((block) => Boolean(block) && typeof block === "object");
 }
 function resolveDepartmentUserCategoryCatalogIdentity(args) {
     const normalizedCategoryId = args.categoryId?.trim() ?? "";
@@ -74,6 +103,99 @@ function resolveDepartmentUserItemCatalogIdentity(args) {
     return matchingItems.length === 1 ? (matchingItems[0] ?? null) : null;
 }
 exports.resolveDepartmentUserItemCatalogIdentity = resolveDepartmentUserItemCatalogIdentity;
+function collectDepartmentUserWorkspaceSourceUsage(args) {
+    const topBlocks = getSerializedTopBlocks(args.workspaceState?.workspaceJson);
+    const departmentBlock = topBlocks.find((block) => block.type === "department_block") ?? null;
+    if (!departmentBlock) {
+        return {
+            categoryIds: [],
+            itemIds: [],
+        };
+    }
+    return collectDepartmentUserWorkspaceSourceUsageFromSerializedDepartmentBlock({
+        categories: args.categories,
+        departmentBlock,
+        items: args.items,
+    });
+}
+exports.collectDepartmentUserWorkspaceSourceUsage = collectDepartmentUserWorkspaceSourceUsage;
+function collectDepartmentUserWorkspaceSourceUsageFromDepartmentBlock(args) {
+    if (!args.departmentBlock || args.departmentBlock.type !== "department_block") {
+        return {
+            categoryIds: [],
+            itemIds: [],
+        };
+    }
+    const categoryIds = new Set();
+    const itemIds = new Set();
+    let categoryBlock = args.departmentBlock.getInput("CATEGORIES")?.connection?.targetBlock() ?? null;
+    while (categoryBlock && categoryBlock.type === "category_block") {
+        const resolvedCategory = resolveDepartmentUserCategoryCatalogIdentity({
+            categories: args.categories,
+            categoryId: categoryBlock.getFieldValue("CATEGORY_ID"),
+            categoryName: categoryBlock.getFieldValue("CATEGORY_NAME"),
+        });
+        if (resolvedCategory) {
+            categoryIds.add(resolvedCategory.id);
+        }
+        let itemBlock = categoryBlock.getInput("ITEMS")?.connection?.targetBlock() ?? null;
+        while (itemBlock && itemBlock.type === "item_block") {
+            const resolvedItem = resolveDepartmentUserItemCatalogIdentity({
+                categoryId: resolvedCategory?.id ?? categoryBlock.getFieldValue("CATEGORY_ID"),
+                itemDescription: itemBlock.getFieldValue("ITEM_DESCRIPTION"),
+                itemId: itemBlock.getFieldValue("ITEM_ID"),
+                itemName: itemBlock.getFieldValue("ITEM_DESC"),
+                items: args.items,
+                unitPrice: itemBlock.getFieldValue("UNIT_PRICE"),
+            });
+            if (resolvedItem) {
+                itemIds.add(resolvedItem.id);
+            }
+            itemBlock = itemBlock.getNextBlock();
+        }
+        categoryBlock = categoryBlock.getNextBlock();
+    }
+    return {
+        categoryIds: Array.from(categoryIds),
+        itemIds: Array.from(itemIds),
+    };
+}
+exports.collectDepartmentUserWorkspaceSourceUsageFromDepartmentBlock = collectDepartmentUserWorkspaceSourceUsageFromDepartmentBlock;
+function collectDepartmentUserWorkspaceSourceUsageFromSerializedDepartmentBlock(args) {
+    const categoryIds = new Set();
+    const itemIds = new Set();
+    let categoryBlock = getSerializedInputBlock(args.departmentBlock, "CATEGORIES");
+    while (categoryBlock && categoryBlock.type === "category_block") {
+        const resolvedCategory = resolveDepartmentUserCategoryCatalogIdentity({
+            categories: args.categories,
+            categoryId: getSerializedFieldValue(categoryBlock, "CATEGORY_ID"),
+            categoryName: getSerializedFieldValue(categoryBlock, "CATEGORY_NAME"),
+        });
+        if (resolvedCategory) {
+            categoryIds.add(resolvedCategory.id);
+        }
+        let itemBlock = getSerializedInputBlock(categoryBlock, "ITEMS");
+        while (itemBlock && itemBlock.type === "item_block") {
+            const resolvedItem = resolveDepartmentUserItemCatalogIdentity({
+                categoryId: resolvedCategory?.id ?? getSerializedFieldValue(categoryBlock, "CATEGORY_ID"),
+                itemDescription: getSerializedFieldValue(itemBlock, "ITEM_DESCRIPTION"),
+                itemId: getSerializedFieldValue(itemBlock, "ITEM_ID"),
+                itemName: getSerializedFieldValue(itemBlock, "ITEM_DESC"),
+                items: args.items,
+                unitPrice: getSerializedFieldValue(itemBlock, "UNIT_PRICE"),
+            });
+            if (resolvedItem) {
+                itemIds.add(resolvedItem.id);
+            }
+            itemBlock = getSerializedNextBlock(itemBlock);
+        }
+        categoryBlock = getSerializedNextBlock(categoryBlock);
+    }
+    return {
+        categoryIds: Array.from(categoryIds),
+        itemIds: Array.from(itemIds),
+    };
+}
 function synchronizeDepartmentUserWorkspaceCatalogIdentity(args) {
     if (!args.departmentBlock || args.departmentBlock.type !== "department_block") {
         return;

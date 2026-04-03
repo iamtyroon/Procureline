@@ -85,7 +85,7 @@ development_status:
   4-7-category-management: done
   4-8-item-catalog-management: done
   5-6-budget-meter-calculations: done
-  5-7-blockly-toolbox-block-management: ready-for-dev
+  5-7-blockly-toolbox-block-management: review
   5-3-blockly-validation-constraints: backlog
   5-4-plan-persistence-recovery: backlog
   4-9-catalog-search-export: backlog

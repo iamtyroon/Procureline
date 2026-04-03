@@ -1,6 +1,6 @@
 # Story 5.7: Blockly Toolbox & Block Management
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -33,53 +33,53 @@ so that I can find items quickly, reorganize my plan safely, and keep large plan
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Extend the DU toolbox model into a first-class organization layer instead of keeping a static one-shot builder (AC: 1-5, 11-18)
-  - [ ] Refactor `webapp/lib/blockly/du-toolbox.ts` so the toolbox builder can express ordered categories, ordered item blocks, unavailable states, search-aware filtering, and used-source lifecycle hints from one deterministic source of truth.
-  - [ ] Preserve the current selected-category gating from the DU launchpad; Story 5.7 improves organization, not catalog scope.
-  - [ ] Reuse `buildCategoryToolboxStyle(...)` from `webapp/lib/procurement-officer/categories.ts` so category icon and color styling continue to flow from PO-managed catalog metadata.
-  - [ ] Keep the toolbox definition JSON-first, and choose one supported search approach: either a supported Blockly toolbox-search plugin or filtered JSON regeneration from app state, but not DOM scraping or mutation after render.
-  - [ ] Preserve archived-category and zero-active-item semantics from Stories 4.7 and 4.8 so existing plans remain resolvable while fresh selection stays truthful.
-  - [ ] Replace any text-only used-block tracking assumptions from the prototype with ID-based category and item source tracking so same-name collisions across categories do not corrupt toolbox availability.
+- [x] Task 1: Extend the DU toolbox model into a first-class organization layer instead of keeping a static one-shot builder (AC: 1-5, 11-18)
+  - [x] Refactor `webapp/lib/blockly/du-toolbox.ts` so the toolbox builder can express ordered categories, ordered item blocks, unavailable states, search-aware filtering, and used-source lifecycle hints from one deterministic source of truth.
+  - [x] Preserve the current selected-category gating from the DU launchpad; Story 5.7 improves organization, not catalog scope.
+  - [x] Reuse `buildCategoryToolboxStyle(...)` from `webapp/lib/procurement-officer/categories.ts` so category icon and color styling continue to flow from PO-managed catalog metadata.
+  - [x] Keep the toolbox definition JSON-first, and choose one supported search approach: either a supported Blockly toolbox-search plugin or filtered JSON regeneration from app state, but not DOM scraping or mutation after render.
+  - [x] Preserve archived-category and zero-active-item semantics from Stories 4.7 and 4.8 so existing plans remain resolvable while fresh selection stays truthful.
+  - [x] Replace any text-only used-block tracking assumptions from the prototype with ID-based category and item source tracking so same-name collisions across categories do not corrupt toolbox availability.
 
-- [ ] Task 2: Upgrade the editor-side toolbox rail from a static summary card into a usable block-management surface (AC: 1-5, 12-18)
-  - [ ] Extend `webapp/src/components/blockly/BlocklyEditor.tsx` or extract a focused companion such as `webapp/src/components/blockly/BlocklyToolboxRail.tsx` so the current side rail can host search input, category counts, unavailable-state messaging, and used-source status.
-  - [ ] Keep the current app-native shell, badges, and status language from Stories 5.2 and 5.6; do not replace the editor chrome with a second dashboard or modal layout.
-  - [ ] Make search and lifecycle feedback accessible through visible labels, clear empty-state copy, and keyboard-reachable controls.
-  - [ ] In read-only mode, keep the rail informative while disabling controls that imply block insertion or destructive changes.
-  - [ ] Keep launchpad-to-editor workflow truthfulness intact: if the editor is entered without valid selected-category context for a new plan, the DU should still see the existing blocked-state recovery path rather than a half-configured toolbox panel.
+- [x] Task 2: Upgrade the editor-side toolbox rail from a static summary card into a usable block-management surface (AC: 1-5, 12-18)
+  - [x] Extend `webapp/src/components/blockly/BlocklyEditor.tsx` or extract a focused companion such as `webapp/src/components/blockly/BlocklyToolboxRail.tsx` so the current side rail can host search input, category counts, unavailable-state messaging, and used-source status.
+  - [x] Keep the current app-native shell, badges, and status language from Stories 5.2 and 5.6; do not replace the editor chrome with a second dashboard or modal layout.
+  - [x] Make search and lifecycle feedback accessible through visible labels, clear empty-state copy, and keyboard-reachable controls.
+  - [x] In read-only mode, keep the rail informative while disabling controls that imply block insertion or destructive changes.
+  - [x] Keep launchpad-to-editor workflow truthfulness intact: if the editor is entered without valid selected-category context for a new plan, the DU should still see the existing blocked-state recovery path rather than a half-configured toolbox panel.
 
-- [ ] Task 3: Add workspace event handling for category reorder, used-source refresh, and truthful destructive actions (AC: 4-10, 12-18)
-  - [ ] Extend `webapp/src/components/blockly/BlocklyWorkspace.tsx` so internal workspace events for create, move, and delete can refresh toolbox availability without forcing a full Blockly reinjection.
-  - [ ] Preserve native Blockly statement-chain movement for category reordering under the department block instead of adding a second drag-and-drop library.
-  - [ ] Intercept category-branch removal so deleting a category that still owns item blocks routes through an app-native confirmation flow before the nested branch is removed.
-  - [ ] Keep non-destructive item and category moves on the canvas cheap: no route refresh, no workspace recreation, no save-loop storms.
-  - [ ] Debounce toolbox refresh work and ignore UI-only Blockly events, mirroring the intent of the prototype's `duWorkspaceChangeListener()` without carrying over its DOM-coupled implementation.
-  - [ ] Rebuild used-source state after workspace hydration for existing plans before the first interactive refresh so already-placed blocks do not leak back into the toolbox during initial load.
+- [x] Task 3: Add workspace event handling for category reorder, used-source refresh, and truthful destructive actions (AC: 4-10, 12-18)
+  - [x] Extend `webapp/src/components/blockly/BlocklyWorkspace.tsx` so internal workspace events for create, move, and delete can refresh toolbox availability without forcing a full Blockly reinjection.
+  - [x] Preserve native Blockly statement-chain movement for category reordering under the department block instead of adding a second drag-and-drop library.
+  - [x] Intercept category-branch removal so deleting a category that still owns item blocks routes through an app-native confirmation flow before the nested branch is removed.
+  - [x] Keep non-destructive item and category moves on the canvas cheap: no route refresh, no workspace recreation, no save-loop storms.
+  - [x] Debounce toolbox refresh work and ignore UI-only Blockly events, mirroring the intent of the prototype's `duWorkspaceChangeListener()` without carrying over its DOM-coupled implementation.
+  - [x] Rebuild used-source state after workspace hydration for existing plans before the first interactive refresh so already-placed blocks do not leak back into the toolbox during initial load.
 
-- [ ] Task 4: Extend block definitions and workspace helpers so empty-state and lifecycle signals live with the blocks they describe (AC: 4-6, 9-10, 14-18)
-  - [ ] Update `webapp/lib/blockly/block-definitions.ts` so category blocks can render and clear an empty placeholder or warning affordance when they contain no item blocks.
-  - [ ] Keep current `department_block`, `category_block`, and `item_block` naming and field contracts stable so saved JSON workspaces, rollup helpers, and tests do not break.
-  - [ ] If additional serialized state is required for placeholder or lifecycle behavior, make it forward-compatible with `webapp/lib/blockly/blockly-serialization.ts`.
-  - [ ] Ensure item and category removal still leaves `workspace-catalog-identity` reconciliation truthful for remaining blocks and does not orphan IDs inside the saved workspace tree.
+- [x] Task 4: Extend block definitions and workspace helpers so empty-state and lifecycle signals live with the blocks they describe (AC: 4-6, 9-10, 14-18)
+  - [x] Update `webapp/lib/blockly/block-definitions.ts` so category blocks can render and clear an empty placeholder or warning affordance when they contain no item blocks.
+  - [x] Keep current `department_block`, `category_block`, and `item_block` naming and field contracts stable so saved JSON workspaces, rollup helpers, and tests do not break.
+  - [x] If additional serialized state is required for placeholder or lifecycle behavior, make it forward-compatible with `webapp/lib/blockly/blockly-serialization.ts`.
+  - [x] Ensure item and category removal still leaves `workspace-catalog-identity` reconciliation truthful for remaining blocks and does not orphan IDs inside the saved workspace tree.
 
-- [ ] Task 5: Add plan-local viewport persistence without conflating UI state with canonical plan content (AC: 7-8, 12-18)
-  - [ ] Add a focused helper such as `webapp/lib/blockly/workspace-ui-state.ts` to persist zoom scale and canvas position in browser storage keyed by plan and current user.
-  - [ ] Restore that UI state on workspace mount after Blockly injection succeeds, and keep failure handling graceful if storage is missing or malformed.
-  - [ ] Do not push viewport-only UI state into the canonical `plans.workspaceState` contract unless there is a compelling repo-wide reason; Story 5.4 still owns broader recovery semantics.
+- [x] Task 5: Add plan-local viewport persistence without conflating UI state with canonical plan content (AC: 7-8, 12-18)
+  - [x] Add a focused helper such as `webapp/lib/blockly/workspace-ui-state.ts` to persist zoom scale and canvas position in browser storage keyed by plan and current user.
+  - [x] Restore that UI state on workspace mount after Blockly injection succeeds, and keep failure handling graceful if storage is missing or malformed.
+  - [x] Do not push viewport-only UI state into the canonical `plans.workspaceState` contract unless there is a compelling repo-wide reason; Story 5.4 still owns broader recovery semantics.
 
-- [ ] Task 6: Preserve story boundaries and cross-story contracts so toolbox polish does not mutate into validation or recovery rewrites (AC: 5, 10-18)
-  - [ ] Reuse `webapp/lib/blockly/workspace-save.ts`, `webapp/lib/blockly/du-workspace-calculations.ts`, and `webapp/lib/blockly/workspace-catalog-identity.ts` rather than creating parallel rollup or persistence paths.
-  - [ ] Keep hard duplicate-prevention, quantity validation, and submission blocking in Stories 5.3 and 5.6; Story 5.7 may add organization affordances, but it must not replace those guardrails with UI-only hiding logic.
-  - [ ] Keep current DU launchpad and plan-route behavior from Stories 5.1 and 5.2 intact so this story does not regress category-selection handoff, canonical-plan routing, or read-only workspace access.
-  - [ ] Preserve export and submit workflow truthfulness from the current editor shell: toolbox-management changes must not break reserved toolbar actions, existing plan hydration, or the current save-and-review path just because organization logic changes.
+- [x] Task 6: Preserve story boundaries and cross-story contracts so toolbox polish does not mutate into validation or recovery rewrites (AC: 5, 10-18)
+  - [x] Reuse `webapp/lib/blockly/workspace-save.ts`, `webapp/lib/blockly/du-workspace-calculations.ts`, and `webapp/lib/blockly/workspace-catalog-identity.ts` rather than creating parallel rollup or persistence paths.
+  - [x] Keep hard duplicate-prevention, quantity validation, and submission blocking in Stories 5.3 and 5.6; Story 5.7 may add organization affordances, but it must not replace those guardrails with UI-only hiding logic.
+  - [x] Keep current DU launchpad and plan-route behavior from Stories 5.1 and 5.2 intact so this story does not regress category-selection handoff, canonical-plan routing, or read-only workspace access.
+  - [x] Preserve export and submit workflow truthfulness from the current editor shell: toolbox-management changes must not break reserved toolbar actions, existing plan hydration, or the current save-and-review path just because organization logic changes.
 
-- [ ] Task 7: Add deterministic guardrail tests for toolbox organization, lifecycle, and viewport behavior (AC: 1-18)
-  - [ ] Extend `webapp/tests/department-user-blockly-workspace.test.ts` with coverage for category order preservation, toolbox search behavior, category empty-state hints, used-source hide or disable logic, reorder persistence, and category-removal confirmation.
-  - [ ] Add pure helper coverage for any search-filter shaping, plan-keyed viewport storage, and category lifecycle refresh helpers introduced by this story.
-  - [ ] Add regression tests proving archived categories or inactive items remain visible for existing plans while remaining unavailable for fresh toolbox sourcing.
-  - [ ] Add editor tests proving read-only mode keeps context visible but blocks reorder and destructive actions honestly.
-  - [ ] Add edge-case tests for ID-vs-name source tracking, hydration-safe used-source rebuild, no-selected-category launch blocking, and debounced refresh behavior under rapid Blockly move events.
-  - [ ] Update `webapp/tests/run-tests.ts` if any new helper or suite modules are introduced.
+- [x] Task 7: Add deterministic guardrail tests for toolbox organization, lifecycle, and viewport behavior (AC: 1-18)
+  - [x] Extend `webapp/tests/department-user-blockly-workspace.test.ts` with coverage for category order preservation, toolbox search behavior, category empty-state hints, used-source hide or disable logic, reorder persistence, and category-removal confirmation.
+  - [x] Add pure helper coverage for any search-filter shaping, plan-keyed viewport storage, and category lifecycle refresh helpers introduced by this story.
+  - [x] Add regression tests proving archived categories or inactive items remain visible for existing plans while remaining unavailable for fresh toolbox sourcing.
+  - [x] Add editor tests proving read-only mode keeps context visible but blocks reorder and destructive actions honestly.
+  - [x] Add edge-case tests for ID-vs-name source tracking, hydration-safe used-source rebuild, no-selected-category launch blocking, and debounced refresh behavior under rapid Blockly move events.
+  - [x] Update `webapp/tests/run-tests.ts` if any new helper or suite modules are introduced.
 
 ## Dev Notes
 
@@ -316,6 +316,8 @@ gpt-5-codex
   - `webapp/lib/blockly/du-toolbox.ts`
   - `webapp/lib/blockly/block-definitions.ts`
   - `webapp/lib/blockly/du-workspace-calculations.ts`
+  - `webapp/lib/blockly/workspace-events.ts`
+  - `webapp/lib/blockly/workspace-ui-state.ts`
   - `webapp/lib/blockly/workspace-save.ts`
   - `webapp/lib/blockly/workspace-catalog-identity.ts`
   - `webapp/lib/department-user/dashboard-snapshot.ts`
@@ -323,6 +325,7 @@ gpt-5-codex
   - `webapp/convex/functions/plans.ts`
   - `webapp/convex/functions/departmentUserDashboard.ts`
   - `webapp/src/components/blockly/BlocklyEditor.tsx`
+  - `webapp/src/components/blockly/BlocklyToolboxRail.tsx`
   - `webapp/src/components/blockly/BlocklyWorkspace.tsx`
   - `webapp/src/components/department-user/DepartmentUserBlocklyWorkspace.tsx`
   - `webapp/src/components/department-user/DepartmentUserDashboard.tsx`
@@ -339,16 +342,41 @@ gpt-5-codex
 ### Completion Notes List
 
 - 2026-04-03: Created implementation-ready story context for Story 5.7 with live repo analysis, explicit boundaries against Story 5.3 and Story 5.4, official Blockly toolbox and zoom guidance, and current DU editor extension seams.
+- 2026-04-03: Implemented a search-aware DU toolbox source-of-truth with ordered category state, archived-category truthfulness, and ID-based used-source tracking from hydrated Blockly JSON.
+- 2026-04-03: Added the `BlocklyToolboxRail` companion, category empty-state hints, app-native category delete confirmation, and local per-plan viewport persistence without changing canonical Convex plan data.
+- 2026-04-03: Verified Story 5.7 with `npm test` and focused ESLint on the touched Blockly files; repo-wide `npm run lint` still reports pre-existing unrelated TypeScript errors in `convex/functions/items.ts` and `src/components/procurement-officer/ProcurementOfficerItemsWorkspace.tsx`.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/epics/epic5/stories/5-7-blockly-toolbox-block-management.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `webapp/.test-dist/lib/blockly/du-toolbox.js`
+- `webapp/.test-dist/lib/blockly/du-workspace-calculations.js`
+- `webapp/.test-dist/lib/blockly/workspace-catalog-identity.js`
+- `webapp/.test-dist/lib/blockly/workspace-events.js`
+- `webapp/.test-dist/lib/blockly/workspace-ui-state.js`
+- `webapp/.test-dist/tests/department-user-blockly-workspace.test.js`
+- `webapp/lib/blockly/block-definitions.ts`
+- `webapp/lib/blockly/du-toolbox.ts`
+- `webapp/lib/blockly/du-workspace-calculations.ts`
+- `webapp/lib/blockly/workspace-catalog-identity.ts`
+- `webapp/lib/blockly/workspace-events.ts`
+- `webapp/lib/blockly/workspace-ui-state.ts`
+- `webapp/src/components/blockly/BlocklyEditor.tsx`
+- `webapp/src/components/blockly/BlocklyToolboxRail.tsx`
+- `webapp/src/components/blockly/BlocklyWorkspace.tsx`
+- `webapp/tests/department-user-blockly-workspace.test.ts`
+
+### Change Log
+
+- 2026-04-03: Rebuilt the DU toolbox builder into a search-aware organization model, added rail-side search and category status UI, and wired ID-based source usage into workspace hydration and refresh.
+- 2026-04-03: Added category empty-state rendering, app-native nested-category delete confirmation, and local viewport persistence helpers so normal toolbox and canvas interactions avoid full Blockly reinjection.
+- 2026-04-03: Expanded deterministic Blockly workspace tests to cover source usage, search filtering, empty-state hints, delete confirmation helpers, and viewport-state storage parsing.
 
 ### Story Completion Status
 
 - Story ID: `5.7`
 - Story Key: `5-7-blockly-toolbox-block-management`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic5/stories/5-7-blockly-toolbox-block-management.md`
-- Final Status: `ready-for-dev`
-- Completion Note: `Ultimate context engine analysis completed - comprehensive developer guide created.`
+- Final Status: `review`
+- Completion Note: `Implemented Story 5.7 toolbox search, source lifecycle management, category delete confirmation, empty-state hints, and plan-local viewport persistence with deterministic regression coverage.`

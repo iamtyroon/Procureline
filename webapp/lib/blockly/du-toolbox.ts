@@ -36,7 +36,26 @@ export interface DepartmentUserUnavailableCategory {
     reason: string;
 }
 
+export interface DepartmentUserToolboxSourceUsage {
+    categoryIds: readonly string[];
+    itemIds: readonly string[];
+}
+
+export interface DepartmentUserToolboxCategoryState {
+    id: string;
+    isUnavailable: boolean;
+    isUsedOnWorkspace: boolean;
+    itemCount: number;
+    matchingItemCount: number;
+    name: string;
+    previewColor: string;
+    previewIcon: CategoryIconName;
+    sourceBlockVisible: boolean;
+    unavailableReason: string | null;
+}
+
 export interface DepartmentUserToolboxBuildResult {
+    categoryStates: DepartmentUserToolboxCategoryState[];
     sanitizedCategoryIds: string[];
     toolboxDefinition: Record<string, unknown>;
     unavailableCategories: DepartmentUserUnavailableCategory[];
@@ -58,6 +77,32 @@ function sortItems(
         (left, right) =>
             left.sortOrder - right.sortOrder || left.name.localeCompare(right.name),
     );
+}
+
+function normalizeSearchQuery(searchQuery: string | null | undefined): string {
+    return searchQuery?.trim().toLocaleLowerCase() ?? "";
+}
+
+function matchesDepartmentUserToolboxSearch(args: {
+    item: DepartmentUserWorkspaceItemRecord;
+    normalizedQuery: string;
+}): boolean {
+    if (!args.normalizedQuery) {
+        return true;
+    }
+
+    const searchableContent = [
+        args.item.name,
+        args.item.description ?? "",
+        args.item.unitOfMeasurement ?? "",
+        args.item.procurementMethod ?? "",
+        args.item.sourceOfFunds ?? "",
+        args.item.unitPrice === null ? "" : String(args.item.unitPrice),
+    ]
+        .join(" ")
+        .toLocaleLowerCase();
+
+    return searchableContent.includes(args.normalizedQuery);
 }
 
 export function sanitizeDepartmentUserWorkspaceCategorySelection(args: {
@@ -142,9 +187,12 @@ function createToolboxBlock(args: {
 export function buildDepartmentUserToolbox(args: {
     categories: readonly DepartmentUserWorkspaceCategoryRecord[];
     department: DepartmentUserWorkspaceDepartmentSource;
+    editorMode?: "edit" | "view";
     items: readonly DepartmentUserWorkspaceItemRecord[];
     preserveUnavailableRequestedCategories?: boolean;
+    searchQuery?: string;
     selectedCategoryIds: readonly string[];
+    sourceUsage?: DepartmentUserToolboxSourceUsage | null;
 }): DepartmentUserToolboxBuildResult {
     const { sanitizedCategoryIds, unavailableCategories } =
         sanitizeDepartmentUserWorkspaceCategorySelection({
@@ -155,6 +203,16 @@ export function buildDepartmentUserToolbox(args: {
             requestedCategoryIds: args.selectedCategoryIds,
         });
 
+    const sanitizedCategoryIdSet = new Set(sanitizedCategoryIds);
+    const orderedSanitizedCategoryIds = sortCategories(args.categories)
+        .filter((category) => sanitizedCategoryIdSet.has(category.id))
+        .map((category) => category.id);
+    const unavailableReasonByCategoryId = new Map(
+        unavailableCategories.map((category) => [category.id, category.reason] as const),
+    );
+    const usedCategoryIds = new Set(args.sourceUsage?.categoryIds ?? []);
+    const usedItemIds = new Set(args.sourceUsage?.itemIds ?? []);
+    const normalizedSearchQuery = normalizeSearchQuery(args.searchQuery);
     const categoriesById = new Map(
         sortCategories(args.categories).map((category) => [category.id, category] as const),
     );
@@ -187,25 +245,75 @@ export function buildDepartmentUserToolbox(args: {
             name: "Dept Info",
         },
     ];
+    const categoryStates: DepartmentUserToolboxCategoryState[] = [];
 
-    for (const categoryId of sanitizedCategoryIds) {
+    for (const categoryId of orderedSanitizedCategoryIds) {
         const category = categoriesById.get(categoryId);
         if (!category) {
             continue;
         }
 
         const categoryItems = itemsByCategoryId.get(category.id) ?? [];
-        if (categoryItems.length === 0) {
-            continue;
-        }
-
         const toolboxStyle = buildCategoryToolboxStyle({
             color: category.color ?? null,
             icon: category.icon ?? null,
         });
-        contents.push({
-            colour: toolboxStyle.colour,
-            contents: [
+        const unavailableReason = unavailableReasonByCategoryId.get(category.id) ?? null;
+        const availableCategoryItems =
+            args.editorMode === "view"
+                ? categoryItems
+                : categoryItems.filter((item) => !usedItemIds.has(item.id));
+        const matchingCategoryItems =
+            normalizedSearchQuery.length === 0
+                ? availableCategoryItems
+                : availableCategoryItems.filter((item) =>
+                      matchesDepartmentUserToolboxSearch({
+                          item,
+                          normalizedQuery: normalizedSearchQuery,
+                      }),
+                  );
+        const categoryMatchesSearch =
+            normalizedSearchQuery.length === 0
+                ? true
+                : category.name.toLocaleLowerCase().includes(normalizedSearchQuery);
+        const visibleCategoryItems =
+            normalizedSearchQuery.length === 0
+                ? availableCategoryItems
+                : matchingCategoryItems;
+        const sourceBlockVisible =
+            args.editorMode !== "view" &&
+            unavailableReason === null &&
+            !usedCategoryIds.has(category.id);
+
+        categoryStates.push({
+            id: category.id,
+            isUnavailable: unavailableReason !== null,
+            isUsedOnWorkspace: usedCategoryIds.has(category.id),
+            itemCount: categoryItems.length,
+            matchingItemCount: matchingCategoryItems.length,
+            name: category.name,
+            previewColor: toolboxStyle.preview.color,
+            previewIcon: toolboxStyle.preview.icon,
+            sourceBlockVisible,
+            unavailableReason,
+        });
+
+        if (unavailableReason !== null) {
+            continue;
+        }
+
+        if (
+            normalizedSearchQuery.length > 0 &&
+            !categoryMatchesSearch &&
+            visibleCategoryItems.length === 0
+        ) {
+            continue;
+        }
+
+        const categoryContents: Array<Record<string, unknown>> = [];
+
+        if (sourceBlockVisible) {
+            categoryContents.push(
                 createToolboxBlock({
                     fields: {
                         CATEGORY_ID: category.id,
@@ -213,32 +321,45 @@ export function buildDepartmentUserToolbox(args: {
                     },
                     type: "category_block",
                 }),
-                ...categoryItems.map((item) =>
-                    createToolboxBlock({
-                        fields: {
-                            ITEM_DESC: item.name,
-                            ITEM_DESCRIPTION: item.description ?? item.name,
-                            ITEM_ID: item.id,
-                            PROC_METHOD: item.procurementMethod ?? "Not set",
-                            SOURCE_OF_FUNDS: item.sourceOfFunds ?? "Not set",
-                            UNIT_OF_MEASUREMENT: item.unitOfMeasurement ?? "Not set",
-                            UNIT_PRICE: String(item.unitPrice ?? 0),
-                        },
-                        type: "item_block",
-                    }),
-                ),
-            ],
+            );
+        }
+
+        categoryContents.push(
+            ...visibleCategoryItems.map((item) =>
+                createToolboxBlock({
+                    fields: {
+                        ITEM_DESC: item.name,
+                        ITEM_DESCRIPTION: item.description ?? item.name,
+                        ITEM_ID: item.id,
+                        PROC_METHOD: item.procurementMethod ?? "Not set",
+                        SOURCE_OF_FUNDS: item.sourceOfFunds ?? "Not set",
+                        UNIT_OF_MEASUREMENT: item.unitOfMeasurement ?? "Not set",
+                        UNIT_PRICE: String(item.unitPrice ?? 0),
+                    },
+                    type: "item_block",
+                }),
+            ),
+        );
+
+        if (categoryContents.length === 0) {
+            continue;
+        }
+
+        contents.push({
+            colour: toolboxStyle.colour,
+            contents: categoryContents,
             cssConfig: toolboxStyle.cssConfig,
             kind: "category",
             name: category.name,
         });
     }
 
-    return {
-        sanitizedCategoryIds,
-        toolboxDefinition: {
-            contents,
-            kind: "categoryToolbox",
+        return {
+            categoryStates,
+            sanitizedCategoryIds: orderedSanitizedCategoryIds,
+            toolboxDefinition: {
+                contents,
+                kind: "categoryToolbox",
         },
         unavailableCategories,
     };
