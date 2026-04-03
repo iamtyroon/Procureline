@@ -1,3 +1,4 @@
+import { runComplianceTests } from "./compliance.test";
 import { runConvexErrorHandlingTests } from "./convex-error-handling.test";
 import { runEmailTransportTests } from "./email-transport.test";
 import { runProcurementOfficerDepartmentTests } from "./procurement-officer-departments.test";
@@ -29,6 +30,7 @@ import { runTenantIsolationTests } from "./tenant-isolation.test";
 
 async function main(): Promise<void> {
     const completedTests = [
+        ...runComplianceTests(),
         ...runConvexErrorHandlingTests(),
         ...runEmailTransportTests(),
         ...runProcurementOfficerDepartmentTests(),
@@ -37,7 +39,7 @@ async function main(): Promise<void> {
         ...runProcurementOfficerAccessCodeTests(),
         ...runProcurementOfficerDeadlineTests(),
         ...runDepartmentUserDashboardTests(),
-        ...runDepartmentUserBlocklyWorkspaceTests(),
+        ...(await runDepartmentUserBlocklyWorkspaceTests()),
         ...(await runDepartmentUserAccessTests()),
         ...(await runDepartmentUserRequestContextTests()),
         ...runPasswordResetTests(),

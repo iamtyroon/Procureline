@@ -16,16 +16,19 @@ import {
     applyDepartmentWorkspaceRollup,
     mapDepartmentUserBudgetMeterState,
     type DepartmentUserBudgetMeterState,
-    type DepartmentUserDepartmentRollup,
+    type DepartmentUserWorkspaceSummary,
 } from "@/lib/blockly/du-workspace-calculations";
-import { synchronizeDepartmentUserWorkspaceCatalogIdentity } from "@/lib/blockly/workspace-catalog-identity";
+import {
+    synchronizeDepartmentUserWorkspaceCatalogIdentity,
+    type DepartmentUserCatalogItem,
+} from "@/lib/blockly/workspace-catalog-identity";
 import styles from "./BlocklyWorkspace.module.css";
 
 type BlocklyModule = typeof import("blockly");
 type BlocklyWorkspaceSvg = import("blockly").WorkspaceSvg;
 
 export interface BlocklyWorkspaceChangePayload {
-    rollup: DepartmentUserDepartmentRollup | null;
+    summary: DepartmentUserWorkspaceSummary | null;
     workspaceState: BlocklyWorkspaceRecord;
 }
 
@@ -37,19 +40,14 @@ export function BlocklyWorkspace(props: {
     }>;
     currentUserId: string;
     editorMode: "edit" | "view";
-    items: Array<{
-        categoryId: string;
-        description: string | null;
-        id: string;
-        lastPriceChangedAt: number | null;
-        name: string;
-        procurementMethod: string | null;
-        sourceOfFunds: string | null;
-        unitOfMeasurement: string | null;
-        unitPrice: number | null;
-    }>;
+    items: Array<
+        DepartmentUserCatalogItem & {
+            lastPriceChangedAt: number | null;
+        }
+    >;
     onBudgetStateChange: (state: DepartmentUserBudgetMeterState) => void;
     onWorkspaceChange: (payload: BlocklyWorkspaceChangePayload) => void;
+    onWorkspaceSummaryChange: (summary: DepartmentUserWorkspaceSummary | null) => void;
     selectedCategoryIds: string[];
     toolboxDefinition: Record<string, unknown>;
     workspaceState: BlocklyWorkspaceRecord | null;
@@ -64,12 +62,13 @@ export function BlocklyWorkspace(props: {
     const initialWorkspaceStateRef = useRef<BlocklyWorkspaceRecord | null>(props.workspaceState);
     const onBudgetStateChangeRef = useRef(props.onBudgetStateChange);
     const onWorkspaceChangeRef = useRef(props.onWorkspaceChange);
+    const onWorkspaceSummaryChangeRef = useRef(props.onWorkspaceSummaryChange);
     const recalculateWorkspaceRef = useRef<
         | ((
               Blockly: BlocklyModule,
               workspace: BlocklyWorkspaceSvg,
               shouldPersist: boolean,
-          ) => DepartmentUserDepartmentRollup | null)
+          ) => DepartmentUserWorkspaceSummary | null)
         | null
     >(null);
     const toolboxDefinitionRef = useRef(props.toolboxDefinition);
@@ -85,6 +84,10 @@ export function BlocklyWorkspace(props: {
     }, [props.onWorkspaceChange]);
 
     useEffect(() => {
+        onWorkspaceSummaryChangeRef.current = props.onWorkspaceSummaryChange;
+    }, [props.onWorkspaceSummaryChange]);
+
+    useEffect(() => {
         toolboxDefinitionRef.current = props.toolboxDefinition;
     }, [props.toolboxDefinition]);
 
@@ -93,16 +96,17 @@ export function BlocklyWorkspace(props: {
         initialWorkspaceStateRef.current = props.workspaceState;
     }, [props.workspaceState]);
 
-    const syncBudgetState = useCallback((rollup: DepartmentUserDepartmentRollup | null): void => {
+    const syncBudgetState = useCallback((summary: DepartmentUserWorkspaceSummary | null): void => {
         onBudgetStateChangeRef.current(
-            mapDepartmentUserBudgetMeterState({
-                totalBudget: props.budgetAllocation,
-                usedAmount: rollup?.departmentTotal ?? 0,
-            }),
+            summary?.budgetState ??
+                mapDepartmentUserBudgetMeterState({
+                    totalBudget: props.budgetAllocation,
+                    usedAmount: 0,
+                }),
         );
     }, [props.budgetAllocation]);
 
-    const emitWorkspaceSnapshot = useCallback((rollup: DepartmentUserDepartmentRollup | null): void => {
+    const emitWorkspaceSnapshot = useCallback((summary: DepartmentUserWorkspaceSummary | null): void => {
         if (!blocklyRef.current || !workspaceRef.current) {
             return;
         }
@@ -115,12 +119,12 @@ export function BlocklyWorkspace(props: {
         });
         previousWorkspaceRecordRef.current = nextWorkspaceState;
         onWorkspaceChangeRef.current({
-            rollup,
+            summary,
             workspaceState: nextWorkspaceState,
         });
     }, [props.currentUserId]);
 
-    const queueWorkspaceSnapshot = useCallback((rollup: DepartmentUserDepartmentRollup | null): void => {
+    const queueWorkspaceSnapshot = useCallback((summary: DepartmentUserWorkspaceSummary | null): void => {
         if (props.editorMode !== "edit") {
             return;
         }
@@ -130,7 +134,7 @@ export function BlocklyWorkspace(props: {
         }
 
         saveTimerRef.current = window.setTimeout(() => {
-            emitWorkspaceSnapshot(rollup);
+            emitWorkspaceSnapshot(summary);
             saveTimerRef.current = null;
         }, 700);
     }, [emitWorkspaceSnapshot, props.editorMode]);
@@ -139,14 +143,14 @@ export function BlocklyWorkspace(props: {
         Blockly: BlocklyModule,
         workspace: BlocklyWorkspaceSvg,
         shouldPersist: boolean,
-    ): DepartmentUserDepartmentRollup | null => {
+    ): DepartmentUserWorkspaceSummary | null => {
         const departmentBlock = workspace
             .getTopBlocks(false)
             .find((block) => block.type === "department_block") as Parameters<
                 typeof applyDepartmentWorkspaceRollup
-            >[0] | undefined;
+            >[0]["departmentBlock"] | undefined;
 
-        let rollup: DepartmentUserDepartmentRollup | null = null;
+        let summary: DepartmentUserWorkspaceSummary | null = null;
         Blockly.Events.disable();
         try {
             synchronizeDepartmentUserWorkspaceCatalogIdentity({
@@ -154,19 +158,30 @@ export function BlocklyWorkspace(props: {
                 departmentBlock: departmentBlock ?? null,
                 items: props.items,
             });
-            rollup = applyDepartmentWorkspaceRollup(departmentBlock ?? null);
+            summary = applyDepartmentWorkspaceRollup({
+                departmentBlock: departmentBlock ?? null,
+                items: props.items,
+                totalBudget: props.budgetAllocation,
+            });
         } finally {
             Blockly.Events.enable();
         }
 
-        syncBudgetState(rollup);
+        syncBudgetState(summary);
+        onWorkspaceSummaryChangeRef.current(summary);
 
         if (shouldPersist) {
-            queueWorkspaceSnapshot(rollup);
+            queueWorkspaceSnapshot(summary);
         }
 
-        return rollup;
-    }, [props.categories, props.items, queueWorkspaceSnapshot, syncBudgetState]);
+        return summary;
+    }, [
+        props.budgetAllocation,
+        props.categories,
+        props.items,
+        queueWorkspaceSnapshot,
+        syncBudgetState,
+    ]);
 
     useEffect(() => {
         recalculateWorkspaceRef.current = recalculateWorkspace;

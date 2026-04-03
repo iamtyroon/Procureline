@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const compliance_test_1 = require("./compliance.test");
 const convex_error_handling_test_1 = require("./convex-error-handling.test");
 const email_transport_test_1 = require("./email-transport.test");
 const procurement_officer_departments_test_1 = require("./procurement-officer-departments.test");
@@ -30,6 +31,7 @@ const tenant_admin_onboarding_test_1 = require("./tenant-admin-onboarding.test")
 const tenant_isolation_test_1 = require("./tenant-isolation.test");
 async function main() {
     const completedTests = [
+        ...(0, compliance_test_1.runComplianceTests)(),
         ...(0, convex_error_handling_test_1.runConvexErrorHandlingTests)(),
         ...(0, email_transport_test_1.runEmailTransportTests)(),
         ...(0, procurement_officer_departments_test_1.runProcurementOfficerDepartmentTests)(),
@@ -38,7 +40,7 @@ async function main() {
         ...(0, procurement_officer_access_codes_test_1.runProcurementOfficerAccessCodeTests)(),
         ...(0, procurement_officer_deadlines_test_1.runProcurementOfficerDeadlineTests)(),
         ...(0, department_user_dashboard_test_1.runDepartmentUserDashboardTests)(),
-        ...(0, department_user_blockly_workspace_test_1.runDepartmentUserBlocklyWorkspaceTests)(),
+        ...(await (0, department_user_blockly_workspace_test_1.runDepartmentUserBlocklyWorkspaceTests)()),
         ...(await (0, department_user_access_test_1.runDepartmentUserAccessTests)()),
         ...(await (0, department_user_request_context_test_1.runDepartmentUserRequestContextTests)()),
         ...(0, password_reset_test_1.runPasswordResetTests)(),

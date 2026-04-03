@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.synchronizeDepartmentUserWorkspaceCatalogIdentity = exports.resolveDepartmentUserItemCatalogIdentity = exports.resolveDepartmentUserCategoryCatalogIdentity = void 0;
+const compliance_1 = require("../procurement/compliance");
 function normalizeText(value) {
     return value?.trim().toLocaleLowerCase() ?? "";
 }
@@ -119,6 +120,11 @@ function synchronizeDepartmentUserWorkspaceCatalogIdentity(args) {
                 itemBlock.getFieldValue("ITEM_DESCRIPTION") !==
                     (resolvedItem.description ?? resolvedItem.name)) {
                 itemBlock.setFieldValue(resolvedItem.description ?? resolvedItem.name, "ITEM_DESCRIPTION");
+            }
+            if (resolvedItem &&
+                itemBlock.getFieldValue("COMPLIANCE_FLAGS") !==
+                    (0, compliance_1.serializeProcurementComplianceFlags)(resolvedItem.complianceFlags)) {
+                itemBlock.setFieldValue((0, compliance_1.serializeProcurementComplianceFlags)(resolvedItem.complianceFlags), "COMPLIANCE_FLAGS");
             }
             if (resolvedItem &&
                 itemBlock.getFieldValue("UNIT_OF_MEASUREMENT") !==

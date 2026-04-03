@@ -6,11 +6,10 @@ import {
     normalizeBlocklyWorkspaceRecord,
 } from "../../lib/blockly/blockly-serialization";
 import { normalizeCategoryIcon } from "../../lib/procurement-officer/categories";
-import { buildPersistedDepartmentUserWorkspaceState } from "../../lib/blockly/workspace-save";
-import { resolveDepartmentUserCategoryCatalogIdentity } from "../../lib/blockly/workspace-catalog-identity";
 import {
-    canDepartmentUserEditWorkspace,
-    getDepartmentUserWorkspaceEditBlockedMessage,
+    prepareDepartmentUserWorkspaceDraftPersistence,
+} from "../../lib/blockly/workspace-save";
+import {
     resolveDepartmentUserWorkspaceMode,
 } from "../../lib/blockly/du-plan-routes";
 import { sanitizeDepartmentUserWorkspaceCategorySelection } from "../../lib/blockly/du-toolbox";
@@ -627,78 +626,27 @@ export const saveDepartmentUserWorkspaceDraft = mutation({
             });
         }
 
-        if (
-            !canDepartmentUserEditWorkspace({
-                accessMode: base.authContext.departmentAccessMode,
-                status: plan.status,
-            })
-        ) {
-            throw new ConvexError({
-                code: "UNAUTHORIZED",
-                message: getDepartmentUserWorkspaceEditBlockedMessage({
-                    accessMode: base.authContext.departmentAccessMode,
-                    status: plan.status,
-                }),
-            });
-        }
-
-        const sanitizedSelection = sanitizeDepartmentUserWorkspaceCategorySelection({
+        const persistenceResult = prepareDepartmentUserWorkspaceDraftPersistence({
+            accessMode: base.authContext.departmentAccessMode,
             categories: catalog.categories,
-            items: catalog.items,
-            requestedCategoryIds: args.selectedCategoryIds,
-            preserveUnavailableRequestedCategories: true,
-        });
-        const categoryDocIdsByString = new Map(
-            categoryDocs.map((category) => [String(category._id), category._id] as const),
-        );
-        const selectedCategoryIds = sanitizedSelection.sanitizedCategoryIds
-            .map((categoryId) => {
-                return categoryDocIdsByString.get(categoryId) ?? null;
-            })
-            .filter(
-                (value): value is Id<"procurementCategories"> => value !== null,
-            );
-        const categorySummaries = args.categorySummaries
-            .map((summary) => {
-                const resolvedCategory = resolveDepartmentUserCategoryCatalogIdentity({
-                    categories: catalog.categories,
-                    categoryId: summary.categoryId,
-                    categoryName: summary.categoryName,
-                });
-                const resolvedCategoryId = resolvedCategory
-                    ? categoryDocIdsByString.get(resolvedCategory.id) ?? null
-                    : null;
-
-                if (!resolvedCategoryId) {
-                    return null;
-                }
-
-                return {
-                    amount: summary.amount,
-                    categoryId: resolvedCategoryId,
-                    categoryName: resolvedCategory?.name ?? summary.categoryName,
-                    itemCount: summary.itemCount,
-                };
-            })
-            .filter(
-                (summary): summary is NonNullable<typeof summary> => Boolean(summary),
-            );
-        const savedAt = Date.now();
-        const workspaceState = buildPersistedDepartmentUserWorkspaceState({
+            categoryDocs,
             currentUserId: String(base.authContext.userId),
-            savedAt,
+            existingSelectedCategoryIds: plan.selectedCategoryIds,
+            items: catalog.items,
+            planStatus: plan.status,
+            totalBudget: base.department.budgetAllocation ?? null,
             workspaceState: args.workspaceState,
         });
 
-        await ctx.db.patch(plan._id, {
-            categorySummaries,
-            estimatedBudgetUsed: Math.max(0, args.estimatedBudgetUsed),
-            itemCount: Math.max(0, args.itemCount),
-            selectedCategoryIds,
-            workspaceState,
-            updatedAt: savedAt,
-        });
+        if (!persistenceResult.ok) {
+            throw new ConvexError({
+                code: persistenceResult.code,
+                message: persistenceResult.message,
+            });
+        }
 
-        return { savedAt };
+        await ctx.db.patch(plan._id, persistenceResult.patch);
+
+        return { savedAt: persistenceResult.patch.updatedAt };
     },
 });

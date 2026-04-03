@@ -172,6 +172,13 @@ export function registerDepartmentUserBlocklyBlocks(BlocklyBase: BlocklyModule):
                 )
                 .setVisible(false);
 
+            this.appendDummyInput("COMPLIANCE_FLAGS_INPUT")
+                .appendField(
+                    new Blockly.FieldLabelSerializable(""),
+                    "COMPLIANCE_FLAGS",
+                )
+                .setVisible(false);
+
             this.appendDummyInput("HEADER")
                 .appendField(
                     new Blockly.FieldImage(

@@ -189,31 +189,60 @@ exports.default = (0, server_1.defineSchema)({
     procurementCategories: (0, server_1.defineTable)({
         tenantId: values_1.v.id("tenants"),
         name: values_1.v.string(),
+        normalizedName: values_1.v.optional(values_1.v.string()),
         description: values_1.v.optional(values_1.v.string()),
+        color: values_1.v.optional(values_1.v.string()),
+        icon: values_1.v.optional(values_1.v.string()),
         isActive: values_1.v.boolean(),
+        archivedAt: values_1.v.optional(values_1.v.number()),
+        archivedByTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
         sortOrder: values_1.v.number(),
+        revision: values_1.v.optional(values_1.v.number()),
         createdAt: values_1.v.number(),
         updatedAt: values_1.v.number(),
     })
         .index("by_tenantId", ["tenantId"])
-        .index("by_tenantId_isActive", ["tenantId", "isActive"]),
+        .index("by_tenantId_isActive", ["tenantId", "isActive"])
+        .index("by_tenantId_normalizedName", ["tenantId", "normalizedName"])
+        .index("by_tenantId_sortOrder", ["tenantId", "sortOrder"]),
     procurementItems: (0, server_1.defineTable)({
         tenantId: values_1.v.id("tenants"),
         categoryId: values_1.v.id("procurementCategories"),
         name: values_1.v.string(),
+        normalizedName: values_1.v.optional(values_1.v.string()),
         description: values_1.v.optional(values_1.v.string()),
         unitOfMeasurement: values_1.v.optional(values_1.v.string()),
         unitPrice: values_1.v.optional(values_1.v.number()),
         procurementMethod: values_1.v.optional(values_1.v.string()),
         sourceOfFunds: values_1.v.optional(values_1.v.string()),
+        minQuantity: values_1.v.optional(values_1.v.number()),
+        maxQuantity: values_1.v.optional(values_1.v.number()),
+        complianceFlags: values_1.v.optional(values_1.v.array(values_1.v.union(values_1.v.literal("agpo"), values_1.v.literal("pwd"), values_1.v.literal("local_content")))),
         sortOrder: values_1.v.optional(values_1.v.number()),
         isActive: values_1.v.boolean(),
+        archivedAt: values_1.v.optional(values_1.v.number()),
+        archivedByTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
+        lastPriceChangedAt: values_1.v.optional(values_1.v.number()),
+        lastPriceChangedByTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
+        revision: values_1.v.optional(values_1.v.number()),
         createdAt: values_1.v.number(),
         updatedAt: values_1.v.number(),
     })
         .index("by_tenantId", ["tenantId"])
         .index("by_categoryId", ["categoryId"])
-        .index("by_tenantId_isActive", ["tenantId", "isActive"]),
+        .index("by_tenantId_isActive", ["tenantId", "isActive"])
+        .index("by_tenantId_categoryId", ["tenantId", "categoryId"])
+        .index("by_tenantId_categoryId_normalizedName", ["tenantId", "categoryId", "normalizedName"]),
+    procurementItemPriceHistory: (0, server_1.defineTable)({
+        tenantId: values_1.v.id("tenants"),
+        itemId: values_1.v.id("procurementItems"),
+        previousUnitPrice: values_1.v.union(values_1.v.number(), values_1.v.null()),
+        nextUnitPrice: values_1.v.number(),
+        changedAt: values_1.v.number(),
+        changedByTenantUserId: values_1.v.id("tenantUsers"),
+    })
+        .index("by_itemId_changedAt", ["itemId", "changedAt"])
+        .index("by_tenantId_changedAt", ["tenantId", "changedAt"]),
     plans: (0, server_1.defineTable)({
         tenantId: values_1.v.id("tenants"),
         departmentId: values_1.v.id("departments"),

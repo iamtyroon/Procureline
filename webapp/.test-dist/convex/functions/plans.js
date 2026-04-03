@@ -1,9 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.saveDepartmentUserWorkspaceDraft = exports.getDepartmentUserPlanWorkspace = exports.ensureDepartmentUserDraftPlan = exports.getDepartmentUserNewPlanWorkspaceContext = exports.buildPersistedDepartmentUserWorkspaceState = void 0;
+exports.saveDepartmentUserWorkspaceDraft = exports.getDepartmentUserPlanWorkspace = exports.ensureDepartmentUserDraftPlan = exports.getDepartmentUserNewPlanWorkspaceContext = exports.persistDepartmentUserWorkspaceDraft = void 0;
 const values_1 = require("convex/values");
 const server_1 = require("../_generated/server");
 const blockly_serialization_1 = require("../../lib/blockly/blockly-serialization");
+const categories_1 = require("../../lib/procurement-officer/categories");
+const workspace_save_1 = require("../../lib/blockly/workspace-save");
+const workspace_catalog_identity_1 = require("../../lib/blockly/workspace-catalog-identity");
 const du_plan_routes_1 = require("../../lib/blockly/du-plan-routes");
 const du_toolbox_1 = require("../../lib/blockly/du-toolbox");
 const _roleGuard_1 = require("./_roleGuard");
@@ -28,9 +31,13 @@ const workspaceCategorySummaryValidator = values_1.v.object({
 });
 const workspaceItemValidator = values_1.v.object({
     categoryId: values_1.v.string(),
+    complianceFlags: values_1.v.optional(values_1.v.array(values_1.v.string())),
     description: values_1.v.union(values_1.v.string(), values_1.v.null()),
     id: values_1.v.string(),
     isActive: values_1.v.boolean(),
+    lastPriceChangedAt: values_1.v.union(values_1.v.number(), values_1.v.null()),
+    maxQuantity: values_1.v.union(values_1.v.number(), values_1.v.null()),
+    minQuantity: values_1.v.union(values_1.v.number(), values_1.v.null()),
     name: values_1.v.string(),
     procurementMethod: values_1.v.union(values_1.v.string(), values_1.v.null()),
     sortOrder: values_1.v.number(),
@@ -39,7 +46,9 @@ const workspaceItemValidator = values_1.v.object({
     unitPrice: values_1.v.union(values_1.v.number(), values_1.v.null()),
 });
 const workspaceCategoryValidator = values_1.v.object({
+    color: values_1.v.union(values_1.v.string(), values_1.v.null()),
     id: values_1.v.string(),
+    icon: values_1.v.union(values_1.v.string(), values_1.v.null()),
     isActive: values_1.v.boolean(),
     name: values_1.v.string(),
     sortOrder: values_1.v.number(),
@@ -107,23 +116,6 @@ function mapDepartmentDepartmentRecord(department) {
         voteNumber: department.code,
     };
 }
-function buildPersistedDepartmentUserWorkspaceState(args) {
-    const normalizedWorkspaceState = (0, blockly_serialization_1.normalizeBlocklyWorkspaceRecord)(args.workspaceState, {
-        lastSavedAt: args.savedAt,
-        lastSavedByUserId: args.currentUserId,
-        saveSource: "workspace_sync",
-    });
-    return {
-        ...normalizedWorkspaceState,
-        editorMetadata: {
-            ...normalizedWorkspaceState.editorMetadata,
-            lastSavedAt: args.savedAt,
-            lastSavedByUserId: args.currentUserId,
-            saveSource: "workspace_sync",
-        },
-    };
-}
-exports.buildPersistedDepartmentUserWorkspaceState = buildPersistedDepartmentUserWorkspaceState;
 async function loadDepartmentUserPlanBase(ctx) {
     const authContext = await (0, _roleGuard_1.requireTenantRole)(ctx, ["department_user"]);
     const tenantUser = await ctx.db
@@ -171,16 +163,22 @@ async function loadTenantCatalog(ctx, tenantId) {
     ]);
     return {
         categories: categories.map((category) => ({
+            color: category.color ?? null,
             id: String(category._id),
+            icon: (0, categories_1.normalizeCategoryIcon)(category.icon ?? null) ?? null,
             isActive: category.isActive,
             name: category.name,
             sortOrder: category.sortOrder,
         })),
         items: items.map((item) => ({
             categoryId: String(item.categoryId),
+            complianceFlags: item.complianceFlags ?? [],
             description: item.description ?? null,
             id: String(item._id),
             isActive: item.isActive,
+            lastPriceChangedAt: item.lastPriceChangedAt ?? null,
+            maxQuantity: item.maxQuantity ?? null,
+            minQuantity: item.minQuantity ?? null,
             name: item.name,
             procurementMethod: item.procurementMethod ?? null,
             sortOrder: item.sortOrder ?? Number.MAX_SAFE_INTEGER,
@@ -197,6 +195,73 @@ async function loadCanonicalDepartmentPlans(ctx, departmentId) {
         .collect();
     return plans.sort((left, right) => right.updatedAt - left.updatedAt);
 }
+async function persistDepartmentUserWorkspaceDraft(args) {
+    if (!(0, du_plan_routes_1.canDepartmentUserEditWorkspace)({
+        accessMode: args.accessMode,
+        status: args.plan.status,
+    })) {
+        throw new values_1.ConvexError({
+            code: "UNAUTHORIZED",
+            message: (0, du_plan_routes_1.getDepartmentUserWorkspaceEditBlockedMessage)({
+                accessMode: args.accessMode,
+                status: args.plan.status,
+            }),
+        });
+    }
+    const categoryDocIdsByString = new Map(args.categoryDocs.map((category) => [String(category._id), category._id]));
+    const savedAt = Date.now();
+    const persistencePatch = (0, workspace_save_1.buildDepartmentUserWorkspaceDraftPersistencePatch)({
+        categories: args.catalog.categories,
+        currentUserId: args.currentUserId,
+        existingSelectedCategoryIds: args.plan.selectedCategoryIds.map((categoryId) => String(categoryId)),
+        items: args.catalog.items,
+        savedAt,
+        totalBudget: args.departmentBudgetAllocation ?? null,
+        workspaceState: args.workspaceState,
+    });
+    if (!persistencePatch) {
+        throw new values_1.ConvexError({
+            code: "VALIDATION_FAILED",
+            message: "Workspace state is malformed and could not be recalculated safely.",
+        });
+    }
+    const categorySummaries = persistencePatch.categorySummaries
+        .map((summary) => {
+        const resolvedCategory = (0, workspace_catalog_identity_1.resolveDepartmentUserCategoryCatalogIdentity)({
+            categories: args.catalog.categories,
+            categoryId: summary.categoryId,
+            categoryName: summary.categoryName,
+        });
+        const resolvedCategoryId = resolvedCategory
+            ? categoryDocIdsByString.get(resolvedCategory.id) ?? null
+            : null;
+        if (!resolvedCategoryId || !resolvedCategory) {
+            return null;
+        }
+        return {
+            amount: summary.amount,
+            categoryId: resolvedCategoryId,
+            categoryName: resolvedCategory.name,
+            itemCount: summary.itemCount,
+        };
+    })
+        .filter((summary) => Boolean(summary));
+    const selectedCategoryIds = persistencePatch.selectedCategoryIds
+        .map((categoryId) => {
+        return categoryDocIdsByString.get(categoryId) ?? null;
+    })
+        .filter((value) => value !== null);
+    await args.db.patch(args.plan._id, {
+        categorySummaries,
+        estimatedBudgetUsed: Math.max(0, persistencePatch.estimatedBudgetUsed),
+        itemCount: Math.max(0, persistencePatch.itemCount),
+        selectedCategoryIds,
+        workspaceState: persistencePatch.workspaceState,
+        updatedAt: savedAt,
+    });
+    return { savedAt };
+}
+exports.persistDepartmentUserWorkspaceDraft = persistDepartmentUserWorkspaceDraft;
 function createBlockedContext(args) {
     return {
         catalog: {
@@ -396,6 +461,7 @@ exports.ensureDepartmentUserDraftPlan = (0, server_1.mutation)({
 });
 exports.getDepartmentUserPlanWorkspace = (0, server_1.query)({
     args: {
+        accessRefreshKey: values_1.v.optional(values_1.v.number()),
         planId: values_1.v.string(),
         requestedMode: values_1.v.optional(values_1.v.union(values_1.v.literal("edit"), values_1.v.literal("view"))),
     },
@@ -443,6 +509,7 @@ exports.getDepartmentUserPlanWorkspace = (0, server_1.query)({
             categories: catalog.categories,
             items: catalog.items,
             requestedCategoryIds: plan.selectedCategoryIds.map((categoryId) => String(categoryId)),
+            preserveUnavailableRequestedCategories: true,
         });
         const mode = (0, du_plan_routes_1.resolveDepartmentUserWorkspaceMode)({
             accessMode: base.authContext.departmentAccessMode,
@@ -523,62 +590,15 @@ exports.saveDepartmentUserWorkspaceDraft = (0, server_1.mutation)({
                 message: "Plan not found for this department.",
             });
         }
-        if (!(0, du_plan_routes_1.canDepartmentUserEditWorkspace)({
+        return await persistDepartmentUserWorkspaceDraft({
             accessMode: base.authContext.departmentAccessMode,
-            status: plan.status,
-        })) {
-            throw new values_1.ConvexError({
-                code: "UNAUTHORIZED",
-                message: (0, du_plan_routes_1.getDepartmentUserWorkspaceEditBlockedMessage)({
-                    accessMode: base.authContext.departmentAccessMode,
-                    status: plan.status,
-                }),
-            });
-        }
-        const sanitizedSelection = (0, du_toolbox_1.sanitizeDepartmentUserWorkspaceCategorySelection)({
-            categories: catalog.categories,
-            items: catalog.items,
-            requestedCategoryIds: args.selectedCategoryIds,
-        });
-        const categoryDocIdsByString = new Map(categoryDocs.map((category) => [String(category._id), category._id]));
-        const categoryNamesById = new Map(catalog.categories.map((category) => [category.id, category.name]));
-        const categoryIdByName = new Map(catalog.categories.map((category) => [category.name, category.id]));
-        const selectedCategoryIds = sanitizedSelection.sanitizedCategoryIds
-            .map((categoryId) => {
-            return categoryDocIdsByString.get(categoryId) ?? null;
-        })
-            .filter((value) => value !== null);
-        const categorySummaries = args.categorySummaries
-            .map((summary) => {
-            const resolvedCategoryId = categoryDocIdsByString.get(summary.categoryId) ??
-                categoryDocIdsByString.get(categoryIdByName.get(summary.categoryName) ?? "") ??
-                null;
-            if (!resolvedCategoryId) {
-                return null;
-            }
-            return {
-                amount: summary.amount,
-                categoryId: resolvedCategoryId,
-                categoryName: categoryNamesById.get(String(resolvedCategoryId)) ??
-                    summary.categoryName,
-                itemCount: summary.itemCount,
-            };
-        })
-            .filter((summary) => Boolean(summary));
-        const savedAt = Date.now();
-        const workspaceState = buildPersistedDepartmentUserWorkspaceState({
+            catalog,
+            categoryDocs,
             currentUserId: String(base.authContext.userId),
-            savedAt,
+            db: ctx.db,
+            departmentBudgetAllocation: base.department.budgetAllocation ?? null,
+            plan,
             workspaceState: args.workspaceState,
         });
-        await ctx.db.patch(plan._id, {
-            categorySummaries,
-            estimatedBudgetUsed: Math.max(0, args.estimatedBudgetUsed),
-            itemCount: Math.max(0, args.itemCount),
-            selectedCategoryIds,
-            workspaceState,
-            updatedAt: savedAt,
-        });
-        return { savedAt };
     },
 });

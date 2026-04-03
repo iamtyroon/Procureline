@@ -35,8 +35,14 @@ export function BlocklyBudgetHeader({
                         Budget Meter
                     </div>
                     <div className={cn("text-2xl font-black tracking-[-0.06em]", accentClass)}>
-                        {budgetState.usedPercent === null ? "Unallocated" : `${budgetState.usedPercent}% used`}
+                        {budgetState.usageLabel}
                     </div>
+                    <p className={cn("text-sm font-medium", accentClass)}>
+                        {budgetState.statusLabel}
+                    </p>
+                    <p className="max-w-sm text-sm text-muted-foreground">
+                        {budgetState.advisoryText}
+                    </p>
                 </div>
                 <div
                     className={cn(
@@ -62,14 +68,32 @@ export function BlocklyBudgetHeader({
                 </div>
             </div>
 
+            {budgetState.bannerText ? (
+                <div
+                    className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
+                    role="status"
+                >
+                    {budgetState.bannerText}
+                </div>
+            ) : null}
+
             <div className="mt-4 space-y-3">
                 <Progress
+                    aria-label="Department budget utilization"
+                    aria-valuetext={
+                        budgetState.totalBudget === null
+                            ? "Department budget is not allocated"
+                            : `${budgetState.usageLabel} of department budget`
+                    }
                     className={cn("h-3 rounded-full", progressClass)}
                     value={Math.max(0, Math.min(100, budgetState.usedPercent ?? 0))}
                 />
                 <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
                     <span className="text-muted-foreground">
-                        Used: <strong className="text-foreground">{formatKenyanCurrency(budgetState.usedAmount)}</strong>
+                        Used:{" "}
+                        <strong className="text-foreground">
+                            {formatKenyanCurrency(budgetState.usedAmount)}
+                        </strong>
                     </span>
                     <span className="text-muted-foreground">
                         Budget:{" "}

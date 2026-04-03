@@ -12,16 +12,25 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BlocklyBudgetHeader } from "@/src/components/blockly/BlocklyBudgetHeader";
+import { BlocklyComplianceSummary } from "@/src/components/blockly/BlocklyComplianceSummary";
 import { BlocklyLoadingSkeleton } from "@/src/components/blockly/BlocklyLoadingSkeleton";
 import type { BlocklyWorkspaceChangePayload } from "@/src/components/blockly/BlocklyWorkspace";
 import { buildPlanningWorkspacePresentation } from "@/lib/blockly/editor-contract";
 import type { BlocklyWorkspaceRecord } from "@/lib/blockly/blockly-serialization";
+import { getPersistedPlanSummaryForWorkspaceSummaryChange } from "@/lib/blockly/du-editor-fallback";
 import { buildDepartmentUserToolbox } from "@/lib/blockly/du-toolbox";
 import {
+    calculateDepartmentUserWorkspaceSummaryFromWorkspaceRecord,
+    getDepartmentUserReservedSubmitState,
+    getDepartmentUserWorkspaceAnnouncement,
     mapDepartmentUserBudgetMeterState,
+    resolveDepartmentUserDisplayedWorkspaceSummary,
     type DepartmentUserBudgetMeterState,
+    type DepartmentUserPersistedPlanSummary,
+    type DepartmentUserWorkspaceSummary,
 } from "@/lib/blockly/du-workspace-calculations";
 import { buildDepartmentUserWorkspaceDraftSaveInput } from "@/lib/blockly/workspace-save";
+import { calculateProcurementComplianceSnapshot } from "@/lib/procurement/compliance";
 import { PROCUREMENT_ITEM_PRICE_CHANGE_NOTICE } from "@/lib/procurement-officer/items";
 import styles from "./BlocklyWorkspace.module.css";
 
@@ -57,6 +66,7 @@ export function BlocklyEditor(props: {
     fiscalYear: string;
     items: Array<{
         categoryId: string;
+        complianceFlags?: readonly string[] | null;
         description: string | null;
         id: string;
         isActive: boolean;
@@ -71,6 +81,7 @@ export function BlocklyEditor(props: {
     mode: "edit" | "view";
     modeIndicatorLabel: string | null;
     planId: string;
+    persistedPlanSummary: DepartmentUserPersistedPlanSummary;
     selectedCategoryIds: string[];
     subtitle: string;
     unavailableCategories: Array<{
@@ -97,17 +108,54 @@ export function BlocklyEditor(props: {
             }),
         [props.categories, props.department, props.items, props.selectedCategoryIds],
     );
-    const [budgetState, setBudgetState] = useState<DepartmentUserBudgetMeterState>(() =>
-        mapDepartmentUserBudgetMeterState({
-            totalBudget: props.department.budgetAllocation,
-            usedAmount: 0,
-        }),
+    const initialSummary = useMemo(
+        () =>
+            calculateDepartmentUserWorkspaceSummaryFromWorkspaceRecord({
+                items: props.items,
+                totalBudget: props.department.budgetAllocation,
+                workspaceState: props.workspaceState,
+            }),
+        [props.department.budgetAllocation, props.items, props.workspaceState],
     );
+    const preferredInitialSummary = useMemo(
+        () =>
+            resolveDepartmentUserDisplayedWorkspaceSummary({
+                persistedPlanSummary: props.persistedPlanSummary,
+                totalBudget: props.department.budgetAllocation,
+                workspaceState: props.workspaceState,
+                workspaceSummary: initialSummary,
+            }),
+        [
+            initialSummary,
+            props.department.budgetAllocation,
+            props.persistedPlanSummary,
+            props.workspaceState,
+        ],
+    );
+    const [workspaceSummary, setWorkspaceSummary] = useState<DepartmentUserWorkspaceSummary | null>(
+        preferredInitialSummary,
+    );
+    const [budgetState, setBudgetState] = useState<DepartmentUserBudgetMeterState>(
+        () =>
+            preferredInitialSummary?.budgetState ??
+            mapDepartmentUserBudgetMeterState({
+                totalBudget: props.department.budgetAllocation,
+                usedAmount: 0,
+            }),
+    );
+    const [liveAnnouncement, setLiveAnnouncement] = useState("");
     const [saveState, setSaveState] = useState<"error" | "idle" | "saved" | "saving">("idle");
     const [lastSavedAt, setLastSavedAt] = useState<number | null>(
         props.workspaceState?.editorMetadata.lastSavedAt ?? null,
     );
+    const latestLocalWorkspaceRevisionRef = useRef(
+        props.workspaceState?.editorMetadata.revision ?? 0,
+    );
+    const previousPlanIdRef = useRef<string | null>(null);
+    const previousResetKeyRef = useRef<string | null>(null);
+    const previousAnnouncementKeyRef = useRef<string | null>(null);
     const previousItemsRef = useRef(props.items);
+    const allowEditModePersistedFallbackRef = useRef(true);
     const presentation = useMemo(
         () =>
             buildPlanningWorkspacePresentation({
@@ -117,6 +165,40 @@ export function BlocklyEditor(props: {
             }),
         [props.actor, props.actorLabel, props.mode],
     );
+
+    useEffect(() => {
+        const incomingRevision = props.workspaceState?.editorMetadata.revision ?? 0;
+        const isPlanSwitch = previousPlanIdRef.current !== props.planId;
+        const resetKey = `${props.planId}:${props.workspaceState?.editorMetadata.revision ?? 0}:${props.workspaceState?.editorMetadata.lastSavedAt ?? 0}:${props.department.budgetAllocation ?? "null"}`;
+        if (previousResetKeyRef.current === resetKey) {
+            return;
+        }
+        if (!isPlanSwitch && incomingRevision < latestLocalWorkspaceRevisionRef.current) {
+            return;
+        }
+
+        previousPlanIdRef.current = props.planId;
+        previousResetKeyRef.current = resetKey;
+        latestLocalWorkspaceRevisionRef.current = incomingRevision;
+        allowEditModePersistedFallbackRef.current = true;
+        setWorkspaceSummary(preferredInitialSummary);
+        setBudgetState(
+            preferredInitialSummary?.budgetState ??
+                mapDepartmentUserBudgetMeterState({
+                    totalBudget: props.department.budgetAllocation,
+                    usedAmount: 0,
+                }),
+        );
+        setLastSavedAt(props.workspaceState?.editorMetadata.lastSavedAt ?? null);
+        previousAnnouncementKeyRef.current = preferredInitialSummary
+            ? getDepartmentUserWorkspaceAnnouncement(preferredInitialSummary).key
+            : null;
+    }, [
+        preferredInitialSummary,
+        props.department.budgetAllocation,
+        props.planId,
+        props.workspaceState,
+    ]);
 
     useEffect(() => {
         const previousItems = previousItemsRef.current;
@@ -155,12 +237,40 @@ export function BlocklyEditor(props: {
         }
     }, [props.items, props.selectedCategoryIds]);
 
+    useEffect(() => {
+        const announcement = getDepartmentUserWorkspaceAnnouncement(workspaceSummary);
+        if (previousAnnouncementKeyRef.current === null) {
+            previousAnnouncementKeyRef.current = announcement.key;
+            return;
+        }
+
+        if (previousAnnouncementKeyRef.current === announcement.key) {
+            return;
+        }
+
+        previousAnnouncementKeyRef.current = announcement.key;
+        setLiveAnnouncement(announcement.message);
+    }, [workspaceSummary]);
+
     async function handleWorkspaceChange(payload: BlocklyWorkspaceChangePayload): Promise<void> {
+        latestLocalWorkspaceRevisionRef.current = Math.max(
+            latestLocalWorkspaceRevisionRef.current,
+            payload.workspaceState.editorMetadata.revision,
+        );
+        allowEditModePersistedFallbackRef.current = false;
+        const displayedSummary = resolveDepartmentUserDisplayedWorkspaceSummary({
+            persistedPlanSummary: props.mode === "view" ? props.persistedPlanSummary : null,
+            totalBudget: props.department.budgetAllocation,
+            workspaceState: payload.workspaceState,
+            workspaceSummary: payload.summary,
+        });
+        setWorkspaceSummary(displayedSummary);
         setBudgetState(
-            mapDepartmentUserBudgetMeterState({
-                totalBudget: props.department.budgetAllocation,
-                usedAmount: payload.rollup?.departmentTotal ?? 0,
-            }),
+            displayedSummary?.budgetState ??
+                mapDepartmentUserBudgetMeterState({
+                    totalBudget: props.department.budgetAllocation,
+                    usedAmount: 0,
+                }),
         );
 
         if (props.mode !== "edit") {
@@ -173,8 +283,8 @@ export function BlocklyEditor(props: {
                 buildDepartmentUserWorkspaceDraftSaveInput({
                     categories: props.categories,
                     planId: props.planId,
-                    rollup: payload.rollup,
                     selectedCategoryIds: toolbox.sanitizedCategoryIds,
+                    summary: displayedSummary,
                     workspaceState: payload.workspaceState,
                 }),
             );
@@ -190,8 +300,23 @@ export function BlocklyEditor(props: {
         toast(message);
     }
 
+    const complianceState =
+        workspaceSummary?.complianceState ??
+        calculateProcurementComplianceSnapshot({
+            items: [],
+            totalEligibleSpend: 0,
+        });
+    const submitState = getDepartmentUserReservedSubmitState({
+        budgetState,
+        mode: props.mode,
+    });
+
     return (
         <div className="space-y-4">
+            <div aria-live="polite" className="sr-only">
+                {liveAnnouncement}
+            </div>
+
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
                 <Card className="rounded-[28px] border-border/70 shadow-sm">
                     <CardHeader className="gap-4">
@@ -213,7 +338,10 @@ export function BlocklyEditor(props: {
                                         </Badge>
                                     ) : null}
                                     {props.mode === "view" ? (
-                                        <Badge variant="outline" className="rounded-full border-amber-300 bg-amber-50 text-amber-800">
+                                        <Badge
+                                            variant="outline"
+                                            className="rounded-full border-amber-300 bg-amber-50 text-amber-800"
+                                        >
                                             Read-only
                                         </Badge>
                                     ) : null}
@@ -228,72 +356,78 @@ export function BlocklyEditor(props: {
                                 </div>
                             </div>
 
-                            <div className="flex flex-wrap items-center justify-end gap-2">
-                                <Badge variant="outline" className="rounded-full">
-                                    {saveState === "saving"
-                                        ? "Saving draft..."
-                                        : saveState === "saved"
-                                          ? lastSavedAt
-                                              ? `Saved ${new Date(lastSavedAt).toLocaleTimeString()}`
-                                              : "Saved"
-                                          : saveState === "error"
-                                            ? "Save failed"
-                                            : "Draft open"}
-                                </Badge>
-                                <Button asChild type="button" variant="outline">
-                                    <Link href="/du">
-                                        <ArrowLeft className="mr-2 h-4 w-4" />
-                                        Exit
-                                    </Link>
-                                </Button>
-                                <Button
-                                    onClick={() =>
-                                        startTransition(() =>
-                                            handleReservedAction(
-                                                "Item request handoff stays reserved until Story 5.5 lands.",
-                                            ),
-                                        )
-                                    }
-                                    type="button"
-                                    variant="outline"
-                                >
-                                    <PackagePlus className="mr-2 h-4 w-4" />
-                                    Request Item
-                                </Button>
-                                <Button
-                                    onClick={() =>
-                                        startTransition(() =>
-                                            handleReservedAction(
-                                                "Export handoff stays reserved until the export stories land.",
-                                            ),
-                                        )
-                                    }
-                                    type="button"
-                                    variant="outline"
-                                >
-                                    <FileDown className="mr-2 h-4 w-4" />
-                                    Export
-                                </Button>
-                                <Button
-                                    onClick={() =>
-                                        startTransition(() =>
-                                            handleReservedAction(
-                                                "Submission stays reserved until Story 6.1 completes the plan-submission flow.",
-                                            ),
-                                        )
-                                    }
-                                    type="button"
-                                    variant={props.mode === "edit" ? "default" : "outline"}
-                                >
-                                    <Send className="mr-2 h-4 w-4" />
-                                    Submit
-                                </Button>
+                            <div className="space-y-2">
+                                <div className="flex flex-wrap items-center justify-end gap-2">
+                                    <Badge variant="outline" className="rounded-full">
+                                        {saveState === "saving"
+                                            ? "Saving draft..."
+                                            : saveState === "saved"
+                                              ? lastSavedAt
+                                                  ? `Saved ${new Date(lastSavedAt).toLocaleTimeString()}`
+                                                  : "Saved"
+                                              : saveState === "error"
+                                                ? "Save failed"
+                                                : "Draft open"}
+                                    </Badge>
+                                    <Button asChild type="button" variant="outline">
+                                        <Link href="/du">
+                                            <ArrowLeft className="mr-2 h-4 w-4" />
+                                            Exit
+                                        </Link>
+                                    </Button>
+                                    <Button
+                                        onClick={() =>
+                                            startTransition(() =>
+                                                handleReservedAction(
+                                                    "Item request handoff stays reserved until Story 5.5 lands.",
+                                                ),
+                                            )
+                                        }
+                                        type="button"
+                                        variant="outline"
+                                    >
+                                        <PackagePlus className="mr-2 h-4 w-4" />
+                                        Request Item
+                                    </Button>
+                                    <Button
+                                        onClick={() =>
+                                            startTransition(() =>
+                                                handleReservedAction(
+                                                    "Export handoff stays reserved until the export stories land.",
+                                                ),
+                                            )
+                                        }
+                                        type="button"
+                                        variant="outline"
+                                    >
+                                        <FileDown className="mr-2 h-4 w-4" />
+                                        Export
+                                    </Button>
+                                    <Button
+                                        disabled={submitState.disabled}
+                                        type="button"
+                                        variant={
+                                            submitState.label === "Submit Reserved"
+                                                ? "default"
+                                                : "outline"
+                                        }
+                                    >
+                                        <Send className="mr-2 h-4 w-4" />
+                                        {submitState.label}
+                                    </Button>
+                                </div>
+                                <p className="max-w-md text-right text-xs text-muted-foreground">
+                                    {submitState.reason}
+                                </p>
                             </div>
                         </div>
                     </CardHeader>
                 </Card>
 
-                <BlocklyBudgetHeader budgetState={budgetState} />
+                <div className="space-y-4">
+                    <BlocklyBudgetHeader budgetState={budgetState} />
+                    <BlocklyComplianceSummary complianceState={complianceState} />
+                </div>
             </div>
 
             {props.mode === "view" ? (
@@ -381,9 +515,42 @@ export function BlocklyEditor(props: {
                     currentUserId={props.currentUserId}
                     editorMode={props.mode}
                     items={props.items}
-                    onBudgetStateChange={setBudgetState}
+                    onBudgetStateChange={(nextBudgetState) => {
+                        if (props.mode !== "view") {
+                            setBudgetState(nextBudgetState);
+                            return;
+                        }
+
+                        setBudgetState(
+                            resolveDepartmentUserDisplayedWorkspaceSummary({
+                                persistedPlanSummary: props.persistedPlanSummary,
+                                totalBudget: props.department.budgetAllocation,
+                                workspaceState: props.workspaceState,
+                                workspaceSummary,
+                            })?.budgetState ?? nextBudgetState,
+                        );
+                    }}
                     onWorkspaceChange={(payload) => {
                         void handleWorkspaceChange(payload);
+                    }}
+                    onWorkspaceSummaryChange={(nextSummary) => {
+                        const persistedPlanSummary =
+                            getPersistedPlanSummaryForWorkspaceSummaryChange({
+                                allowEditModePersistedFallback:
+                                    allowEditModePersistedFallbackRef.current,
+                                mode: props.mode,
+                                persistedPlanSummary: props.persistedPlanSummary,
+                            });
+                        allowEditModePersistedFallbackRef.current = false;
+
+                        setWorkspaceSummary(
+                            resolveDepartmentUserDisplayedWorkspaceSummary({
+                                persistedPlanSummary,
+                                totalBudget: props.department.budgetAllocation,
+                                workspaceState: props.workspaceState,
+                                workspaceSummary: nextSummary,
+                            }),
+                        );
                     }}
                     selectedCategoryIds={toolbox.sanitizedCategoryIds}
                     toolboxDefinition={toolbox.toolboxDefinition}

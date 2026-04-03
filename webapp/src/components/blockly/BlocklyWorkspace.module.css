@@ -42,6 +42,22 @@
     fill: #15925a !important;
 }
 
+:global(.blockly-host .dept-block-budget-safe .blocklyPath) {
+    fill: #15925a !important;
+}
+
+:global(.blockly-host .dept-block-budget-warning .blocklyPath) {
+    fill: #d99a13 !important;
+}
+
+:global(.blockly-host .dept-block-budget-over .blocklyPath) {
+    fill: #dc2626 !important;
+}
+
+:global(.blockly-host .dept-block-budget-unallocated .blocklyPath) {
+    fill: #64748b !important;
+}
+
 :global(.blockly-host .item-block-collapsed .blocklyPath) {
     fill: #f5a623 !important;
 }

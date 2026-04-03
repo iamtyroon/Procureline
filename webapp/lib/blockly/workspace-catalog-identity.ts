@@ -1,4 +1,20 @@
-import type { BlocklyWritableBlockLike } from "./du-workspace-calculations";
+import { serializeProcurementComplianceFlags } from "../procurement/compliance";
+
+interface BlocklyConnectionLike {
+    targetBlock(): BlocklyWritableBlockLike | null;
+}
+
+interface BlocklyInputLike {
+    connection?: BlocklyConnectionLike | null;
+}
+
+interface BlocklyWritableBlockLike {
+    getFieldValue(name: string): string;
+    getInput(name: string): BlocklyInputLike | null;
+    getNextBlock(): BlocklyWritableBlockLike | null;
+    setFieldValue(value: string, name: string): void;
+    type: string;
+}
 
 export interface DepartmentUserCatalogCategory {
     id: string;
@@ -7,6 +23,7 @@ export interface DepartmentUserCatalogCategory {
 
 export interface DepartmentUserCatalogItem {
     categoryId: string;
+    complianceFlags?: readonly string[] | null;
     description?: string | null;
     id: string;
     procurementMethod?: string | null;
@@ -189,6 +206,20 @@ export function synchronizeDepartmentUserWorkspaceCatalogIdentity(args: {
                 itemBlock.setFieldValue(
                     resolvedItem.description ?? resolvedItem.name,
                     "ITEM_DESCRIPTION",
+                );
+            }
+            if (
+                resolvedItem &&
+                itemBlock.getFieldValue("COMPLIANCE_FLAGS") !==
+                    serializeProcurementComplianceFlags(
+                        resolvedItem.complianceFlags,
+                    )
+            ) {
+                itemBlock.setFieldValue(
+                    serializeProcurementComplianceFlags(
+                        resolvedItem.complianceFlags,
+                    ),
+                    "COMPLIANCE_FLAGS",
                 );
             }
             if (

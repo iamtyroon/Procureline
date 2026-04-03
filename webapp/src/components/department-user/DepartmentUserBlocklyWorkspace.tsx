@@ -212,6 +212,11 @@ function DepartmentUserExistingPlanWorkspace(): JSX.Element {
                 mode={workspaceContext.meta.mode}
                 modeIndicatorLabel={workspaceContext.meta.modeIndicatorLabel}
                 planId={workspaceContext.plan.id}
+                persistedPlanSummary={{
+                    categorySummaries: workspaceContext.plan.categorySummaries,
+                    estimatedBudgetUsed: workspaceContext.plan.estimatedBudgetUsed,
+                    itemCount: workspaceContext.plan.itemCount,
+                }}
                 selectedCategoryIds={workspaceContext.meta.selectedCategoryIds}
                 subtitle={workspaceContext.meta.subtitle}
                 unavailableCategories={workspaceContext.meta.unavailableCategories}
