@@ -17,6 +17,10 @@ function getFiniteNumber(value) {
     }
     return null;
 }
+function serializeOptionalNumericField(value) {
+    const finiteValue = getFiniteNumber(value);
+    return finiteValue === null ? "" : String(finiteValue);
+}
 function getSerializedFieldValue(block, fieldName) {
     const value = block.fields?.[fieldName];
     if (typeof value === "string") {
@@ -252,6 +256,18 @@ function synchronizeDepartmentUserWorkspaceCatalogIdentity(args) {
                 itemBlock.getFieldValue("UNIT_OF_MEASUREMENT") !==
                     (resolvedItem.unitOfMeasurement ?? "Not set")) {
                 itemBlock.setFieldValue(resolvedItem.unitOfMeasurement ?? "Not set", "UNIT_OF_MEASUREMENT");
+            }
+            if (itemBlock.getFieldValue("ITEM_IS_ACTIVE") !==
+                String(resolvedItem?.isActive ?? false)) {
+                itemBlock.setFieldValue(String(resolvedItem?.isActive ?? false), "ITEM_IS_ACTIVE");
+            }
+            if (itemBlock.getFieldValue("MAX_QUANTITY") !==
+                serializeOptionalNumericField(resolvedItem?.maxQuantity ?? null)) {
+                itemBlock.setFieldValue(serializeOptionalNumericField(resolvedItem?.maxQuantity ?? null), "MAX_QUANTITY");
+            }
+            if (itemBlock.getFieldValue("MIN_QUANTITY") !==
+                serializeOptionalNumericField(resolvedItem?.minQuantity ?? null)) {
+                itemBlock.setFieldValue(serializeOptionalNumericField(resolvedItem?.minQuantity ?? null), "MIN_QUANTITY");
             }
             if (resolvedItem &&
                 itemBlock.getFieldValue("UNIT_PRICE") !==

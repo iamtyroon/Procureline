@@ -42,6 +42,9 @@ function registerTestPathAlias(): void {
 async function main(): Promise<void> {
     registerTestPathAlias();
 
+    const { runBlocklyWorkspaceValidationTests } = await import(
+        "./blockly-workspace-validation.test.js"
+    );
     const { runComplianceTests } = await import("./compliance.test.js");
     const { runConvexErrorHandlingTests } = await import(
         "./convex-error-handling.test.js"
@@ -114,6 +117,7 @@ async function main(): Promise<void> {
     const { runTenantIsolationTests } = await import("./tenant-isolation.test.js");
 
     const completedTests = [
+        ...runBlocklyWorkspaceValidationTests(),
         ...runComplianceTests(),
         ...runConvexErrorHandlingTests(),
         ...runEmailTransportTests(),

@@ -36,7 +36,11 @@ import {
     type DepartmentUserWorkspaceSourceUsage,
 } from "@/lib/blockly/workspace-catalog-identity";
 import { calculateProcurementComplianceSnapshot } from "@/lib/procurement/compliance";
-import { PROCUREMENT_ITEM_PRICE_CHANGE_NOTICE } from "@/lib/procurement-officer/items";
+import {
+    PROCUREMENT_ITEM_PRICE_CHANGE_NOTICE,
+    PROCUREMENT_ITEM_VALIDATION_CHANGE_NOTICE,
+    PROCUREMENT_ITEM_WORKSPACE_UNAVAILABLE_MESSAGE,
+} from "@/lib/procurement-officer/items";
 import type { CategoryIconName } from "@/lib/procurement-officer/categories";
 import styles from "./BlocklyWorkspace.module.css";
 
@@ -79,6 +83,8 @@ export function BlocklyEditor(props: {
         id: string;
         isActive: boolean;
         lastPriceChangedAt: number | null;
+        maxQuantity: number | null;
+        minQuantity: number | null;
         name: string;
         procurementMethod: string | null;
         sortOrder: number;
@@ -198,8 +204,19 @@ export function BlocklyEditor(props: {
                 actor: props.actor,
                 actorLabel: props.actorLabel,
                 mode: props.mode,
-            }),
+        }),
         [props.actor, props.actorLabel, props.mode],
+    );
+    const workspaceItemIds = useMemo(
+        () =>
+            new Set(
+                workspaceSummary?.categories.flatMap((category) =>
+                    category.items
+                        .map((item) => item.itemId?.trim() ?? "")
+                        .filter((itemId) => itemId.length > 0),
+                ) ?? [],
+            ),
+        [workspaceSummary],
     );
 
     useEffect(() => {
@@ -247,34 +264,59 @@ export function BlocklyEditor(props: {
             return;
         }
 
-        const selectedCategoryIds = new Set(props.selectedCategoryIds);
         const previousItemsById = new Map(
             previousItems.map((item) => [item.id, item] as const),
         );
-        const hasSelectedCatalogPriceChange = props.items.some((item) => {
-            const previousItem = previousItemsById.get(item.id);
-            if (!previousItem) {
-                return false;
-            }
-
-            const isSelectedCatalogItem =
-                selectedCategoryIds.has(item.categoryId) ||
-                selectedCategoryIds.has(previousItem.categoryId);
-            if (!isSelectedCatalogItem) {
+        const currentItemsById = new Map(
+            props.items.map((item) => [item.id, item] as const),
+        );
+        const workspaceCatalogItemIds = Array.from(workspaceItemIds);
+        const hasWorkspaceCatalogPriceChange = workspaceCatalogItemIds.some((itemId) => {
+            const previousItem = previousItemsById.get(itemId);
+            const currentItem = currentItemsById.get(itemId);
+            if (!previousItem || !currentItem) {
                 return false;
             }
 
             return (
-                (previousItem.unitPrice ?? null) !== (item.unitPrice ?? null) ||
+                (previousItem.unitPrice ?? null) !== (currentItem.unitPrice ?? null) ||
                 (previousItem.lastPriceChangedAt ?? null) !==
-                    (item.lastPriceChangedAt ?? null)
+                    (currentItem.lastPriceChangedAt ?? null)
             );
         });
+        const hasWorkspaceCatalogValidationChange = workspaceCatalogItemIds.some((itemId) => {
+            const previousItem = previousItemsById.get(itemId);
+            const currentItem = currentItemsById.get(itemId);
+            if (!previousItem || !currentItem) {
+                return false;
+            }
 
-        if (hasSelectedCatalogPriceChange) {
+            return (
+                previousItem.isActive !== currentItem.isActive ||
+                (previousItem.unitOfMeasurement ?? null) !==
+                    (currentItem.unitOfMeasurement ?? null) ||
+                (previousItem.maxQuantity ?? null) !==
+                    (currentItem.maxQuantity ?? null) ||
+                (previousItem.minQuantity ?? null) !==
+                    (currentItem.minQuantity ?? null)
+            );
+        });
+        const hasWorkspaceCatalogRemoval = workspaceCatalogItemIds.some((itemId) => {
+            const previousItem = previousItemsById.get(itemId);
+            const currentItem = currentItemsById.get(itemId);
+
+            return Boolean(previousItem) && (!currentItem || currentItem.isActive === false);
+        });
+
+        if (hasWorkspaceCatalogPriceChange) {
             toast.info(PROCUREMENT_ITEM_PRICE_CHANGE_NOTICE);
         }
-    }, [props.items, props.selectedCategoryIds]);
+        if (hasWorkspaceCatalogRemoval) {
+            toast.warning(PROCUREMENT_ITEM_WORKSPACE_UNAVAILABLE_MESSAGE);
+        } else if (hasWorkspaceCatalogValidationChange) {
+            toast.info(PROCUREMENT_ITEM_VALIDATION_CHANGE_NOTICE);
+        }
+    }, [props.items, workspaceItemIds]);
 
     useEffect(() => {
         const announcement = getDepartmentUserWorkspaceAnnouncement(workspaceSummary);
@@ -347,6 +389,7 @@ export function BlocklyEditor(props: {
     const submitState = getDepartmentUserReservedSubmitState({
         budgetState,
         mode: props.mode,
+        validationState: workspaceSummary?.validationState ?? null,
     });
 
     return (
@@ -488,6 +531,24 @@ export function BlocklyEditor(props: {
                 </Alert>
             ) : null}
 
+            {(workspaceSummary?.validationState.submitBlockedReasons.length ?? 0) > 0 ? (
+                <Alert className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900">
+                    <AlertTitle>Validation issues on the canvas</AlertTitle>
+                    <AlertDescription>
+                        {workspaceSummary?.validationState.submitBlockedReasons.join(" ")}
+                    </AlertDescription>
+                </Alert>
+            ) : null}
+
+            {workspaceSummary?.validationState.validationUnavailableReason ? (
+                <Alert className="rounded-2xl border-border/70 bg-muted/30">
+                    <AlertTitle>Validation details unavailable</AlertTitle>
+                    <AlertDescription>
+                        {workspaceSummary.validationState.validationUnavailableReason}
+                    </AlertDescription>
+                </Alert>
+            ) : null}
+
             <div className={styles.editorGrid}>
                 <Card className={styles.toolboxRail}>
                     <CardHeader className="space-y-3">
@@ -536,6 +597,11 @@ export function BlocklyEditor(props: {
                     }}
                     onWorkspaceChange={(payload) => {
                         void handleWorkspaceChange(payload);
+                    }}
+                    onValidationNotice={(notice) => {
+                        if (notice.kind === "duplicate_item") {
+                            toast.warning(notice.message);
+                        }
                     }}
                     onWorkspaceStructureChange={(nextSourceUsage) => {
                         setSourceUsage(nextSourceUsage);

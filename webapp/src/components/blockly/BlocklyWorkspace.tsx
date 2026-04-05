@@ -54,6 +54,11 @@ export interface BlocklyWorkspaceChangePayload {
     workspaceState: BlocklyWorkspaceRecord;
 }
 
+export interface BlocklyWorkspaceValidationNotice {
+    kind: "duplicate_item";
+    message: string;
+}
+
 export function BlocklyWorkspace(props: {
     budgetAllocation: number | null;
     categories: Array<{
@@ -68,6 +73,7 @@ export function BlocklyWorkspace(props: {
         }
     >;
     onBudgetStateChange: (state: DepartmentUserBudgetMeterState) => void;
+    onValidationNotice?: (notice: BlocklyWorkspaceValidationNotice) => void;
     onWorkspaceChange: (payload: BlocklyWorkspaceChangePayload) => void;
     onWorkspaceStructureChange: (sourceUsage: DepartmentUserWorkspaceSourceUsage) => void;
     onWorkspaceSummaryChange: (summary: DepartmentUserWorkspaceSummary | null) => void;
@@ -88,13 +94,13 @@ export function BlocklyWorkspace(props: {
     const initialWorkspaceStateRef = useRef<BlocklyWorkspaceRecord | null>(props.workspaceState);
     const onBudgetStateChangeRef = useRef(props.onBudgetStateChange);
     const onWorkspaceChangeRef = useRef(props.onWorkspaceChange);
+    const onValidationNoticeRef = useRef(props.onValidationNotice);
     const onWorkspaceStructureChangeRef = useRef(props.onWorkspaceStructureChange);
     const onWorkspaceSummaryChangeRef = useRef(props.onWorkspaceSummaryChange);
     const recalculateWorkspaceRef = useRef<
         | ((
               Blockly: BlocklyModule,
               workspace: BlocklyWorkspaceSvg,
-              shouldPersist: boolean,
           ) => DepartmentUserWorkspaceSummary | null)
         | null
     >(null);
@@ -112,6 +118,10 @@ export function BlocklyWorkspace(props: {
     useEffect(() => {
         onWorkspaceChangeRef.current = props.onWorkspaceChange;
     }, [props.onWorkspaceChange]);
+
+    useEffect(() => {
+        onValidationNoticeRef.current = props.onValidationNotice;
+    }, [props.onValidationNotice]);
 
     useEffect(() => {
         onWorkspaceStructureChangeRef.current = props.onWorkspaceStructureChange;
@@ -233,7 +243,6 @@ export function BlocklyWorkspace(props: {
     const recalculateWorkspace = useCallback((
         Blockly: BlocklyModule,
         workspace: BlocklyWorkspaceSvg,
-        shouldPersist: boolean,
     ): DepartmentUserWorkspaceSummary | null => {
         const departmentBlock = workspace
             .getTopBlocks(false)
@@ -261,18 +270,8 @@ export function BlocklyWorkspace(props: {
         syncBudgetState(summary);
         onWorkspaceSummaryChangeRef.current(summary);
 
-        if (shouldPersist) {
-            queueWorkspaceSnapshot(summary);
-        }
-
         return summary;
-    }, [
-        props.budgetAllocation,
-        props.categories,
-        props.items,
-        queueWorkspaceSnapshot,
-        syncBudgetState,
-    ]);
+    }, [props.budgetAllocation, props.categories, props.items, syncBudgetState]);
 
     useEffect(() => {
         recalculateWorkspaceRef.current = recalculateWorkspace;
@@ -336,7 +335,7 @@ export function BlocklyWorkspace(props: {
                         } finally {
                             Blockly.Events.enable();
                         }
-                        recalculateWorkspaceRef.current?.(Blockly, workspace, false);
+                        recalculateWorkspaceRef.current?.(Blockly, workspace);
                         setPendingCategoryDeletion(
                             eventResolution.categoryDeletionConfirmation,
                         );
@@ -359,12 +358,37 @@ export function BlocklyWorkspace(props: {
                         queueStructureSourceUsageRefresh();
                     }
 
-                    recalculateWorkspaceRef.current?.(
-                        Blockly,
-                        workspace,
+                    let nextSummary = recalculateWorkspaceRef.current?.(Blockly, workspace) ?? null;
+
+                    const duplicateIssue =
+                        event.blockId && (event.type === "create" || event.type === "move")
+                            ? nextSummary?.validationState.issues.find(
+                                  (issue) =>
+                                      issue.code === "duplicate_item" &&
+                                      issue.blockId === event.blockId,
+                              ) ?? null
+                            : null;
+
+                    if (duplicateIssue && typeof event.run === "function") {
+                        Blockly.Events.disable();
+                        try {
+                            event.run(false);
+                        } finally {
+                            Blockly.Events.enable();
+                        }
+                        nextSummary = recalculateWorkspaceRef.current?.(Blockly, workspace) ?? null;
+                        onValidationNoticeRef.current?.({
+                            kind: "duplicate_item",
+                            message: duplicateIssue.message,
+                        });
+                    }
+
+                    if (
                         props.editorMode === "edit" &&
-                            eventResolution.shouldPersistSnapshot,
-                    );
+                        eventResolution.shouldPersistSnapshot
+                    ) {
+                        queueWorkspaceSnapshot(nextSummary);
+                    }
                 };
 
                 workspace.addChangeListener(handleWorkspaceChange);
@@ -382,7 +406,7 @@ export function BlocklyWorkspace(props: {
                     state: persistedUiState,
                     workspace,
                 });
-                recalculateWorkspaceRef.current?.(Blockly, workspace, false);
+                recalculateWorkspaceRef.current?.(Blockly, workspace);
             } catch (error) {
                 if (isDisposed) {
                     return;
@@ -438,16 +462,16 @@ export function BlocklyWorkspace(props: {
             return;
         }
 
-        recalculateWorkspace(
-            blocklyRef.current,
-            workspaceRef.current,
-            props.editorMode === "edit",
-        );
+        const nextSummary = recalculateWorkspace(blocklyRef.current, workspaceRef.current);
+        if (props.editorMode === "edit") {
+            queueWorkspaceSnapshot(nextSummary);
+        }
         queueStructureSourceUsageRefresh();
     }, [
         props.categories,
         props.editorMode,
         props.items,
+        queueWorkspaceSnapshot,
         queueStructureSourceUsageRefresh,
         recalculateWorkspace,
     ]);

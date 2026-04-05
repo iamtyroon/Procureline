@@ -19,6 +19,8 @@ class TestBlock {
     fields = new Map();
     inputs = new Map();
     nextBlock = null;
+    __duQuantityFeedback;
+    id;
     warningText = null;
     svgGroup_ = {
         classList: {
@@ -454,6 +456,53 @@ async function runDepartmentUserBlocklyWorkspaceTests() {
     strict_1.default.equal(liveSummary?.budgetState.state, "over_budget");
     strict_1.default.equal(liveRollupDepartment.svgGroup_.classList.classes.has("dept-block-budget-over"), true);
     completedTests.push("live Blockly rollups now share one budget-aware summary path for visuals and warnings");
+    const liveValidationDepartment = new TestBlock("department_block");
+    const liveValidationCategory = new TestBlock("category_block", {
+        CATEGORY_ID: "cat-office",
+        CATEGORY_NAME: "Office Supplies",
+    });
+    const liveValidationItem = new TestBlock("item_block", {
+        COMPLIANCE_FLAGS: "",
+        ITEM_DESC: "Printer Paper",
+        ITEM_DESCRIPTION: "Printer Paper",
+        ITEM_ID: "item-paper",
+        ITEM_IS_ACTIVE: "true",
+        MAX_QUANTITY: "6",
+        MIN_QUANTITY: "",
+        Q1_QTY: "6",
+        Q2_QTY: "0",
+        Q3_QTY: "0",
+        Q4_QTY: "0",
+        UNIT_OF_MEASUREMENT: "each",
+        UNIT_PRICE: "1200",
+    });
+    liveValidationItem.id = "item-paper-block";
+    liveValidationItem.__duQuantityFeedback = {
+        Q1_QTY: "Maximum quantity is 6",
+    };
+    liveValidationDepartment.linkInput("CATEGORIES", liveValidationCategory);
+    liveValidationCategory.linkInput("ITEMS", liveValidationItem);
+    const liveValidationSummary = (0, du_workspace_calculations_1.applyDepartmentWorkspaceRollup)({
+        departmentBlock: liveValidationDepartment,
+        items: [
+            {
+                categoryId: "cat-office",
+                description: "Printer Paper",
+                id: "item-paper",
+                isActive: true,
+                maxQuantity: 6,
+                minQuantity: null,
+                name: "Printer Paper",
+                unitOfMeasurement: "each",
+                unitPrice: 1_200,
+            },
+        ],
+        totalBudget: 50_000,
+    });
+    strict_1.default.ok(liveValidationSummary);
+    strict_1.default.equal(liveValidationItem.warningText, "Maximum quantity is 6");
+    strict_1.default.deepEqual(liveValidationSummary.validationState.submitBlockedReasons, []);
+    completedTests.push("live Blockly validation feedback now preserves one-cycle inline quantity warnings after the field normalizes bad input");
     const emptyCategoryDepartment = new TestBlock("department_block");
     const emptyCategoryBlock = new TestBlock("category_block", {
         CATEGORY_ID: "cat-empty",
@@ -722,6 +771,77 @@ async function runDepartmentUserBlocklyWorkspaceTests() {
     strict_1.default.ok(refreshedWorkspaceSummary);
     strict_1.default.equal(refreshedWorkspaceSummary.departmentTotal, 260_000);
     completedTests.push("workspace summary recomputation can still refresh against live catalog metadata when save validation needs it");
+    const invalidSerializedWorkspaceSummary = (0, du_workspace_calculations_1.calculateDepartmentUserWorkspaceSummaryFromWorkspaceRecord)({
+        items: [
+            {
+                categoryId: "cat-it",
+                complianceFlags: ["agpo", "pwd"],
+                description: "Portable computers",
+                id: "item-laptop",
+                isActive: true,
+                maxQuantity: 2,
+                minQuantity: null,
+                name: "Laptops",
+                procurementMethod: "RFQ",
+                sourceOfFunds: "GOK",
+                unitOfMeasurement: "each",
+                unitPrice: 65_000,
+            },
+        ],
+        refreshCatalogMetadata: true,
+        totalBudget: 500_000,
+        workspaceState: (0, blockly_serialization_1.createBlocklyWorkspaceRecord)({
+            workspaceJson: {
+                blocks: {
+                    blocks: [
+                        {
+                            type: "department_block",
+                            inputs: {
+                                CATEGORIES: {
+                                    block: {
+                                        type: "category_block",
+                                        fields: {
+                                            CATEGORY_ID: "cat-it",
+                                            CATEGORY_NAME: "ICT Equipment",
+                                        },
+                                        inputs: {
+                                            ITEMS: {
+                                                block: {
+                                                    type: "item_block",
+                                                    fields: {
+                                                        COMPLIANCE_FLAGS: "agpo,pwd",
+                                                        ITEM_DESC: "Laptops",
+                                                        ITEM_DESCRIPTION: "Portable computers",
+                                                        ITEM_ID: "item-laptop",
+                                                        ITEM_IS_ACTIVE: "true",
+                                                        MAX_QUANTITY: "2",
+                                                        MIN_QUANTITY: "",
+                                                        Q1_QTY: "9",
+                                                        Q2_QTY: "0",
+                                                        Q3_QTY: "0",
+                                                        Q4_QTY: "0",
+                                                        UNIT_OF_MEASUREMENT: "each",
+                                                        UNIT_PRICE: 65_000,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                    languageVersion: 0,
+                },
+            },
+        }),
+    });
+    strict_1.default.ok(invalidSerializedWorkspaceSummary);
+    strict_1.default.equal(invalidSerializedWorkspaceSummary.departmentTotal, 130_000);
+    strict_1.default.equal(invalidSerializedWorkspaceSummary.validationState.issues.some((issue) => issue.code === "maximum_quantity" &&
+        issue.message === "Maximum quantity is 2"), true);
+    strict_1.default.deepEqual(invalidSerializedWorkspaceSummary.validationState.submitBlockedReasons, []);
+    completedTests.push("serialized workspace revalidation now keeps normalization feedback visible after stale quantities are clamped during hydration");
     const draftSaveInput = (0, workspace_save_1.buildDepartmentUserWorkspaceDraftSaveInput)({
         categories: [{ id: "cat-it", name: "ICT Equipment" }],
         planId: "plan-123",
@@ -800,6 +920,7 @@ async function runDepartmentUserBlocklyWorkspaceTests() {
     });
     strict_1.default.equal(persistedPlanFallback.budgetState.usedAmount, 200_000);
     strict_1.default.equal(persistedPlanFallback.complianceState.metrics[0]?.status, "unavailable");
+    strict_1.default.equal(persistedPlanFallback.validationState.validationUnavailableReason, "Item-level validation details are unavailable for this saved summary until Blockly workspace data is reloaded.");
     strict_1.default.equal((0, du_workspace_calculations_1.resolveDepartmentUserDisplayedWorkspaceSummary)({
         persistedPlanSummary: {
             categorySummaries: [
@@ -979,7 +1100,9 @@ async function runDepartmentUserBlocklyWorkspaceTests() {
     completedTests.push("the shared Convex draft-save path now patches recomputed totals and rebuilt category ids instead of trusting stale client payloads");
     const safeAnnouncement = (0, du_workspace_calculations_1.getDepartmentUserWorkspaceAnnouncement)(workspaceSummary);
     const overBudgetAnnouncement = (0, du_workspace_calculations_1.getDepartmentUserWorkspaceAnnouncement)(derivedPersistenceSummary.workspaceSummary);
+    const unavailableValidationAnnouncement = (0, du_workspace_calculations_1.getDepartmentUserWorkspaceAnnouncement)(persistedPlanFallback);
     strict_1.default.notEqual(safeAnnouncement.key, overBudgetAnnouncement.key);
+    strict_1.default.match(unavailableValidationAnnouncement.message, /Item-level validation details are unavailable/i);
     strict_1.default.equal((0, du_workspace_calculations_1.getDepartmentUserReservedSubmitState)({
         budgetState: overBudget,
         mode: "edit",

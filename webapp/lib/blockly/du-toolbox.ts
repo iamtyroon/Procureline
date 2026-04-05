@@ -17,11 +17,14 @@ export interface DepartmentUserWorkspaceCategoryRecord {
 }
 
 export interface DepartmentUserWorkspaceItemRecord {
+    complianceFlags?: readonly string[] | null;
     categoryId: string;
     description: string | null;
     id: string;
     isActive: boolean;
     lastPriceChangedAt?: number | null;
+    maxQuantity?: number | null;
+    minQuantity?: number | null;
     name: string;
     procurementMethod: string | null;
     sortOrder: number;
@@ -328,9 +331,19 @@ export function buildDepartmentUserToolbox(args: {
             ...visibleCategoryItems.map((item) =>
                 createToolboxBlock({
                     fields: {
+                        COMPLIANCE_FLAGS: (item.complianceFlags ?? []).join(","),
+                        ITEM_IS_ACTIVE: item.isActive ? "true" : "false",
                         ITEM_DESC: item.name,
                         ITEM_DESCRIPTION: item.description ?? item.name,
                         ITEM_ID: item.id,
+                        MAX_QUANTITY:
+                            item.maxQuantity === null || item.maxQuantity === undefined
+                                ? ""
+                                : String(item.maxQuantity),
+                        MIN_QUANTITY:
+                            item.minQuantity === null || item.minQuantity === undefined
+                                ? ""
+                                : String(item.minQuantity),
                         PROC_METHOD: item.procurementMethod ?? "Not set",
                         SOURCE_OF_FUNDS: item.sourceOfFunds ?? "Not set",
                         UNIT_OF_MEASUREMENT: item.unitOfMeasurement ?? "Not set",

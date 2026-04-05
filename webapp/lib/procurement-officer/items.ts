@@ -45,6 +45,18 @@ export const PROCUREMENT_ITEM_IMPORT_GENERIC_ERROR_MESSAGE =
     "We could not import the item workbook right now. Please try again.";
 export const PROCUREMENT_ITEM_PRICE_CHANGE_NOTICE =
     "Catalog pricing changed while this workspace was open.";
+export const PROCUREMENT_ITEM_VALIDATION_CHANGE_NOTICE =
+    "Catalog validation rules changed while this workspace was open.";
+export const PROCUREMENT_ITEM_WORKSPACE_DUPLICATE_MESSAGE =
+    "Item already in this category";
+export const PROCUREMENT_ITEM_WORKSPACE_UNAVAILABLE_MESSAGE =
+    "This item is no longer available in the live catalog.";
+export const PROCUREMENT_ITEM_WORKSPACE_QUANTITY_NEGATIVE_MESSAGE =
+    "Quantity cannot be negative";
+export const PROCUREMENT_ITEM_WORKSPACE_QUANTITY_INVALID_MESSAGE =
+    "Quantity must be a valid number";
+export const PROCUREMENT_ITEM_WORKSPACE_INTEGER_ONLY_MESSAGE =
+    "Whole numbers only for this unit";
 export const ITEM_DRAFT_STORAGE_KEY = "procureline:po:item-draft";
 
 export const PROCUREMENT_ITEM_UNITS = [
@@ -249,6 +261,25 @@ export function normalizeProcurementItemUnitOption(
     return (
         PROCUREMENT_ITEM_UNITS.find((unit) => unit === normalized) ?? undefined
     );
+}
+
+export function procurementItemUnitAllowsDecimal(
+    input: string | null | undefined,
+): boolean {
+    const normalizedUnit = normalizeProcurementItemUnitOption(input);
+    return normalizedUnit === "kg" || normalizedUnit === "liter";
+}
+
+function formatProcurementItemQuantityNumber(limit: number): string {
+    return Number.isInteger(limit) ? String(limit) : String(limit);
+}
+
+export function formatProcurementItemMaximumQuantityMessage(limit: number): string {
+    return `Maximum quantity is ${formatProcurementItemQuantityNumber(limit)}`;
+}
+
+export function formatProcurementItemMinimumQuantityMessage(limit: number): string {
+    return `Minimum catalog quantity is ${formatProcurementItemQuantityNumber(limit)}`;
 }
 
 export function normalizeProcurementMethod(

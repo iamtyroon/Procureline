@@ -26,6 +26,9 @@ export interface DepartmentUserCatalogItem {
     complianceFlags?: readonly string[] | null;
     description?: string | null;
     id: string;
+    isActive?: boolean;
+    maxQuantity?: number | null;
+    minQuantity?: number | null;
     procurementMethod?: string | null;
     sourceOfFunds?: string | null;
     unitOfMeasurement?: string | null;
@@ -69,6 +72,13 @@ function getFiniteNumber(value: string | number | null | undefined): number | nu
     }
 
     return null;
+}
+
+function serializeOptionalNumericField(
+    value: string | number | null | undefined,
+): string {
+    const finiteValue = getFiniteNumber(value);
+    return finiteValue === null ? "" : String(finiteValue);
 }
 
 function getSerializedFieldValue(
@@ -428,6 +438,33 @@ export function synchronizeDepartmentUserWorkspaceCatalogIdentity(args: {
                 itemBlock.setFieldValue(
                     resolvedItem.unitOfMeasurement ?? "Not set",
                     "UNIT_OF_MEASUREMENT",
+                );
+            }
+            if (
+                itemBlock.getFieldValue("ITEM_IS_ACTIVE") !==
+                String(resolvedItem?.isActive ?? false)
+            ) {
+                itemBlock.setFieldValue(
+                    String(resolvedItem?.isActive ?? false),
+                    "ITEM_IS_ACTIVE",
+                );
+            }
+            if (
+                itemBlock.getFieldValue("MAX_QUANTITY") !==
+                serializeOptionalNumericField(resolvedItem?.maxQuantity ?? null)
+            ) {
+                itemBlock.setFieldValue(
+                    serializeOptionalNumericField(resolvedItem?.maxQuantity ?? null),
+                    "MAX_QUANTITY",
+                );
+            }
+            if (
+                itemBlock.getFieldValue("MIN_QUANTITY") !==
+                serializeOptionalNumericField(resolvedItem?.minQuantity ?? null)
+            ) {
+                itemBlock.setFieldValue(
+                    serializeOptionalNumericField(resolvedItem?.minQuantity ?? null),
+                    "MIN_QUANTITY",
                 );
             }
             if (

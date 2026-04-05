@@ -1,3 +1,8 @@
+import {
+    getDepartmentUserQuantityFieldPrecision,
+    normalizeDepartmentUserQuantityValue,
+} from "./workspace-validation";
+
 type BlocklyModule = typeof import("blockly");
 type BlocklyAny = BlocklyModule & {
     Blocks: Record<string, any>;
@@ -9,6 +14,56 @@ const DOWN_ARROW_ICON =
     "data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='%23374151' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
 
 let blocksRegistered = false;
+
+function createQuarterQuantityField(
+    Blockly: BlocklyAny,
+    fieldName: "Q1_QTY" | "Q2_QTY" | "Q3_QTY" | "Q4_QTY",
+): any {
+    const field = new Blockly.FieldNumber(0, 0, undefined, 0.01);
+    field.setValidator(function quantityValidator(this: {
+        getSourceBlock?: () => {
+            getFieldValue(name: string): string;
+            __duQuantityFeedback?: Partial<Record<string, string>>;
+        } | null;
+    }, newValue: string | number | null | undefined) {
+        const sourceBlock = this.getSourceBlock?.() ?? null;
+        const normalizedValue = normalizeDepartmentUserQuantityValue({
+            maxQuantity:
+                sourceBlock?.getFieldValue("MAX_QUANTITY").trim().length
+                    ? Number(sourceBlock.getFieldValue("MAX_QUANTITY"))
+                    : null,
+            unitOfMeasurement: sourceBlock?.getFieldValue("UNIT_OF_MEASUREMENT"),
+            value: newValue,
+        });
+        const nextQuantityFeedback = {
+            ...(sourceBlock?.__duQuantityFeedback ?? {}),
+        };
+
+        if (normalizedValue.message) {
+            nextQuantityFeedback[fieldName] = normalizedValue.message;
+        } else {
+            delete nextQuantityFeedback[fieldName];
+        }
+
+        if (sourceBlock) {
+            if (Object.keys(nextQuantityFeedback).length > 0) {
+                sourceBlock.__duQuantityFeedback = nextQuantityFeedback;
+            } else {
+                delete sourceBlock.__duQuantityFeedback;
+            }
+        }
+
+        return String(
+            getDepartmentUserQuantityFieldPrecision(
+                sourceBlock?.getFieldValue("UNIT_OF_MEASUREMENT"),
+            ) === 1
+                ? Math.trunc(normalizedValue.normalizedValue)
+                : normalizedValue.normalizedValue,
+        );
+    });
+
+    return field;
+}
 
 function updateDepartmentVisualState(block: any): void {
     if (!block.svgGroup_) {
@@ -185,6 +240,27 @@ export function registerDepartmentUserBlocklyBlocks(BlocklyBase: BlocklyModule):
                 )
                 .setVisible(false);
 
+            this.appendDummyInput("ITEM_ACTIVE_INPUT")
+                .appendField(
+                    new Blockly.FieldLabelSerializable("true"),
+                    "ITEM_IS_ACTIVE",
+                )
+                .setVisible(false);
+
+            this.appendDummyInput("MAX_QUANTITY_INPUT")
+                .appendField(
+                    new Blockly.FieldLabelSerializable(""),
+                    "MAX_QUANTITY",
+                )
+                .setVisible(false);
+
+            this.appendDummyInput("MIN_QUANTITY_INPUT")
+                .appendField(
+                    new Blockly.FieldLabelSerializable(""),
+                    "MIN_QUANTITY",
+                )
+                .setVisible(false);
+
             this.appendDummyInput("HEADER")
                 .appendField(
                     new Blockly.FieldImage(
@@ -238,13 +314,13 @@ export function registerDepartmentUserBlocklyBlocks(BlocklyBase: BlocklyModule):
 
             this.appendDummyInput("QUANTITIES")
                 .appendField("Q1")
-                .appendField(new Blockly.FieldNumber(0, 0), "Q1_QTY")
+                .appendField(createQuarterQuantityField(Blockly, "Q1_QTY"), "Q1_QTY")
                 .appendField("Q2")
-                .appendField(new Blockly.FieldNumber(0, 0), "Q2_QTY")
+                .appendField(createQuarterQuantityField(Blockly, "Q2_QTY"), "Q2_QTY")
                 .appendField("Q3")
-                .appendField(new Blockly.FieldNumber(0, 0), "Q3_QTY")
+                .appendField(createQuarterQuantityField(Blockly, "Q3_QTY"), "Q3_QTY")
                 .appendField("Q4")
-                .appendField(new Blockly.FieldNumber(0, 0), "Q4_QTY");
+                .appendField(createQuarterQuantityField(Blockly, "Q4_QTY"), "Q4_QTY");
 
             this.appendDummyInput("TOTALS")
                 .appendField("Qty:")

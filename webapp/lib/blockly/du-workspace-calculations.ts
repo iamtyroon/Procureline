@@ -9,6 +9,13 @@ import {
     serializeProcurementComplianceFlags,
     type ProcurementComplianceSnapshot,
 } from "../procurement/compliance";
+import {
+    evaluateDepartmentUserWorkspaceValidation,
+    normalizeDepartmentUserQuantityValue,
+    summarizeDepartmentUserBlockValidationIssues,
+    type DepartmentUserWorkspaceValidationState,
+    type DepartmentUserWorkspaceValidationQuarterTotals,
+} from "./workspace-validation";
 
 export const DU_BUDGET_WARNING_THRESHOLD_PERCENT = 80;
 
@@ -20,10 +27,20 @@ export interface DepartmentUserQuarterTotals {
 }
 
 export interface DepartmentUserWorkspaceItem {
+    blockId?: string | null;
     complianceFlags?: readonly string[] | null;
+    isActive?: boolean;
     itemDescription: string;
     itemId?: string | null;
+    itemName?: string;
+    maxQuantity?: number | null;
+    minQuantity?: number | null;
     quantities: DepartmentUserQuarterTotals;
+    rawQuantities?: DepartmentUserWorkspaceValidationQuarterTotals | null;
+    transientQuantityFeedback?: Partial<
+        Record<keyof DepartmentUserWorkspaceValidationQuarterTotals, string | null>
+    > | null;
+    unitOfMeasurement?: string | null;
     unitPrice: number;
 }
 
@@ -34,12 +51,18 @@ export interface DepartmentUserWorkspaceCategory {
 }
 
 export interface DepartmentUserItemRollup {
+    blockId?: string | null;
     complianceFlags: string[];
+    isActive: boolean;
     itemDescription: string;
     itemId: string | null;
+    itemName: string;
+    maxQuantity: number | null;
+    minQuantity: number | null;
     quarterTotals: DepartmentUserQuarterTotals;
     totalCost: number;
     totalQuantity: number;
+    unitOfMeasurement: string | null;
     unitPrice: number;
 }
 
@@ -78,6 +101,7 @@ export interface DepartmentUserWorkspaceSummary
     extends DepartmentUserDepartmentRollup {
     budgetState: DepartmentUserBudgetMeterState;
     complianceState: ProcurementComplianceSnapshot;
+    validationState: DepartmentUserWorkspaceValidationState;
 }
 
 export interface DepartmentUserWorkspaceAnnouncement {
@@ -114,6 +138,8 @@ export interface BlocklyInputLike {
 }
 
 export interface BlocklyWritableBlockLike {
+    __duQuantityFeedback?: Partial<Record<string, string>>;
+    id?: string;
     getFieldValue(name: string): string;
     getInput(name: string): BlocklyInputLike | null;
     getNextBlock(): BlocklyWritableBlockLike | null;
@@ -179,6 +205,36 @@ export function sanitizeNonNegativeNumber(
     return 0;
 }
 
+function parseOptionalFiniteNumber(
+    value: number | null | string | undefined,
+): number | null {
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+    }
+
+    if (typeof value === "string" && value.trim().length > 0) {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) {
+            return parsed;
+        }
+    }
+
+    return null;
+}
+
+function parseSerializedBoolean(value: string | null | undefined): boolean {
+    return value?.trim().toLowerCase() !== "false";
+}
+
+function normalizeWorkspaceText(value: string | null | undefined): string | null {
+    const normalizedValue = value?.trim() ?? "";
+    if (normalizedValue.length === 0 || normalizedValue === "Not set") {
+        return null;
+    }
+
+    return normalizedValue;
+}
+
 export function calculateDepartmentUserItemRollup(
     item: DepartmentUserWorkspaceItem,
 ): DepartmentUserItemRollup {
@@ -206,14 +262,20 @@ export function calculateDepartmentUserItemRollup(
     );
 
     return {
+        blockId: item.blockId ?? null,
         complianceFlags: serializeProcurementComplianceFlags(
             item.complianceFlags,
         ).split(",").filter(Boolean),
+        isActive: item.isActive ?? true,
         itemDescription: item.itemDescription,
         itemId: item.itemId?.trim() ? item.itemId : null,
+        itemName: item.itemName ?? item.itemDescription,
+        maxQuantity: parseOptionalFiniteNumber(item.maxQuantity ?? null),
+        minQuantity: parseOptionalFiniteNumber(item.minQuantity ?? null),
         quarterTotals,
         totalCost,
         totalQuantity,
+        unitOfMeasurement: normalizeWorkspaceText(item.unitOfMeasurement ?? null),
         unitPrice,
     };
 }
@@ -266,13 +328,43 @@ export function calculateDepartmentUserWorkspaceSummary(args: {
     totalBudget: number | null | undefined;
 }): DepartmentUserWorkspaceSummary {
     const rollup = calculateDepartmentUserDepartmentRollup(args.categories);
+    const budgetState = mapDepartmentUserBudgetMeterState({
+        totalBudget: args.totalBudget,
+        usedAmount: rollup.departmentTotal,
+    });
+    const validationState = evaluateDepartmentUserWorkspaceValidation({
+        budgetState: budgetState.canSubmitByBudget
+            ? null
+            : {
+                  canSubmitByBudget: false,
+                  reason:
+                      budgetState.bannerText ??
+                      "Budget allocation is unavailable, so submission must remain blocked.",
+              },
+        categories: args.categories.map((category) => ({
+            categoryId: category.categoryId,
+            categoryName: category.categoryName,
+            items: category.items.map((item) => ({
+                blockId: item.blockId ?? null,
+                categoryId: category.categoryId,
+                isActive: item.isActive ?? true,
+                itemDescription: item.itemDescription,
+                itemId: item.itemId ?? null,
+                itemName: item.itemName ?? item.itemDescription,
+                maxQuantity: item.maxQuantity ?? null,
+                minQuantity: item.minQuantity ?? null,
+                quantities: item.quantities,
+                rawQuantities: item.rawQuantities ?? null,
+                transientQuantityFeedback: item.transientQuantityFeedback ?? null,
+                unitOfMeasurement: item.unitOfMeasurement ?? null,
+            })),
+        })),
+        validationUnavailableReason: null,
+    });
 
     return {
         ...rollup,
-        budgetState: mapDepartmentUserBudgetMeterState({
-            totalBudget: args.totalBudget,
-            usedAmount: rollup.departmentTotal,
-        }),
+        budgetState,
         complianceState: calculateProcurementComplianceSnapshot({
             items: rollup.categories.flatMap((category) =>
                 category.items.map((item) => ({
@@ -282,6 +374,7 @@ export function calculateDepartmentUserWorkspaceSummary(args: {
             ),
             totalEligibleSpend: rollup.departmentTotal,
         }),
+        validationState,
     };
 }
 
@@ -408,12 +501,13 @@ export function buildDepartmentUserWorkspaceSummaryFromPersistedPlan(args: {
     const departmentTotal = roundCurrency(
         sanitizeNonNegativeNumber(args.persistedPlanSummary.estimatedBudgetUsed),
     );
+    const budgetState = mapDepartmentUserBudgetMeterState({
+        totalBudget: args.totalBudget,
+        usedAmount: departmentTotal,
+    });
 
     return {
-        budgetState: mapDepartmentUserBudgetMeterState({
-            totalBudget: args.totalBudget,
-            usedAmount: departmentTotal,
-        }),
+        budgetState,
         categories,
         complianceState:
             departmentTotal > 0
@@ -432,6 +526,22 @@ export function buildDepartmentUserWorkspaceSummaryFromPersistedPlan(args: {
                 sanitizeNonNegativeNumber(args.persistedPlanSummary.itemCount),
             ),
         ),
+        validationState: evaluateDepartmentUserWorkspaceValidation({
+            budgetState: budgetState.canSubmitByBudget
+                ? null
+                : {
+                      canSubmitByBudget: false,
+                      reason:
+                          budgetState.bannerText ??
+                          "Budget allocation is unavailable, so submission must remain blocked.",
+                  },
+            categories: [],
+            validationUnavailableReason:
+                args.persistedPlanSummary.itemCount > 0 ||
+                args.persistedPlanSummary.categorySummaries.length > 0
+                    ? "Item-level validation details are unavailable for this saved summary until Blockly workspace data is reloaded."
+                    : null,
+        }),
     };
 }
 
@@ -593,16 +703,6 @@ export function applyDepartmentWorkspaceRollup(args: {
     writeRollupBackToWorkspace(args.departmentBlock, summary, args.totalBudget);
     updateDepartmentBudgetVisualState(args.departmentBlock, summary.budgetState);
 
-    if (args.departmentBlock.setWarningText) {
-        args.departmentBlock.setWarningText(
-            summary.budgetState.state === "over_budget"
-                ? summary.budgetState.bannerText
-                : summary.budgetState.state === "unallocated"
-                  ? "Budget allocation unavailable."
-                  : null,
-        );
-    }
-
     return summary;
 }
 
@@ -624,9 +724,13 @@ export function getDepartmentUserWorkspaceAnnouncement(
         .map((metric) => metric.label);
 
     return {
-        key: `${summary.budgetState.state}|${complianceStateKey}`,
+        key: `${summary.budgetState.state}|${complianceStateKey}|${summary.validationState.submitBlockedReasons.join("|")}|${summary.validationState.validationUnavailableReason ?? ""}`,
         message:
-            unmetMetrics.length > 0
+            summary.validationState.validationUnavailableReason
+                ? `${summary.budgetState.announcementText} ${summary.validationState.validationUnavailableReason}`
+                : summary.validationState.submitBlockedReasons.length > 0
+                ? `${summary.budgetState.announcementText} Validation issues to review: ${summary.validationState.submitBlockedReasons.join(", ")}.`
+                : unmetMetrics.length > 0
                 ? `${summary.budgetState.announcementText} Compliance targets to review: ${unmetMetrics.join(", ")}.`
                 : summary.budgetState.announcementText,
     };
@@ -635,6 +739,7 @@ export function getDepartmentUserWorkspaceAnnouncement(
 export function getDepartmentUserReservedSubmitState(args: {
     budgetState: DepartmentUserBudgetMeterState;
     mode: "edit" | "view";
+    validationState?: DepartmentUserWorkspaceValidationState | null;
 }): DepartmentUserReservedSubmitState {
     if (args.mode === "view") {
         return {
@@ -664,12 +769,90 @@ export function getDepartmentUserReservedSubmitState(args: {
         };
     }
 
+    if ((args.validationState?.submitBlockedReasons.length ?? 0) > 0) {
+        return {
+            disabled: true,
+            label: "Fix Validation Issues",
+            reason: args.validationState?.submitBlockedReasons.join(" ") ??
+                "Resolve the flagged workspace validation issues before submission can unlock.",
+        };
+    }
+
     return {
         disabled: true,
         label: "Submit Reserved",
         reason:
             "Submission stays reserved until Story 6.1 completes the plan-submission flow.",
     };
+}
+
+const QUARTER_FIELD_KEY_MAP = [
+    ["Q1_QTY", "q1"],
+    ["Q2_QTY", "q2"],
+    ["Q3_QTY", "q3"],
+    ["Q4_QTY", "q4"],
+] as const;
+
+function formatQuantityFieldValue(args: {
+    unitOfMeasurement?: string | null;
+    value: number;
+}): string {
+    const normalizedValue = normalizeDepartmentUserQuantityValue({
+        unitOfMeasurement: args.unitOfMeasurement ?? null,
+        value: args.value,
+    }).normalizedValue;
+
+    if (Number.isInteger(normalizedValue)) {
+        return String(normalizedValue);
+    }
+
+    return normalizedValue.toFixed(2).replace(/\.?0+$/, "");
+}
+
+function readBlockQuantityFeedback(
+    block: BlocklyWritableBlockLike,
+): Partial<Record<keyof DepartmentUserWorkspaceValidationQuarterTotals, string | null>> | null {
+    const quantityFeedback = block.__duQuantityFeedback;
+    if (!quantityFeedback) {
+        return null;
+    }
+
+    const nextFeedback = QUARTER_FIELD_KEY_MAP.reduce<
+        Partial<Record<keyof DepartmentUserWorkspaceValidationQuarterTotals, string | null>>
+    >((feedback, [fieldName, quantityKey]) => {
+        const message = quantityFeedback[fieldName];
+        if (typeof message === "string" && message.trim().length > 0) {
+            feedback[quantityKey] = message;
+        }
+        return feedback;
+    }, {});
+
+    delete block.__duQuantityFeedback;
+    return Object.keys(nextFeedback).length > 0 ? nextFeedback : null;
+}
+
+function synchronizeLiveQuarterQuantityFields(
+    block: BlocklyWritableBlockLike,
+): void {
+    const unitOfMeasurement = normalizeWorkspaceText(
+        block.getFieldValue("UNIT_OF_MEASUREMENT"),
+    );
+    const maxQuantity = parseOptionalFiniteNumber(block.getFieldValue("MAX_QUANTITY"));
+
+    for (const [fieldName] of QUARTER_FIELD_KEY_MAP) {
+        const normalizedQuantity = normalizeDepartmentUserQuantityValue({
+            maxQuantity,
+            unitOfMeasurement,
+            value: block.getFieldValue(fieldName),
+        });
+        const nextFieldValue = formatQuantityFieldValue({
+            unitOfMeasurement,
+            value: normalizedQuantity.normalizedValue,
+        });
+        if (block.getFieldValue(fieldName) !== nextFieldValue) {
+            block.setFieldValue(nextFieldValue, fieldName);
+        }
+    }
 }
 
 function readCategoriesFromDepartmentBlock(
@@ -689,10 +872,12 @@ function readCategoriesFromDepartmentBlock(
         let itemBlock = categoryBlock.getInput("ITEMS")?.connection?.targetBlock() ?? null;
 
         while (itemBlock && itemBlock.type === "item_block") {
+            const nextItem = readQuarterlyItemFromBlock(itemBlock);
+            synchronizeLiveQuarterQuantityFields(itemBlock);
             categoryItems.push(
                 hydrateWorkspaceItem({
                     categoryId,
-                    item: readQuarterlyItemFromBlock(itemBlock),
+                    item: nextItem,
                     items,
                 }),
             );
@@ -713,16 +898,54 @@ function readCategoriesFromDepartmentBlock(
 function readQuarterlyItemFromBlock(
     block: BlocklyWritableBlockLike,
 ): DepartmentUserWorkspaceItem {
+    const unitOfMeasurement = normalizeWorkspaceText(
+        block.getFieldValue("UNIT_OF_MEASUREMENT"),
+    );
+    const maxQuantity = parseOptionalFiniteNumber(block.getFieldValue("MAX_QUANTITY"));
+    const rawQuantities: DepartmentUserWorkspaceValidationQuarterTotals = {
+        q1: block.getFieldValue("Q1_QTY"),
+        q2: block.getFieldValue("Q2_QTY"),
+        q3: block.getFieldValue("Q3_QTY"),
+        q4: block.getFieldValue("Q4_QTY"),
+    };
+
     return {
+        blockId: block.id ?? null,
         complianceFlags: block.getFieldValue("COMPLIANCE_FLAGS").split(","),
-        itemDescription: block.getFieldValue("ITEM_DESC") || "Untitled item",
+        isActive: parseSerializedBoolean(block.getFieldValue("ITEM_IS_ACTIVE")),
+        itemDescription:
+            block.getFieldValue("ITEM_DESCRIPTION") ||
+            block.getFieldValue("ITEM_DESC") ||
+            "Untitled item",
         itemId: block.getFieldValue("ITEM_ID") || null,
+        itemName: block.getFieldValue("ITEM_DESC") || "Untitled item",
+        maxQuantity,
+        minQuantity: parseOptionalFiniteNumber(block.getFieldValue("MIN_QUANTITY")),
+        rawQuantities,
         quantities: {
-            q1: sanitizeNonNegativeNumber(block.getFieldValue("Q1_QTY")),
-            q2: sanitizeNonNegativeNumber(block.getFieldValue("Q2_QTY")),
-            q3: sanitizeNonNegativeNumber(block.getFieldValue("Q3_QTY")),
-            q4: sanitizeNonNegativeNumber(block.getFieldValue("Q4_QTY")),
+            q1: normalizeDepartmentUserQuantityValue({
+                maxQuantity,
+                unitOfMeasurement,
+                value: rawQuantities.q1,
+            }).normalizedValue,
+            q2: normalizeDepartmentUserQuantityValue({
+                maxQuantity,
+                unitOfMeasurement,
+                value: rawQuantities.q2,
+            }).normalizedValue,
+            q3: normalizeDepartmentUserQuantityValue({
+                maxQuantity,
+                unitOfMeasurement,
+                value: rawQuantities.q3,
+            }).normalizedValue,
+            q4: normalizeDepartmentUserQuantityValue({
+                maxQuantity,
+                unitOfMeasurement,
+                value: rawQuantities.q4,
+            }).normalizedValue,
         },
+        transientQuantityFeedback: readBlockQuantityFeedback(block),
+        unitOfMeasurement,
         unitPrice: sanitizeNonNegativeNumber(block.getFieldValue("UNIT_PRICE")),
     };
 }
@@ -771,17 +994,57 @@ function readCategoriesFromSerializedDepartmentBlock(args: {
 function readQuarterlyItemFromSerializedBlock(
     block: SerializedBlocklyBlock,
 ): DepartmentUserWorkspaceItem {
+    const unitOfMeasurement = normalizeWorkspaceText(
+        getSerializedFieldValue(block, "UNIT_OF_MEASUREMENT"),
+    );
+    const maxQuantity = parseOptionalFiniteNumber(
+        getSerializedFieldValue(block, "MAX_QUANTITY"),
+    );
+    const rawQuantities: DepartmentUserWorkspaceValidationQuarterTotals = {
+        q1: getSerializedFieldValue(block, "Q1_QTY"),
+        q2: getSerializedFieldValue(block, "Q2_QTY"),
+        q3: getSerializedFieldValue(block, "Q3_QTY"),
+        q4: getSerializedFieldValue(block, "Q4_QTY"),
+    };
+
     return {
+        blockId: null,
         complianceFlags: getSerializedFieldValue(block, "COMPLIANCE_FLAGS").split(","),
+        isActive: parseSerializedBoolean(getSerializedFieldValue(block, "ITEM_IS_ACTIVE")),
         itemDescription:
-            getSerializedFieldValue(block, "ITEM_DESC") || "Untitled item",
+            getSerializedFieldValue(block, "ITEM_DESCRIPTION") ||
+            getSerializedFieldValue(block, "ITEM_DESC") ||
+            "Untitled item",
         itemId: getSerializedFieldValue(block, "ITEM_ID") || null,
+        itemName: getSerializedFieldValue(block, "ITEM_DESC") || "Untitled item",
+        maxQuantity,
+        minQuantity: parseOptionalFiniteNumber(
+            getSerializedFieldValue(block, "MIN_QUANTITY"),
+        ),
+        rawQuantities,
         quantities: {
-            q1: sanitizeNonNegativeNumber(getSerializedFieldValue(block, "Q1_QTY")),
-            q2: sanitizeNonNegativeNumber(getSerializedFieldValue(block, "Q2_QTY")),
-            q3: sanitizeNonNegativeNumber(getSerializedFieldValue(block, "Q3_QTY")),
-            q4: sanitizeNonNegativeNumber(getSerializedFieldValue(block, "Q4_QTY")),
+            q1: normalizeDepartmentUserQuantityValue({
+                maxQuantity,
+                unitOfMeasurement,
+                value: rawQuantities.q1,
+            }).normalizedValue,
+            q2: normalizeDepartmentUserQuantityValue({
+                maxQuantity,
+                unitOfMeasurement,
+                value: rawQuantities.q2,
+            }).normalizedValue,
+            q3: normalizeDepartmentUserQuantityValue({
+                maxQuantity,
+                unitOfMeasurement,
+                value: rawQuantities.q3,
+            }).normalizedValue,
+            q4: normalizeDepartmentUserQuantityValue({
+                maxQuantity,
+                unitOfMeasurement,
+                value: rawQuantities.q4,
+            }).normalizedValue,
         },
+        unitOfMeasurement,
         unitPrice: sanitizeNonNegativeNumber(
             getSerializedFieldValue(block, "UNIT_PRICE"),
         ),
@@ -798,7 +1061,7 @@ function hydrateWorkspaceItem(args: {
         categoryId: args.categoryId,
         itemDescription: args.item.itemDescription,
         itemId: args.item.itemId ?? null,
-        itemName: args.item.itemDescription,
+        itemName: args.item.itemName ?? args.item.itemDescription,
         items: [...args.items],
         unitPrice: args.item.unitPrice,
     });
@@ -807,19 +1070,51 @@ function hydrateWorkspaceItem(args: {
         : resolvedItem?.name ?? "Untitled item";
     const preservedUnitPrice = sanitizeNonNegativeNumber(args.item.unitPrice);
     const shouldRefreshCatalogMetadata = args.refreshCatalogMetadata ?? true;
+    const preservedUnitOfMeasurement = normalizeWorkspaceText(
+        args.item.unitOfMeasurement ?? null,
+    );
+    const preservedMaxQuantity = parseOptionalFiniteNumber(args.item.maxQuantity ?? null);
+    const preservedMinQuantity = parseOptionalFiniteNumber(args.item.minQuantity ?? null);
+    const hasKnownCatalogIdentity =
+        (args.item.itemId?.trim().length ?? 0) > 0 ||
+        (args.item.itemName?.trim().length ?? 0) > 0;
 
     return {
+        blockId: args.item.blockId ?? null,
         complianceFlags:
             shouldRefreshCatalogMetadata
                 ? resolvedItem?.complianceFlags ?? args.item.complianceFlags ?? []
                 : args.item.complianceFlags?.length
                   ? args.item.complianceFlags
                   : resolvedItem?.complianceFlags ?? [],
+        isActive: shouldRefreshCatalogMetadata
+            ? resolvedItem?.isActive ?? (hasKnownCatalogIdentity ? false : args.item.isActive)
+            : args.item.isActive,
         itemDescription: shouldRefreshCatalogMetadata
-            ? resolvedItem?.name ?? preservedItemDescription
+            ? resolvedItem?.description ?? resolvedItem?.name ?? preservedItemDescription
             : preservedItemDescription,
         itemId: resolvedItem?.id ?? args.item.itemId ?? null,
+        itemName: shouldRefreshCatalogMetadata
+            ? resolvedItem?.name ?? args.item.itemName ?? preservedItemDescription
+            : args.item.itemName ?? preservedItemDescription,
+        maxQuantity: shouldRefreshCatalogMetadata
+            ? parseOptionalFiniteNumber(
+                  resolvedItem?.maxQuantity ?? args.item.maxQuantity ?? null,
+              )
+            : preservedMaxQuantity,
+        minQuantity: shouldRefreshCatalogMetadata
+            ? parseOptionalFiniteNumber(
+                  resolvedItem?.minQuantity ?? args.item.minQuantity ?? null,
+              )
+            : preservedMinQuantity,
         quantities: args.item.quantities,
+        rawQuantities: args.item.rawQuantities ?? null,
+        transientQuantityFeedback: args.item.transientQuantityFeedback ?? null,
+        unitOfMeasurement: shouldRefreshCatalogMetadata
+            ? normalizeWorkspaceText(
+                  resolvedItem?.unitOfMeasurement ?? args.item.unitOfMeasurement ?? null,
+              )
+            : preservedUnitOfMeasurement,
         unitPrice: shouldRefreshCatalogMetadata
             ? sanitizeNonNegativeNumber(
                   resolvedItem?.unitPrice ?? args.item.unitPrice,
@@ -886,6 +1181,13 @@ function writeRollupBackToWorkspace(
                 serializeProcurementComplianceFlags(itemRollup.complianceFlags),
                 "COMPLIANCE_FLAGS",
             );
+            writableItem.setWarningText?.(
+                summarizeDepartmentUserBlockValidationIssues(
+                    summary.validationState.itemIssuesByBlockId[
+                        writableItem.id ?? ""
+                    ] ?? [],
+                ),
+            );
             writableItem = writableItem.getNextBlock();
         }
 
@@ -897,6 +1199,15 @@ function writeRollupBackToWorkspace(
         "BUDGET",
     );
     departmentBlock.setFieldValue(summary.departmentTotal.toFixed(2), "DEPT_TOTAL");
+    departmentBlock.setWarningText?.(
+        summary.budgetState.state === "over_budget"
+            ? summary.budgetState.bannerText
+            : summary.budgetState.state === "unallocated"
+              ? "Budget allocation unavailable."
+              : summary.validationState.submitBlockedReasons[0] ??
+                    summary.validationState.validationUnavailableReason ??
+                    null,
+    );
 }
 
 function updateDepartmentBudgetVisualState(

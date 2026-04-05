@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseStoredItemDraft = exports.hasMeaningfulItemDraftValues = exports.createProcurementItemPriceHistoryEntry = exports.buildProcurementItemEditorCategoryOptions = exports.resolveProcurementItemDraftCategoryId = exports.buildProcurementItemWorkspaceRows = exports.summarizeComplianceFlags = exports.buildProcurementItemTierLimitModalContent = exports.buildProcurementItemImportLimitState = exports.buildProcurementItemTierLimitState = exports.getProcurementItemCrudRecoveryHref = exports.getProcurementItemUpgradeHref = exports.normalizeUnitPrice = exports.normalizeQuantityLimit = exports.normalizeComplianceFlags = exports.normalizeProcurementMethod = exports.normalizeProcurementItemUnitOption = exports.normalizeProcurementItemUnit = exports.normalizeProcurementItemDisplayName = exports.normalizeProcurementItemName = exports.PROCUREMENT_ITEM_IMPORT_COLUMNS = exports.PROCUREMENT_ITEM_PROCUREMENT_METHODS = exports.PROCUREMENT_ITEM_COMPLIANCE_FLAGS = exports.PROCUREMENT_ITEM_UNITS = exports.ITEM_DRAFT_STORAGE_KEY = exports.PROCUREMENT_ITEM_PRICE_CHANGE_NOTICE = exports.PROCUREMENT_ITEM_IMPORT_GENERIC_ERROR_MESSAGE = exports.PROCUREMENT_ITEM_ARCHIVE_GENERIC_MESSAGE = exports.PROCUREMENT_ITEM_SAVE_GENERIC_ERROR_MESSAGE = exports.PROCUREMENT_ITEM_COMPLIANCE_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_OVERFLOW_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_DUPLICATE_IN_FILE_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_UNKNOWN_CATEGORY_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_BLANK_CATEGORY_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_ROW_LIMIT_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_FREE_TIER_MESSAGE = exports.PROCUREMENT_ITEM_LIMIT_MESSAGE = exports.PROCUREMENT_ITEM_REFRESH_REQUIRED_MESSAGE = exports.PROCUREMENT_ITEM_CATEGORY_INACTIVE_MESSAGE = exports.PROCUREMENT_ITEM_NOT_FOUND_MESSAGE = exports.PROCUREMENT_ITEM_DUPLICATE_MESSAGE = exports.PROCUREMENT_ITEM_QUANTITY_RANGE_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_MAX_QUANTITY_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_MIN_QUANTITY_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_PRICE_POSITIVE_MESSAGE = exports.PROCUREMENT_ITEM_UNIT_CUSTOM_REQUIRED_MESSAGE = exports.PROCUREMENT_ITEM_UNIT_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_UNIT_REQUIRED_MESSAGE = exports.PROCUREMENT_ITEM_CATEGORY_REQUIRED_MESSAGE = exports.PROCUREMENT_ITEM_NAME_REQUIRED_MESSAGE = void 0;
-exports.isProcurementItemCrudAuthorizationError = exports.isProcurementItemTierLimitMessage = exports.getProcurementItemCrudErrorMessage = exports.getProcurementItemImportRowFailure = exports.buildProcurementItemTemplateRows = exports.normalizeImportedProcurementItemUnit = exports.createProcurementItemDuplicateKey = exports.getNextProcurementItemSortOrder = exports.hasProcurementItemDuplicateConflict = exports.getComparableProcurementItemRevision = exports.categoryAcceptsProcurementItems = exports.hasStoredItemDraft = void 0;
+exports.buildProcurementItemTierLimitState = exports.getProcurementItemCrudRecoveryHref = exports.getProcurementItemUpgradeHref = exports.normalizeUnitPrice = exports.normalizeQuantityLimit = exports.normalizeComplianceFlags = exports.normalizeProcurementMethod = exports.formatProcurementItemMinimumQuantityMessage = exports.formatProcurementItemMaximumQuantityMessage = exports.procurementItemUnitAllowsDecimal = exports.normalizeProcurementItemUnitOption = exports.normalizeProcurementItemUnit = exports.normalizeProcurementItemDisplayName = exports.normalizeProcurementItemName = exports.PROCUREMENT_ITEM_IMPORT_COLUMNS = exports.PROCUREMENT_ITEM_PROCUREMENT_METHODS = exports.PROCUREMENT_ITEM_COMPLIANCE_FLAGS = exports.PROCUREMENT_ITEM_UNITS = exports.ITEM_DRAFT_STORAGE_KEY = exports.PROCUREMENT_ITEM_WORKSPACE_INTEGER_ONLY_MESSAGE = exports.PROCUREMENT_ITEM_WORKSPACE_QUANTITY_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_WORKSPACE_QUANTITY_NEGATIVE_MESSAGE = exports.PROCUREMENT_ITEM_WORKSPACE_UNAVAILABLE_MESSAGE = exports.PROCUREMENT_ITEM_WORKSPACE_DUPLICATE_MESSAGE = exports.PROCUREMENT_ITEM_VALIDATION_CHANGE_NOTICE = exports.PROCUREMENT_ITEM_PRICE_CHANGE_NOTICE = exports.PROCUREMENT_ITEM_IMPORT_GENERIC_ERROR_MESSAGE = exports.PROCUREMENT_ITEM_ARCHIVE_GENERIC_MESSAGE = exports.PROCUREMENT_ITEM_SAVE_GENERIC_ERROR_MESSAGE = exports.PROCUREMENT_ITEM_COMPLIANCE_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_OVERFLOW_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_DUPLICATE_IN_FILE_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_UNKNOWN_CATEGORY_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_BLANK_CATEGORY_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_ROW_LIMIT_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_FREE_TIER_MESSAGE = exports.PROCUREMENT_ITEM_LIMIT_MESSAGE = exports.PROCUREMENT_ITEM_REFRESH_REQUIRED_MESSAGE = exports.PROCUREMENT_ITEM_CATEGORY_INACTIVE_MESSAGE = exports.PROCUREMENT_ITEM_NOT_FOUND_MESSAGE = exports.PROCUREMENT_ITEM_DUPLICATE_MESSAGE = exports.PROCUREMENT_ITEM_QUANTITY_RANGE_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_MAX_QUANTITY_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_MIN_QUANTITY_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_PRICE_POSITIVE_MESSAGE = exports.PROCUREMENT_ITEM_UNIT_CUSTOM_REQUIRED_MESSAGE = exports.PROCUREMENT_ITEM_UNIT_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_UNIT_REQUIRED_MESSAGE = exports.PROCUREMENT_ITEM_CATEGORY_REQUIRED_MESSAGE = exports.PROCUREMENT_ITEM_NAME_REQUIRED_MESSAGE = void 0;
+exports.isProcurementItemCrudAuthorizationError = exports.isProcurementItemTierLimitMessage = exports.getProcurementItemCrudErrorMessage = exports.getProcurementItemImportRowFailure = exports.buildProcurementItemTemplateRows = exports.normalizeImportedProcurementItemUnit = exports.createProcurementItemDuplicateKey = exports.getNextProcurementItemSortOrder = exports.hasProcurementItemDuplicateConflict = exports.getComparableProcurementItemRevision = exports.categoryAcceptsProcurementItems = exports.hasStoredItemDraft = exports.parseStoredItemDraft = exports.hasMeaningfulItemDraftValues = exports.createProcurementItemPriceHistoryEntry = exports.buildProcurementItemEditorCategoryOptions = exports.resolveProcurementItemDraftCategoryId = exports.buildProcurementItemWorkspaceRows = exports.summarizeComplianceFlags = exports.buildProcurementItemTierLimitModalContent = exports.buildProcurementItemImportLimitState = void 0;
 const roles_1 = require("../auth/roles");
 const input_1 = require("../security/input");
 exports.PROCUREMENT_ITEM_NAME_REQUIRED_MESSAGE = "Item description is required";
@@ -29,6 +29,12 @@ exports.PROCUREMENT_ITEM_SAVE_GENERIC_ERROR_MESSAGE = "We could not save the ite
 exports.PROCUREMENT_ITEM_ARCHIVE_GENERIC_MESSAGE = "We could not archive the item right now. Please try again.";
 exports.PROCUREMENT_ITEM_IMPORT_GENERIC_ERROR_MESSAGE = "We could not import the item workbook right now. Please try again.";
 exports.PROCUREMENT_ITEM_PRICE_CHANGE_NOTICE = "Catalog pricing changed while this workspace was open.";
+exports.PROCUREMENT_ITEM_VALIDATION_CHANGE_NOTICE = "Catalog validation rules changed while this workspace was open.";
+exports.PROCUREMENT_ITEM_WORKSPACE_DUPLICATE_MESSAGE = "Item already in this category";
+exports.PROCUREMENT_ITEM_WORKSPACE_UNAVAILABLE_MESSAGE = "This item is no longer available in the live catalog.";
+exports.PROCUREMENT_ITEM_WORKSPACE_QUANTITY_NEGATIVE_MESSAGE = "Quantity cannot be negative";
+exports.PROCUREMENT_ITEM_WORKSPACE_QUANTITY_INVALID_MESSAGE = "Quantity must be a valid number";
+exports.PROCUREMENT_ITEM_WORKSPACE_INTEGER_ONLY_MESSAGE = "Whole numbers only for this unit";
 exports.ITEM_DRAFT_STORAGE_KEY = "procureline:po:item-draft";
 exports.PROCUREMENT_ITEM_UNITS = [
     "each",
@@ -123,6 +129,22 @@ function normalizeProcurementItemUnitOption(input) {
     return (exports.PROCUREMENT_ITEM_UNITS.find((unit) => unit === normalized) ?? undefined);
 }
 exports.normalizeProcurementItemUnitOption = normalizeProcurementItemUnitOption;
+function procurementItemUnitAllowsDecimal(input) {
+    const normalizedUnit = normalizeProcurementItemUnitOption(input);
+    return normalizedUnit === "kg" || normalizedUnit === "liter";
+}
+exports.procurementItemUnitAllowsDecimal = procurementItemUnitAllowsDecimal;
+function formatProcurementItemQuantityNumber(limit) {
+    return Number.isInteger(limit) ? String(limit) : String(limit);
+}
+function formatProcurementItemMaximumQuantityMessage(limit) {
+    return `Maximum quantity is ${formatProcurementItemQuantityNumber(limit)}`;
+}
+exports.formatProcurementItemMaximumQuantityMessage = formatProcurementItemMaximumQuantityMessage;
+function formatProcurementItemMinimumQuantityMessage(limit) {
+    return `Minimum catalog quantity is ${formatProcurementItemQuantityNumber(limit)}`;
+}
+exports.formatProcurementItemMinimumQuantityMessage = formatProcurementItemMinimumQuantityMessage;
 function normalizeProcurementMethod(input) {
     const normalized = (0, input_1.normalizePlainText)(input ?? "");
     return (exports.PROCUREMENT_ITEM_PROCUREMENT_METHODS.find((method) => method === normalized) ??

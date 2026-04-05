@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getDepartmentUserReservedSubmitState = exports.getDepartmentUserWorkspaceAnnouncement = exports.applyDepartmentWorkspaceRollup = exports.extractDepartmentUserWorkspaceCategoriesFromWorkspaceRecord = exports.resolveDepartmentUserDisplayedWorkspaceSummary = exports.workspaceRecordHasMeaningfulDepartmentContent = exports.workspaceRecordHasDepartmentBlock = exports.hasMeaningfulDepartmentUserWorkspaceSummary = exports.hasMeaningfulDepartmentUserPersistedPlanSummary = exports.buildDepartmentUserWorkspaceSummaryFromPersistedPlan = exports.calculateDepartmentUserWorkspaceSummaryFromWorkspaceRecord = exports.mapDepartmentUserBudgetMeterState = exports.calculateDepartmentUserWorkspaceSummary = exports.calculateDepartmentUserDepartmentRollup = exports.calculateDepartmentUserCategoryRollup = exports.calculateDepartmentUserItemRollup = exports.sanitizeNonNegativeNumber = exports.sumQuarterTotals = exports.createEmptyQuarterTotals = exports.DU_BUDGET_WARNING_THRESHOLD_PERCENT = void 0;
 const workspace_catalog_identity_1 = require("./workspace-catalog-identity");
 const compliance_1 = require("../procurement/compliance");
+const workspace_validation_1 = require("./workspace-validation");
 exports.DU_BUDGET_WARNING_THRESHOLD_PERCENT = 80;
 function createEmptyQuarterTotals() {
     return {
@@ -35,6 +36,28 @@ function sanitizeNonNegativeNumber(value) {
     return 0;
 }
 exports.sanitizeNonNegativeNumber = sanitizeNonNegativeNumber;
+function parseOptionalFiniteNumber(value) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+    }
+    if (typeof value === "string" && value.trim().length > 0) {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) {
+            return parsed;
+        }
+    }
+    return null;
+}
+function parseSerializedBoolean(value) {
+    return value?.trim().toLowerCase() !== "false";
+}
+function normalizeWorkspaceText(value) {
+    const normalizedValue = value?.trim() ?? "";
+    if (normalizedValue.length === 0 || normalizedValue === "Not set") {
+        return null;
+    }
+    return normalizedValue;
+}
 function calculateDepartmentUserItemRollup(item) {
     const unitPrice = sanitizeNonNegativeNumber(item.unitPrice);
     const quantities = {
@@ -55,12 +78,18 @@ function calculateDepartmentUserItemRollup(item) {
         quarterTotals.q3 +
         quarterTotals.q4);
     return {
+        blockId: item.blockId ?? null,
         complianceFlags: (0, compliance_1.serializeProcurementComplianceFlags)(item.complianceFlags).split(",").filter(Boolean),
+        isActive: item.isActive ?? true,
         itemDescription: item.itemDescription,
         itemId: item.itemId?.trim() ? item.itemId : null,
+        itemName: item.itemName ?? item.itemDescription,
+        maxQuantity: parseOptionalFiniteNumber(item.maxQuantity ?? null),
+        minQuantity: parseOptionalFiniteNumber(item.minQuantity ?? null),
         quarterTotals,
         totalCost,
         totalQuantity,
+        unitOfMeasurement: normalizeWorkspaceText(item.unitOfMeasurement ?? null),
         unitPrice,
     };
 }
@@ -91,12 +120,41 @@ function calculateDepartmentUserDepartmentRollup(categories) {
 exports.calculateDepartmentUserDepartmentRollup = calculateDepartmentUserDepartmentRollup;
 function calculateDepartmentUserWorkspaceSummary(args) {
     const rollup = calculateDepartmentUserDepartmentRollup(args.categories);
+    const budgetState = mapDepartmentUserBudgetMeterState({
+        totalBudget: args.totalBudget,
+        usedAmount: rollup.departmentTotal,
+    });
+    const validationState = (0, workspace_validation_1.evaluateDepartmentUserWorkspaceValidation)({
+        budgetState: budgetState.canSubmitByBudget
+            ? null
+            : {
+                canSubmitByBudget: false,
+                reason: budgetState.bannerText ??
+                    "Budget allocation is unavailable, so submission must remain blocked.",
+            },
+        categories: args.categories.map((category) => ({
+            categoryId: category.categoryId,
+            categoryName: category.categoryName,
+            items: category.items.map((item) => ({
+                blockId: item.blockId ?? null,
+                categoryId: category.categoryId,
+                isActive: item.isActive ?? true,
+                itemDescription: item.itemDescription,
+                itemId: item.itemId ?? null,
+                itemName: item.itemName ?? item.itemDescription,
+                maxQuantity: item.maxQuantity ?? null,
+                minQuantity: item.minQuantity ?? null,
+                quantities: item.quantities,
+                rawQuantities: item.rawQuantities ?? null,
+                transientQuantityFeedback: item.transientQuantityFeedback ?? null,
+                unitOfMeasurement: item.unitOfMeasurement ?? null,
+            })),
+        })),
+        validationUnavailableReason: null,
+    });
     return {
         ...rollup,
-        budgetState: mapDepartmentUserBudgetMeterState({
-            totalBudget: args.totalBudget,
-            usedAmount: rollup.departmentTotal,
-        }),
+        budgetState,
         complianceState: (0, compliance_1.calculateProcurementComplianceSnapshot)({
             items: rollup.categories.flatMap((category) => category.items.map((item) => ({
                 amount: item.totalCost,
@@ -104,6 +162,7 @@ function calculateDepartmentUserWorkspaceSummary(args) {
             }))),
             totalEligibleSpend: rollup.departmentTotal,
         }),
+        validationState,
     };
 }
 exports.calculateDepartmentUserWorkspaceSummary = calculateDepartmentUserWorkspaceSummary;
@@ -203,11 +262,12 @@ function buildDepartmentUserWorkspaceSummaryFromPersistedPlan(args) {
         totalCost: roundCurrency(category.amount),
     }));
     const departmentTotal = roundCurrency(sanitizeNonNegativeNumber(args.persistedPlanSummary.estimatedBudgetUsed));
+    const budgetState = mapDepartmentUserBudgetMeterState({
+        totalBudget: args.totalBudget,
+        usedAmount: departmentTotal,
+    });
     return {
-        budgetState: mapDepartmentUserBudgetMeterState({
-            totalBudget: args.totalBudget,
-            usedAmount: departmentTotal,
-        }),
+        budgetState,
         categories,
         complianceState: departmentTotal > 0
             ? (0, compliance_1.createUnavailableProcurementComplianceSnapshot)({
@@ -220,6 +280,20 @@ function buildDepartmentUserWorkspaceSummaryFromPersistedPlan(args) {
         departmentTotal,
         quarterTotals: createEmptyQuarterTotals(),
         totalItemCount: Math.max(0, Math.round(sanitizeNonNegativeNumber(args.persistedPlanSummary.itemCount))),
+        validationState: (0, workspace_validation_1.evaluateDepartmentUserWorkspaceValidation)({
+            budgetState: budgetState.canSubmitByBudget
+                ? null
+                : {
+                    canSubmitByBudget: false,
+                    reason: budgetState.bannerText ??
+                        "Budget allocation is unavailable, so submission must remain blocked.",
+                },
+            categories: [],
+            validationUnavailableReason: args.persistedPlanSummary.itemCount > 0 ||
+                args.persistedPlanSummary.categorySummaries.length > 0
+                ? "Item-level validation details are unavailable for this saved summary until Blockly workspace data is reloaded."
+                : null,
+        }),
     };
 }
 exports.buildDepartmentUserWorkspaceSummaryFromPersistedPlan = buildDepartmentUserWorkspaceSummaryFromPersistedPlan;
@@ -326,13 +400,6 @@ function applyDepartmentWorkspaceRollup(args) {
     });
     writeRollupBackToWorkspace(args.departmentBlock, summary, args.totalBudget);
     updateDepartmentBudgetVisualState(args.departmentBlock, summary.budgetState);
-    if (args.departmentBlock.setWarningText) {
-        args.departmentBlock.setWarningText(summary.budgetState.state === "over_budget"
-            ? summary.budgetState.bannerText
-            : summary.budgetState.state === "unallocated"
-                ? "Budget allocation unavailable."
-                : null);
-    }
     return summary;
 }
 exports.applyDepartmentWorkspaceRollup = applyDepartmentWorkspaceRollup;
@@ -350,10 +417,14 @@ function getDepartmentUserWorkspaceAnnouncement(summary) {
         .filter((metric) => metric.status === "unmet")
         .map((metric) => metric.label);
     return {
-        key: `${summary.budgetState.state}|${complianceStateKey}`,
-        message: unmetMetrics.length > 0
-            ? `${summary.budgetState.announcementText} Compliance targets to review: ${unmetMetrics.join(", ")}.`
-            : summary.budgetState.announcementText,
+        key: `${summary.budgetState.state}|${complianceStateKey}|${summary.validationState.submitBlockedReasons.join("|")}|${summary.validationState.validationUnavailableReason ?? ""}`,
+        message: summary.validationState.validationUnavailableReason
+            ? `${summary.budgetState.announcementText} ${summary.validationState.validationUnavailableReason}`
+            : summary.validationState.submitBlockedReasons.length > 0
+                ? `${summary.budgetState.announcementText} Validation issues to review: ${summary.validationState.submitBlockedReasons.join(", ")}.`
+                : unmetMetrics.length > 0
+                    ? `${summary.budgetState.announcementText} Compliance targets to review: ${unmetMetrics.join(", ")}.`
+                    : summary.budgetState.announcementText,
     };
 }
 exports.getDepartmentUserWorkspaceAnnouncement = getDepartmentUserWorkspaceAnnouncement;
@@ -380,6 +451,14 @@ function getDepartmentUserReservedSubmitState(args) {
             reason: "Budget allocation is unavailable, so submission must remain blocked.",
         };
     }
+    if ((args.validationState?.submitBlockedReasons.length ?? 0) > 0) {
+        return {
+            disabled: true,
+            label: "Fix Validation Issues",
+            reason: args.validationState?.submitBlockedReasons.join(" ") ??
+                "Resolve the flagged workspace validation issues before submission can unlock.",
+        };
+    }
     return {
         disabled: true,
         label: "Submit Reserved",
@@ -387,6 +466,55 @@ function getDepartmentUserReservedSubmitState(args) {
     };
 }
 exports.getDepartmentUserReservedSubmitState = getDepartmentUserReservedSubmitState;
+const QUARTER_FIELD_KEY_MAP = [
+    ["Q1_QTY", "q1"],
+    ["Q2_QTY", "q2"],
+    ["Q3_QTY", "q3"],
+    ["Q4_QTY", "q4"],
+];
+function formatQuantityFieldValue(args) {
+    const normalizedValue = (0, workspace_validation_1.normalizeDepartmentUserQuantityValue)({
+        unitOfMeasurement: args.unitOfMeasurement ?? null,
+        value: args.value,
+    }).normalizedValue;
+    if (Number.isInteger(normalizedValue)) {
+        return String(normalizedValue);
+    }
+    return normalizedValue.toFixed(2).replace(/\.?0+$/, "");
+}
+function readBlockQuantityFeedback(block) {
+    const quantityFeedback = block.__duQuantityFeedback;
+    if (!quantityFeedback) {
+        return null;
+    }
+    const nextFeedback = QUARTER_FIELD_KEY_MAP.reduce((feedback, [fieldName, quantityKey]) => {
+        const message = quantityFeedback[fieldName];
+        if (typeof message === "string" && message.trim().length > 0) {
+            feedback[quantityKey] = message;
+        }
+        return feedback;
+    }, {});
+    delete block.__duQuantityFeedback;
+    return Object.keys(nextFeedback).length > 0 ? nextFeedback : null;
+}
+function synchronizeLiveQuarterQuantityFields(block) {
+    const unitOfMeasurement = normalizeWorkspaceText(block.getFieldValue("UNIT_OF_MEASUREMENT"));
+    const maxQuantity = parseOptionalFiniteNumber(block.getFieldValue("MAX_QUANTITY"));
+    for (const [fieldName] of QUARTER_FIELD_KEY_MAP) {
+        const normalizedQuantity = (0, workspace_validation_1.normalizeDepartmentUserQuantityValue)({
+            maxQuantity,
+            unitOfMeasurement,
+            value: block.getFieldValue(fieldName),
+        });
+        const nextFieldValue = formatQuantityFieldValue({
+            unitOfMeasurement,
+            value: normalizedQuantity.normalizedValue,
+        });
+        if (block.getFieldValue(fieldName) !== nextFieldValue) {
+            block.setFieldValue(nextFieldValue, fieldName);
+        }
+    }
+}
 function readCategoriesFromDepartmentBlock(departmentBlock, items) {
     const categories = [];
     let categoryBlock = departmentBlock.getInput("CATEGORIES")?.connection?.targetBlock() ?? null;
@@ -396,9 +524,11 @@ function readCategoriesFromDepartmentBlock(departmentBlock, items) {
         const categoryItems = [];
         let itemBlock = categoryBlock.getInput("ITEMS")?.connection?.targetBlock() ?? null;
         while (itemBlock && itemBlock.type === "item_block") {
+            const nextItem = readQuarterlyItemFromBlock(itemBlock);
+            synchronizeLiveQuarterQuantityFields(itemBlock);
             categoryItems.push(hydrateWorkspaceItem({
                 categoryId,
-                item: readQuarterlyItemFromBlock(itemBlock),
+                item: nextItem,
                 items,
             }));
             itemBlock = itemBlock.getNextBlock();
@@ -413,16 +543,50 @@ function readCategoriesFromDepartmentBlock(departmentBlock, items) {
     return categories;
 }
 function readQuarterlyItemFromBlock(block) {
+    const unitOfMeasurement = normalizeWorkspaceText(block.getFieldValue("UNIT_OF_MEASUREMENT"));
+    const maxQuantity = parseOptionalFiniteNumber(block.getFieldValue("MAX_QUANTITY"));
+    const rawQuantities = {
+        q1: block.getFieldValue("Q1_QTY"),
+        q2: block.getFieldValue("Q2_QTY"),
+        q3: block.getFieldValue("Q3_QTY"),
+        q4: block.getFieldValue("Q4_QTY"),
+    };
     return {
+        blockId: block.id ?? null,
         complianceFlags: block.getFieldValue("COMPLIANCE_FLAGS").split(","),
-        itemDescription: block.getFieldValue("ITEM_DESC") || "Untitled item",
+        isActive: parseSerializedBoolean(block.getFieldValue("ITEM_IS_ACTIVE")),
+        itemDescription: block.getFieldValue("ITEM_DESCRIPTION") ||
+            block.getFieldValue("ITEM_DESC") ||
+            "Untitled item",
         itemId: block.getFieldValue("ITEM_ID") || null,
+        itemName: block.getFieldValue("ITEM_DESC") || "Untitled item",
+        maxQuantity,
+        minQuantity: parseOptionalFiniteNumber(block.getFieldValue("MIN_QUANTITY")),
+        rawQuantities,
         quantities: {
-            q1: sanitizeNonNegativeNumber(block.getFieldValue("Q1_QTY")),
-            q2: sanitizeNonNegativeNumber(block.getFieldValue("Q2_QTY")),
-            q3: sanitizeNonNegativeNumber(block.getFieldValue("Q3_QTY")),
-            q4: sanitizeNonNegativeNumber(block.getFieldValue("Q4_QTY")),
+            q1: (0, workspace_validation_1.normalizeDepartmentUserQuantityValue)({
+                maxQuantity,
+                unitOfMeasurement,
+                value: rawQuantities.q1,
+            }).normalizedValue,
+            q2: (0, workspace_validation_1.normalizeDepartmentUserQuantityValue)({
+                maxQuantity,
+                unitOfMeasurement,
+                value: rawQuantities.q2,
+            }).normalizedValue,
+            q3: (0, workspace_validation_1.normalizeDepartmentUserQuantityValue)({
+                maxQuantity,
+                unitOfMeasurement,
+                value: rawQuantities.q3,
+            }).normalizedValue,
+            q4: (0, workspace_validation_1.normalizeDepartmentUserQuantityValue)({
+                maxQuantity,
+                unitOfMeasurement,
+                value: rawQuantities.q4,
+            }).normalizedValue,
         },
+        transientQuantityFeedback: readBlockQuantityFeedback(block),
+        unitOfMeasurement,
         unitPrice: sanitizeNonNegativeNumber(block.getFieldValue("UNIT_PRICE")),
     };
 }
@@ -455,16 +619,49 @@ function readCategoriesFromSerializedDepartmentBlock(args) {
     return categories;
 }
 function readQuarterlyItemFromSerializedBlock(block) {
+    const unitOfMeasurement = normalizeWorkspaceText(getSerializedFieldValue(block, "UNIT_OF_MEASUREMENT"));
+    const maxQuantity = parseOptionalFiniteNumber(getSerializedFieldValue(block, "MAX_QUANTITY"));
+    const rawQuantities = {
+        q1: getSerializedFieldValue(block, "Q1_QTY"),
+        q2: getSerializedFieldValue(block, "Q2_QTY"),
+        q3: getSerializedFieldValue(block, "Q3_QTY"),
+        q4: getSerializedFieldValue(block, "Q4_QTY"),
+    };
     return {
+        blockId: null,
         complianceFlags: getSerializedFieldValue(block, "COMPLIANCE_FLAGS").split(","),
-        itemDescription: getSerializedFieldValue(block, "ITEM_DESC") || "Untitled item",
+        isActive: parseSerializedBoolean(getSerializedFieldValue(block, "ITEM_IS_ACTIVE")),
+        itemDescription: getSerializedFieldValue(block, "ITEM_DESCRIPTION") ||
+            getSerializedFieldValue(block, "ITEM_DESC") ||
+            "Untitled item",
         itemId: getSerializedFieldValue(block, "ITEM_ID") || null,
+        itemName: getSerializedFieldValue(block, "ITEM_DESC") || "Untitled item",
+        maxQuantity,
+        minQuantity: parseOptionalFiniteNumber(getSerializedFieldValue(block, "MIN_QUANTITY")),
+        rawQuantities,
         quantities: {
-            q1: sanitizeNonNegativeNumber(getSerializedFieldValue(block, "Q1_QTY")),
-            q2: sanitizeNonNegativeNumber(getSerializedFieldValue(block, "Q2_QTY")),
-            q3: sanitizeNonNegativeNumber(getSerializedFieldValue(block, "Q3_QTY")),
-            q4: sanitizeNonNegativeNumber(getSerializedFieldValue(block, "Q4_QTY")),
+            q1: (0, workspace_validation_1.normalizeDepartmentUserQuantityValue)({
+                maxQuantity,
+                unitOfMeasurement,
+                value: rawQuantities.q1,
+            }).normalizedValue,
+            q2: (0, workspace_validation_1.normalizeDepartmentUserQuantityValue)({
+                maxQuantity,
+                unitOfMeasurement,
+                value: rawQuantities.q2,
+            }).normalizedValue,
+            q3: (0, workspace_validation_1.normalizeDepartmentUserQuantityValue)({
+                maxQuantity,
+                unitOfMeasurement,
+                value: rawQuantities.q3,
+            }).normalizedValue,
+            q4: (0, workspace_validation_1.normalizeDepartmentUserQuantityValue)({
+                maxQuantity,
+                unitOfMeasurement,
+                value: rawQuantities.q4,
+            }).normalizedValue,
         },
+        unitOfMeasurement,
         unitPrice: sanitizeNonNegativeNumber(getSerializedFieldValue(block, "UNIT_PRICE")),
     };
 }
@@ -473,7 +670,7 @@ function hydrateWorkspaceItem(args) {
         categoryId: args.categoryId,
         itemDescription: args.item.itemDescription,
         itemId: args.item.itemId ?? null,
-        itemName: args.item.itemDescription,
+        itemName: args.item.itemName ?? args.item.itemDescription,
         items: [...args.items],
         unitPrice: args.item.unitPrice,
     });
@@ -482,17 +679,40 @@ function hydrateWorkspaceItem(args) {
         : resolvedItem?.name ?? "Untitled item";
     const preservedUnitPrice = sanitizeNonNegativeNumber(args.item.unitPrice);
     const shouldRefreshCatalogMetadata = args.refreshCatalogMetadata ?? true;
+    const preservedUnitOfMeasurement = normalizeWorkspaceText(args.item.unitOfMeasurement ?? null);
+    const preservedMaxQuantity = parseOptionalFiniteNumber(args.item.maxQuantity ?? null);
+    const preservedMinQuantity = parseOptionalFiniteNumber(args.item.minQuantity ?? null);
+    const hasKnownCatalogIdentity = (args.item.itemId?.trim().length ?? 0) > 0 ||
+        (args.item.itemName?.trim().length ?? 0) > 0;
     return {
+        blockId: args.item.blockId ?? null,
         complianceFlags: shouldRefreshCatalogMetadata
             ? resolvedItem?.complianceFlags ?? args.item.complianceFlags ?? []
             : args.item.complianceFlags?.length
                 ? args.item.complianceFlags
                 : resolvedItem?.complianceFlags ?? [],
+        isActive: shouldRefreshCatalogMetadata
+            ? resolvedItem?.isActive ?? (hasKnownCatalogIdentity ? false : args.item.isActive)
+            : args.item.isActive,
         itemDescription: shouldRefreshCatalogMetadata
-            ? resolvedItem?.name ?? preservedItemDescription
+            ? resolvedItem?.description ?? resolvedItem?.name ?? preservedItemDescription
             : preservedItemDescription,
         itemId: resolvedItem?.id ?? args.item.itemId ?? null,
+        itemName: shouldRefreshCatalogMetadata
+            ? resolvedItem?.name ?? args.item.itemName ?? preservedItemDescription
+            : args.item.itemName ?? preservedItemDescription,
+        maxQuantity: shouldRefreshCatalogMetadata
+            ? parseOptionalFiniteNumber(resolvedItem?.maxQuantity ?? args.item.maxQuantity ?? null)
+            : preservedMaxQuantity,
+        minQuantity: shouldRefreshCatalogMetadata
+            ? parseOptionalFiniteNumber(resolvedItem?.minQuantity ?? args.item.minQuantity ?? null)
+            : preservedMinQuantity,
         quantities: args.item.quantities,
+        rawQuantities: args.item.rawQuantities ?? null,
+        transientQuantityFeedback: args.item.transientQuantityFeedback ?? null,
+        unitOfMeasurement: shouldRefreshCatalogMetadata
+            ? normalizeWorkspaceText(resolvedItem?.unitOfMeasurement ?? args.item.unitOfMeasurement ?? null)
+            : preservedUnitOfMeasurement,
         unitPrice: shouldRefreshCatalogMetadata
             ? sanitizeNonNegativeNumber(resolvedItem?.unitPrice ?? args.item.unitPrice)
             : preservedUnitPrice > 0
@@ -521,12 +741,20 @@ function writeRollupBackToWorkspace(departmentBlock, summary, totalBudget) {
             writableItem.setFieldValue(String(itemRollup.totalQuantity), "ITEM_TOTAL_QTY");
             writableItem.setFieldValue(itemRollup.totalCost.toFixed(2), "ITEM_TOTAL_COST");
             writableItem.setFieldValue((0, compliance_1.serializeProcurementComplianceFlags)(itemRollup.complianceFlags), "COMPLIANCE_FLAGS");
+            writableItem.setWarningText?.((0, workspace_validation_1.summarizeDepartmentUserBlockValidationIssues)(summary.validationState.itemIssuesByBlockId[writableItem.id ?? ""] ?? []));
             writableItem = writableItem.getNextBlock();
         }
         writableCategory = writableCategory.getNextBlock();
     }
     departmentBlock.setFieldValue(sanitizeNonNegativeNumber(totalBudget).toFixed(2), "BUDGET");
     departmentBlock.setFieldValue(summary.departmentTotal.toFixed(2), "DEPT_TOTAL");
+    departmentBlock.setWarningText?.(summary.budgetState.state === "over_budget"
+        ? summary.budgetState.bannerText
+        : summary.budgetState.state === "unallocated"
+            ? "Budget allocation unavailable."
+            : summary.validationState.submitBlockedReasons[0] ??
+                summary.validationState.validationUnavailableReason ??
+                null);
 }
 function updateDepartmentBudgetVisualState(departmentBlock, budgetState) {
     const classList = departmentBlock.svgGroup_?.classList;
