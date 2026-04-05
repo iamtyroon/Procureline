@@ -56,6 +56,7 @@ function resolveDepartmentUserWorkspaceEvent(args) {
     if (viewportState) {
         return {
             categoryDeletionConfirmation: null,
+            shouldPersistSnapshot: false,
             shouldQueueStructureRefresh: false,
             shouldRecalculate: false,
             shouldUndoDelete: false,
@@ -74,8 +75,11 @@ function resolveDepartmentUserWorkspaceEvent(args) {
             args.event.type === "delete" ||
             args.event.type === "move" ||
             args.event.type === "finished_loading");
+    const shouldPersistSnapshot = shouldRecalculate &&
+        args.event.type !== "finished_loading";
     return {
         categoryDeletionConfirmation: shouldUndoDelete ? pendingDeletionConfirmation : null,
+        shouldPersistSnapshot,
         shouldQueueStructureRefresh: shouldRecalculate && shouldRefreshDepartmentUserToolboxForEvent(args.event),
         shouldRecalculate,
         shouldUndoDelete,

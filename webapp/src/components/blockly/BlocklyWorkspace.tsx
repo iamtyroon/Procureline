@@ -362,7 +362,8 @@ export function BlocklyWorkspace(props: {
                     recalculateWorkspaceRef.current?.(
                         Blockly,
                         workspace,
-                        props.editorMode === "edit",
+                        props.editorMode === "edit" &&
+                            eventResolution.shouldPersistSnapshot,
                     );
                 };
 
@@ -425,12 +426,12 @@ export function BlocklyWorkspace(props: {
     ]);
 
     useEffect(() => {
-        if (!workspaceRef.current || props.editorMode !== "edit") {
+        if (!workspaceRef.current) {
             return;
         }
 
         workspaceRef.current.updateToolbox(props.toolboxDefinition as never);
-    }, [props.editorMode, props.toolboxDefinition]);
+    }, [props.toolboxDefinition]);
 
     useEffect(() => {
         if (!blocklyRef.current || !workspaceRef.current) {

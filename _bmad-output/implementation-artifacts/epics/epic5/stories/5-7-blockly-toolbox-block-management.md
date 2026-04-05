@@ -1,6 +1,6 @@
 # Story 5.7: Blockly Toolbox & Block Management
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -345,6 +345,19 @@ gpt-5-codex
 - 2026-04-03: Implemented a search-aware DU toolbox source-of-truth with ordered category state, archived-category truthfulness, and ID-based used-source tracking from hydrated Blockly JSON.
 - 2026-04-03: Added the `BlocklyToolboxRail` companion, category empty-state hints, app-native category delete confirmation, and local per-plan viewport persistence without changing canonical Convex plan data.
 - 2026-04-03: Verified Story 5.7 with `npm test` and focused ESLint on the touched Blockly files; repo-wide `npm run lint` still reports pre-existing unrelated TypeScript errors in `convex/functions/items.ts` and `src/components/procurement-officer/ProcurementOfficerItemsWorkspace.tsx`.
+- 2026-04-05: Addressed senior review findings by keeping toolbox context available in read-only workspaces, preventing hydration-only Blockly events from triggering draft saves, and adding UI-oriented toolbox rail regression coverage to back AC12 and AC18.
+
+### Senior Developer Review (AI)
+
+- Reviewer: Codex (GPT-5)
+- Date: 2026-04-05
+- Outcome: Approved after fixes
+- Fixes applied:
+  - Restored native toolbox browsing in read-only mode so review workspaces keep ordered category and item context visible while destructive editing stays blocked.
+  - Prevented `finished_loading` hydration events from persisting no-op draft snapshots, avoiding load-time save churn.
+  - Added UI-oriented regression coverage for the toolbox rail plus runtime assertions covering read-only injection behavior and hydration-safe persistence.
+- Verification:
+  - `cmd /c npm test`
 
 ### File List
 
@@ -354,29 +367,37 @@ gpt-5-codex
 - `webapp/.test-dist/lib/blockly/du-workspace-calculations.js`
 - `webapp/.test-dist/lib/blockly/workspace-catalog-identity.js`
 - `webapp/.test-dist/lib/blockly/workspace-events.js`
+- `webapp/.test-dist/lib/blockly/workspace-runtime.js`
 - `webapp/.test-dist/lib/blockly/workspace-ui-state.js`
 - `webapp/.test-dist/tests/department-user-blockly-workspace.test.js`
+- `webapp/.test-dist/tests/department-user-blockly-workspace-ui.test.js`
+- `webapp/.test-dist/tests/run-tests.js`
 - `webapp/lib/blockly/block-definitions.ts`
 - `webapp/lib/blockly/du-toolbox.ts`
 - `webapp/lib/blockly/du-workspace-calculations.ts`
 - `webapp/lib/blockly/workspace-catalog-identity.ts`
 - `webapp/lib/blockly/workspace-events.ts`
+- `webapp/lib/blockly/workspace-runtime.ts`
 - `webapp/lib/blockly/workspace-ui-state.ts`
 - `webapp/src/components/blockly/BlocklyEditor.tsx`
 - `webapp/src/components/blockly/BlocklyToolboxRail.tsx`
 - `webapp/src/components/blockly/BlocklyWorkspace.tsx`
 - `webapp/tests/department-user-blockly-workspace.test.ts`
+- `webapp/tests/department-user-blockly-workspace-ui.test.tsx`
+- `webapp/tests/run-tests.ts`
+- `webapp/tsconfig.tests.json`
 
 ### Change Log
 
 - 2026-04-03: Rebuilt the DU toolbox builder into a search-aware organization model, added rail-side search and category status UI, and wired ID-based source usage into workspace hydration and refresh.
 - 2026-04-03: Added category empty-state rendering, app-native nested-category delete confirmation, and local viewport persistence helpers so normal toolbox and canvas interactions avoid full Blockly reinjection.
 - 2026-04-03: Expanded deterministic Blockly workspace tests to cover source usage, search filtering, empty-state hints, delete confirmation helpers, and viewport-state storage parsing.
+- 2026-04-05: Fixed review follow-ups by preserving toolbox context in read-only mode, skipping hydration-only draft persistence, and adding UI-focused toolbox rail coverage plus updated test runtime alias handling.
 
 ### Story Completion Status
 
 - Story ID: `5.7`
 - Story Key: `5-7-blockly-toolbox-block-management`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic5/stories/5-7-blockly-toolbox-block-management.md`
-- Final Status: `review`
-- Completion Note: `Implemented Story 5.7 toolbox search, source lifecycle management, category delete confirmation, empty-state hints, and plan-local viewport persistence with deterministic regression coverage.`
+- Final Status: `done`
+- Completion Note: `Implemented Story 5.7 toolbox search, source lifecycle management, category delete confirmation, empty-state hints, plan-local viewport persistence, read-only toolbox visibility, and hydration-safe regression coverage.`

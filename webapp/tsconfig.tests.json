@@ -11,15 +11,19 @@
     "sourceMap": false,
     "target": "ES2022"
   },
-    "include": [
+  "include": [
     "tests/**/*.ts",
+    "tests/**/*.tsx",
     "lib/auth/**/*.ts",
+    "lib/**/*.tsx",
     "lib/department-user/**/*.ts",
     "lib/errors/**/*.ts",
     "lib/marketing/**/*.ts",
     "lib/tenant-admin/**/*.ts",
     "lib/security/**/*.ts",
     "lib/services/**/*.ts",
-    "lib/validators/**/*.ts"
+    "lib/validators/**/*.ts",
+    "components/ui/**/*.tsx",
+    "src/components/blockly/BlocklyToolboxRail.tsx"
   ]
 }

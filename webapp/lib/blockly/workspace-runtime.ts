@@ -5,12 +5,20 @@ export interface DepartmentUserBlocklyInjectionOptions {
         snap: boolean;
         spacing: number;
     };
+    move: {
+        drag: boolean;
+        scrollbars: boolean;
+        wheel: boolean;
+    };
     readOnly: boolean;
-    scrollbars: boolean;
-    toolbox?: Record<string, unknown>;
+    toolbox: Record<string, unknown>;
     trashcan: boolean;
     zoom: {
         controls: boolean;
+        maxScale: number;
+        minScale: number;
+        pinch: boolean;
+        scaleSpeed: number;
         startScale: number;
         wheel: boolean;
     };
@@ -27,12 +35,20 @@ export function buildDepartmentUserBlocklyInjectionOptions(args: {
             snap: true,
             spacing: 20,
         },
+        move: {
+            drag: true,
+            scrollbars: true,
+            wheel: true,
+        },
         readOnly: args.editorMode === "view",
-        scrollbars: true,
-        toolbox: args.editorMode === "edit" ? args.toolboxDefinition : undefined,
+        toolbox: args.toolboxDefinition,
         trashcan: args.editorMode === "edit",
         zoom: {
             controls: true,
+            maxScale: 1.8,
+            minScale: 0.4,
+            pinch: true,
+            scaleSpeed: 1.1,
             startScale: 0.9,
             wheel: true,
         },

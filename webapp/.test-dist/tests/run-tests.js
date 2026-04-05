@@ -1,65 +1,84 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-const compliance_test_1 = require("./compliance.test");
-const convex_error_handling_test_1 = require("./convex-error-handling.test");
-const email_transport_test_1 = require("./email-transport.test");
-const procurement_officer_departments_test_1 = require("./procurement-officer-departments.test");
-const department_user_dashboard_test_1 = require("./department-user-dashboard.test");
-const department_user_blockly_workspace_test_1 = require("./department-user-blockly-workspace.test");
-const department_user_access_test_1 = require("./department-user-access.test");
-const department_user_request_context_test_1 = require("./department-user-request-context.test");
-const password_reset_test_1 = require("./password-reset.test");
-const procurement_officer_access_codes_test_1 = require("./procurement-officer-access-codes.test");
-const procurement_officer_categories_test_1 = require("./procurement-officer-categories.test");
-const procurement_officer_deadlines_test_1 = require("./procurement-officer-deadlines.test");
-const platform_admin_auth_test_1 = require("./platform-admin-auth.test");
-const platform_admin_dashboard_test_1 = require("./platform-admin-dashboard.test");
-const pricing_flow_test_1 = require("./pricing-flow.test");
-const procurement_officer_dashboard_test_1 = require("./procurement-officer-dashboard.test");
-const procurement_officer_items_test_1 = require("./procurement-officer-items.test");
-const procurement_officer_invitations_test_1 = require("./procurement-officer-invitations.test");
-const public_auth_entry_test_1 = require("./public-auth-entry.test");
-const proxy_test_1 = require("./proxy.test");
-const rbac_test_1 = require("./rbac.test");
-const sales_inquiries_test_1 = require("./sales-inquiries.test");
-const security_infrastructure_test_1 = require("./security-infrastructure.test");
-const service_bridge_test_1 = require("./service-bridge.test");
-const session_management_test_1 = require("./session-management.test");
-const signup_flow_test_1 = require("./signup-flow.test");
-const tenant_admin_dashboard_test_1 = require("./tenant-admin-dashboard.test");
-const tenant_admin_onboarding_test_1 = require("./tenant-admin-onboarding.test");
-const tenant_isolation_test_1 = require("./tenant-isolation.test");
+const node_path_1 = __importDefault(require("node:path"));
+const node_module_1 = __importDefault(require("node:module"));
+function registerTestPathAlias() {
+    const moduleResolver = node_module_1.default;
+    const originalResolveFilename = moduleResolver._resolveFilename;
+    moduleResolver._resolveFilename = function resolveFilename(request, parent, isMain, options) {
+        if (request.startsWith("@/")) {
+            const mappedRequest = node_path_1.default.join(__dirname, "..", request.slice(2));
+            return originalResolveFilename.call(this, mappedRequest, parent, isMain, options);
+        }
+        return originalResolveFilename.call(this, request, parent, isMain, options);
+    };
+}
 async function main() {
+    registerTestPathAlias();
+    const { runComplianceTests } = await import("./compliance.test.js");
+    const { runConvexErrorHandlingTests } = await import("./convex-error-handling.test.js");
+    const { runEmailTransportTests } = await import("./email-transport.test.js");
+    const { runProcurementOfficerDepartmentTests } = await import("./procurement-officer-departments.test.js");
+    const { runDepartmentUserDashboardTests } = await import("./department-user-dashboard.test.js");
+    const { runDepartmentUserBlocklyWorkspaceTests } = await import("./department-user-blockly-workspace.test.js");
+    const { runDepartmentUserBlocklyWorkspaceUiTests } = await import("./department-user-blockly-workspace-ui.test.js");
+    const { runDepartmentUserAccessTests } = await import("./department-user-access.test.js");
+    const { runDepartmentUserRequestContextTests } = await import("./department-user-request-context.test.js");
+    const { runPasswordResetTests } = await import("./password-reset.test.js");
+    const { runProcurementOfficerAccessCodeTests } = await import("./procurement-officer-access-codes.test.js");
+    const { runProcurementOfficerCategoryTests } = await import("./procurement-officer-categories.test.js");
+    const { runProcurementOfficerDeadlineTests } = await import("./procurement-officer-deadlines.test.js");
+    const { runPlatformAdminAuthTests } = await import("./platform-admin-auth.test.js");
+    const { runPlatformAdminDashboardTests } = await import("./platform-admin-dashboard.test.js");
+    const { runPricingFlowTests } = await import("./pricing-flow.test.js");
+    const { runProcurementOfficerDashboardTests } = await import("./procurement-officer-dashboard.test.js");
+    const { runProcurementOfficerItemTests } = await import("./procurement-officer-items.test.js");
+    const { runProcurementOfficerInvitationTests } = await import("./procurement-officer-invitations.test.js");
+    const { runPublicAuthEntryTests } = await import("./public-auth-entry.test.js");
+    const { runProxyRouteTests } = await import("./proxy.test.js");
+    const { runRbacTests } = await import("./rbac.test.js");
+    const { runSalesInquiryTests } = await import("./sales-inquiries.test.js");
+    const { runSecurityInfrastructureTests } = await import("./security-infrastructure.test.js");
+    const { runServiceBridgeTests } = await import("./service-bridge.test.js");
+    const { runSessionManagementTests } = await import("./session-management.test.js");
+    const { runSignupFlowTests } = await import("./signup-flow.test.js");
+    const { runTenantAdminDashboardTests } = await import("./tenant-admin-dashboard.test.js");
+    const { runTenantAdminOnboardingTests } = await import("./tenant-admin-onboarding.test.js");
+    const { runTenantIsolationTests } = await import("./tenant-isolation.test.js");
     const completedTests = [
-        ...(0, compliance_test_1.runComplianceTests)(),
-        ...(0, convex_error_handling_test_1.runConvexErrorHandlingTests)(),
-        ...(0, email_transport_test_1.runEmailTransportTests)(),
-        ...(0, procurement_officer_departments_test_1.runProcurementOfficerDepartmentTests)(),
-        ...(0, procurement_officer_categories_test_1.runProcurementOfficerCategoryTests)(),
-        ...(await (0, procurement_officer_items_test_1.runProcurementOfficerItemTests)()),
-        ...(0, procurement_officer_access_codes_test_1.runProcurementOfficerAccessCodeTests)(),
-        ...(0, procurement_officer_deadlines_test_1.runProcurementOfficerDeadlineTests)(),
-        ...(0, department_user_dashboard_test_1.runDepartmentUserDashboardTests)(),
-        ...(await (0, department_user_blockly_workspace_test_1.runDepartmentUserBlocklyWorkspaceTests)()),
-        ...(await (0, department_user_access_test_1.runDepartmentUserAccessTests)()),
-        ...(await (0, department_user_request_context_test_1.runDepartmentUserRequestContextTests)()),
-        ...(0, password_reset_test_1.runPasswordResetTests)(),
-        ...(await (0, platform_admin_auth_test_1.runPlatformAdminAuthTests)()),
-        ...(await (0, platform_admin_dashboard_test_1.runPlatformAdminDashboardTests)()),
-        ...(0, pricing_flow_test_1.runPricingFlowTests)(),
-        ...(0, procurement_officer_dashboard_test_1.runProcurementOfficerDashboardTests)(),
-        ...(await (0, procurement_officer_invitations_test_1.runProcurementOfficerInvitationTests)()),
-        ...(0, public_auth_entry_test_1.runPublicAuthEntryTests)(),
-        ...(0, proxy_test_1.runProxyRouteTests)(),
-        ...(0, rbac_test_1.runRbacTests)(),
-        ...(0, sales_inquiries_test_1.runSalesInquiryTests)(),
-        ...(0, security_infrastructure_test_1.runSecurityInfrastructureTests)(),
-        ...(await (0, service_bridge_test_1.runServiceBridgeTests)()),
-        ...(0, session_management_test_1.runSessionManagementTests)(),
-        ...(0, signup_flow_test_1.runSignupFlowTests)(),
-        ...(0, tenant_admin_dashboard_test_1.runTenantAdminDashboardTests)(),
-        ...(await (0, tenant_admin_onboarding_test_1.runTenantAdminOnboardingTests)()),
-        ...(0, tenant_isolation_test_1.runTenantIsolationTests)(),
+        ...runComplianceTests(),
+        ...runConvexErrorHandlingTests(),
+        ...runEmailTransportTests(),
+        ...runProcurementOfficerDepartmentTests(),
+        ...runProcurementOfficerCategoryTests(),
+        ...(await runProcurementOfficerItemTests()),
+        ...runProcurementOfficerAccessCodeTests(),
+        ...runProcurementOfficerDeadlineTests(),
+        ...runDepartmentUserDashboardTests(),
+        ...(await runDepartmentUserBlocklyWorkspaceTests()),
+        ...runDepartmentUserBlocklyWorkspaceUiTests(),
+        ...(await runDepartmentUserAccessTests()),
+        ...(await runDepartmentUserRequestContextTests()),
+        ...runPasswordResetTests(),
+        ...(await runPlatformAdminAuthTests()),
+        ...(await runPlatformAdminDashboardTests()),
+        ...runPricingFlowTests(),
+        ...runProcurementOfficerDashboardTests(),
+        ...(await runProcurementOfficerInvitationTests()),
+        ...runPublicAuthEntryTests(),
+        ...runProxyRouteTests(),
+        ...runRbacTests(),
+        ...runSalesInquiryTests(),
+        ...runSecurityInfrastructureTests(),
+        ...(await runServiceBridgeTests()),
+        ...runSessionManagementTests(),
+        ...runSignupFlowTests(),
+        ...runTenantAdminDashboardTests(),
+        ...(await runTenantAdminOnboardingTests()),
+        ...runTenantIsolationTests(),
     ];
     for (const completedTest of completedTests) {
         console.log(`PASS ${completedTest}`);

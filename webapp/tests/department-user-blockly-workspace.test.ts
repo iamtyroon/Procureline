@@ -589,6 +589,7 @@ export async function runDepartmentUserBlocklyWorkspaceTests(): Promise<string[]
         },
     });
     assert.equal(deleteResolution.shouldUndoDelete, true);
+    assert.equal(deleteResolution.shouldPersistSnapshot, false);
     assert.equal(deleteResolution.shouldRecalculate, false);
     assert.equal(
         deleteResolution.categoryDeletionConfirmation?.message,
@@ -618,8 +619,18 @@ export async function runDepartmentUserBlocklyWorkspaceTests(): Promise<string[]
         },
     });
     assert.equal(approvedDeleteResolution.shouldUndoDelete, false);
+    assert.equal(approvedDeleteResolution.shouldPersistSnapshot, true);
     assert.equal(approvedDeleteResolution.shouldQueueStructureRefresh, true);
     assert.equal(approvedDeleteResolution.shouldRecalculate, true);
+    const finishedLoadingResolution = resolveDepartmentUserWorkspaceEvent({
+        editorMode: "edit",
+        event: {
+            type: "finished_loading",
+        },
+    });
+    assert.equal(finishedLoadingResolution.shouldRecalculate, true);
+    assert.equal(finishedLoadingResolution.shouldPersistSnapshot, false);
+    assert.equal(finishedLoadingResolution.shouldQueueStructureRefresh, true);
     const viewportResolution = resolveDepartmentUserWorkspaceEvent({
         editorMode: "edit",
         event: {
@@ -634,7 +645,7 @@ export async function runDepartmentUserBlocklyWorkspaceTests(): Promise<string[]
         viewLeft: 120,
         viewTop: 80,
     });
-    completedTests.push("workspace event helpers now cover delete-confirmation interception, structural refresh, and viewport persistence decisions");
+    completedTests.push("workspace event helpers now cover delete-confirmation interception, structural refresh, viewport persistence, and skip no-op hydration saves");
 
     const viewportStateKey = createDepartmentUserWorkspaceUiStateStorageKey({
         planId: "plan-123",
@@ -686,10 +697,22 @@ export async function runDepartmentUserBlocklyWorkspaceTests(): Promise<string[]
     assert.equal(editInjectionOptions.readOnly, false);
     assert.equal(editInjectionOptions.trashcan, true);
     assert.deepEqual(editInjectionOptions.toolbox, { kind: "categoryToolbox" });
+    assert.deepEqual(editInjectionOptions.move, {
+        drag: true,
+        scrollbars: true,
+        wheel: true,
+    });
+    assert.equal(editInjectionOptions.zoom.maxScale, 1.8);
+    assert.equal(editInjectionOptions.zoom.minScale, 0.4);
     assert.equal(viewInjectionOptions.readOnly, true);
     assert.equal(viewInjectionOptions.trashcan, false);
-    assert.equal(viewInjectionOptions.toolbox, undefined);
-    completedTests.push("workspace injection options now keep read-only plans non-destructive instead of showing edit-only toolbox or trash affordances");
+    assert.deepEqual(viewInjectionOptions.toolbox, { kind: "categoryToolbox" });
+    assert.deepEqual(viewInjectionOptions.move, {
+        drag: true,
+        scrollbars: true,
+        wheel: true,
+    });
+    completedTests.push("workspace injection options now keep read-only plans non-destructive while preserving native toolbox browsing and panning affordances");
 
     const workspaceState = createBlocklyWorkspaceRecord({
         lastSavedAt: 100,

@@ -519,6 +519,7 @@ async function runDepartmentUserBlocklyWorkspaceTests() {
         },
     });
     strict_1.default.equal(deleteResolution.shouldUndoDelete, true);
+    strict_1.default.equal(deleteResolution.shouldPersistSnapshot, false);
     strict_1.default.equal(deleteResolution.shouldRecalculate, false);
     strict_1.default.equal(deleteResolution.categoryDeletionConfirmation?.message, "Remove ICT Equipment and all its items?");
     const approvedDeleteResolution = (0, workspace_events_1.resolveDepartmentUserWorkspaceEvent)({
@@ -545,8 +546,18 @@ async function runDepartmentUserBlocklyWorkspaceTests() {
         },
     });
     strict_1.default.equal(approvedDeleteResolution.shouldUndoDelete, false);
+    strict_1.default.equal(approvedDeleteResolution.shouldPersistSnapshot, true);
     strict_1.default.equal(approvedDeleteResolution.shouldQueueStructureRefresh, true);
     strict_1.default.equal(approvedDeleteResolution.shouldRecalculate, true);
+    const finishedLoadingResolution = (0, workspace_events_1.resolveDepartmentUserWorkspaceEvent)({
+        editorMode: "edit",
+        event: {
+            type: "finished_loading",
+        },
+    });
+    strict_1.default.equal(finishedLoadingResolution.shouldRecalculate, true);
+    strict_1.default.equal(finishedLoadingResolution.shouldPersistSnapshot, false);
+    strict_1.default.equal(finishedLoadingResolution.shouldQueueStructureRefresh, true);
     const viewportResolution = (0, workspace_events_1.resolveDepartmentUserWorkspaceEvent)({
         editorMode: "edit",
         event: {
@@ -561,7 +572,7 @@ async function runDepartmentUserBlocklyWorkspaceTests() {
         viewLeft: 120,
         viewTop: 80,
     });
-    completedTests.push("workspace event helpers now cover delete-confirmation interception, structural refresh, and viewport persistence decisions");
+    completedTests.push("workspace event helpers now cover delete-confirmation interception, structural refresh, viewport persistence, and skip no-op hydration saves");
     const viewportStateKey = (0, workspace_ui_state_1.createDepartmentUserWorkspaceUiStateStorageKey)({
         planId: "plan-123",
         userId: "du-user-1",
@@ -602,10 +613,22 @@ async function runDepartmentUserBlocklyWorkspaceTests() {
     strict_1.default.equal(editInjectionOptions.readOnly, false);
     strict_1.default.equal(editInjectionOptions.trashcan, true);
     strict_1.default.deepEqual(editInjectionOptions.toolbox, { kind: "categoryToolbox" });
+    strict_1.default.deepEqual(editInjectionOptions.move, {
+        drag: true,
+        scrollbars: true,
+        wheel: true,
+    });
+    strict_1.default.equal(editInjectionOptions.zoom.maxScale, 1.8);
+    strict_1.default.equal(editInjectionOptions.zoom.minScale, 0.4);
     strict_1.default.equal(viewInjectionOptions.readOnly, true);
     strict_1.default.equal(viewInjectionOptions.trashcan, false);
-    strict_1.default.equal(viewInjectionOptions.toolbox, undefined);
-    completedTests.push("workspace injection options now keep read-only plans non-destructive instead of showing edit-only toolbox or trash affordances");
+    strict_1.default.deepEqual(viewInjectionOptions.toolbox, { kind: "categoryToolbox" });
+    strict_1.default.deepEqual(viewInjectionOptions.move, {
+        drag: true,
+        scrollbars: true,
+        wheel: true,
+    });
+    completedTests.push("workspace injection options now keep read-only plans non-destructive while preserving native toolbox browsing and panning affordances");
     const workspaceState = (0, blockly_serialization_1.createBlocklyWorkspaceRecord)({
         lastSavedAt: 100,
         lastSavedByUserId: "old-user",
