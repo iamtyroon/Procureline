@@ -19,6 +19,7 @@ function registerTestPathAlias() {
 async function main() {
     registerTestPathAlias();
     const { runBlocklyWorkspaceValidationTests } = await import("./blockly-workspace-validation.test.js");
+    const { runBlocklyWorkspacePersistenceTests } = await import("./blockly-workspace-persistence.test.js");
     const { runComplianceTests } = await import("./compliance.test.js");
     const { runConvexErrorHandlingTests } = await import("./convex-error-handling.test.js");
     const { runEmailTransportTests } = await import("./email-transport.test.js");
@@ -50,6 +51,7 @@ async function main() {
     const { runTenantAdminOnboardingTests } = await import("./tenant-admin-onboarding.test.js");
     const { runTenantIsolationTests } = await import("./tenant-isolation.test.js");
     const completedTests = [
+        ...runBlocklyWorkspacePersistenceTests(),
         ...runBlocklyWorkspaceValidationTests(),
         ...runComplianceTests(),
         ...runConvexErrorHandlingTests(),

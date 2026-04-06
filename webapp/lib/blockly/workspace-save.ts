@@ -1,4 +1,5 @@
 import {
+    compareBlocklyWorkspaceRecords,
     isBlocklyWorkspaceRecord,
     normalizeBlocklyWorkspaceRecord,
     serializeBlocklyWorkspace,
@@ -65,7 +66,10 @@ export type DepartmentUserWorkspaceDraftPersistencePreparationResult<
     CategoryId = string,
 > =
     | {
-          code: "UNAUTHORIZED" | "VALIDATION_FAILED";
+          code:
+              | "STALE_WORKSPACE_REVISION"
+              | "UNAUTHORIZED"
+              | "VALIDATION_FAILED";
           message: string;
           ok: false;
       }
@@ -98,9 +102,20 @@ export function buildPersistedDepartmentUserWorkspaceState(args: {
             ...normalizedWorkspaceState.editorMetadata,
             lastSavedAt: args.savedAt,
             lastSavedByUserId: args.currentUserId,
-            saveSource: "workspace_sync" as const,
         },
     };
+}
+
+export function isDepartmentUserWorkspaceDraftStale(args: {
+    incomingWorkspaceState: BlocklyWorkspaceRecord;
+    persistedWorkspaceState: BlocklyWorkspaceRecord | null | undefined;
+}): boolean {
+    return (
+        compareBlocklyWorkspaceRecords(
+            args.incomingWorkspaceState,
+            args.persistedWorkspaceState,
+        ) < 0
+    );
 }
 
 export function buildDepartmentUserWorkspaceDraftSaveInput(args: {
@@ -256,6 +271,7 @@ export function prepareDepartmentUserWorkspaceDraftPersistence<
     existingSelectedCategoryIds: CategoryId[];
     items: readonly DepartmentUserCatalogItem[];
     planStatus: "approved" | "draft" | "rejected" | "submitted";
+    persistedWorkspaceState: BlocklyWorkspaceRecord | null | undefined;
     totalBudget: number | null | undefined;
     workspaceState: unknown;
 }): DepartmentUserWorkspaceDraftPersistencePreparationResult<CategoryId> {
@@ -296,6 +312,20 @@ export function prepareDepartmentUserWorkspaceDraftPersistence<
             code: "VALIDATION_FAILED",
             message:
                 "Workspace state is malformed and could not be recalculated safely.",
+            ok: false,
+        };
+    }
+
+    if (
+        isDepartmentUserWorkspaceDraftStale({
+            incomingWorkspaceState: persistencePatch.workspaceState,
+            persistedWorkspaceState: args.persistedWorkspaceState,
+        })
+    ) {
+        return {
+            code: "STALE_WORKSPACE_REVISION",
+            message:
+                "A newer workspace draft already exists. Refresh the editor before replaying older local changes.",
             ok: false,
         };
     }

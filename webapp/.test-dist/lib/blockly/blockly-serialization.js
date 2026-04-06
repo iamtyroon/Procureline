@@ -1,8 +1,15 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.loadBlocklyWorkspace = exports.serializeBlocklyWorkspace = exports.normalizeBlocklyWorkspaceRecord = exports.isBlocklyWorkspaceRecord = exports.createBlocklyWorkspaceRecord = exports.createEmptyBlocklyWorkspaceJson = exports.BLOCKLY_WORKSPACE_SCHEMA_VERSION = exports.BLOCKLY_WORKSPACE_FORMAT = void 0;
+exports.loadBlocklyWorkspace = exports.compareBlocklyWorkspaceRecords = exports.serializeBlocklyWorkspace = exports.normalizeBlocklyWorkspaceRecord = exports.isBlocklyWorkspaceRecord = exports.createBlocklyWorkspaceRecord = exports.createEmptyBlocklyWorkspaceJson = exports.isBlocklyWorkspaceSaveSource = exports.BLOCKLY_WORKSPACE_SCHEMA_VERSION = exports.BLOCKLY_WORKSPACE_FORMAT = void 0;
 exports.BLOCKLY_WORKSPACE_FORMAT = "blockly_json";
 exports.BLOCKLY_WORKSPACE_SCHEMA_VERSION = 1;
+function isBlocklyWorkspaceSaveSource(value) {
+    return (value === "workspace_clear" ||
+        value === "workspace_recovery" ||
+        value === "workspace_seed" ||
+        value === "workspace_sync");
+}
+exports.isBlocklyWorkspaceSaveSource = isBlocklyWorkspaceSaveSource;
 function createEmptyBlocklyWorkspaceJson() {
     return {
         blocks: {
@@ -45,8 +52,7 @@ function isBlocklyWorkspaceRecord(value) {
         (typeof editorMetadata.recoveredAt === "number" ||
             editorMetadata.recoveredAt === null) &&
         typeof editorMetadata.revision === "number" &&
-        (editorMetadata.saveSource === "workspace_seed" ||
-            editorMetadata.saveSource === "workspace_sync"));
+        isBlocklyWorkspaceSaveSource(editorMetadata.saveSource));
 }
 exports.isBlocklyWorkspaceRecord = isBlocklyWorkspaceRecord;
 function normalizeBlocklyWorkspaceRecord(value, fallback) {
@@ -76,6 +82,22 @@ function serializeBlocklyWorkspace(args) {
     });
 }
 exports.serializeBlocklyWorkspace = serializeBlocklyWorkspace;
+function compareBlocklyWorkspaceRecords(left, right) {
+    const leftRevision = left?.editorMetadata.revision ?? 0;
+    const rightRevision = right?.editorMetadata.revision ?? 0;
+    if (leftRevision !== rightRevision) {
+        return leftRevision - rightRevision;
+    }
+    const leftRecoveredAt = left?.editorMetadata.recoveredAt ?? 0;
+    const rightRecoveredAt = right?.editorMetadata.recoveredAt ?? 0;
+    if (leftRecoveredAt !== rightRecoveredAt) {
+        return leftRecoveredAt - rightRecoveredAt;
+    }
+    const leftSavedAt = left?.editorMetadata.lastSavedAt ?? 0;
+    const rightSavedAt = right?.editorMetadata.lastSavedAt ?? 0;
+    return leftSavedAt - rightSavedAt;
+}
+exports.compareBlocklyWorkspaceRecords = compareBlocklyWorkspaceRecords;
 function loadBlocklyWorkspace(args) {
     const record = normalizeBlocklyWorkspaceRecord(args.record);
     args.Blockly.serialization.workspaces.load(record.workspaceJson, args.workspace);

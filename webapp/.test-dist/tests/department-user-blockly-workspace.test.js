@@ -1039,13 +1039,14 @@ async function runDepartmentUserBlocklyWorkspaceTests() {
             },
         ],
         planStatus: "draft",
+        persistedWorkspaceState: (0, blockly_serialization_1.createBlocklyWorkspaceRecord)({
+            revision: 1,
+            saveSource: "workspace_sync",
+        }),
         totalBudget: 250_000,
         workspaceState,
     });
     strict_1.default.equal(persistencePreparation.ok, true);
-    if (!persistencePreparation.ok) {
-        strict_1.default.fail("expected the prepared persistence patch to succeed");
-    }
     strict_1.default.equal(persistencePreparation.patch.estimatedBudgetUsed, 320_000);
     strict_1.default.equal(persistencePreparation.patch.itemCount, 1);
     strict_1.default.deepEqual(persistencePreparation.patch.selectedCategoryIds, [
@@ -1090,6 +1091,10 @@ async function runDepartmentUserBlocklyWorkspaceTests() {
             },
         ],
         planStatus: "submitted",
+        persistedWorkspaceState: (0, blockly_serialization_1.createBlocklyWorkspaceRecord)({
+            revision: 1,
+            saveSource: "workspace_sync",
+        }),
         totalBudget: 250_000,
         workspaceState,
     }), {

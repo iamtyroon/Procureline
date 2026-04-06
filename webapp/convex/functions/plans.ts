@@ -31,6 +31,8 @@ const workspaceRecordValidator = v.object({
         recoveredAt: v.union(v.number(), v.null()),
         revision: v.number(),
         saveSource: v.union(
+            v.literal("workspace_clear"),
+            v.literal("workspace_recovery"),
             v.literal("workspace_seed"),
             v.literal("workspace_sync"),
         ),
@@ -634,6 +636,10 @@ export const saveDepartmentUserWorkspaceDraft = mutation({
             existingSelectedCategoryIds: plan.selectedCategoryIds,
             items: catalog.items,
             planStatus: plan.status,
+            persistedWorkspaceState: normalizeBlocklyWorkspaceRecord(plan.workspaceState, {
+                lastSavedAt: plan.updatedAt,
+                lastSavedByUserId: String(base.authContext.userId),
+            }),
             totalBudget: base.department.budgetAllocation ?? null,
             workspaceState: args.workspaceState,
         });

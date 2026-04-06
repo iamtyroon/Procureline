@@ -12,6 +12,8 @@ const blocklyWorkspaceStateValidator = v.object({
         recoveredAt: v.union(v.number(), v.null()),
         revision: v.number(),
         saveSource: v.union(
+            v.literal("workspace_clear"),
+            v.literal("workspace_recovery"),
             v.literal("workspace_seed"),
             v.literal("workspace_sync"),
         ),

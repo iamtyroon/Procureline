@@ -45,6 +45,9 @@ async function main(): Promise<void> {
     const { runBlocklyWorkspaceValidationTests } = await import(
         "./blockly-workspace-validation.test.js"
     );
+    const { runBlocklyWorkspacePersistenceTests } = await import(
+        "./blockly-workspace-persistence.test.js"
+    );
     const { runComplianceTests } = await import("./compliance.test.js");
     const { runConvexErrorHandlingTests } = await import(
         "./convex-error-handling.test.js"
@@ -117,6 +120,7 @@ async function main(): Promise<void> {
     const { runTenantIsolationTests } = await import("./tenant-isolation.test.js");
 
     const completedTests = [
+        ...runBlocklyWorkspacePersistenceTests(),
         ...runBlocklyWorkspaceValidationTests(),
         ...runComplianceTests(),
         ...runConvexErrorHandlingTests(),

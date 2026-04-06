@@ -1166,13 +1166,14 @@ export async function runDepartmentUserBlocklyWorkspaceTests(): Promise<string[]
             },
         ],
         planStatus: "draft",
+        persistedWorkspaceState: createBlocklyWorkspaceRecord({
+            revision: 1,
+            saveSource: "workspace_sync",
+        }),
         totalBudget: 250_000,
         workspaceState,
     });
     assert.equal(persistencePreparation.ok, true);
-    if (!persistencePreparation.ok) {
-        assert.fail("expected the prepared persistence patch to succeed");
-    }
     assert.equal(persistencePreparation.patch.estimatedBudgetUsed, 320_000);
     assert.equal(persistencePreparation.patch.itemCount, 1);
     assert.deepEqual(persistencePreparation.patch.selectedCategoryIds, [
@@ -1218,6 +1219,10 @@ export async function runDepartmentUserBlocklyWorkspaceTests(): Promise<string[]
                 },
             ],
             planStatus: "submitted",
+            persistedWorkspaceState: createBlocklyWorkspaceRecord({
+                revision: 1,
+                saveSource: "workspace_sync",
+            }),
             totalBudget: 250_000,
             workspaceState,
         }),

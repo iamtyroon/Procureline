@@ -1,7 +1,11 @@
 export const BLOCKLY_WORKSPACE_FORMAT = "blockly_json" as const;
 export const BLOCKLY_WORKSPACE_SCHEMA_VERSION = 1 as const;
 
-export type BlocklyWorkspaceSaveSource = "workspace_seed" | "workspace_sync";
+export type BlocklyWorkspaceSaveSource =
+    | "workspace_clear"
+    | "workspace_recovery"
+    | "workspace_seed"
+    | "workspace_sync";
 
 export interface BlocklyWorkspaceEditorMetadata {
     lastSavedAt: number;
@@ -20,6 +24,17 @@ export interface BlocklyWorkspaceRecord {
 
 type BlocklyModule = typeof import("blockly");
 type BlocklyWorkspace = import("blockly").WorkspaceSvg;
+
+export function isBlocklyWorkspaceSaveSource(
+    value: unknown,
+): value is BlocklyWorkspaceSaveSource {
+    return (
+        value === "workspace_clear" ||
+        value === "workspace_recovery" ||
+        value === "workspace_seed" ||
+        value === "workspace_sync"
+    );
+}
 
 export function createEmptyBlocklyWorkspaceJson(): Record<string, unknown> {
     return {
@@ -74,8 +89,7 @@ export function isBlocklyWorkspaceRecord(value: unknown): value is BlocklyWorksp
         (typeof editorMetadata.recoveredAt === "number" ||
             editorMetadata.recoveredAt === null) &&
         typeof editorMetadata.revision === "number" &&
-        (editorMetadata.saveSource === "workspace_seed" ||
-            editorMetadata.saveSource === "workspace_sync")
+        isBlocklyWorkspaceSaveSource(editorMetadata.saveSource)
     );
 }
 
@@ -125,6 +139,27 @@ export function serializeBlocklyWorkspace(args: {
         saveSource: args.saveSource ?? "workspace_sync",
         workspaceJson,
     });
+}
+
+export function compareBlocklyWorkspaceRecords(
+    left: BlocklyWorkspaceRecord | null | undefined,
+    right: BlocklyWorkspaceRecord | null | undefined,
+): number {
+    const leftRevision = left?.editorMetadata.revision ?? 0;
+    const rightRevision = right?.editorMetadata.revision ?? 0;
+    if (leftRevision !== rightRevision) {
+        return leftRevision - rightRevision;
+    }
+
+    const leftRecoveredAt = left?.editorMetadata.recoveredAt ?? 0;
+    const rightRecoveredAt = right?.editorMetadata.recoveredAt ?? 0;
+    if (leftRecoveredAt !== rightRecoveredAt) {
+        return leftRecoveredAt - rightRecoveredAt;
+    }
+
+    const leftSavedAt = left?.editorMetadata.lastSavedAt ?? 0;
+    const rightSavedAt = right?.editorMetadata.lastSavedAt ?? 0;
+    return leftSavedAt - rightSavedAt;
 }
 
 export function loadBlocklyWorkspace(args: {

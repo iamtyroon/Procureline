@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createSerializedBlocklyWorkspaceSnapshot = exports.prepareDepartmentUserWorkspaceDraftPersistence = exports.buildDepartmentUserWorkspaceDraftPersistencePatch = exports.deriveDepartmentUserWorkspaceDraftPersistenceSummary = exports.buildDepartmentUserWorkspaceDraftSaveInput = exports.buildPersistedDepartmentUserWorkspaceState = void 0;
+exports.createSerializedBlocklyWorkspaceSnapshot = exports.prepareDepartmentUserWorkspaceDraftPersistence = exports.buildDepartmentUserWorkspaceDraftPersistencePatch = exports.deriveDepartmentUserWorkspaceDraftPersistenceSummary = exports.buildDepartmentUserWorkspaceDraftSaveInput = exports.isDepartmentUserWorkspaceDraftStale = exports.buildPersistedDepartmentUserWorkspaceState = void 0;
 const blockly_serialization_1 = require("./blockly-serialization");
 const du_workspace_calculations_1 = require("./du-workspace-calculations");
 const du_plan_routes_1 = require("./du-plan-routes");
@@ -20,11 +20,14 @@ function buildPersistedDepartmentUserWorkspaceState(args) {
             ...normalizedWorkspaceState.editorMetadata,
             lastSavedAt: args.savedAt,
             lastSavedByUserId: args.currentUserId,
-            saveSource: "workspace_sync",
         },
     };
 }
 exports.buildPersistedDepartmentUserWorkspaceState = buildPersistedDepartmentUserWorkspaceState;
+function isDepartmentUserWorkspaceDraftStale(args) {
+    return ((0, blockly_serialization_1.compareBlocklyWorkspaceRecords)(args.incomingWorkspaceState, args.persistedWorkspaceState) < 0);
+}
+exports.isDepartmentUserWorkspaceDraftStale = isDepartmentUserWorkspaceDraftStale;
 function buildDepartmentUserWorkspaceDraftSaveInput(args) {
     return {
         categorySummaries: args.summary?.categories.flatMap((category) => {
@@ -148,6 +151,16 @@ function prepareDepartmentUserWorkspaceDraftPersistence(args) {
         return {
             code: "VALIDATION_FAILED",
             message: "Workspace state is malformed and could not be recalculated safely.",
+            ok: false,
+        };
+    }
+    if (isDepartmentUserWorkspaceDraftStale({
+        incomingWorkspaceState: persistencePatch.workspaceState,
+        persistedWorkspaceState: args.persistedWorkspaceState,
+    })) {
+        return {
+            code: "STALE_WORKSPACE_REVISION",
+            message: "A newer workspace draft already exists. Refresh the editor before replaying older local changes.",
             ok: false,
         };
     }
