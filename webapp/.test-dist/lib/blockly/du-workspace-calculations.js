@@ -553,7 +553,7 @@ function readQuarterlyItemFromBlock(block) {
     };
     return {
         blockId: block.id ?? null,
-        complianceFlags: block.getFieldValue("COMPLIANCE_FLAGS").split(","),
+        complianceFlags: parseSerializedStringList(block.getFieldValue("COMPLIANCE_FLAGS")),
         isActive: parseSerializedBoolean(block.getFieldValue("ITEM_IS_ACTIVE")),
         itemDescription: block.getFieldValue("ITEM_DESCRIPTION") ||
             block.getFieldValue("ITEM_DESC") ||
@@ -629,7 +629,7 @@ function readQuarterlyItemFromSerializedBlock(block) {
     };
     return {
         blockId: null,
-        complianceFlags: getSerializedFieldValue(block, "COMPLIANCE_FLAGS").split(","),
+        complianceFlags: parseSerializedStringList(getSerializedFieldValue(block, "COMPLIANCE_FLAGS")),
         isActive: parseSerializedBoolean(getSerializedFieldValue(block, "ITEM_IS_ACTIVE")),
         itemDescription: getSerializedFieldValue(block, "ITEM_DESCRIPTION") ||
             getSerializedFieldValue(block, "ITEM_DESC") ||
@@ -785,6 +785,12 @@ function getSerializedFieldValue(block, fieldName) {
         return String(value);
     }
     return "";
+}
+function parseSerializedStringList(value) {
+    return (value ?? "")
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
 }
 function getSerializedInputBlock(block, inputName) {
     const input = block.inputs?.[inputName];

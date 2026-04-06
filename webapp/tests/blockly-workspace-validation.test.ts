@@ -3,6 +3,7 @@ import {
     evaluateDepartmentUserWorkspaceValidation,
     getDepartmentUserQuantityFieldPrecision,
     normalizeDepartmentUserQuantityValue,
+    summarizeDepartmentUserBlockValidationIssues,
 } from "../lib/blockly/workspace-validation";
 
 export function runBlocklyWorkspaceValidationTests(): string[] {
@@ -50,6 +51,47 @@ export function runBlocklyWorkspaceValidationTests(): string[] {
     assert.equal(cappedQuantity.normalizedValue, 6);
     assert.equal(cappedQuantity.message, "Maximum quantity is 6");
     completedTests.push("quantity normalization enforces catalog max limits with truthful feedback");
+
+    const cappedDiscreteQuantity = normalizeDepartmentUserQuantityValue({
+        maxQuantity: 2,
+        unitOfMeasurement: "each",
+        value: "3.2",
+    });
+    assert.equal(cappedDiscreteQuantity.normalizedValue, 2);
+    assert.equal(
+        cappedDiscreteQuantity.message,
+        "Whole numbers only for this unit. Maximum quantity is 2",
+    );
+    completedTests.push("quantity normalization preserves both integer-only and max-limit feedback when both rules trigger");
+
+    assert.equal(
+        summarizeDepartmentUserBlockValidationIssues([
+            {
+                blockId: "item-a",
+                blocksSubmission: false,
+                categoryId: "cat-it",
+                code: "whole_number_required",
+                itemId: "item-a",
+                itemName: "Laptop",
+                message: "Whole numbers only for this unit.",
+                quantityKey: "q1",
+                severity: "warning",
+            },
+            {
+                blockId: "item-a",
+                blocksSubmission: false,
+                categoryId: "cat-it",
+                code: "maximum_quantity",
+                itemId: "item-a",
+                itemName: "Laptop",
+                message: "Maximum quantity is 2!",
+                quantityKey: "q1",
+                severity: "warning",
+            },
+        ]),
+        "Whole numbers only for this unit. Maximum quantity is 2",
+    );
+    completedTests.push("validation warning summaries trim trailing punctuation before joining messages");
 
     const validationState = evaluateDepartmentUserWorkspaceValidation({
         budgetState: {

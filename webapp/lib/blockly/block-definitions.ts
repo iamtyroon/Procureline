@@ -27,10 +27,11 @@ function createQuarterQuantityField(
         } | null;
     }, newValue: string | number | null | undefined) {
         const sourceBlock = this.getSourceBlock?.() ?? null;
+        const maxQuantityRaw = sourceBlock?.getFieldValue("MAX_QUANTITY");
         const normalizedValue = normalizeDepartmentUserQuantityValue({
             maxQuantity:
-                sourceBlock?.getFieldValue("MAX_QUANTITY").trim().length
-                    ? Number(sourceBlock.getFieldValue("MAX_QUANTITY"))
+                (maxQuantityRaw ?? "").trim().length > 0
+                    ? Number(maxQuantityRaw)
                     : null,
             unitOfMeasurement: sourceBlock?.getFieldValue("UNIT_OF_MEASUREMENT"),
             value: newValue,

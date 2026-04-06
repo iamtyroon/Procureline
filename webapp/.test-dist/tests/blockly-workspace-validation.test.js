@@ -46,6 +46,39 @@ function runBlocklyWorkspaceValidationTests() {
     strict_1.default.equal(cappedQuantity.normalizedValue, 6);
     strict_1.default.equal(cappedQuantity.message, "Maximum quantity is 6");
     completedTests.push("quantity normalization enforces catalog max limits with truthful feedback");
+    const cappedDiscreteQuantity = (0, workspace_validation_1.normalizeDepartmentUserQuantityValue)({
+        maxQuantity: 2,
+        unitOfMeasurement: "each",
+        value: "3.2",
+    });
+    strict_1.default.equal(cappedDiscreteQuantity.normalizedValue, 2);
+    strict_1.default.equal(cappedDiscreteQuantity.message, "Whole numbers only for this unit. Maximum quantity is 2");
+    completedTests.push("quantity normalization preserves both integer-only and max-limit feedback when both rules trigger");
+    strict_1.default.equal((0, workspace_validation_1.summarizeDepartmentUserBlockValidationIssues)([
+        {
+            blockId: "item-a",
+            blocksSubmission: false,
+            categoryId: "cat-it",
+            code: "whole_number_required",
+            itemId: "item-a",
+            itemName: "Laptop",
+            message: "Whole numbers only for this unit.",
+            quantityKey: "q1",
+            severity: "warning",
+        },
+        {
+            blockId: "item-a",
+            blocksSubmission: false,
+            categoryId: "cat-it",
+            code: "maximum_quantity",
+            itemId: "item-a",
+            itemName: "Laptop",
+            message: "Maximum quantity is 2!",
+            quantityKey: "q1",
+            severity: "warning",
+        },
+    ]), "Whole numbers only for this unit. Maximum quantity is 2");
+    completedTests.push("validation warning summaries trim trailing punctuation before joining messages");
     const validationState = (0, workspace_validation_1.evaluateDepartmentUserWorkspaceValidation)({
         budgetState: {
             canSubmitByBudget: false,

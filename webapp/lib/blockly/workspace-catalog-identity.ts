@@ -441,6 +441,7 @@ export function synchronizeDepartmentUserWorkspaceCatalogIdentity(args: {
                 );
             }
             if (
+                resolvedItem &&
                 itemBlock.getFieldValue("ITEM_IS_ACTIVE") !==
                 String(resolvedItem?.isActive ?? false)
             ) {
@@ -450,6 +451,7 @@ export function synchronizeDepartmentUserWorkspaceCatalogIdentity(args: {
                 );
             }
             if (
+                resolvedItem &&
                 itemBlock.getFieldValue("MAX_QUANTITY") !==
                 serializeOptionalNumericField(resolvedItem?.maxQuantity ?? null)
             ) {
@@ -459,6 +461,7 @@ export function synchronizeDepartmentUserWorkspaceCatalogIdentity(args: {
                 );
             }
             if (
+                resolvedItem &&
                 itemBlock.getFieldValue("MIN_QUANTITY") !==
                 serializeOptionalNumericField(resolvedItem?.minQuantity ?? null)
             ) {

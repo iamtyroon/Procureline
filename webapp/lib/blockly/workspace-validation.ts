@@ -86,11 +86,11 @@ const QUANTITY_KEYS = ["q1", "q2", "q3", "q4"] as const satisfies ReadonlyArray<
 function mapQuantityMessageToIssueCode(
     message: string,
 ): DepartmentUserWorkspaceValidationIssue["code"] {
-    if (message === PROCUREMENT_ITEM_WORKSPACE_INTEGER_ONLY_MESSAGE) {
+    if (message.includes(PROCUREMENT_ITEM_WORKSPACE_INTEGER_ONLY_MESSAGE)) {
         return "whole_number_required";
     }
 
-    if (message.startsWith("Maximum quantity is ")) {
+    if (message.includes("Maximum quantity is ")) {
         return "maximum_quantity";
     }
 
@@ -121,6 +121,22 @@ function roundQuantity(value: number, precision: number): number {
 
     const multiplier = 1 / precision;
     return Math.round((value + Number.EPSILON) * multiplier) / multiplier;
+}
+
+function combineValidationMessages(
+    ...messages: Array<string | null | undefined>
+): string | null {
+    const normalizedMessages = Array.from(
+        new Set(
+            messages
+                .map((message) => message?.trim())
+                .filter((message): message is string => Boolean(message)),
+        ),
+    );
+
+    return normalizedMessages.length > 0
+        ? normalizedMessages.join(". ")
+        : null;
 }
 
 export function getDepartmentUserQuantityFieldPrecision(
@@ -167,7 +183,10 @@ export function normalizeDepartmentUserQuantityValue(args: {
     const maxQuantity = coerceFiniteNumber(args.maxQuantity ?? null);
     if (maxQuantity !== null && maxQuantity >= 0 && nextValue > maxQuantity) {
         nextValue = maxQuantity;
-        nextMessage = formatProcurementItemMaximumQuantityMessage(maxQuantity);
+        nextMessage = combineValidationMessages(
+            nextMessage,
+            formatProcurementItemMaximumQuantityMessage(maxQuantity),
+        );
     }
 
     return {
@@ -196,7 +215,12 @@ export function summarizeDepartmentUserBlockValidationIssues(
         return null;
     }
 
-    return uniqueMessages.slice(0, 2).join(". ");
+    const summaryMessages = uniqueMessages
+        .slice(0, 2)
+        .map((message) => message.replace(/[\s.!?]+$/u, "").trim())
+        .filter((message) => message.length > 0);
+
+    return summaryMessages.length > 0 ? summaryMessages.join(". ") : null;
 }
 
 export function evaluateDepartmentUserWorkspaceValidation(args: {
