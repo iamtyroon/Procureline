@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.isValidDepartmentWindow = exports.formatCoverageValue = exports.deriveProcurementChecklist = exports.deriveSharedSubmissionDeadline = exports.buildAvailableProcurementFiscalYears = exports.getDepartmentFiscalYearKey = exports.resolveProcurementOfficerWorkspaceNavigation = exports.buildProcurementOfficerWorkspaceModalPath = exports.normalizeProcurementOfficerWorkspaceModalState = exports.isProcurementOfficerWorkspaceSection = exports.isProcurementOfficerWorkspaceModal = exports.formatProcurementFiscalYearLabel = exports.getProcurementFiscalYearForDate = exports.PROCUREMENT_OFFICER_WORKSPACE_SECTIONS = exports.PROCUREMENT_OFFICER_WORKSPACE_MODALS = void 0;
 const dashboard_1 = require("../tenant-admin/dashboard");
 const deadlines_1 = require("./deadlines");
+const catalog_filters_1 = require("./catalog-filters");
 exports.PROCUREMENT_OFFICER_WORKSPACE_MODALS = [
     "access-codes",
     "categories",
@@ -49,7 +50,8 @@ function normalizeProcurementOfficerWorkspaceModalState(args) {
     if (!isProcurementOfficerWorkspaceModal(args.modal)) {
         return null;
     }
-    if (args.modal === "categories" && isProcurementOfficerWorkspaceSection(args.section)) {
+    if (args.modal === "categories" &&
+        isProcurementOfficerWorkspaceSection(args.section)) {
         return {
             modal: args.modal,
             section: args.section,
@@ -60,18 +62,25 @@ function normalizeProcurementOfficerWorkspaceModalState(args) {
     };
 }
 exports.normalizeProcurementOfficerWorkspaceModalState = normalizeProcurementOfficerWorkspaceModalState;
-function buildProcurementOfficerWorkspaceModalPath(state) {
+function buildProcurementOfficerWorkspaceModalPath(state, options) {
     const searchParams = new URLSearchParams({
         modal: state.modal,
     });
     if (state.modal === "categories" && state.section) {
         searchParams.set("section", state.section);
+        if (options?.itemWorkspaceSearchParams) {
+            const itemSearchParams = (0, catalog_filters_1.extractProcurementCatalogBrowseSearchParams)(options.itemWorkspaceSearchParams);
+            itemSearchParams.forEach((value, key) => {
+                searchParams.append(key, value);
+            });
+        }
     }
     return `/po?${searchParams.toString()}`;
 }
 exports.buildProcurementOfficerWorkspaceModalPath = buildProcurementOfficerWorkspaceModalPath;
 function resolveProcurementOfficerWorkspaceNavigation(href) {
-    switch (href) {
+    const targetUrl = new URL(href, "https://procureline.local");
+    switch (targetUrl.pathname) {
         case "/po/departments":
             return {
                 href: buildProcurementOfficerWorkspaceModalPath({
@@ -110,6 +119,8 @@ function resolveProcurementOfficerWorkspaceNavigation(href) {
                 href: buildProcurementOfficerWorkspaceModalPath({
                     modal: "categories",
                     section: "items",
+                }, {
+                    itemWorkspaceSearchParams: targetUrl.searchParams,
                 }),
                 type: "modal",
                 modalState: {
@@ -127,7 +138,7 @@ function resolveProcurementOfficerWorkspaceNavigation(href) {
             };
         default:
             return {
-                href,
+                href: `${targetUrl.pathname}${targetUrl.search}`,
                 type: "route",
             };
     }

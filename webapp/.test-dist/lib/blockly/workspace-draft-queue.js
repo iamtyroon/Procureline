@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.clearDepartmentUserWorkspaceDraftState = exports.clearDepartmentUserWorkspaceRecoverySnapshot = exports.clearDepartmentUserWorkspaceQueuedSnapshot = exports.upsertDepartmentUserWorkspaceRecoverySnapshot = exports.upsertDepartmentUserWorkspaceQueuedSnapshot = exports.readDepartmentUserWorkspaceDraftState = exports.releaseDepartmentUserWorkspaceSessionLease = exports.claimDepartmentUserWorkspaceSessionLease = exports.readDepartmentUserWorkspaceSessionLease = exports.hasCompetingDepartmentUserWorkspaceSession = exports.parseDepartmentUserWorkspaceSessionLease = exports.serializeDepartmentUserWorkspaceSessionLease = exports.parseDepartmentUserWorkspaceSaveFailure = exports.shouldInterceptDepartmentUserRouteNavigation = exports.shouldWarnDepartmentUserBeforeLeave = exports.getDepartmentUserWorkspaceRecoveryMessage = exports.getDepartmentUserWorkspaceSaveIndicatorLabel = exports.createClearedDepartmentUserWorkspaceRecord = exports.createRecoveredDepartmentUserWorkspaceRecord = exports.shouldOfferDepartmentUserWorkspaceRecovery = exports.compareDepartmentUserWorkspaceRecoveryFreshness = exports.coalesceDepartmentUserWorkspaceSnapshot = void 0;
+exports.clearDepartmentUserWorkspaceDraftState = exports.clearDepartmentUserWorkspaceRecoverySnapshot = exports.clearDepartmentUserWorkspaceQueuedSnapshot = exports.upsertDepartmentUserWorkspaceRecoverySnapshot = exports.upsertDepartmentUserWorkspaceQueuedSnapshot = exports.readDepartmentUserWorkspaceDraftState = exports.releaseDepartmentUserWorkspaceSessionLease = exports.claimDepartmentUserWorkspaceSessionLease = exports.readDepartmentUserWorkspaceSessionLease = exports.hasCompetingDepartmentUserWorkspaceSession = exports.parseDepartmentUserWorkspaceSessionLease = exports.serializeDepartmentUserWorkspaceSessionLease = exports.parseDepartmentUserWorkspaceSaveFailure = exports.getDepartmentUserWorkspaceLeaveGuardHistoryAction = exports.isDepartmentUserWorkspaceLeaveGuardHistoryState = exports.createDepartmentUserWorkspaceLeaveGuardHistoryState = exports.shouldInterceptDepartmentUserRouteNavigation = exports.shouldWarnDepartmentUserBeforeLeave = exports.getDepartmentUserWorkspaceRecoveryMessage = exports.getDepartmentUserWorkspaceSaveIndicatorLabel = exports.createClearedDepartmentUserWorkspaceRecord = exports.createRecoveredDepartmentUserWorkspaceRecord = exports.shouldOfferDepartmentUserWorkspaceRecovery = exports.compareDepartmentUserWorkspaceRecoveryFreshness = exports.coalesceDepartmentUserWorkspaceSnapshot = void 0;
 const blockly_serialization_1 = require("./blockly-serialization");
 const DEPARTMENT_USER_WORKSPACE_DRAFT_DB_NAME = "procureline-blockly-drafts";
 const DEPARTMENT_USER_WORKSPACE_DRAFT_DB_VERSION = 1;
@@ -167,6 +167,35 @@ function shouldInterceptDepartmentUserRouteNavigation(args) {
     }
 }
 exports.shouldInterceptDepartmentUserRouteNavigation = shouldInterceptDepartmentUserRouteNavigation;
+function createDepartmentUserWorkspaceLeaveGuardHistoryState(sessionId) {
+    return {
+        procurelineBlocklyLeaveGuard: sessionId,
+    };
+}
+exports.createDepartmentUserWorkspaceLeaveGuardHistoryState = createDepartmentUserWorkspaceLeaveGuardHistoryState;
+function isDepartmentUserWorkspaceLeaveGuardHistoryState(args) {
+    if (!args.historyState || typeof args.historyState !== "object") {
+        return false;
+    }
+    return (args.historyState
+        .procurelineBlocklyLeaveGuard === args.sessionId);
+}
+exports.isDepartmentUserWorkspaceLeaveGuardHistoryState = isDepartmentUserWorkspaceLeaveGuardHistoryState;
+function getDepartmentUserWorkspaceLeaveGuardHistoryAction(args) {
+    if (args.shouldWarnBeforeLeave) {
+        return args.isGuardArmed ? "noop" : "arm";
+    }
+    if (!args.isGuardArmed) {
+        return "noop";
+    }
+    return isDepartmentUserWorkspaceLeaveGuardHistoryState({
+        historyState: args.historyState,
+        sessionId: args.sessionId,
+    })
+        ? "disarm"
+        : "noop";
+}
+exports.getDepartmentUserWorkspaceLeaveGuardHistoryAction = getDepartmentUserWorkspaceLeaveGuardHistoryAction;
 function parseDepartmentUserWorkspaceSaveFailure(error) {
     const rawMessage = error instanceof Error && error.message.trim().length > 0
         ? error.message.trim()

@@ -59,6 +59,11 @@ export interface DepartmentUserWorkspaceLeaveGuardArgs {
     mode: "edit" | "view";
 }
 
+export type DepartmentUserWorkspaceLeaveGuardHistoryAction =
+    | "arm"
+    | "disarm"
+    | "noop";
+
 type DepartmentUserWorkspaceDraftStateResult =
     | {
           ok: true;
@@ -320,6 +325,52 @@ export function shouldInterceptDepartmentUserRouteNavigation(
     } catch {
         return false;
     }
+}
+
+export function createDepartmentUserWorkspaceLeaveGuardHistoryState(
+    sessionId: string,
+): {
+    procurelineBlocklyLeaveGuard: string;
+} {
+    return {
+        procurelineBlocklyLeaveGuard: sessionId,
+    };
+}
+
+export function isDepartmentUserWorkspaceLeaveGuardHistoryState(args: {
+    historyState: unknown;
+    sessionId: string;
+}): boolean {
+    if (!args.historyState || typeof args.historyState !== "object") {
+        return false;
+    }
+
+    return (
+        (args.historyState as { procurelineBlocklyLeaveGuard?: unknown })
+            .procurelineBlocklyLeaveGuard === args.sessionId
+    );
+}
+
+export function getDepartmentUserWorkspaceLeaveGuardHistoryAction(args: {
+    historyState: unknown;
+    isGuardArmed: boolean;
+    sessionId: string;
+    shouldWarnBeforeLeave: boolean;
+}): DepartmentUserWorkspaceLeaveGuardHistoryAction {
+    if (args.shouldWarnBeforeLeave) {
+        return args.isGuardArmed ? "noop" : "arm";
+    }
+
+    if (!args.isGuardArmed) {
+        return "noop";
+    }
+
+    return isDepartmentUserWorkspaceLeaveGuardHistoryState({
+        historyState: args.historyState,
+        sessionId: args.sessionId,
+    })
+        ? "disarm"
+        : "noop";
 }
 
 export function parseDepartmentUserWorkspaceSaveFailure(

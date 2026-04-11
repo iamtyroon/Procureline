@@ -3,8 +3,10 @@ import { createBlocklyWorkspaceRecord } from "../lib/blockly/blockly-serializati
 import {
     createRecoveredDepartmentUserWorkspaceRecord,
     createClearedDepartmentUserWorkspaceRecord,
+    createDepartmentUserWorkspaceLeaveGuardHistoryState,
     coalesceDepartmentUserWorkspaceSnapshot,
     compareDepartmentUserWorkspaceRecoveryFreshness,
+    getDepartmentUserWorkspaceLeaveGuardHistoryAction,
     getDepartmentUserWorkspaceSaveIndicatorLabel,
     hasCompetingDepartmentUserWorkspaceSession,
     parseDepartmentUserWorkspaceSaveFailure,
@@ -154,6 +156,39 @@ export function runBlocklyWorkspacePersistenceTests(): string[] {
         }),
         false,
     );
+    const sameRevisionEquivalentSnapshot = createBlocklyWorkspaceRecord({
+        lastSavedAt: 999,
+        lastSavedByUserId: "du-1",
+        recoveredAt: newerSnapshot.editorMetadata.recoveredAt,
+        revision: newerSnapshot.editorMetadata.revision,
+        saveSource: newerSnapshot.editorMetadata.saveSource,
+    });
+    assert.equal(
+        isDepartmentUserWorkspaceDraftStale({
+            incomingWorkspaceState: sameRevisionEquivalentSnapshot,
+            persistedWorkspaceState: newerSnapshot,
+        }),
+        false,
+    );
+    const sameRevisionConflictingSnapshot = createBlocklyWorkspaceRecord({
+        lastSavedAt: 999,
+        lastSavedByUserId: "du-1",
+        revision: newerSnapshot.editorMetadata.revision,
+        saveSource: "workspace_sync",
+        workspaceJson: {
+            blocks: {
+                blocks: [{ id: "conflict", type: "department_block" }],
+                languageVersion: 0,
+            },
+        },
+    });
+    assert.equal(
+        isDepartmentUserWorkspaceDraftStale({
+            incomingWorkspaceState: sameRevisionConflictingSnapshot,
+            persistedWorkspaceState: newerSnapshot,
+        }),
+        true,
+    );
     assert.deepEqual(
         prepareDepartmentUserWorkspaceDraftPersistence({
             accessMode: "editable",
@@ -255,6 +290,35 @@ export function runBlocklyWorkspacePersistenceTests(): string[] {
         false,
     );
     completedTests.push("route-level guard decisions only intercept same-origin navigation when the editor still has unsaved risk");
+
+    assert.equal(
+        getDepartmentUserWorkspaceLeaveGuardHistoryAction({
+            historyState: null,
+            isGuardArmed: false,
+            sessionId: "tab-a",
+            shouldWarnBeforeLeave: true,
+        }),
+        "arm",
+    );
+    assert.equal(
+        getDepartmentUserWorkspaceLeaveGuardHistoryAction({
+            historyState: createDepartmentUserWorkspaceLeaveGuardHistoryState("tab-a"),
+            isGuardArmed: true,
+            sessionId: "tab-a",
+            shouldWarnBeforeLeave: false,
+        }),
+        "disarm",
+    );
+    assert.equal(
+        getDepartmentUserWorkspaceLeaveGuardHistoryAction({
+            historyState: createDepartmentUserWorkspaceLeaveGuardHistoryState("tab-b"),
+            isGuardArmed: true,
+            sessionId: "tab-a",
+            shouldWarnBeforeLeave: false,
+        }),
+        "noop",
+    );
+    completedTests.push("leave-guard history orchestration now arms only during real risk and disarms the synthetic back-stack entry once the draft is safe again");
 
     return completedTests;
 }

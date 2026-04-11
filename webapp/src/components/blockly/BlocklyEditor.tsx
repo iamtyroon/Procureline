@@ -48,11 +48,12 @@ import {
 import {
     claimDepartmentUserWorkspaceSessionLease,
     clearDepartmentUserWorkspaceDraftState,
-    clearDepartmentUserWorkspaceQueuedSnapshot,
     coalesceDepartmentUserWorkspaceSnapshot,
     compareDepartmentUserWorkspaceRecoveryFreshness,
+    createDepartmentUserWorkspaceLeaveGuardHistoryState,
     createClearedDepartmentUserWorkspaceRecord,
     createRecoveredDepartmentUserWorkspaceRecord,
+    getDepartmentUserWorkspaceLeaveGuardHistoryAction,
     getDepartmentUserWorkspaceRecoveryMessage,
     getDepartmentUserWorkspaceSaveIndicatorLabel,
     hasCompetingDepartmentUserWorkspaceSession,
@@ -527,16 +528,6 @@ export function BlocklyEditor(props: {
     }
     clearLocalDraftStateRef.current = clearLocalDraftState;
 
-    async function clearQueuedSnapshotOnly(): Promise<void> {
-        const storageResult = await clearDepartmentUserWorkspaceQueuedSnapshot({
-            planId: props.planId,
-            userId: props.currentUserId,
-        });
-        if (!storageResult.ok) {
-            handleStorageFailure(storageResult.error);
-        }
-    }
-
     function scheduleQueuedFlush(delayMs = 1500): void {
         if (props.mode !== "edit" || hasSessionConflict) {
             return;
@@ -644,8 +635,9 @@ export function BlocklyEditor(props: {
             const failure = parseDepartmentUserWorkspaceSaveFailure(error);
 
             if (failure.stopRetry) {
-                await clearQueuedSnapshotOnly();
+                await clearLocalDraftState();
                 queuedWorkspaceRef.current = null;
+                setRecoverySnapshot(null);
                 setBlockedSyncMessage(failure.message);
                 setSaveState("blocked");
                 setHasUnsyncedRisk(true);
@@ -951,16 +943,35 @@ export function BlocklyEditor(props: {
     }, [hasUnsyncedRisk, props.mode, shouldWarnBeforeLeave]);
 
     useEffect(() => {
+        const historyAction = getDepartmentUserWorkspaceLeaveGuardHistoryAction({
+            historyState: window.history.state,
+            isGuardArmed: historyGuardArmedRef.current,
+            sessionId: sessionIdRef.current,
+            shouldWarnBeforeLeave,
+        });
+
+        if (historyAction === "disarm") {
+            historyGuardArmedRef.current = false;
+            navigationGuardBypassRef.current = true;
+            window.history.back();
+            const resetBypassTimeoutId = window.setTimeout(() => {
+                navigationGuardBypassRef.current = false;
+            }, 100);
+            return () => {
+                window.clearTimeout(resetBypassTimeoutId);
+            };
+        }
+
         if (!shouldWarnBeforeLeave) {
             historyGuardArmedRef.current = false;
             return;
         }
 
-        if (!historyGuardArmedRef.current) {
+        if (historyAction === "arm") {
             window.history.pushState(
-                {
-                    procurelineBlocklyLeaveGuard: sessionIdRef.current,
-                },
+                createDepartmentUserWorkspaceLeaveGuardHistoryState(
+                    sessionIdRef.current,
+                ),
                 "",
                 window.location.href,
             );
@@ -974,9 +985,9 @@ export function BlocklyEditor(props: {
             }
 
             window.history.pushState(
-                {
-                    procurelineBlocklyLeaveGuard: sessionIdRef.current,
-                },
+                createDepartmentUserWorkspaceLeaveGuardHistoryState(
+                    sessionIdRef.current,
+                ),
                 "",
                 window.location.href,
             );
@@ -1052,8 +1063,10 @@ export function BlocklyEditor(props: {
         setBlockedSyncMessage(null);
         setLastSavedAt(props.workspaceState?.editorMetadata.lastSavedAt ?? null);
         setHasUnsyncedRisk(true);
-        setSaveState("queued");
         const queuedLocally = await queueSnapshotLocally(recoveredWorkspaceState);
+        setSaveState(
+            queuedLocally ? (hasSessionConflict ? "blocked" : "queued") : "error",
+        );
         if (queuedLocally && !hasSessionConflict) {
             scheduleQueuedFlush(250);
         }

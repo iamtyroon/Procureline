@@ -8,6 +8,7 @@ exports.AUDIT_EVENT_NAMES = {
     accessCodeEmailQueued: "access_code.email_queued",
     accessCodeGenerated: "access_code.generated",
     accessCodeRotated: "access_code.rotated",
+    catalogExported: "catalog.exported",
     categoryArchived: "category.archived",
     categoryCreated: "category.created",
     categoryDeleted: "category.deleted",

@@ -99,6 +99,33 @@ function runBlocklyWorkspacePersistenceTests() {
         incomingWorkspaceState: newerSnapshot,
         persistedWorkspaceState: newerSnapshot,
     }), false);
+    const sameRevisionEquivalentSnapshot = (0, blockly_serialization_1.createBlocklyWorkspaceRecord)({
+        lastSavedAt: 999,
+        lastSavedByUserId: "du-1",
+        recoveredAt: newerSnapshot.editorMetadata.recoveredAt,
+        revision: newerSnapshot.editorMetadata.revision,
+        saveSource: newerSnapshot.editorMetadata.saveSource,
+    });
+    strict_1.default.equal((0, workspace_save_1.isDepartmentUserWorkspaceDraftStale)({
+        incomingWorkspaceState: sameRevisionEquivalentSnapshot,
+        persistedWorkspaceState: newerSnapshot,
+    }), false);
+    const sameRevisionConflictingSnapshot = (0, blockly_serialization_1.createBlocklyWorkspaceRecord)({
+        lastSavedAt: 999,
+        lastSavedByUserId: "du-1",
+        revision: newerSnapshot.editorMetadata.revision,
+        saveSource: "workspace_sync",
+        workspaceJson: {
+            blocks: {
+                blocks: [{ id: "conflict", type: "department_block" }],
+                languageVersion: 0,
+            },
+        },
+    });
+    strict_1.default.equal((0, workspace_save_1.isDepartmentUserWorkspaceDraftStale)({
+        incomingWorkspaceState: sameRevisionConflictingSnapshot,
+        persistedWorkspaceState: newerSnapshot,
+    }), true);
     strict_1.default.deepEqual((0, workspace_save_1.prepareDepartmentUserWorkspaceDraftPersistence)({
         accessMode: "editable",
         categories: [
@@ -176,6 +203,25 @@ function runBlocklyWorkspacePersistenceTests() {
         nextUrl: "https://procureline.test/du",
     }), false);
     completedTests.push("route-level guard decisions only intercept same-origin navigation when the editor still has unsaved risk");
+    strict_1.default.equal((0, workspace_draft_queue_1.getDepartmentUserWorkspaceLeaveGuardHistoryAction)({
+        historyState: null,
+        isGuardArmed: false,
+        sessionId: "tab-a",
+        shouldWarnBeforeLeave: true,
+    }), "arm");
+    strict_1.default.equal((0, workspace_draft_queue_1.getDepartmentUserWorkspaceLeaveGuardHistoryAction)({
+        historyState: (0, workspace_draft_queue_1.createDepartmentUserWorkspaceLeaveGuardHistoryState)("tab-a"),
+        isGuardArmed: true,
+        sessionId: "tab-a",
+        shouldWarnBeforeLeave: false,
+    }), "disarm");
+    strict_1.default.equal((0, workspace_draft_queue_1.getDepartmentUserWorkspaceLeaveGuardHistoryAction)({
+        historyState: (0, workspace_draft_queue_1.createDepartmentUserWorkspaceLeaveGuardHistoryState)("tab-b"),
+        isGuardArmed: true,
+        sessionId: "tab-a",
+        shouldWarnBeforeLeave: false,
+    }), "noop");
+    completedTests.push("leave-guard history orchestration now arms only during real risk and disarms the synthetic back-stack entry once the draft is safe again");
     return completedTests;
 }
 exports.runBlocklyWorkspacePersistenceTests = runBlocklyWorkspacePersistenceTests;

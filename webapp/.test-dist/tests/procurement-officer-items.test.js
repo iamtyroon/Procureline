@@ -7,6 +7,7 @@ exports.runProcurementOfficerItemTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
 const values_1 = require("convex/values");
 const item_backend_1 = require("../lib/procurement-officer/item-backend");
+const catalog_filters_1 = require("../lib/procurement-officer/catalog-filters");
 const items_1 = require("../lib/procurement-officer/items");
 function createMockItemBackendQueryCtx(items) {
     return {
@@ -49,6 +50,31 @@ async function runProcurementOfficerItemTests() {
     strict_1.default.equal((0, items_1.normalizeProcurementItemName)("  Laptop   Computer  "), "laptop computer");
     strict_1.default.deepEqual((0, items_1.normalizeComplianceFlags)(["AGPO", " pwd ", "unsupported", "agpo"]), ["agpo", "pwd"]);
     completedTests.push("item normalization helpers collapse description whitespace and keep only supported compliance flags in stable lowercase form");
+    const browseState = (0, catalog_filters_1.readProcurementCatalogBrowseState)(new URLSearchParams("itemSearch=  laptops  &itemCategory=cat-it&itemCategory=cat-missing&itemCategory=cat-it&itemCompliance=AGPO&itemCompliance=pwd&itemCompliance=bad&itemMinPrice=-20&itemMaxPrice=900&itemPage=0"), {
+        availableCategoryIds: ["cat-it", "cat-office"],
+    });
+    strict_1.default.deepEqual(browseState, {
+        categoryIds: ["cat-it"],
+        complianceFlags: ["agpo", "pwd"],
+        maxPrice: 900,
+        minPrice: null,
+        page: 1,
+        searchText: "laptops",
+    });
+    strict_1.default.equal((0, catalog_filters_1.hasActiveProcurementCatalogFilters)(browseState), true);
+    strict_1.default.deepEqual((0, catalog_filters_1.createDefaultProcurementCatalogBrowseState)(), {
+        categoryIds: [],
+        complianceFlags: [],
+        maxPrice: null,
+        minPrice: null,
+        page: 1,
+        searchText: "",
+    });
+    strict_1.default.equal((0, catalog_filters_1.applyProcurementCatalogBrowseStateToSearchParams)({
+        searchParams: new URLSearchParams("modal=categories&section=items&itemSearch=stale&itemPage=9&foo=bar"),
+        state: browseState,
+    }).toString(), "modal=categories&section=items&foo=bar&itemSearch=laptops&itemMaxPrice=900&itemCategory=cat-it&itemCompliance=agpo&itemCompliance=pwd");
+    completedTests.push("catalog browse query-state helpers normalize stale categories, malformed page and price params, dedupe compliance flags, and preserve only whitelisted item filters when rebuilding the URL");
     strict_1.default.deepEqual((0, items_1.buildProcurementItemTierLimitState)({
         activeItemCount: 50,
         tier: "free",
@@ -235,6 +261,7 @@ async function runProcurementOfficerItemTests() {
                 categoryId: "cat-it",
                 categoryName: "ICT Equipment",
                 complianceFlags: ["pwd"],
+                description: "Legacy Printer",
                 id: "item-archived",
                 isActive: false,
                 lastPriceChangedAt: null,
@@ -253,6 +280,7 @@ async function runProcurementOfficerItemTests() {
                 categoryId: "cat-it",
                 categoryName: "ICT Equipment",
                 complianceFlags: ["agpo", "local_content"],
+                description: "Laptop",
                 id: "item-active",
                 isActive: true,
                 lastPriceChangedAt: Date.UTC(2026, 3, 1, 8, 0, 0),
@@ -273,6 +301,89 @@ async function runProcurementOfficerItemTests() {
     strict_1.default.equal(workspaceRows[0]?.complianceSummary, "AGPO, Local Content");
     strict_1.default.equal(workspaceRows[1]?.archivedLabel, "Archived");
     completedTests.push("item workspace shaping keeps live records ahead of archived ones while surfacing compliance summaries and archived labels for the PO modal list");
+    const filteredRows = (0, items_1.filterProcurementCatalogRows)({
+        filters: {
+            categoryIds: ["cat-it"],
+            complianceFlags: ["agpo"],
+            maxPrice: 80_000,
+            minPrice: 70_000,
+            searchText: "equipment laptop",
+        },
+        rows: workspaceRows,
+    });
+    const reorderedSearchRows = (0, items_1.filterProcurementCatalogRows)({
+        filters: {
+            categoryIds: [],
+            complianceFlags: [],
+            maxPrice: null,
+            minPrice: null,
+            searchText: "ict laptop",
+        },
+        rows: workspaceRows,
+    });
+    strict_1.default.deepEqual(filteredRows.map((row) => row.id), ["item-active"]);
+    strict_1.default.deepEqual(reorderedSearchRows.map((row) => row.id), ["item-active"]);
+    strict_1.default.equal((0, items_1.buildProcurementItemCatalogSearchText)({
+        categoryName: "ICT Equipment",
+        description: "Laptop",
+        name: "Laptop",
+    }), "laptop laptop ict equipment");
+    strict_1.default.deepEqual((0, items_1.paginateProcurementCatalogRows)({
+        page: 99,
+        pageSize: 1,
+        rows: workspaceRows,
+    }), {
+        currentPage: 2,
+        page: workspaceRows.slice(1, 2),
+        pageSize: 1,
+        totalCount: 2,
+        totalPages: 2,
+    });
+    strict_1.default.deepEqual((0, items_1.buildProcurementCatalogExportRows)(filteredRows), [
+        {
+            Category: "ICT Equipment",
+            "Compliance Flags": "AGPO, Local Content",
+            Description: "Laptop",
+            "Item Name": "Laptop",
+            Price: 75_000,
+            "Qty Limits": "1 - 10",
+            Unit: "each",
+        },
+    ]);
+    completedTests.push("catalog browse helpers match cross-field token search regardless of term order, combined filters, nearest-valid pagination fallback, and export row mapping without depending on the client to scan the full catalog");
+    strict_1.default.deepEqual((0, catalog_filters_1.getProcurementCatalogExportGuardState)({
+        filteredCount: 0,
+        tier: "professional",
+    }), {
+        description: "No rows match the current filters. Clear or refine filters before exporting.",
+        kind: "empty",
+        title: "No rows to export",
+    });
+    strict_1.default.deepEqual((0, catalog_filters_1.getProcurementCatalogExportGuardState)({
+        filteredCount: 50,
+        tier: "starter",
+    }), {
+        description: "Catalog export is available on the Professional and Enterprise plans. Upgrade to generate the filtered workbook.",
+        kind: "tier_gate",
+        title: "Starter plan required for catalog export",
+    });
+    strict_1.default.deepEqual((0, catalog_filters_1.getProcurementCatalogExportGuardState)({
+        filteredCount: 10_001,
+        tier: "professional",
+    }), {
+        description: "This filtered result contains 10,001 rows. Refine the filters or upgrade to Enterprise before exporting.",
+        kind: "row_limit",
+        title: "Professional export limit exceeded",
+    });
+    strict_1.default.deepEqual((0, catalog_filters_1.getProcurementCatalogExportGuardState)({
+        filteredCount: 25_000,
+        tier: "enterprise",
+    }), {
+        description: "The current filtered catalog can be exported safely.",
+        kind: "allowed",
+        title: "Export available",
+    });
+    completedTests.push("catalog export gating distinguishes empty results, Starter or Free plan blocking, Professional row-limit blocking, and Enterprise unlimited export eligibility with deterministic operator copy");
     strict_1.default.equal((0, items_1.categoryAcceptsProcurementItems)({ isActive: true }), true);
     strict_1.default.equal((0, items_1.categoryAcceptsProcurementItems)({ isActive: false }), false);
     strict_1.default.equal((0, items_1.hasProcurementItemDuplicateConflict)({

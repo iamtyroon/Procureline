@@ -25,7 +25,26 @@ function buildPersistedDepartmentUserWorkspaceState(args) {
 }
 exports.buildPersistedDepartmentUserWorkspaceState = buildPersistedDepartmentUserWorkspaceState;
 function isDepartmentUserWorkspaceDraftStale(args) {
-    return ((0, blockly_serialization_1.compareBlocklyWorkspaceRecords)(args.incomingWorkspaceState, args.persistedWorkspaceState) < 0);
+    const persistedWorkspaceState = args.persistedWorkspaceState
+        ? (0, blockly_serialization_1.normalizeBlocklyWorkspaceRecord)(args.persistedWorkspaceState)
+        : null;
+    if (!persistedWorkspaceState) {
+        return false;
+    }
+    const incomingRevision = args.incomingWorkspaceState.editorMetadata.revision;
+    const persistedRevision = persistedWorkspaceState.editorMetadata.revision;
+    if (incomingRevision < persistedRevision) {
+        return true;
+    }
+    if (incomingRevision > persistedRevision) {
+        return false;
+    }
+    return (JSON.stringify(args.incomingWorkspaceState.workspaceJson) !==
+        JSON.stringify(persistedWorkspaceState.workspaceJson) ||
+        args.incomingWorkspaceState.editorMetadata.saveSource !==
+            persistedWorkspaceState.editorMetadata.saveSource ||
+        args.incomingWorkspaceState.editorMetadata.recoveredAt !==
+            persistedWorkspaceState.editorMetadata.recoveredAt);
 }
 exports.isDepartmentUserWorkspaceDraftStale = isDepartmentUserWorkspaceDraftStale;
 function buildDepartmentUserWorkspaceDraftSaveInput(args) {

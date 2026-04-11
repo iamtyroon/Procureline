@@ -1,5 +1,4 @@
 import {
-    compareBlocklyWorkspaceRecords,
     isBlocklyWorkspaceRecord,
     normalizeBlocklyWorkspaceRecord,
     serializeBlocklyWorkspace,
@@ -110,11 +109,32 @@ export function isDepartmentUserWorkspaceDraftStale(args: {
     incomingWorkspaceState: BlocklyWorkspaceRecord;
     persistedWorkspaceState: BlocklyWorkspaceRecord | null | undefined;
 }): boolean {
+    const persistedWorkspaceState =
+        args.persistedWorkspaceState
+            ? normalizeBlocklyWorkspaceRecord(args.persistedWorkspaceState)
+            : null;
+    if (!persistedWorkspaceState) {
+        return false;
+    }
+
+    const incomingRevision = args.incomingWorkspaceState.editorMetadata.revision;
+    const persistedRevision = persistedWorkspaceState.editorMetadata.revision;
+
+    if (incomingRevision < persistedRevision) {
+        return true;
+    }
+
+    if (incomingRevision > persistedRevision) {
+        return false;
+    }
+
     return (
-        compareBlocklyWorkspaceRecords(
-            args.incomingWorkspaceState,
-            args.persistedWorkspaceState,
-        ) < 0
+        JSON.stringify(args.incomingWorkspaceState.workspaceJson) !==
+            JSON.stringify(persistedWorkspaceState.workspaceJson) ||
+        args.incomingWorkspaceState.editorMetadata.saveSource !==
+            persistedWorkspaceState.editorMetadata.saveSource ||
+        args.incomingWorkspaceState.editorMetadata.recoveredAt !==
+            persistedWorkspaceState.editorMetadata.recoveredAt
     );
 }
 

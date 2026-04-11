@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.buildProcurementItemTierLimitState = exports.getProcurementItemCrudRecoveryHref = exports.getProcurementItemUpgradeHref = exports.normalizeUnitPrice = exports.normalizeQuantityLimit = exports.normalizeComplianceFlags = exports.normalizeProcurementMethod = exports.formatProcurementItemMinimumQuantityMessage = exports.formatProcurementItemMaximumQuantityMessage = exports.procurementItemUnitAllowsDecimal = exports.normalizeProcurementItemUnitOption = exports.normalizeProcurementItemUnit = exports.normalizeProcurementItemDisplayName = exports.normalizeProcurementItemName = exports.PROCUREMENT_ITEM_IMPORT_COLUMNS = exports.PROCUREMENT_ITEM_PROCUREMENT_METHODS = exports.PROCUREMENT_ITEM_COMPLIANCE_FLAGS = exports.PROCUREMENT_ITEM_UNITS = exports.ITEM_DRAFT_STORAGE_KEY = exports.PROCUREMENT_ITEM_WORKSPACE_INTEGER_ONLY_MESSAGE = exports.PROCUREMENT_ITEM_WORKSPACE_QUANTITY_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_WORKSPACE_QUANTITY_NEGATIVE_MESSAGE = exports.PROCUREMENT_ITEM_WORKSPACE_UNAVAILABLE_MESSAGE = exports.PROCUREMENT_ITEM_WORKSPACE_DUPLICATE_MESSAGE = exports.PROCUREMENT_ITEM_VALIDATION_CHANGE_NOTICE = exports.PROCUREMENT_ITEM_PRICE_CHANGE_NOTICE = exports.PROCUREMENT_ITEM_IMPORT_GENERIC_ERROR_MESSAGE = exports.PROCUREMENT_ITEM_ARCHIVE_GENERIC_MESSAGE = exports.PROCUREMENT_ITEM_SAVE_GENERIC_ERROR_MESSAGE = exports.PROCUREMENT_ITEM_COMPLIANCE_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_OVERFLOW_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_DUPLICATE_IN_FILE_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_UNKNOWN_CATEGORY_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_BLANK_CATEGORY_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_ROW_LIMIT_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_FREE_TIER_MESSAGE = exports.PROCUREMENT_ITEM_LIMIT_MESSAGE = exports.PROCUREMENT_ITEM_REFRESH_REQUIRED_MESSAGE = exports.PROCUREMENT_ITEM_CATEGORY_INACTIVE_MESSAGE = exports.PROCUREMENT_ITEM_NOT_FOUND_MESSAGE = exports.PROCUREMENT_ITEM_DUPLICATE_MESSAGE = exports.PROCUREMENT_ITEM_QUANTITY_RANGE_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_MAX_QUANTITY_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_MIN_QUANTITY_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_PRICE_POSITIVE_MESSAGE = exports.PROCUREMENT_ITEM_UNIT_CUSTOM_REQUIRED_MESSAGE = exports.PROCUREMENT_ITEM_UNIT_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_UNIT_REQUIRED_MESSAGE = exports.PROCUREMENT_ITEM_CATEGORY_REQUIRED_MESSAGE = exports.PROCUREMENT_ITEM_NAME_REQUIRED_MESSAGE = void 0;
-exports.isProcurementItemCrudAuthorizationError = exports.isProcurementItemTierLimitMessage = exports.getProcurementItemCrudErrorMessage = exports.getProcurementItemImportRowFailure = exports.buildProcurementItemTemplateRows = exports.normalizeImportedProcurementItemUnit = exports.createProcurementItemDuplicateKey = exports.getNextProcurementItemSortOrder = exports.hasProcurementItemDuplicateConflict = exports.getComparableProcurementItemRevision = exports.categoryAcceptsProcurementItems = exports.hasStoredItemDraft = exports.parseStoredItemDraft = exports.hasMeaningfulItemDraftValues = exports.createProcurementItemPriceHistoryEntry = exports.buildProcurementItemEditorCategoryOptions = exports.resolveProcurementItemDraftCategoryId = exports.buildProcurementItemWorkspaceRows = exports.summarizeComplianceFlags = exports.buildProcurementItemTierLimitModalContent = exports.buildProcurementItemImportLimitState = void 0;
+exports.getProcurementItemUpgradeHref = exports.normalizeUnitPrice = exports.normalizeQuantityLimit = exports.normalizeComplianceFlags = exports.normalizeProcurementMethod = exports.formatProcurementItemMinimumQuantityMessage = exports.formatProcurementItemMaximumQuantityMessage = exports.procurementItemUnitAllowsDecimal = exports.normalizeProcurementItemUnitOption = exports.normalizeProcurementItemUnit = exports.normalizeProcurementItemDisplayName = exports.normalizeProcurementCatalogSearchText = exports.normalizeProcurementItemName = exports.PROCUREMENT_ITEM_IMPORT_COLUMNS = exports.PROCUREMENT_ITEM_PROCUREMENT_METHODS = exports.PROCUREMENT_ITEM_COMPLIANCE_FLAGS = exports.PROCUREMENT_ITEM_UNITS = exports.ITEM_DRAFT_STORAGE_KEY = exports.PROCUREMENT_ITEM_WORKSPACE_INTEGER_ONLY_MESSAGE = exports.PROCUREMENT_ITEM_WORKSPACE_QUANTITY_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_WORKSPACE_QUANTITY_NEGATIVE_MESSAGE = exports.PROCUREMENT_ITEM_WORKSPACE_UNAVAILABLE_MESSAGE = exports.PROCUREMENT_ITEM_WORKSPACE_DUPLICATE_MESSAGE = exports.PROCUREMENT_ITEM_VALIDATION_CHANGE_NOTICE = exports.PROCUREMENT_ITEM_PRICE_CHANGE_NOTICE = exports.PROCUREMENT_ITEM_EXPORT_GENERIC_ERROR_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_GENERIC_ERROR_MESSAGE = exports.PROCUREMENT_ITEM_ARCHIVE_GENERIC_MESSAGE = exports.PROCUREMENT_ITEM_SAVE_GENERIC_ERROR_MESSAGE = exports.PROCUREMENT_ITEM_COMPLIANCE_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_OVERFLOW_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_DUPLICATE_IN_FILE_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_UNKNOWN_CATEGORY_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_BLANK_CATEGORY_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_ROW_LIMIT_MESSAGE = exports.PROCUREMENT_ITEM_IMPORT_FREE_TIER_MESSAGE = exports.PROCUREMENT_ITEM_LIMIT_MESSAGE = exports.PROCUREMENT_ITEM_REFRESH_REQUIRED_MESSAGE = exports.PROCUREMENT_ITEM_CATEGORY_INACTIVE_MESSAGE = exports.PROCUREMENT_ITEM_NOT_FOUND_MESSAGE = exports.PROCUREMENT_ITEM_DUPLICATE_MESSAGE = exports.PROCUREMENT_ITEM_QUANTITY_RANGE_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_MAX_QUANTITY_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_MIN_QUANTITY_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_PRICE_POSITIVE_MESSAGE = exports.PROCUREMENT_ITEM_UNIT_CUSTOM_REQUIRED_MESSAGE = exports.PROCUREMENT_ITEM_UNIT_INVALID_MESSAGE = exports.PROCUREMENT_ITEM_UNIT_REQUIRED_MESSAGE = exports.PROCUREMENT_ITEM_CATEGORY_REQUIRED_MESSAGE = exports.PROCUREMENT_ITEM_NAME_REQUIRED_MESSAGE = void 0;
+exports.isProcurementItemCrudAuthorizationError = exports.isProcurementItemTierLimitMessage = exports.getProcurementItemCrudErrorMessage = exports.getProcurementItemImportRowFailure = exports.buildProcurementItemTemplateRows = exports.normalizeImportedProcurementItemUnit = exports.createProcurementItemDuplicateKey = exports.getNextProcurementItemSortOrder = exports.hasProcurementItemDuplicateConflict = exports.getComparableProcurementItemRevision = exports.categoryAcceptsProcurementItems = exports.hasStoredItemDraft = exports.parseStoredItemDraft = exports.hasMeaningfulItemDraftValues = exports.buildProcurementCatalogExportRows = exports.paginateProcurementCatalogRows = exports.filterProcurementCatalogRows = exports.createProcurementItemPriceHistoryEntry = exports.buildProcurementItemEditorCategoryOptions = exports.resolveProcurementItemDraftCategoryId = exports.buildProcurementItemWorkspaceRows = exports.createProcurementItemWorkspaceRow = exports.createProcurementCatalogRowMatcher = exports.buildProcurementItemCatalogSearchText = exports.formatProcurementItemQuantityLimits = exports.summarizeComplianceFlags = exports.buildProcurementItemTierLimitModalContent = exports.buildProcurementItemImportLimitState = exports.buildProcurementItemTierLimitState = exports.getProcurementItemCrudRecoveryHref = void 0;
 const roles_1 = require("../auth/roles");
 const input_1 = require("../security/input");
 exports.PROCUREMENT_ITEM_NAME_REQUIRED_MESSAGE = "Item description is required";
@@ -28,6 +28,7 @@ exports.PROCUREMENT_ITEM_COMPLIANCE_INVALID_MESSAGE = "Choose supported complian
 exports.PROCUREMENT_ITEM_SAVE_GENERIC_ERROR_MESSAGE = "We could not save the item right now. Please try again.";
 exports.PROCUREMENT_ITEM_ARCHIVE_GENERIC_MESSAGE = "We could not archive the item right now. Please try again.";
 exports.PROCUREMENT_ITEM_IMPORT_GENERIC_ERROR_MESSAGE = "We could not import the item workbook right now. Please try again.";
+exports.PROCUREMENT_ITEM_EXPORT_GENERIC_ERROR_MESSAGE = "We could not export the catalog right now. Please try again.";
 exports.PROCUREMENT_ITEM_PRICE_CHANGE_NOTICE = "Catalog pricing changed while this workspace was open.";
 exports.PROCUREMENT_ITEM_VALIDATION_CHANGE_NOTICE = "Catalog validation rules changed while this workspace was open.";
 exports.PROCUREMENT_ITEM_WORKSPACE_DUPLICATE_MESSAGE = "Item already in this category";
@@ -115,6 +116,10 @@ function normalizeProcurementItemName(input) {
     return (0, input_1.normalizePlainText)(input).toLowerCase();
 }
 exports.normalizeProcurementItemName = normalizeProcurementItemName;
+function normalizeProcurementCatalogSearchText(input) {
+    return (0, input_1.normalizePlainText)(input.normalize("NFKD").replace(/[\u0300-\u036F]/g, "")).toLowerCase();
+}
+exports.normalizeProcurementCatalogSearchText = normalizeProcurementCatalogSearchText;
 function normalizeProcurementItemDisplayName(input) {
     return (0, input_1.normalizePlainText)(input);
 }
@@ -147,8 +152,7 @@ function formatProcurementItemMinimumQuantityMessage(limit) {
 exports.formatProcurementItemMinimumQuantityMessage = formatProcurementItemMinimumQuantityMessage;
 function normalizeProcurementMethod(input) {
     const normalized = (0, input_1.normalizePlainText)(input ?? "");
-    return (exports.PROCUREMENT_ITEM_PROCUREMENT_METHODS.find((method) => method === normalized) ??
-        undefined);
+    return (exports.PROCUREMENT_ITEM_PROCUREMENT_METHODS.find((method) => method === normalized) ?? undefined);
 }
 exports.normalizeProcurementMethod = normalizeProcurementMethod;
 function normalizeComplianceFlags(input) {
@@ -210,7 +214,9 @@ function buildProcurementItemTierLimitState(args) {
 exports.buildProcurementItemTierLimitState = buildProcurementItemTierLimitState;
 function buildProcurementItemImportLimitState(args) {
     return {
-        rowLimit: args.tier === "enterprise" ? null : PROCUREMENT_ITEM_IMPORT_LIMITS[args.tier],
+        rowLimit: args.tier === "enterprise"
+            ? null
+            : PROCUREMENT_ITEM_IMPORT_LIMITS[args.tier],
         tier: args.tier,
         tierLabel: PROCUREMENT_ITEM_TIER_LABELS[args.tier],
     };
@@ -262,6 +268,81 @@ function summarizeComplianceFlags(flags) {
         .join(", ");
 }
 exports.summarizeComplianceFlags = summarizeComplianceFlags;
+function formatProcurementItemQuantityLimits(args) {
+    if (args.minQuantity === null && args.maxQuantity === null) {
+        return "No limits";
+    }
+    if (args.minQuantity !== null && args.maxQuantity !== null) {
+        return `${args.minQuantity} - ${args.maxQuantity}`;
+    }
+    if (args.minQuantity !== null) {
+        return `Min ${args.minQuantity}`;
+    }
+    return `Max ${args.maxQuantity ?? 0}`;
+}
+exports.formatProcurementItemQuantityLimits = formatProcurementItemQuantityLimits;
+function buildProcurementItemCatalogSearchText(args) {
+    return normalizeProcurementCatalogSearchText([args.name, args.description ?? args.name, args.categoryName].join(" "));
+}
+exports.buildProcurementItemCatalogSearchText = buildProcurementItemCatalogSearchText;
+function buildProcurementCatalogSearchTerms(searchText) {
+    const normalizedSearchText = normalizeProcurementCatalogSearchText(searchText);
+    return normalizedSearchText.length === 0
+        ? []
+        : normalizedSearchText.split(" ").filter((term) => term.length > 0);
+}
+function matchesProcurementCatalogSearchTerms(args) {
+    if (args.searchTerms.length === 0) {
+        return true;
+    }
+    const catalogSearchText = buildProcurementItemCatalogSearchText({
+        categoryName: args.row.categoryName,
+        description: args.row.description,
+        name: args.row.name,
+    });
+    return args.searchTerms.every((term) => catalogSearchText.includes(term));
+}
+function createProcurementCatalogRowMatcher(filters) {
+    const categoryIdSet = filters.categoryIds.length > 0 ? new Set(filters.categoryIds) : null;
+    const requiredFlags = filters.complianceFlags.length > 0
+        ? new Set(filters.complianceFlags)
+        : null;
+    const searchTerms = buildProcurementCatalogSearchTerms(filters.searchText);
+    return (row) => {
+        if (categoryIdSet && !categoryIdSet.has(row.categoryId)) {
+            return false;
+        }
+        if (filters.minPrice !== null &&
+            (row.unitPrice ?? Number.NEGATIVE_INFINITY) < filters.minPrice) {
+            return false;
+        }
+        if (filters.maxPrice !== null &&
+            (row.unitPrice ?? Number.POSITIVE_INFINITY) > filters.maxPrice) {
+            return false;
+        }
+        if (requiredFlags &&
+            !Array.from(requiredFlags).every((flag) => row.complianceFlags.includes(flag))) {
+            return false;
+        }
+        return matchesProcurementCatalogSearchTerms({
+            row,
+            searchTerms,
+        });
+    };
+}
+exports.createProcurementCatalogRowMatcher = createProcurementCatalogRowMatcher;
+function createProcurementItemWorkspaceRow(args) {
+    return {
+        ...args.item,
+        archivedLabel: args.item.isActive || args.item.archivedAt === null ? null : "Archived",
+        categoryLimit: buildProcurementItemTierLimitState({
+            activeItemCount: args.category?.activeItemCount ?? 0,
+            tier: args.tier,
+        }),
+        complianceSummary: summarizeComplianceFlags(args.item.complianceFlags),
+    };
+}
+exports.createProcurementItemWorkspaceRow = createProcurementItemWorkspaceRow;
 function buildProcurementItemWorkspaceRows(args) {
     const categoriesById = new Map(args.categories.map((category) => [category.id, category]));
     return [...args.items]
@@ -277,15 +358,11 @@ function buildProcurementItemWorkspaceRows(args) {
     })
         .map((item) => {
         const category = categoriesById.get(item.categoryId);
-        return {
-            ...item,
-            archivedLabel: item.isActive || item.archivedAt === null ? null : "Archived",
-            categoryLimit: buildProcurementItemTierLimitState({
-                activeItemCount: category?.activeItemCount ?? 0,
-                tier: args.tier,
-            }),
-            complianceSummary: summarizeComplianceFlags(item.complianceFlags),
-        };
+        return createProcurementItemWorkspaceRow({
+            category,
+            item,
+            tier: args.tier,
+        });
     });
 }
 exports.buildProcurementItemWorkspaceRows = buildProcurementItemWorkspaceRows;
@@ -331,6 +408,50 @@ function createProcurementItemPriceHistoryEntry(args) {
     };
 }
 exports.createProcurementItemPriceHistoryEntry = createProcurementItemPriceHistoryEntry;
+function filterProcurementCatalogRows(args) {
+    if (args.filters.searchText.length === 0 &&
+        args.filters.categoryIds.length === 0 &&
+        args.filters.complianceFlags.length === 0 &&
+        args.filters.minPrice === null &&
+        args.filters.maxPrice === null) {
+        return [...args.rows];
+    }
+    const matchesRow = createProcurementCatalogRowMatcher(args.filters);
+    return args.rows.filter((row) => matchesRow(row));
+}
+exports.filterProcurementCatalogRows = filterProcurementCatalogRows;
+function paginateProcurementCatalogRows(args) {
+    const safePageSize = Number.isInteger(args.pageSize) && args.pageSize > 0 ? args.pageSize : 50;
+    const totalCount = args.rows.length;
+    const totalPages = totalCount === 0 ? 0 : Math.ceil(totalCount / safePageSize);
+    const currentPage = totalPages === 0
+        ? 1
+        : Math.min(Math.max(Math.trunc(args.page), 1), totalPages);
+    const startIndex = totalPages === 0 ? 0 : (currentPage - 1) * safePageSize;
+    return {
+        currentPage,
+        page: args.rows.slice(startIndex, startIndex + safePageSize),
+        pageSize: safePageSize,
+        totalCount,
+        totalPages,
+    };
+}
+exports.paginateProcurementCatalogRows = paginateProcurementCatalogRows;
+function buildProcurementCatalogExportRows(rows) {
+    return rows.map((row) => ({
+        Category: row.categoryName,
+        "Compliance Flags": row.complianceSummary,
+        Description: row.description ?? row.name,
+        "Item Name": row.name,
+        Price: row.unitPrice ?? 0,
+        "Qty Limits": formatProcurementItemQuantityLimits({
+            maxQuantity: row.maxQuantity,
+            minQuantity: row.minQuantity,
+        }),
+        Unit: row.unitOfMeasurement ?? "",
+    }));
+}
+exports.buildProcurementCatalogExportRows = buildProcurementCatalogExportRows;
 function hasMeaningfulItemDraftValues(args) {
     return ((0, input_1.normalizePlainText)(args.name ?? "").length > 0 ||
         (0, input_1.normalizePlainText)(args.categoryName ?? "").length > 0 ||
@@ -349,13 +470,16 @@ function parseStoredItemDraft(raw) {
     }
     try {
         const record = JSON.parse(raw);
-        const maxQuantityInput = typeof record.maxQuantity === "number" || typeof record.maxQuantity === "string"
+        const maxQuantityInput = typeof record.maxQuantity === "number" ||
+            typeof record.maxQuantity === "string"
             ? record.maxQuantity
             : null;
-        const minQuantityInput = typeof record.minQuantity === "number" || typeof record.minQuantity === "string"
+        const minQuantityInput = typeof record.minQuantity === "number" ||
+            typeof record.minQuantity === "string"
             ? record.minQuantity
             : null;
-        const unitPriceInput = typeof record.unitPrice === "number" || typeof record.unitPrice === "string"
+        const unitPriceInput = typeof record.unitPrice === "number" ||
+            typeof record.unitPrice === "string"
             ? record.unitPrice
             : null;
         return {
@@ -492,8 +616,7 @@ function getProcurementItemImportRowFailure(args) {
         args.maxQuantity < args.minQuantity) {
         return exports.PROCUREMENT_ITEM_QUANTITY_RANGE_INVALID_MESSAGE;
     }
-    if (args.rowLimit !== null &&
-        args.rowIndexWithinTierCap >= args.rowLimit) {
+    if (args.rowLimit !== null && args.rowIndexWithinTierCap >= args.rowLimit) {
         return exports.PROCUREMENT_ITEM_IMPORT_ROW_LIMIT_MESSAGE;
     }
     if (args.limit !== null && args.activeItemCount >= args.limit) {

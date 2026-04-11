@@ -162,14 +162,15 @@ function runProcurementOfficerDashboardTests() {
         },
     });
     strict_1.default.equal(snapshot.meta.selectedFiscalYear, "2026-2027");
-    strict_1.default.equal(snapshot.summaryCards.find((card) => card.id === "access_code_coverage")?.value, "2 / 3");
-    strict_1.default.equal(snapshot.summaryCards.find((card) => card.id === "du_assignment_coverage")?.value, "2 / 3");
-    strict_1.default.equal(snapshot.summaryCards.find((card) => card.id === "deadline_readiness")?.value, "3 / 3");
+    strict_1.default.equal(snapshot.summaryCards.find((card) => card.id === "access_code_coverage")
+        ?.value, "2 / 3");
+    strict_1.default.equal(snapshot.summaryCards.find((card) => card.id === "du_assignment_coverage")
+        ?.value, "2 / 3");
+    strict_1.default.equal(snapshot.summaryCards.find((card) => card.id === "deadline_readiness")
+        ?.value, "3 / 3");
     strict_1.default.equal(snapshot.departmentReadiness.items.length, 3);
-    strict_1.default.equal(snapshot.departmentReadiness.items.find((item) => item.id === "department-1")
-        ?.accessCode.state, "available");
-    strict_1.default.equal(snapshot.departmentReadiness.items.find((item) => item.id === "department-2")
-        ?.departmentUser.state, "setup_required");
+    strict_1.default.equal(snapshot.departmentReadiness.items.find((item) => item.id === "department-1")?.accessCode.state, "available");
+    strict_1.default.equal(snapshot.departmentReadiness.items.find((item) => item.id === "department-2")?.departmentUser.state, "setup_required");
     strict_1.default.equal(snapshot.alerts.some((alert) => alert.message ===
         "Submission deadline not set. Configure before DUs can submit."), true);
     strict_1.default.equal(snapshot.futurePanels.find((panel) => panel.id === "categories")?.state, "available");
@@ -212,7 +213,29 @@ function runProcurementOfficerDashboardTests() {
         href: "/po/consolidation",
         type: "route",
     });
-    completedTests.push("procurement-officer workspace routing keeps consolidation as a real page while dashboard surfaces resolve to modal-backed paths");
+    strict_1.default.equal((0, dashboard_1.buildProcurementOfficerWorkspaceModalPath)({
+        modal: "categories",
+        section: "items",
+    }, {
+        itemWorkspaceSearchParams: new URLSearchParams("itemSearch=laptop&itemCategory=cat-it&foo=bar&itemCompliance=agpo"),
+    }), "/po?modal=categories&section=items&itemSearch=laptop&itemCategory=cat-it&itemCompliance=agpo");
+    strict_1.default.deepEqual((0, dashboard_1.resolveProcurementOfficerWorkspaceNavigation)("/po/items?itemSearch=laptop&itemCategory=cat-it&foo=bar&itemCompliance=agpo"), {
+        href: "/po?modal=categories&section=items&itemSearch=laptop&itemCategory=cat-it&itemCompliance=agpo",
+        modalState: {
+            modal: "categories",
+            section: "items",
+        },
+        type: "modal",
+    });
+    strict_1.default.deepEqual((0, dashboard_1.resolveProcurementOfficerWorkspaceNavigation)("/po/categories/items?itemPage=9&itemCompliance=pwd&itemCompliance=bad&junk=yes"), {
+        href: "/po?modal=categories&section=items&itemPage=9&itemCompliance=pwd",
+        modalState: {
+            modal: "categories",
+            section: "items",
+        },
+        type: "modal",
+    });
+    completedTests.push("procurement-officer workspace routing keeps consolidation as a real page while dashboard surfaces resolve to modal-backed paths and preserve only whitelisted item-workspace deep-link params");
     const poRoutes = [
         "/po",
         "/po/departments",
