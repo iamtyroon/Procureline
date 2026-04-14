@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { useMutation } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { ArrowLeft, FileDown, PackagePlus, RotateCcw, Send } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
@@ -23,6 +23,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BlocklyBudgetHeader } from "@/src/components/blockly/BlocklyBudgetHeader";
 import { BlocklyComplianceSummary } from "@/src/components/blockly/BlocklyComplianceSummary";
+import { CatalogRequestDialog } from "@/src/components/blockly/CatalogRequestDialog";
+import { CatalogRequestInbox } from "@/src/components/blockly/CatalogRequestInbox";
 import { BlocklyLoadingSkeleton } from "@/src/components/blockly/BlocklyLoadingSkeleton";
 import { BlocklyToolboxRail } from "@/src/components/blockly/BlocklyToolboxRail";
 import type { BlocklyWorkspaceChangePayload } from "@/src/components/blockly/BlocklyWorkspace";
@@ -70,6 +72,11 @@ import {
 } from "@/lib/blockly/workspace-draft-queue";
 import { calculateProcurementComplianceSnapshot } from "@/lib/procurement/compliance";
 import {
+    buildCatalogRequestStatusMeta,
+    type CatalogCategoryRequestFormValues,
+    type CatalogItemRequestFormValues,
+} from "@/lib/procurement/catalog-requests";
+import {
     PROCUREMENT_ITEM_PRICE_CHANGE_NOTICE,
     PROCUREMENT_ITEM_VALIDATION_CHANGE_NOTICE,
     PROCUREMENT_ITEM_WORKSPACE_UNAVAILABLE_MESSAGE,
@@ -96,6 +103,48 @@ type PendingNavigationTarget =
           href: string;
           kind: "href";
       };
+
+type DepartmentUserCatalogRequestRecord = {
+    canCancel: boolean;
+    canEdit: boolean;
+    categoryId?: string | null;
+    categoryName?: string | null;
+    categoryReferenceMode?: "existing" | "request";
+    categoryRequest?: {
+        description: string;
+        id: string;
+        justification: string;
+        name: string;
+        revision: number;
+    } | null;
+    createdAt: number;
+    description: string;
+    estimatedUnitPrice?: number;
+    id: string;
+    justification: string;
+    linkedCategoryRequestId?: string | null;
+    name: string;
+    reason: string | null;
+    revision: number;
+    status: "approved" | "cancelled" | "denied" | "expired" | "pending";
+    submittedAt: number;
+    type: "category" | "item";
+    updatedAt: number;
+};
+
+type DepartmentUserCatalogRequestData = {
+    meta: {
+        accessMode: "editable" | "read_only_grace" | null;
+        canCreate: boolean;
+    };
+    requests: DepartmentUserCatalogRequestRecord[];
+    summary: {
+        pendingCategoryCount: number;
+        pendingItemCount: number;
+        totalCount: number;
+        totalPendingCount: number;
+    };
+};
 
 export function BlocklyEditor(props: {
     accessMode: "editable" | "read_only_grace" | null;
@@ -149,10 +198,22 @@ export function BlocklyEditor(props: {
 }) {
     const router = useRouter();
     const saveWorkspaceDraft = useMutation(api.functions.plans.saveDepartmentUserWorkspaceDraft);
+    const createCategoryRequest = useAction(api.functions.catalogRequests.createCategoryRequest);
+    const createItemRequest = useAction(api.functions.catalogRequests.createItemRequest);
+    const updateCategoryRequest = useAction(api.functions.catalogRequests.updateCategoryRequest);
+    const updateItemRequest = useAction(api.functions.catalogRequests.updateItemRequest);
+    const cancelCatalogRequest = useAction(api.functions.catalogRequests.cancelCatalogRequest);
+    const catalogRequestData = useQuery(api.functions.catalogRequests.getDepartmentUserCatalogRequests, {
+        planId: props.planId,
+    }) as DepartmentUserCatalogRequestData | undefined;
     const [searchQuery, setSearchQuery] = useState("");
     const [activeWorkspaceState, setActiveWorkspaceState] = useState<BlocklyWorkspaceRecord | null>(
         props.workspaceState,
     );
+    const [isCatalogRequestDialogOpen, setIsCatalogRequestDialogOpen] = useState(false);
+    const [catalogRequestDialogTab, setCatalogRequestDialogTab] =
+        useState<"category" | "item">("item");
+    const [editingCatalogRequestId, setEditingCatalogRequestId] = useState<string | null>(null);
     const [workspaceMountKey, setWorkspaceMountKey] = useState(0);
     const deferredSearchQuery = useDeferredValue(searchQuery);
     const initialSourceUsage = useMemo(
@@ -279,6 +340,7 @@ export function BlocklyEditor(props: {
     const [hasSessionConflict, setHasSessionConflict] = useState(false);
     const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
     const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
+    const previousCatalogRequestStatusRef = useRef<Map<string, string>>(new Map());
     const presentation = useMemo(
         () =>
             buildPlanningWorkspacePresentation({
@@ -452,6 +514,116 @@ export function BlocklyEditor(props: {
         saveIndicatorAnnouncementRef.current = saveIndicatorLabel;
         setSaveAnnouncement(saveIndicatorLabel);
     }, [saveIndicatorLabel]);
+
+    useEffect(() => {
+        if (!catalogRequestData) {
+            return;
+        }
+
+        const nextStatuses = new Map(
+            catalogRequestData.requests.map((request) => [request.id, request.status] as const),
+        );
+        for (const request of catalogRequestData.requests) {
+            const previousStatus = previousCatalogRequestStatusRef.current.get(request.id);
+            if (!previousStatus || previousStatus === request.status) {
+                continue;
+            }
+
+            const statusMeta = buildCatalogRequestStatusMeta(request.status);
+            const message = `${request.name} is now ${statusMeta.label.toLowerCase()}.`;
+            if (request.status === "approved") {
+                toast.success(message);
+            } else if (request.status === "denied" || request.status === "expired") {
+                toast.warning(message);
+            } else {
+                toast(message);
+            }
+            setLiveAnnouncement(message);
+        }
+
+        previousCatalogRequestStatusRef.current = nextStatuses;
+    }, [catalogRequestData]);
+
+    const activeCategoryOptions = useMemo(
+        () =>
+            props.categories
+                .filter((category) => category.isActive)
+                .map((category) => ({
+                    id: category.id,
+                    name: category.name,
+                })),
+        [props.categories],
+    );
+    const selectedCatalogRequest = useMemo(
+        () =>
+            catalogRequestData?.requests.find((request) => request.id === editingCatalogRequestId) ??
+            null,
+        [catalogRequestData?.requests, editingCatalogRequestId],
+    );
+    const dialogItemDefaults = useMemo<CatalogItemRequestFormValues>(() => {
+        if (!selectedCatalogRequest || selectedCatalogRequest.type !== "item") {
+            return {
+                categoryId: "",
+                categoryMode: "existing",
+                categoryRequest: {
+                    description: "",
+                    justification: "",
+                    name: "",
+                },
+                description: "",
+                estimatedUnitPrice: 0,
+                justification: "",
+                name: "",
+            };
+        }
+
+        return {
+            categoryId: selectedCatalogRequest.categoryId ?? "",
+            categoryMode: selectedCatalogRequest.categoryReferenceMode ?? "existing",
+            categoryRequest: selectedCatalogRequest.categoryRequest
+                ? {
+                      description: selectedCatalogRequest.categoryRequest.description,
+                      justification: selectedCatalogRequest.categoryRequest.justification,
+                      name: selectedCatalogRequest.categoryRequest.name,
+                  }
+                : {
+                      description: "",
+                      justification: "",
+                      name: "",
+                  },
+            description: selectedCatalogRequest.description,
+            estimatedUnitPrice: selectedCatalogRequest.estimatedUnitPrice ?? 0,
+            justification: selectedCatalogRequest.justification,
+            name: selectedCatalogRequest.name,
+        };
+    }, [selectedCatalogRequest]);
+    const dialogCategoryDefaults = useMemo<CatalogCategoryRequestFormValues>(() => {
+        if (selectedCatalogRequest?.type === "category") {
+            return {
+                description: selectedCatalogRequest.description,
+                justification: selectedCatalogRequest.justification,
+                name: selectedCatalogRequest.name,
+            };
+        }
+
+        if (selectedCatalogRequest?.type === "item" && selectedCatalogRequest.categoryRequest) {
+            return {
+                description: selectedCatalogRequest.categoryRequest.description,
+                justification: selectedCatalogRequest.categoryRequest.justification,
+                name: selectedCatalogRequest.categoryRequest.name,
+            };
+        }
+
+        return {
+            description: "",
+            justification: "",
+            name: "",
+        };
+    }, [selectedCatalogRequest]);
+    const lockedCategoryLabel =
+        selectedCatalogRequest?.type === "item" && editingCatalogRequestId
+            ? selectedCatalogRequest.categoryName ?? null
+            : null;
 
     const shouldWarnBeforeLeave = shouldWarnDepartmentUserBeforeLeave({
         hasUnsyncedRisk,
@@ -1042,6 +1214,132 @@ export function BlocklyEditor(props: {
         await flushWorkspaceDraft(payload.workspaceState);
     }
 
+    function formatCatalogRequestTimestamp(timestamp: number): string {
+        return new Intl.DateTimeFormat("en-US", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+        }).format(new Date(timestamp));
+    }
+
+    function openCatalogRequestDialog(tab: "category" | "item"): void {
+        setCatalogRequestDialogTab(tab);
+        setEditingCatalogRequestId(null);
+        setIsCatalogRequestDialogOpen(true);
+    }
+
+    async function handleSubmitCategoryRequest(
+        values: CatalogCategoryRequestFormValues,
+    ): Promise<void> {
+        try {
+            if (selectedCatalogRequest?.type === "category" && editingCatalogRequestId) {
+                await updateCategoryRequest({
+                    ...values,
+                    planId: props.planId,
+                    requestId: editingCatalogRequestId,
+                    revision: selectedCatalogRequest.revision,
+                });
+                toast.success("Category request updated.");
+            } else {
+                await createCategoryRequest({
+                    ...values,
+                    planId: props.planId,
+                });
+                toast.success("Category request submitted.");
+            }
+            setIsCatalogRequestDialogOpen(false);
+            setEditingCatalogRequestId(null);
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "We could not submit that category request right now.",
+            );
+        }
+    }
+
+    async function handleSubmitItemRequest(
+        values: CatalogItemRequestFormValues,
+        categoryDraft: CatalogCategoryRequestFormValues,
+    ): Promise<void> {
+        try {
+            if (selectedCatalogRequest?.type === "item" && editingCatalogRequestId) {
+                await updateItemRequest({
+                    description: values.description,
+                    estimatedUnitPrice: values.estimatedUnitPrice,
+                    justification: values.justification,
+                    linkedCategoryRequest: selectedCatalogRequest.categoryRequest
+                        ? {
+                              description: categoryDraft.description,
+                              justification: categoryDraft.justification,
+                              name: categoryDraft.name,
+                              revision: selectedCatalogRequest.categoryRequest.revision,
+                          }
+                        : undefined,
+                    name: values.name,
+                    planId: props.planId,
+                    requestId: editingCatalogRequestId,
+                    revision: selectedCatalogRequest.revision,
+                });
+                toast.success("Item request updated.");
+            } else {
+                await createItemRequest({
+                    categoryId:
+                        values.categoryMode === "existing" ? values.categoryId : undefined,
+                    categoryRequest:
+                        values.categoryMode === "request" ? categoryDraft : undefined,
+                    description: values.description,
+                    estimatedUnitPrice: values.estimatedUnitPrice,
+                    justification: values.justification,
+                    name: values.name,
+                    planId: props.planId,
+                });
+                toast.success("Item request submitted.");
+            }
+            setIsCatalogRequestDialogOpen(false);
+            setEditingCatalogRequestId(null);
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "We could not submit that item request right now.",
+            );
+        }
+    }
+
+    async function handleEditCatalogRequest(requestId: string): Promise<void> {
+        const request = catalogRequestData?.requests.find((entry) => entry.id === requestId);
+        if (!request) {
+            return;
+        }
+
+        setEditingCatalogRequestId(requestId);
+        setCatalogRequestDialogTab(request.type === "category" ? "category" : "item");
+        setIsCatalogRequestDialogOpen(true);
+    }
+
+    async function handleCancelCatalogRequest(requestId: string): Promise<void> {
+        const request = catalogRequestData?.requests.find((entry) => entry.id === requestId);
+        if (!request) {
+            return;
+        }
+
+        try {
+            await cancelCatalogRequest({
+                planId: props.planId,
+                requestId,
+                requestType: request.type,
+            });
+            toast.success("Catalog request cancelled.");
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "We could not cancel that request right now.",
+            );
+        }
+    }
+
     function handleReservedAction(message: string): void {
         toast(message);
     }
@@ -1185,6 +1483,23 @@ export function BlocklyEditor(props: {
         mode: props.mode,
         validationState: workspaceSummary?.validationState ?? null,
     });
+    const catalogRequestInboxRows = (catalogRequestData?.requests ?? []).map((request) => ({
+        canCancel: request.canCancel,
+        canEdit: request.canEdit,
+        createdAtLabel: formatCatalogRequestTimestamp(request.createdAt),
+        id: request.id,
+        reason: request.reason,
+        status: request.status,
+        statusLabel: buildCatalogRequestStatusMeta(request.status).label,
+        submittedAtLabel: formatCatalogRequestTimestamp(request.submittedAt),
+        summary:
+            request.type === "item" && request.categoryName
+                ? `${request.name} in ${request.categoryName}`
+                : request.name,
+        type: request.type,
+        typeLabel: request.type === "item" ? "Item request" : "Category request",
+        updatedAtLabel: formatCatalogRequestTimestamp(request.updatedAt),
+    }));
 
     return (
         <div className="space-y-4">
@@ -1254,18 +1569,13 @@ export function BlocklyEditor(props: {
                                         </Button>
                                     ) : null}
                                     <Button
-                                        onClick={() =>
-                                            startTransition(() =>
-                                                handleReservedAction(
-                                                    "Item request handoff stays reserved until Story 5.5 lands.",
-                                                ),
-                                            )
-                                        }
+                                        disabled={props.mode !== "edit" || catalogRequestData?.meta.canCreate === false}
+                                        onClick={() => startTransition(() => openCatalogRequestDialog("item"))}
                                         type="button"
                                         variant="outline"
                                     >
                                         <PackagePlus className="mr-2 h-4 w-4" />
-                                        Request Item
+                                        Catalog request
                                     </Button>
                                     <Button
                                         onClick={() =>
@@ -1389,6 +1699,25 @@ export function BlocklyEditor(props: {
                 </Alert>
             ) : null}
 
+            <CatalogRequestInbox
+                mode={props.mode}
+                onCancelRequest={(requestId) => {
+                    void handleCancelCatalogRequest(requestId);
+                }}
+                onEditRequest={(requestId) => {
+                    void handleEditCatalogRequest(requestId);
+                }}
+                requests={catalogRequestInboxRows}
+                summary={
+                    catalogRequestData?.summary ?? {
+                        pendingCategoryCount: 0,
+                        pendingItemCount: 0,
+                        totalCount: 0,
+                        totalPendingCount: 0,
+                    }
+                }
+            />
+
             <div className={styles.editorGrid}>
                 <Card className={styles.toolboxRail}>
                     <CardHeader className="space-y-3">
@@ -1470,6 +1799,39 @@ export function BlocklyEditor(props: {
                     workspaceState={activeWorkspaceState}
                 />
             </div>
+
+            <CatalogRequestDialog
+                activeTab={catalogRequestDialogTab}
+                categories={activeCategoryOptions}
+                categoryDefaults={dialogCategoryDefaults}
+                categorySubmitLabel={
+                    selectedCatalogRequest?.type === "category"
+                        ? "Update category request"
+                        : "Submit category request"
+                }
+                itemDefaults={dialogItemDefaults}
+                itemSubmitLabel={
+                    selectedCatalogRequest?.type === "item"
+                        ? "Update item request"
+                        : "Submit item request"
+                }
+                lockedCategoryLabel={lockedCategoryLabel}
+                onOpenChange={(open) => {
+                    setIsCatalogRequestDialogOpen(open);
+                    if (!open) {
+                        setEditingCatalogRequestId(null);
+                    }
+                }}
+                onSubmitCategory={handleSubmitCategoryRequest}
+                onSubmitItem={handleSubmitItemRequest}
+                open={isCatalogRequestDialogOpen}
+                readOnly={props.mode !== "edit" || catalogRequestData?.meta.canCreate === false}
+                title={
+                    selectedCatalogRequest
+                        ? "Edit catalog request"
+                        : "Request a missing item or category"
+                }
+            />
 
             <AlertDialog
                 open={isExitDialogOpen}

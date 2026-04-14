@@ -20,6 +20,26 @@ const blocklyWorkspaceStateValidator = v.object({
   }),
 });
 
+const catalogRequestStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("approved"),
+  v.literal("denied"),
+  v.literal("expired"),
+  v.literal("cancelled"),
+);
+
+const catalogRequestDecisionSourceValidator = v.union(
+  v.literal("deadline"),
+  v.literal("du"),
+  v.literal("po"),
+  v.literal("system"),
+);
+
+const catalogRequestOriginValidator = v.union(
+  v.literal("standalone"),
+  v.literal("item_handoff"),
+);
+
 export default defineSchema({
   ...authTables,
 
@@ -321,6 +341,92 @@ export default defineSchema({
   })
     .index("by_itemId_changedAt", ["itemId", "changedAt"])
     .index("by_tenantId_changedAt", ["tenantId", "changedAt"]),
+
+  categoryRequests: defineTable({
+    tenantId: v.id("tenants"),
+    departmentId: v.id("departments"),
+    planId: v.id("plans"),
+    fiscalYear: v.string(),
+    requestorTenantUserId: v.id("tenantUsers"),
+    requestorUserId: v.id("users"),
+    name: v.string(),
+    normalizedName: v.string(),
+    description: v.string(),
+    justification: v.string(),
+    requesterDuplicateKey: v.string(),
+    sharedGroupingKey: v.string(),
+    requestOrigin: catalogRequestOriginValidator,
+    status: catalogRequestStatusValidator,
+    revision: v.number(),
+    decisionReason: v.optional(v.string()),
+    decisionSource: v.optional(catalogRequestDecisionSourceValidator),
+    reviewedAt: v.optional(v.number()),
+    reviewedByTenantUserId: v.optional(v.id("tenantUsers")),
+    linkedCatalogCategoryId: v.optional(v.id("procurementCategories")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    cancelledAt: v.optional(v.number()),
+    submittedAt: v.number(),
+  })
+    .index("by_tenantId_status", ["tenantId", "status", "updatedAt"])
+    .index("by_departmentId_status", ["departmentId", "status", "updatedAt"])
+    .index("by_requestorTenantUserId_status", [
+      "requestorTenantUserId",
+      "status",
+      "updatedAt",
+    ])
+    .index("by_planId", ["planId", "updatedAt"])
+    .index("by_tenantId_requesterDuplicateKey", [
+      "tenantId",
+      "requesterDuplicateKey",
+    ])
+    .index("by_tenantId_sharedGroupingKey", ["tenantId", "sharedGroupingKey"]),
+
+  itemRequests: defineTable({
+    tenantId: v.id("tenants"),
+    departmentId: v.id("departments"),
+    planId: v.id("plans"),
+    fiscalYear: v.string(),
+    requestorTenantUserId: v.id("tenantUsers"),
+    requestorUserId: v.id("users"),
+    name: v.string(),
+    normalizedName: v.string(),
+    description: v.string(),
+    justification: v.string(),
+    estimatedUnitPrice: v.number(),
+    categoryId: v.optional(v.id("procurementCategories")),
+    categoryNameSnapshot: v.string(),
+    normalizedCategoryName: v.string(),
+    categoryReferenceKey: v.string(),
+    linkedCategoryRequestId: v.optional(v.id("categoryRequests")),
+    requesterDuplicateKey: v.string(),
+    sharedGroupingKey: v.string(),
+    status: catalogRequestStatusValidator,
+    revision: v.number(),
+    decisionReason: v.optional(v.string()),
+    decisionSource: v.optional(catalogRequestDecisionSourceValidator),
+    reviewedAt: v.optional(v.number()),
+    reviewedByTenantUserId: v.optional(v.id("tenantUsers")),
+    linkedCatalogItemId: v.optional(v.id("procurementItems")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    cancelledAt: v.optional(v.number()),
+    submittedAt: v.number(),
+  })
+    .index("by_tenantId_status", ["tenantId", "status", "updatedAt"])
+    .index("by_departmentId_status", ["departmentId", "status", "updatedAt"])
+    .index("by_requestorTenantUserId_status", [
+      "requestorTenantUserId",
+      "status",
+      "updatedAt",
+    ])
+    .index("by_planId", ["planId", "updatedAt"])
+    .index("by_tenantId_requesterDuplicateKey", [
+      "tenantId",
+      "requesterDuplicateKey",
+    ])
+    .index("by_tenantId_sharedGroupingKey", ["tenantId", "sharedGroupingKey"])
+    .index("by_linkedCategoryRequestId", ["linkedCategoryRequestId", "updatedAt"]),
 
   plans: defineTable({
     tenantId: v.id("tenants"),

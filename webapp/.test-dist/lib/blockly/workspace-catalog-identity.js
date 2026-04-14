@@ -259,18 +259,18 @@ function synchronizeDepartmentUserWorkspaceCatalogIdentity(args) {
             }
             if (resolvedItem &&
                 itemBlock.getFieldValue("ITEM_IS_ACTIVE") !==
-                    String(resolvedItem?.isActive ?? false)) {
-                itemBlock.setFieldValue(String(resolvedItem?.isActive ?? false), "ITEM_IS_ACTIVE");
+                    String(resolvedItem.isActive)) {
+                itemBlock.setFieldValue(String(resolvedItem.isActive), "ITEM_IS_ACTIVE");
             }
             if (resolvedItem &&
                 itemBlock.getFieldValue("MAX_QUANTITY") !==
-                    serializeOptionalNumericField(resolvedItem?.maxQuantity ?? null)) {
-                itemBlock.setFieldValue(serializeOptionalNumericField(resolvedItem?.maxQuantity ?? null), "MAX_QUANTITY");
+                    serializeOptionalNumericField(resolvedItem.maxQuantity ?? null)) {
+                itemBlock.setFieldValue(serializeOptionalNumericField(resolvedItem.maxQuantity ?? null), "MAX_QUANTITY");
             }
             if (resolvedItem &&
                 itemBlock.getFieldValue("MIN_QUANTITY") !==
-                    serializeOptionalNumericField(resolvedItem?.minQuantity ?? null)) {
-                itemBlock.setFieldValue(serializeOptionalNumericField(resolvedItem?.minQuantity ?? null), "MIN_QUANTITY");
+                    serializeOptionalNumericField(resolvedItem.minQuantity ?? null)) {
+                itemBlock.setFieldValue(serializeOptionalNumericField(resolvedItem.minQuantity ?? null), "MIN_QUANTITY");
             }
             if (resolvedItem &&
                 itemBlock.getFieldValue("UNIT_PRICE") !==

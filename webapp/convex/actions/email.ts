@@ -13,6 +13,8 @@ export const queueTransactionalEmail = action({
       v.literal("generic-notification"),
       v.literal("billing-support"),
       v.literal("access-code-delivery"),
+      v.literal("catalog-request-status"),
+      v.literal("catalog-request-submitted"),
       v.literal("deadline-extension"),
       v.literal("deadline-reminder"),
     ),
