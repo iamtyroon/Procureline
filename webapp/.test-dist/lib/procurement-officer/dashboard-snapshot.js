@@ -91,7 +91,9 @@ function buildProcurementOfficerDashboardSnapshot(args) {
             selectedFiscalYear,
             state: "available",
         },
-        futurePanels: buildFuturePanels(),
+        futurePanels: buildFuturePanels({
+            requestSummary: args.requestSummary ?? null,
+        }),
         hero: buildHero({
             accessCodeCoverage,
             departmentCount: departmentsInScope.length,
@@ -393,7 +395,14 @@ function buildDepartmentReadiness(args) {
             : "Department readiness is visible, but the shared deadline still needs honest setup.",
     };
 }
-function buildFuturePanels() {
+function buildFuturePanels(args) {
+    const pendingTotal = args?.requestSummary?.totalPendingCount ?? 0;
+    const totalCount = args?.requestSummary?.totalCount ?? 0;
+    const requestState = totalCount === 0 ? "empty" : "available";
+    const requestStatusLabel = pendingTotal > 0 ? `${pendingTotal} pending` : "No pending";
+    const requestDescription = totalCount === 0
+        ? "No catalog requests have been submitted yet. This inbox will light up as DUs submit item or category requests."
+        : "Review live item and category requests across departments, with bulk actions and request history in the same dashboard shell.";
     return [
         {
             cta: {
@@ -422,14 +431,14 @@ function buildFuturePanels() {
         {
             cta: {
                 href: "/po/requests",
-                label: "Requests go live later",
-                state: "unavailable",
+                label: "Open request inbox",
+                state: requestState,
             },
-            description: "Request review depends on later-story request queues, so counts and inbox badges remain unavailable on purpose.",
+            description: requestDescription,
             id: "request_inbox",
             label: "Request inbox",
-            state: "unavailable",
-            statusLabel: "Unavailable",
+            state: requestState,
+            statusLabel: requestStatusLabel,
         },
         {
             cta: {

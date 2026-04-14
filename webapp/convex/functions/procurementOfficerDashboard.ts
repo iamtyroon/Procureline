@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { query } from "../_generated/server";
 import { buildProcurementOfficerDashboardSnapshot } from "../../lib/procurement-officer/dashboard-snapshot";
+import { resolveProcurementCatalogRequestSummary } from "../../lib/procurement-officer/requests";
 import { requireTenantRole } from "./_roleGuard";
 
 export const getProcurementOfficerDashboardSnapshot = query({
@@ -19,7 +20,7 @@ export const getProcurementOfficerDashboardSnapshot = query({
             });
         }
 
-        const [departments, accessCodes, departmentUserProfiles, submissionDeadlines] = await Promise.all([
+        const [departments, accessCodes, departmentUserProfiles, submissionDeadlines, categoryRequests, itemRequests] = await Promise.all([
             ctx.db
                 .query("departments")
                 .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
@@ -35,6 +36,14 @@ export const getProcurementOfficerDashboardSnapshot = query({
             ctx.db
                 .query("submissionDeadlines")
                 .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
+                .collect(),
+            ctx.db
+                .query("categoryRequests")
+                .withIndex("by_tenantId_createdAt", (q) => q.eq("tenantId", authContext.tenantId))
+                .collect(),
+            ctx.db
+                .query("itemRequests")
+                .withIndex("by_tenantId_createdAt", (q) => q.eq("tenantId", authContext.tenantId))
                 .collect(),
         ]);
 
@@ -61,6 +70,21 @@ export const getProcurementOfficerDashboardSnapshot = query({
             })),
             fiscalYearStartMonth: tenant.fiscalYearStartMonth,
             now: Date.now(),
+            requestSummary: resolveProcurementCatalogRequestSummary({
+                categoryRequests: categoryRequests.map((request) => ({
+                    departmentId: String(request.departmentId),
+                    status: request.status,
+                })),
+                departments: departments.map((department) => ({
+                    id: String(department._id),
+                    submissionEndsAt: department.submissionEndsAt,
+                    submissionStartsAt: department.submissionStartsAt,
+                })),
+                itemRequests: itemRequests.map((request) => ({
+                    departmentId: String(request.departmentId),
+                    status: request.status,
+                })),
+            }),
             selectedFiscalYear: args.selectedFiscalYear,
             submissionDeadlines: submissionDeadlines.map((deadline) => ({
                 announcementIssuedAt: deadline.announcementIssuedAt,

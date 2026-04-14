@@ -13,6 +13,8 @@ export class EmailTemplateRendererService {
       | "generic-notification"
       | "billing-support"
       | "access-code-delivery"
+      | "catalog-request-status"
+      | "catalog-request-submitted"
       | "deadline-extension"
       | "deadline-reminder",
     templateProps?: Record<string, unknown>,
@@ -48,6 +50,56 @@ export class EmailTemplateRendererService {
       return render(
         BillingSupportTemplate({
           note: typeof templateProps?.note === "string" ? templateProps.note : undefined,
+        }),
+      );
+    }
+
+    if (template === "catalog-request-status") {
+      const requestSummary =
+        typeof templateProps?.requestSummary === "string"
+          ? templateProps.requestSummary
+          : "your catalog request";
+      const tenantName =
+        typeof templateProps?.tenantName === "string"
+          ? templateProps.tenantName
+          : "Procureline";
+      const status =
+        typeof templateProps?.status === "string"
+          ? templateProps.status
+          : "updated";
+      const reason =
+        typeof templateProps?.reason === "string" ? templateProps.reason : null;
+      const normalizedStatus =
+        status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+
+      return render(
+        GenericNotificationTemplate({
+          heading: `${normalizedStatus} catalog request`,
+          message: reason
+            ? `${tenantName} marked ${requestSummary} as ${status}. Reason: ${reason}`
+            : `${tenantName} marked ${requestSummary} as ${status}.`,
+        }),
+      );
+    }
+
+    if (template === "catalog-request-submitted") {
+      const requestSummary =
+        typeof templateProps?.requestSummary === "string"
+          ? templateProps.requestSummary
+          : "a catalog request";
+      const requestType =
+        typeof templateProps?.requestType === "string"
+          ? templateProps.requestType
+          : "catalog";
+      const tenantName =
+        typeof templateProps?.tenantName === "string"
+          ? templateProps.tenantName
+          : "Procureline";
+
+      return render(
+        GenericNotificationTemplate({
+          heading: "New catalog request submitted",
+          message: `${tenantName} received a new ${requestType} request for ${requestSummary}.`,
         }),
       );
     }

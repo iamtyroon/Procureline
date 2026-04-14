@@ -96,8 +96,10 @@ async function runDepartmentUserRequestContextTests() {
         justification: "Supports shared lesson delivery",
         name: "Charging cart",
     });
-    strict_1.default.equal(missingExistingCategoryParse.success, false);
-    strict_1.default.match(JSON.stringify(missingExistingCategoryParse.error?.flatten().fieldErrors), /Choose an active category or switch to category request handoff/i);
+    if (missingExistingCategoryParse.success) {
+        strict_1.default.fail("expected missing existing-category validation to fail");
+    }
+    strict_1.default.match(JSON.stringify(missingExistingCategoryParse.error.flatten().fieldErrors), /Choose an active category or switch to category request handoff/i);
     const invalidCategoryDraftParse = catalog_requests_1.catalogCategoryRequestFormSchema.safeParse({
         description: "  ",
         justification: "  ",
@@ -105,6 +107,12 @@ async function runDepartmentUserRequestContextTests() {
     });
     strict_1.default.equal(invalidCategoryDraftParse.success, false);
     completedTests.push("catalog request form schemas allow item handoff mode while still enforcing existing-category selection and standalone category draft validation");
+    strict_1.default.equal((0, catalog_requests_1.shouldExpireCatalogRequest)({
+        now: Date.UTC(2026, 6, 1, 8, 0, 1),
+        status: "pending",
+        submissionEndsAt: Date.UTC(2026, 6, 1, 8, 0, 0),
+        submissionStartsAt: Date.UTC(2026, 5, 1, 8, 0, 0),
+    }), true);
     strict_1.default.equal((0, catalog_requests_1.shouldExpireCatalogRequest)({
         now: Date.UTC(2026, 6, 2, 8, 0, 0),
         status: "pending",
@@ -123,7 +131,7 @@ async function runDepartmentUserRequestContextTests() {
         submissionEndsAt: Date.UTC(2026, 6, 1, 8, 0, 0),
         submissionStartsAt: Date.UTC(2026, 5, 1, 8, 0, 0),
     }), false);
-    completedTests.push("catalog request expiry checks only target still-pending requests after the department submission window actually closes");
+    completedTests.push("catalog request expiry checks only target still-pending requests once the department submission deadline itself has passed");
     strict_1.default.equal((0, catalog_requests_1.shouldAutoCancelLinkedCategoryRequest)({
         hasOtherPendingLinks: false,
         requestOrigin: "item_handoff",

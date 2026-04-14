@@ -25,6 +25,7 @@ export const itemFormSchema = z
         categoryId: z.string(),
         complianceFlags: z.array(z.string()).default([]),
         customUnit: z.string().optional(),
+        description: z.string().optional(),
         maxQuantity: z.union([z.number(), z.nan()]).optional(),
         minQuantity: z.union([z.number(), z.nan()]).optional(),
         name: z.string(),
@@ -125,6 +126,10 @@ export const itemFormSchema = z
             categoryId: normalizePlainText(value.categoryId),
             complianceFlags: normalizeComplianceFlags(value.complianceFlags),
             customUnit: resolvedUnitOption === "custom" ? resolvedCustomUnit : undefined,
+            description:
+                normalizePlainText(value.description ?? "").length > 0
+                    ? normalizePlainText(value.description ?? "")
+                    : undefined,
             maxQuantity: normalizeQuantityLimit(value.maxQuantity),
             minQuantity: normalizeQuantityLimit(value.minQuantity),
             name: normalizeProcurementItemDisplayName(value.name),

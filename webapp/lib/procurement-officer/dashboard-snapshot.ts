@@ -138,15 +138,21 @@ export interface ProcurementOfficerDashboardSnapshot {
 }
 
 export interface BuildProcurementOfficerDashboardSnapshotArgs {
-    accessCodes: readonly ProcurementOfficerDashboardAccessCodeRecord[];
-    departments: readonly ProcurementOfficerDashboardDepartmentRecord[];
-    departmentUserProfiles: readonly ProcurementOfficerDashboardDepartmentUserProfileRecord[];
-    fiscalYearStartMonth?: number | null;
-    now: number;
-    selectedFiscalYear?: string;
-    submissionDeadlines?: readonly ProcurementSubmissionDeadlineRecord[];
-    tenant: ProcurementOfficerDashboardTenantRecord;
-    tenantTimeZone?: string | null;
+  accessCodes: readonly ProcurementOfficerDashboardAccessCodeRecord[];
+  departments: readonly ProcurementOfficerDashboardDepartmentRecord[];
+  departmentUserProfiles: readonly ProcurementOfficerDashboardDepartmentUserProfileRecord[];
+  fiscalYearStartMonth?: number | null;
+  now: number;
+  requestSummary?: {
+    pendingCategoryCount: number;
+    pendingItemCount: number;
+    totalCount: number;
+    totalPendingCount: number;
+  } | null;
+  selectedFiscalYear?: string;
+  submissionDeadlines?: readonly ProcurementSubmissionDeadlineRecord[];
+  tenant: ProcurementOfficerDashboardTenantRecord;
+  tenantTimeZone?: string | null;
 }
 
 export function buildProcurementOfficerDashboardSnapshot(
@@ -264,7 +270,9 @@ export function buildProcurementOfficerDashboardSnapshot(
             selectedFiscalYear,
             state: "available",
         },
-        futurePanels: buildFuturePanels(),
+        futurePanels: buildFuturePanels({
+            requestSummary: args.requestSummary ?? null,
+        }),
         hero: buildHero({
             accessCodeCoverage,
             departmentCount: departmentsInScope.length,
@@ -640,7 +648,25 @@ function buildDepartmentReadiness(args: {
     };
 }
 
-function buildFuturePanels(): ProcurementOfficerDashboardFuturePanel[] {
+function buildFuturePanels(args?: {
+    requestSummary?: {
+        pendingCategoryCount: number;
+        pendingItemCount: number;
+        totalCount: number;
+        totalPendingCount: number;
+    } | null;
+}): ProcurementOfficerDashboardFuturePanel[] {
+    const pendingTotal = args?.requestSummary?.totalPendingCount ?? 0;
+    const totalCount = args?.requestSummary?.totalCount ?? 0;
+    const requestState: ProcurementDashboardState =
+        totalCount === 0 ? "empty" : "available";
+    const requestStatusLabel =
+        pendingTotal > 0 ? `${pendingTotal} pending` : "No pending";
+    const requestDescription =
+        totalCount === 0
+            ? "No catalog requests have been submitted yet. This inbox will light up as DUs submit item or category requests."
+            : "Review live item and category requests across departments, with bulk actions and request history in the same dashboard shell.";
+
     return [
         {
             cta: {
@@ -671,15 +697,14 @@ function buildFuturePanels(): ProcurementOfficerDashboardFuturePanel[] {
         {
             cta: {
                 href: "/po/requests",
-                label: "Requests go live later",
-                state: "unavailable",
+                label: "Open request inbox",
+                state: requestState,
             },
-            description:
-                "Request review depends on later-story request queues, so counts and inbox badges remain unavailable on purpose.",
+            description: requestDescription,
             id: "request_inbox",
             label: "Request inbox",
-            state: "unavailable",
-            statusLabel: "Unavailable",
+            state: requestState,
+            statusLabel: requestStatusLabel,
         },
         {
             cta: {

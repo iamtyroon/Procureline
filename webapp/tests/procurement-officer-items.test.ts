@@ -37,6 +37,7 @@ import {
   parseStoredItemDraft,
   resolveProcurementItemDraftCategoryId,
 } from "../lib/procurement-officer/items";
+import { itemFormSchema } from "../lib/validators/item";
 
 function createMockItemBackendQueryCtx(
   items: ProcurementItemBackendRecordWithScope[],
@@ -100,12 +101,21 @@ export async function runProcurementOfficerItemTests(): Promise<string[]> {
     normalizeProcurementItemName("  Laptop   Computer  "),
     "laptop computer",
   );
+  const parsedItemInput = itemFormSchema.parse({
+    categoryId: "cat-it",
+    complianceFlags: [],
+    description: "  Portable computers for staff  ",
+    name: " Laptop ",
+    unit: "each",
+    unitPrice: 75_000,
+  });
+  assert.equal(parsedItemInput.description, "Portable computers for staff");
   assert.deepEqual(
     normalizeComplianceFlags(["AGPO", " pwd ", "unsupported", "agpo"]),
     ["agpo", "pwd"],
   );
   completedTests.push(
-    "item normalization helpers collapse description whitespace and keep only supported compliance flags in stable lowercase form",
+    "item normalization helpers collapse names and optional descriptions while keeping only supported compliance flags in stable lowercase form",
   );
 
   const browseState = readProcurementCatalogBrowseState(

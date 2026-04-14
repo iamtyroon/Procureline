@@ -37,6 +37,7 @@ async function main() {
     const { runPlatformAdminDashboardTests } = await import("./platform-admin-dashboard.test.js");
     const { runPricingFlowTests } = await import("./pricing-flow.test.js");
     const { runProcurementOfficerDashboardTests } = await import("./procurement-officer-dashboard.test.js");
+    const { runProcurementOfficerRequestTests } = await import("./procurement-officer-requests.test.js");
     const { runProcurementOfficerItemTests } = await import("./procurement-officer-items.test.js");
     const { runProcurementOfficerInvitationTests } = await import("./procurement-officer-invitations.test.js");
     const { runPublicAuthEntryTests } = await import("./public-auth-entry.test.js");
@@ -71,6 +72,7 @@ async function main() {
         ...(await runPlatformAdminDashboardTests()),
         ...runPricingFlowTests(),
         ...runProcurementOfficerDashboardTests(),
+        ...runProcurementOfficerRequestTests(),
         ...(await runProcurementOfficerInvitationTests()),
         ...runPublicAuthEntryTests(),
         ...runProxyRouteTests(),

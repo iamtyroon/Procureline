@@ -178,6 +178,12 @@ export function runProcurementOfficerDashboardTests(): string[] {
       },
     ],
     now: Date.UTC(2026, 7, 10, 12, 0, 0),
+    requestSummary: {
+      pendingCategoryCount: 0,
+      pendingItemCount: 0,
+      totalCount: 0,
+      totalPendingCount: 0,
+    },
     tenant: {
       id: "tenant-1",
       name: "Pwani University",
@@ -230,7 +236,7 @@ export function runProcurementOfficerDashboardTests(): string[] {
   );
   assert.equal(
     snapshot.futurePanels.find((panel) => panel.id === "request_inbox")?.state,
-    "unavailable",
+    "empty",
   );
   completedTests.push(
     "procurement-officer snapshot shaping deduplicates access-code and DU coverage by department, keeps shared-deadline warnings honest, and promotes categories plus items into live dashboard workspaces",
@@ -241,6 +247,12 @@ export function runProcurementOfficerDashboardTests(): string[] {
     departments: [],
     departmentUserProfiles: [],
     now: Date.UTC(2026, 7, 10, 12, 0, 0),
+    requestSummary: {
+      pendingCategoryCount: 0,
+      pendingItemCount: 0,
+      totalCount: 0,
+      totalPendingCount: 0,
+    },
     tenant: {
       id: "tenant-2",
       name: "Maseno University",

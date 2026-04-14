@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { evaluateDepartmentUserSubmissionWindow } from "../auth/department-user-access";
 import { normalizeCategoryName } from "../procurement-officer/categories";
 import { normalizeProcurementItemName } from "../procurement-officer/items";
 import { validatePlainTextInput } from "../security/input";
@@ -310,13 +309,8 @@ export function shouldExpireCatalogRequest(args: {
         return false;
     }
 
-    return (
-        evaluateDepartmentUserSubmissionWindow({
-            now: args.now,
-            submissionEndsAt: args.submissionEndsAt,
-            submissionStartsAt: args.submissionStartsAt,
-        }).state === "ended"
-    );
+    const now = args.now ?? Date.now();
+    return now > args.submissionEndsAt;
 }
 
 export function buildCatalogRequestSummary(args: {

@@ -9,6 +9,7 @@ exports.itemFormSchema = zod_1.z
     categoryId: zod_1.z.string(),
     complianceFlags: zod_1.z.array(zod_1.z.string()).default([]),
     customUnit: zod_1.z.string().optional(),
+    description: zod_1.z.string().optional(),
     maxQuantity: zod_1.z.union([zod_1.z.number(), zod_1.z.nan()]).optional(),
     minQuantity: zod_1.z.union([zod_1.z.number(), zod_1.z.nan()]).optional(),
     name: zod_1.z.string(),
@@ -96,6 +97,9 @@ exports.itemFormSchema = zod_1.z
         categoryId: (0, input_1.normalizePlainText)(value.categoryId),
         complianceFlags: (0, items_1.normalizeComplianceFlags)(value.complianceFlags),
         customUnit: resolvedUnitOption === "custom" ? resolvedCustomUnit : undefined,
+        description: (0, input_1.normalizePlainText)(value.description ?? "").length > 0
+            ? (0, input_1.normalizePlainText)(value.description ?? "")
+            : undefined,
         maxQuantity: (0, items_1.normalizeQuantityLimit)(value.maxQuantity),
         minQuantity: (0, items_1.normalizeQuantityLimit)(value.minQuantity),
         name: (0, items_1.normalizeProcurementItemDisplayName)(value.name),

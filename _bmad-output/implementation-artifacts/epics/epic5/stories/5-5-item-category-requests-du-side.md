@@ -1,6 +1,6 @@
 # Story 5.5: Item & Category Requests (DU Side)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -387,5 +387,5 @@ gpt-5-codex
 - Story ID: `5.5`
 - Story Key: `5-5-item-category-requests-du-side`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic5/stories/5-5-item-category-requests-du-side.md`
-- Final Status: `review`
+- Final Status: `done`
 - Completion Note: `Implemented DU-side item and category request creation, editing, cancellation, status visibility, and expiry handling inside the Blockly planning workflow with deterministic validation and UI coverage.`

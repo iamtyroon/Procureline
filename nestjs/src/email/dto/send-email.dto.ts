@@ -15,6 +15,8 @@ export class SendEmailDto {
       "generic-notification",
       "billing-support",
       "access-code-delivery",
+      "catalog-request-status",
+      "catalog-request-submitted",
       "deadline-extension",
       "deadline-reminder",
     ],
@@ -23,6 +25,8 @@ export class SendEmailDto {
     "generic-notification",
     "billing-support",
     "access-code-delivery",
+    "catalog-request-status",
+    "catalog-request-submitted",
     "deadline-extension",
     "deadline-reminder",
   ])
@@ -30,6 +34,8 @@ export class SendEmailDto {
     | "generic-notification"
     | "billing-support"
     | "access-code-delivery"
+    | "catalog-request-status"
+    | "catalog-request-submitted"
     | "deadline-extension"
     | "deadline-reminder";
 

@@ -68,6 +68,7 @@ import { ProcurementOfficerCategoriesWorkspace } from "./ProcurementOfficerCateg
 import { ProcurementOfficerDeadlinesWorkspace } from "./ProcurementOfficerDeadlinesWorkspace";
 import { ProcurementOfficerDepartmentsWorkspace } from "./ProcurementOfficerDepartmentsWorkspace";
 import { ProcurementOfficerItemsWorkspace } from "./ProcurementOfficerItemsWorkspace";
+import { ProcurementOfficerRequestsWorkspace } from "./ProcurementOfficerRequestsWorkspace";
 
 /* ─── Donut Ring ──────────────────────────────────────────────────── */
 
@@ -806,8 +807,6 @@ export function ProcurementOfficerDashboard(): JSX.Element {
       {/* Workspace modal */}
       <WorkspaceModal
         activeModal={activeModal}
-        requestPanel={requestPanel}
-        submissionPanel={submissionPanel}
         selectedFiscalYear={selectedFiscalYear}
         onSelectedFiscalYearChange={(fiscalYear) =>
           startTransition(() => setSelectedFiscalYear(fiscalYear))
@@ -1020,17 +1019,13 @@ function InlineStatePill({
 
 function WorkspaceModal({
   activeModal,
-  requestPanel,
   selectedFiscalYear,
-  submissionPanel,
   onSelectedFiscalYearChange,
   onCategorySectionChange,
   onClose,
 }: {
   activeModal: ProcurementOfficerWorkspaceModalState | null;
-  requestPanel?: ProcurementOfficerDashboardFuturePanel;
   selectedFiscalYear?: string;
-  submissionPanel?: ProcurementOfficerDashboardFuturePanel;
   onSelectedFiscalYearChange: (fiscalYear: string) => void;
   onCategorySectionChange: (
     section?: ProcurementOfficerWorkspaceSection,
@@ -1109,33 +1104,7 @@ function WorkspaceModal({
           ) : null}
 
           {activeModal?.modal === "requests" ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              {[requestPanel, submissionPanel]
-                .filter((p): p is ProcurementOfficerDashboardFuturePanel =>
-                  Boolean(p),
-                )
-                .map((panel) => (
-                  <div
-                    key={panel.id}
-                    className="rounded-2xl border border-border/70 bg-card p-5"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="font-semibold text-foreground">
-                          {panel.label}
-                        </div>
-                        <div className="mt-2 text-sm leading-6 text-muted-foreground">
-                          {panel.description}
-                        </div>
-                      </div>
-                      <StateBadge
-                        state={panel.state}
-                        label={panel.statusLabel}
-                      />
-                    </div>
-                  </div>
-                ))}
-            </div>
+            <ProcurementOfficerRequestsWorkspace />
           ) : null}
 
           {activeModal?.modal === "categories" ? (
@@ -1303,7 +1272,7 @@ function getWorkspaceDescription(
 ): string {
   switch (activeModal?.modal) {
     case "requests":
-      return "Request inbox and submission monitoring now open as a dashboard modal, keeping the PO flow in one place until the live queue stories land.";
+      return "Review item and category requests, approve or deny with audit trails, and track history without leaving the /po shell.";
     case "categories":
       return activeModal.section === "items"
         ? "Items now run as a live catalog workspace inside the shared categories modal, preserving category handoff context and workbook import in one operator flow."

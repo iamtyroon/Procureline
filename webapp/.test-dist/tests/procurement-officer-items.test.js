@@ -9,6 +9,7 @@ const values_1 = require("convex/values");
 const item_backend_1 = require("../lib/procurement-officer/item-backend");
 const catalog_filters_1 = require("../lib/procurement-officer/catalog-filters");
 const items_1 = require("../lib/procurement-officer/items");
+const item_1 = require("../lib/validators/item");
 function createMockItemBackendQueryCtx(items) {
     return {
         db: {
@@ -48,8 +49,17 @@ async function expectConvexError(callback) {
 async function runProcurementOfficerItemTests() {
     const completedTests = [];
     strict_1.default.equal((0, items_1.normalizeProcurementItemName)("  Laptop   Computer  "), "laptop computer");
+    const parsedItemInput = item_1.itemFormSchema.parse({
+        categoryId: "cat-it",
+        complianceFlags: [],
+        description: "  Portable computers for staff  ",
+        name: " Laptop ",
+        unit: "each",
+        unitPrice: 75_000,
+    });
+    strict_1.default.equal(parsedItemInput.description, "Portable computers for staff");
     strict_1.default.deepEqual((0, items_1.normalizeComplianceFlags)(["AGPO", " pwd ", "unsupported", "agpo"]), ["agpo", "pwd"]);
-    completedTests.push("item normalization helpers collapse description whitespace and keep only supported compliance flags in stable lowercase form");
+    completedTests.push("item normalization helpers collapse names and optional descriptions while keeping only supported compliance flags in stable lowercase form");
     const browseState = (0, catalog_filters_1.readProcurementCatalogBrowseState)(new URLSearchParams("itemSearch=  laptops  &itemCategory=cat-it&itemCategory=cat-missing&itemCategory=cat-it&itemCompliance=AGPO&itemCompliance=pwd&itemCompliance=bad&itemMinPrice=-20&itemMaxPrice=900&itemPage=0"), {
         availableCategoryIds: ["cat-it", "cat-office"],
     });

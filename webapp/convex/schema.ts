@@ -360,6 +360,20 @@ export default defineSchema({
     revision: v.number(),
     decisionReason: v.optional(v.string()),
     decisionSource: v.optional(catalogRequestDecisionSourceValidator),
+    decisionSnapshot: v.optional(v.any()),
+    decisionNotificationDeliverAt: v.optional(v.number()),
+    decisionNotificationErrorCode: v.optional(v.string()),
+    decisionNotificationErrorMessage: v.optional(v.string()),
+    decisionNotificationIdempotencyKey: v.optional(v.string()),
+    decisionNotificationQueuedAt: v.optional(v.number()),
+    decisionNotificationStatus: v.optional(
+      v.union(
+        v.literal("cancelled"),
+        v.literal("failed"),
+        v.literal("queued"),
+      ),
+    ),
+    denialUndoDeadlineAt: v.optional(v.number()),
     reviewedAt: v.optional(v.number()),
     reviewedByTenantUserId: v.optional(v.id("tenantUsers")),
     linkedCatalogCategoryId: v.optional(v.id("procurementCategories")),
@@ -369,6 +383,12 @@ export default defineSchema({
     submittedAt: v.number(),
   })
     .index("by_tenantId_status", ["tenantId", "status", "updatedAt"])
+    .index("by_tenantId_createdAt", ["tenantId", "createdAt"])
+    .index("by_tenantId_departmentId_createdAt", [
+      "tenantId",
+      "departmentId",
+      "createdAt",
+    ])
     .index("by_departmentId_status", ["departmentId", "status", "updatedAt"])
     .index("by_requestorTenantUserId_status", [
       "requestorTenantUserId",
@@ -405,6 +425,20 @@ export default defineSchema({
     revision: v.number(),
     decisionReason: v.optional(v.string()),
     decisionSource: v.optional(catalogRequestDecisionSourceValidator),
+    decisionSnapshot: v.optional(v.any()),
+    decisionNotificationDeliverAt: v.optional(v.number()),
+    decisionNotificationErrorCode: v.optional(v.string()),
+    decisionNotificationErrorMessage: v.optional(v.string()),
+    decisionNotificationIdempotencyKey: v.optional(v.string()),
+    decisionNotificationQueuedAt: v.optional(v.number()),
+    decisionNotificationStatus: v.optional(
+      v.union(
+        v.literal("cancelled"),
+        v.literal("failed"),
+        v.literal("queued"),
+      ),
+    ),
+    denialUndoDeadlineAt: v.optional(v.number()),
     reviewedAt: v.optional(v.number()),
     reviewedByTenantUserId: v.optional(v.id("tenantUsers")),
     linkedCatalogItemId: v.optional(v.id("procurementItems")),
@@ -414,6 +448,12 @@ export default defineSchema({
     submittedAt: v.number(),
   })
     .index("by_tenantId_status", ["tenantId", "status", "updatedAt"])
+    .index("by_tenantId_createdAt", ["tenantId", "createdAt"])
+    .index("by_tenantId_departmentId_createdAt", [
+      "tenantId",
+      "departmentId",
+      "createdAt",
+    ])
     .index("by_departmentId_status", ["departmentId", "status", "updatedAt"])
     .index("by_requestorTenantUserId_status", [
       "requestorTenantUserId",

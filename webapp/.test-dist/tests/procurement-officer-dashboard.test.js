@@ -156,6 +156,12 @@ function runProcurementOfficerDashboardTests() {
             },
         ],
         now: Date.UTC(2026, 7, 10, 12, 0, 0),
+        requestSummary: {
+            pendingCategoryCount: 0,
+            pendingItemCount: 0,
+            totalCount: 0,
+            totalPendingCount: 0,
+        },
         tenant: {
             id: "tenant-1",
             name: "Pwani University",
@@ -175,13 +181,19 @@ function runProcurementOfficerDashboardTests() {
         "Submission deadline not set. Configure before DUs can submit."), true);
     strict_1.default.equal(snapshot.futurePanels.find((panel) => panel.id === "categories")?.state, "available");
     strict_1.default.equal(snapshot.futurePanels.find((panel) => panel.id === "items")?.state, "available");
-    strict_1.default.equal(snapshot.futurePanels.find((panel) => panel.id === "request_inbox")?.state, "unavailable");
+    strict_1.default.equal(snapshot.futurePanels.find((panel) => panel.id === "request_inbox")?.state, "empty");
     completedTests.push("procurement-officer snapshot shaping deduplicates access-code and DU coverage by department, keeps shared-deadline warnings honest, and promotes categories plus items into live dashboard workspaces");
     const emptySnapshot = (0, dashboard_snapshot_1.buildProcurementOfficerDashboardSnapshot)({
         accessCodes: [],
         departments: [],
         departmentUserProfiles: [],
         now: Date.UTC(2026, 7, 10, 12, 0, 0),
+        requestSummary: {
+            pendingCategoryCount: 0,
+            pendingItemCount: 0,
+            totalCount: 0,
+            totalPendingCount: 0,
+        },
         tenant: {
             id: "tenant-2",
             name: "Maseno University",

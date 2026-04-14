@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.isCatalogRequestEditable = exports.formatCatalogRequestDuplicateCatalogMessage = exports.buildCatalogRequestSummary = exports.shouldExpireCatalogRequest = exports.formatCatalogRequestDecisionReason = exports.buildCatalogRequestStatusMeta = exports.sanitizeCatalogRequestTextField = exports.createItemRequestIdentityKeys = exports.createCategoryRequestIdentityKeys = exports.shouldAutoCancelLinkedCategoryRequest = exports.buildCatalogRequestCategoryReferenceKey = exports.normalizeCatalogRequestName = exports.catalogItemRequestFormSchema = exports.catalogCategoryRequestFormSchema = exports.CATALOG_REQUEST_MESSAGES = exports.CATALOG_REQUEST_LIMITS = exports.CATALOG_REQUEST_CATEGORY_MODE_VALUES = exports.CATALOG_REQUEST_TYPE_VALUES = exports.CATALOG_CATEGORY_REQUEST_ORIGIN_VALUES = exports.CATALOG_REQUEST_STATUS_VALUES = void 0;
 const zod_1 = require("zod");
-const department_user_access_1 = require("../auth/department-user-access");
 const categories_1 = require("../procurement-officer/categories");
 const items_1 = require("../procurement-officer/items");
 const input_1 = require("../security/input");
@@ -214,11 +213,8 @@ function shouldExpireCatalogRequest(args) {
         typeof args.submissionEndsAt !== "number") {
         return false;
     }
-    return ((0, department_user_access_1.evaluateDepartmentUserSubmissionWindow)({
-        now: args.now,
-        submissionEndsAt: args.submissionEndsAt,
-        submissionStartsAt: args.submissionStartsAt,
-    }).state === "ended");
+    const now = args.now ?? Date.now();
+    return now > args.submissionEndsAt;
 }
 exports.shouldExpireCatalogRequest = shouldExpireCatalogRequest;
 function buildCatalogRequestSummary(args) {

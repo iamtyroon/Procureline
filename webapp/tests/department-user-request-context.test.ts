@@ -152,6 +152,15 @@ export async function runDepartmentUserRequestContextTests(): Promise<string[]> 
 
     assert.equal(
         shouldExpireCatalogRequest({
+            now: Date.UTC(2026, 6, 1, 8, 0, 1),
+            status: "pending",
+            submissionEndsAt: Date.UTC(2026, 6, 1, 8, 0, 0),
+            submissionStartsAt: Date.UTC(2026, 5, 1, 8, 0, 0),
+        }),
+        true,
+    );
+    assert.equal(
+        shouldExpireCatalogRequest({
             now: Date.UTC(2026, 6, 2, 8, 0, 0),
             status: "pending",
             submissionEndsAt: Date.UTC(2026, 6, 1, 8, 0, 0),
@@ -178,7 +187,7 @@ export async function runDepartmentUserRequestContextTests(): Promise<string[]> 
         false,
     );
     completedTests.push(
-        "catalog request expiry checks only target still-pending requests after the department submission window actually closes",
+        "catalog request expiry checks only target still-pending requests once the department submission deadline itself has passed",
     );
 
     assert.equal(
