@@ -11,6 +11,10 @@ import {
     type ProcurementDashboardState,
     type ProcurementDepartmentWindowRecord,
 } from "./dashboard";
+import {
+    summarizeProcurementOfficerSubmissionQueue,
+    type ProcurementOfficerSubmissionStatus,
+} from "./submissions";
 
 export interface ProcurementOfficerDashboardTenantRecord {
     id: string;
@@ -41,6 +45,11 @@ export interface ProcurementOfficerDashboardAction {
     href: string;
     label: string;
     state: ProcurementDashboardState;
+}
+
+export interface ProcurementOfficerDashboardPlanSummaryRecord {
+    fiscalYear: string;
+    status: ProcurementOfficerSubmissionStatus;
 }
 
 export interface ProcurementOfficerDashboardAlert {
@@ -143,6 +152,7 @@ export interface BuildProcurementOfficerDashboardSnapshotArgs {
   departmentUserProfiles: readonly ProcurementOfficerDashboardDepartmentUserProfileRecord[];
   fiscalYearStartMonth?: number | null;
   now: number;
+  plans?: readonly ProcurementOfficerDashboardPlanSummaryRecord[];
   requestSummary?: {
     pendingCategoryCount: number;
     pendingItemCount: number;
@@ -229,6 +239,10 @@ export function buildProcurementOfficerDashboardSnapshot(
         now: args.now,
         tenantTimeZone: args.tenantTimeZone,
     });
+    const submissionSummary = summarizeProcurementOfficerSubmissionQueue({
+        plans: args.plans ?? [],
+        selectedFiscalYear,
+    });
 
     return {
         alerts: buildAlerts({
@@ -272,6 +286,7 @@ export function buildProcurementOfficerDashboardSnapshot(
         },
         futurePanels: buildFuturePanels({
             requestSummary: args.requestSummary ?? null,
+            submissionSummary,
         }),
         hero: buildHero({
             accessCodeCoverage,
@@ -655,6 +670,13 @@ function buildFuturePanels(args?: {
         totalCount: number;
         totalPendingCount: number;
     } | null;
+    submissionSummary?: {
+        approvedCount: number;
+        rejectedCount: number;
+        selectedFiscalYearCount: number;
+        submittedCount: number;
+        totalCount: number;
+    } | null;
 }): ProcurementOfficerDashboardFuturePanel[] {
     const pendingTotal = args?.requestSummary?.totalPendingCount ?? 0;
     const totalCount = args?.requestSummary?.totalCount ?? 0;
@@ -666,6 +688,25 @@ function buildFuturePanels(args?: {
         totalCount === 0
             ? "No catalog requests have been submitted yet. This inbox will light up as DUs submit item or category requests."
             : "Review live item and category requests across departments, with bulk actions and request history in the same dashboard shell.";
+    const selectedSubmissionCount =
+        args?.submissionSummary?.selectedFiscalYearCount ?? 0;
+    const totalSubmissionCount = args?.submissionSummary?.totalCount ?? 0;
+    const submissionState: ProcurementDashboardState =
+        selectedSubmissionCount > 0
+            ? "available"
+            : "empty";
+    const submissionStatusLabel =
+        selectedSubmissionCount > 0
+            ? `${selectedSubmissionCount} in queue`
+            : totalSubmissionCount > 0
+              ? "Other fiscal years only"
+              : "No submissions";
+    const submissionDescription =
+        selectedSubmissionCount > 0
+            ? "Open the live submissions queue to sort, filter, and hand plans into the reserved review route without leaving the /po shell."
+            : totalSubmissionCount > 0
+              ? "This fiscal year has no matching plans yet, but the tenant already has submissions in other fiscal years."
+              : "No submitted or reviewed plans are available yet. This queue will update live as departments submit.";
 
     return [
         {
@@ -708,16 +749,15 @@ function buildFuturePanels(args?: {
         },
         {
             cta: {
-                href: "/po/requests",
-                label: "Submission monitoring later",
-                state: "unavailable",
+                href: "/po/submissions",
+                label: "Open submissions queue",
+                state: submissionState,
             },
-            description:
-                "Submission monitoring is reserved for a later story, so this dashboard does not invent pending-plan or overdue totals.",
+            description: submissionDescription,
             id: "submission_monitoring",
             label: "Submission monitoring",
-            state: "unavailable",
-            statusLabel: "Unavailable",
+            state: submissionState,
+            statusLabel: submissionStatusLabel,
         },
         {
             cta: {

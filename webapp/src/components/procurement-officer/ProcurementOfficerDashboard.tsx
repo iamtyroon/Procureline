@@ -49,6 +49,10 @@ import {
   type ProcurementOfficerWorkspaceSection,
 } from "@/lib/procurement-officer/dashboard";
 import {
+  extractProcurementOfficerDashboardSearchParams,
+  PROCUREMENT_OFFICER_DASHBOARD_QUERY_KEYS,
+} from "@/lib/procurement-officer/dashboard-search";
+import {
   CATEGORY_DRAFT_STORAGE_KEY,
   hasStoredCategoryDraft,
 } from "@/lib/procurement-officer/categories";
@@ -69,6 +73,7 @@ import { ProcurementOfficerDeadlinesWorkspace } from "./ProcurementOfficerDeadli
 import { ProcurementOfficerDepartmentsWorkspace } from "./ProcurementOfficerDepartmentsWorkspace";
 import { ProcurementOfficerItemsWorkspace } from "./ProcurementOfficerItemsWorkspace";
 import { ProcurementOfficerRequestsWorkspace } from "./ProcurementOfficerRequestsWorkspace";
+import { ProcurementOfficerSubmissionsWorkspace } from "./ProcurementOfficerSubmissionsWorkspace";
 
 /* ─── Donut Ring ──────────────────────────────────────────────────── */
 
@@ -226,25 +231,19 @@ function IconBox({
 /* ─── Main component ──────────────────────────────────────────────── */
 
 export function ProcurementOfficerDashboard(): JSX.Element {
-  const [selectedFiscalYear, setSelectedFiscalYear] = useState<
-    string | undefined
-  >();
   const [countdownNow, setCountdownNow] = useState(() => Date.now());
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const requestedFiscalYear =
+    searchParams.get(PROCUREMENT_OFFICER_DASHBOARD_QUERY_KEYS.fiscalYear) ??
+    undefined;
 
   const snapshot = useQuery(
     api.functions.procurementOfficerDashboard
       .getProcurementOfficerDashboardSnapshot,
-    selectedFiscalYear ? { selectedFiscalYear } : {},
+    requestedFiscalYear ? { selectedFiscalYear: requestedFiscalYear } : {},
   );
-
-  useEffect(() => {
-    if (!selectedFiscalYear && snapshot?.fiscalYears.selectedFiscalYear) {
-      setSelectedFiscalYear(snapshot.fiscalYears.selectedFiscalYear);
-    }
-  }, [selectedFiscalYear, snapshot?.fiscalYears.selectedFiscalYear]);
 
   useEffect(() => {
     if (!snapshot?.deadlineOverview.targetAt) {
@@ -264,6 +263,8 @@ export function ProcurementOfficerDashboard(): JSX.Element {
     modal: searchParams.get("modal"),
     section: searchParams.get("section"),
   });
+  const selectedFiscalYear =
+    snapshot.fiscalYears.selectedFiscalYear ?? requestedFiscalYear;
   const fiscalYearLabel = snapshot.fiscalYears.selectedFiscalYear
     ? formatProcurementFiscalYearLabel(snapshot.fiscalYears.selectedFiscalYear)
     : "Fiscal year unavailable";
@@ -316,18 +317,56 @@ export function ProcurementOfficerDashboard(): JSX.Element {
     (y) => y !== snapshot.fiscalYears.selectedFiscalYear,
   );
 
+  function setFiscalYearSearchParam(
+    nextSearchParams: URLSearchParams,
+    nextFiscalYear?: string,
+  ): URLSearchParams {
+    if (nextFiscalYear) {
+      nextSearchParams.set(
+        PROCUREMENT_OFFICER_DASHBOARD_QUERY_KEYS.fiscalYear,
+        nextFiscalYear,
+      );
+    } else {
+      nextSearchParams.delete(PROCUREMENT_OFFICER_DASHBOARD_QUERY_KEYS.fiscalYear);
+    }
+
+    return nextSearchParams;
+  }
+
+  function buildDashboardHref(nextFiscalYear?: string): string {
+    const nextSearchParams = setFiscalYearSearchParam(
+      extractProcurementOfficerDashboardSearchParams(searchParams),
+      nextFiscalYear,
+    );
+
+    const query = nextSearchParams.toString();
+    return query.length > 0 ? `${pathname}?${query}` : pathname;
+  }
+
+  function replaceSelectedFiscalYear(nextFiscalYear: string): void {
+    const nextSearchParams = setFiscalYearSearchParam(
+      new URLSearchParams(searchParams.toString()),
+      nextFiscalYear,
+    );
+    const query = nextSearchParams.toString();
+    startTransition(() =>
+      router.replace(query.length > 0 ? `${pathname}?${query}` : pathname),
+    );
+  }
+
   function setWorkspaceModal(
     modalState: ProcurementOfficerWorkspaceModalState | null,
     historyMode: "push" | "replace",
   ) {
     const href = modalState
       ? buildProcurementOfficerWorkspaceModalPath(modalState, {
+          dashboardSearchParams: searchParams,
           itemWorkspaceSearchParams:
             modalState.modal === "categories" && modalState.section === "items"
               ? searchParams
               : undefined,
         })
-      : pathname;
+      : buildDashboardHref(selectedFiscalYear);
     if (historyMode === "push") router.push(href);
     else router.replace(href);
   }
@@ -455,9 +494,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                         <button
                           key={year}
                           className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background px-2.5 py-1 text-[11px] font-medium text-foreground transition hover:border-primary/30 hover:bg-primary/5"
-                          onClick={() =>
-                            startTransition(() => setSelectedFiscalYear(year))
-                          }
+                          onClick={() => replaceSelectedFiscalYear(year)}
                           type="button"
                         >
                           {formatProcurementFiscalYearLabel(year)}
@@ -808,9 +845,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
       <WorkspaceModal
         activeModal={activeModal}
         selectedFiscalYear={selectedFiscalYear}
-        onSelectedFiscalYearChange={(fiscalYear) =>
-          startTransition(() => setSelectedFiscalYear(fiscalYear))
-        }
+        onSelectedFiscalYearChange={replaceSelectedFiscalYear}
         onCategorySectionChange={(section) =>
           setWorkspaceModal(
             { modal: "categories", ...(section ? { section } : {}) },
@@ -1107,6 +1142,12 @@ function WorkspaceModal({
             <ProcurementOfficerRequestsWorkspace />
           ) : null}
 
+          {activeModal?.modal === "submissions" ? (
+            <ProcurementOfficerSubmissionsWorkspace
+              selectedFiscalYear={selectedFiscalYear}
+            />
+          ) : null}
+
           {activeModal?.modal === "categories" ? (
             <Tabs
               value={activeTab}
@@ -1241,6 +1282,7 @@ function findFuturePanel(
 function getWorkspaceIcon(
   modal: ProcurementOfficerWorkspaceModalState["modal"],
 ) {
+  if (modal === "submissions") return <CheckCircle2 className="h-5 w-5" />;
   if (modal === "requests") return <FileStack className="h-5 w-5" />;
   if (modal === "categories") return <FolderTree className="h-5 w-5" />;
   if (modal === "access-codes") return <KeyRound className="h-5 w-5" />;
@@ -1252,6 +1294,8 @@ function getWorkspaceTitle(
   activeModal: ProcurementOfficerWorkspaceModalState | null,
 ): string {
   switch (activeModal?.modal) {
+    case "submissions":
+      return "Submission queue";
     case "requests":
       return "Requests workspace";
     case "categories":
@@ -1271,6 +1315,8 @@ function getWorkspaceDescription(
   activeModal: ProcurementOfficerWorkspaceModalState | null,
 ): string {
   switch (activeModal?.modal) {
+    case "submissions":
+      return "Track submitted, approved, and rejected departmental plans in one live queue, then hand each row into the reserved review route without leaving the /po shell.";
     case "requests":
       return "Review item and category requests, approve or deny with audit trails, and track history without leaving the /po shell.";
     case "categories":

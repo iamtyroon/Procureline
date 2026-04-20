@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { query } from "../_generated/server";
 import { buildProcurementOfficerDashboardSnapshot } from "../../lib/procurement-officer/dashboard-snapshot";
 import { resolveProcurementCatalogRequestSummary } from "../../lib/procurement-officer/requests";
+import type { ProcurementOfficerSubmissionStatus } from "../../lib/procurement-officer/submissions";
 import { requireTenantRole } from "./_roleGuard";
 
 export const getProcurementOfficerDashboardSnapshot = query({
@@ -20,7 +21,7 @@ export const getProcurementOfficerDashboardSnapshot = query({
             });
         }
 
-        const [departments, accessCodes, departmentUserProfiles, submissionDeadlines, categoryRequests, itemRequests] = await Promise.all([
+        const [departments, accessCodes, departmentUserProfiles, submissionDeadlines, categoryRequests, itemRequests, plans] = await Promise.all([
             ctx.db
                 .query("departments")
                 .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
@@ -44,6 +45,10 @@ export const getProcurementOfficerDashboardSnapshot = query({
             ctx.db
                 .query("itemRequests")
                 .withIndex("by_tenantId_createdAt", (q) => q.eq("tenantId", authContext.tenantId))
+                .collect(),
+            ctx.db
+                .query("plans")
+                .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
                 .collect(),
         ]);
 
@@ -70,6 +75,18 @@ export const getProcurementOfficerDashboardSnapshot = query({
             })),
             fiscalYearStartMonth: tenant.fiscalYearStartMonth,
             now: Date.now(),
+            plans: plans
+                .filter(
+                    (
+                        plan,
+                    ): plan is typeof plan & {
+                        status: ProcurementOfficerSubmissionStatus;
+                    } => plan.status !== "draft",
+                )
+                .map((plan) => ({
+                    fiscalYear: plan.fiscalYear,
+                    status: plan.status,
+                })),
             requestSummary: resolveProcurementCatalogRequestSummary({
                 categoryRequests: categoryRequests.map((request) => ({
                     departmentId: String(request.departmentId),

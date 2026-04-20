@@ -491,9 +491,14 @@ export default defineSchema({
     ),
     workspaceState: v.optional(blocklyWorkspaceStateValidator),
     rejectionComment: v.optional(v.string()),
+    departmentCodeSnapshot: v.optional(v.string()),
+    departmentNameSnapshot: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
     submittedAt: v.optional(v.number()),
+    reviewStartedAt: v.optional(v.number()),
+    reviewStartedByTenantUserId: v.optional(v.id("tenantUsers")),
+    reviewStartedByUserId: v.optional(v.id("users")),
     approvedAt: v.optional(v.number()),
     rejectedAt: v.optional(v.number()),
   })
@@ -501,6 +506,52 @@ export default defineSchema({
     .index("by_departmentId", ["departmentId"])
     .index("by_departmentId_fiscalYear", ["departmentId", "fiscalYear"])
     .index("by_tenantId_status", ["tenantId", "status"]),
+
+  planSubmissionSnapshots: defineTable({
+    tenantId: v.id("tenants"),
+    planId: v.id("plans"),
+    departmentId: v.id("departments"),
+    fiscalYear: v.string(),
+    submissionSequenceKey: v.string(),
+    submittedAt: v.union(v.number(), v.null()),
+    capturedAt: v.number(),
+    capturedByUserId: v.id("users"),
+    capturedByTenantUserId: v.id("tenantUsers"),
+    departmentCodeSnapshot: v.optional(v.string()),
+    departmentNameSnapshot: v.optional(v.string()),
+    estimatedBudgetUsed: v.number(),
+    itemCount: v.number(),
+    selectedCategoryIds: v.array(v.string()),
+    categorySummaries: v.array(
+      v.object({
+        amount: v.number(),
+        categoryId: v.string(),
+        categoryName: v.string(),
+        itemCount: v.number(),
+      }),
+    ),
+    workspaceState: v.optional(blocklyWorkspaceStateValidator),
+  })
+    .index("by_submissionSequenceKey", ["submissionSequenceKey"])
+    .index("by_planId_submittedAt", ["planId", "submittedAt"])
+    .index("by_tenantId_departmentId_fiscalYear_capturedAt", [
+      "tenantId",
+      "departmentId",
+      "fiscalYear",
+      "capturedAt",
+    ]),
+
+  planReviewComments: defineTable({
+    tenantId: v.id("tenants"),
+    planId: v.id("plans"),
+    authorUserId: v.id("users"),
+    authorTenantUserId: v.id("tenantUsers"),
+    authorNameSnapshot: v.string(),
+    body: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_planId_createdAt", ["planId", "createdAt"])
+    .index("by_tenantId_planId_createdAt", ["tenantId", "planId", "createdAt"]),
 
   departmentAccessCodes: defineTable({
     tenantId: v.id("tenants"),

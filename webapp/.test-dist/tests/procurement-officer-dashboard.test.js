@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.runProcurementOfficerDashboardTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
 const roles_1 = require("../lib/auth/roles");
+const dashboard_search_1 = require("../lib/procurement-officer/dashboard-search");
 const dashboard_1 = require("../lib/procurement-officer/dashboard");
 const dashboard_snapshot_1 = require("../lib/procurement-officer/dashboard-snapshot");
 function runProcurementOfficerDashboardTests() {
@@ -156,6 +157,20 @@ function runProcurementOfficerDashboardTests() {
             },
         ],
         now: Date.UTC(2026, 7, 10, 12, 0, 0),
+        plans: [
+            {
+                fiscalYear: "2026-2027",
+                status: "submitted",
+            },
+            {
+                fiscalYear: "2026-2027",
+                status: "approved",
+            },
+            {
+                fiscalYear: "2025-2026",
+                status: "rejected",
+            },
+        ],
         requestSummary: {
             pendingCategoryCount: 0,
             pendingItemCount: 0,
@@ -182,12 +197,17 @@ function runProcurementOfficerDashboardTests() {
     strict_1.default.equal(snapshot.futurePanels.find((panel) => panel.id === "categories")?.state, "available");
     strict_1.default.equal(snapshot.futurePanels.find((panel) => panel.id === "items")?.state, "available");
     strict_1.default.equal(snapshot.futurePanels.find((panel) => panel.id === "request_inbox")?.state, "empty");
-    completedTests.push("procurement-officer snapshot shaping deduplicates access-code and DU coverage by department, keeps shared-deadline warnings honest, and promotes categories plus items into live dashboard workspaces");
+    strict_1.default.equal(snapshot.futurePanels.find((panel) => panel.id === "submission_monitoring")
+        ?.state, "available");
+    strict_1.default.equal(snapshot.futurePanels.find((panel) => panel.id === "submission_monitoring")
+        ?.cta.href, "/po/submissions");
+    completedTests.push("procurement-officer snapshot shaping deduplicates access-code and DU coverage by department, keeps shared-deadline warnings honest, and exposes the live submissions queue without inventing future review states");
     const emptySnapshot = (0, dashboard_snapshot_1.buildProcurementOfficerDashboardSnapshot)({
         accessCodes: [],
         departments: [],
         departmentUserProfiles: [],
         now: Date.UTC(2026, 7, 10, 12, 0, 0),
+        plans: [],
         requestSummary: {
             pendingCategoryCount: 0,
             pendingItemCount: 0,
@@ -213,11 +233,26 @@ function runProcurementOfficerDashboardTests() {
     strict_1.default.equal((0, dashboard_1.buildProcurementOfficerWorkspaceModalPath)({
         modal: "departments",
     }), "/po?modal=departments");
+    strict_1.default.equal((0, dashboard_1.buildProcurementOfficerWorkspaceModalPath)({
+        modal: "submissions",
+    }), "/po?modal=submissions");
+    strict_1.default.equal((0, dashboard_1.buildProcurementOfficerWorkspaceModalPath)({
+        modal: "submissions",
+    }, {
+        dashboardSearchParams: new URLSearchParams(`${dashboard_search_1.PROCUREMENT_OFFICER_DASHBOARD_QUERY_KEYS.fiscalYear}=2025-2026&junk=ignored`),
+    }), "/po?modal=submissions&poFiscalYear=2025-2026");
     strict_1.default.deepEqual((0, dashboard_1.resolveProcurementOfficerWorkspaceNavigation)("/po/categories/items"), {
         href: "/po?modal=categories&section=items",
         modalState: {
             modal: "categories",
             section: "items",
+        },
+        type: "modal",
+    });
+    strict_1.default.deepEqual((0, dashboard_1.resolveProcurementOfficerWorkspaceNavigation)("/po/submissions?poFiscalYear=2025-2026&poSubmissionsStatus=submitted&itemSearch=laptop"), {
+        href: "/po?modal=submissions&poFiscalYear=2025-2026&poSubmissionsStatus=submitted",
+        modalState: {
+            modal: "submissions",
         },
         type: "modal",
     });
@@ -231,8 +266,8 @@ function runProcurementOfficerDashboardTests() {
     }, {
         itemWorkspaceSearchParams: new URLSearchParams("itemSearch=laptop&itemCategory=cat-it&foo=bar&itemCompliance=agpo"),
     }), "/po?modal=categories&section=items&itemSearch=laptop&itemCategory=cat-it&itemCompliance=agpo");
-    strict_1.default.deepEqual((0, dashboard_1.resolveProcurementOfficerWorkspaceNavigation)("/po/items?itemSearch=laptop&itemCategory=cat-it&foo=bar&itemCompliance=agpo"), {
-        href: "/po?modal=categories&section=items&itemSearch=laptop&itemCategory=cat-it&itemCompliance=agpo",
+    strict_1.default.deepEqual((0, dashboard_1.resolveProcurementOfficerWorkspaceNavigation)("/po/items?poFiscalYear=2025-2026&itemSearch=laptop&itemCategory=cat-it&foo=bar&itemCompliance=agpo"), {
+        href: "/po?modal=categories&poFiscalYear=2025-2026&section=items&itemSearch=laptop&itemCategory=cat-it&itemCompliance=agpo",
         modalState: {
             modal: "categories",
             section: "items",
@@ -257,6 +292,8 @@ function runProcurementOfficerDashboardTests() {
         "/po/access-codes",
         "/po/deadlines",
         "/po/requests",
+        "/po/submissions",
+        "/po/review",
         "/po/consolidation",
     ];
     for (const route of poRoutes) {

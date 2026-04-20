@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildProcurementOfficerDashboardSnapshot = void 0;
 const dashboard_1 = require("./dashboard");
+const submissions_1 = require("./submissions");
 function buildProcurementOfficerDashboardSnapshot(args) {
     const currentFiscalYear = (0, dashboard_1.getProcurementFiscalYearForDate)(args.now, {
         fiscalYearStartMonth: args.fiscalYearStartMonth,
@@ -57,6 +58,10 @@ function buildProcurementOfficerDashboardSnapshot(args) {
         now: args.now,
         tenantTimeZone: args.tenantTimeZone,
     });
+    const submissionSummary = (0, submissions_1.summarizeProcurementOfficerSubmissionQueue)({
+        plans: args.plans ?? [],
+        selectedFiscalYear,
+    });
     return {
         alerts: buildAlerts({
             sharedDeadline,
@@ -93,6 +98,7 @@ function buildProcurementOfficerDashboardSnapshot(args) {
         },
         futurePanels: buildFuturePanels({
             requestSummary: args.requestSummary ?? null,
+            submissionSummary,
         }),
         hero: buildHero({
             accessCodeCoverage,
@@ -403,6 +409,21 @@ function buildFuturePanels(args) {
     const requestDescription = totalCount === 0
         ? "No catalog requests have been submitted yet. This inbox will light up as DUs submit item or category requests."
         : "Review live item and category requests across departments, with bulk actions and request history in the same dashboard shell.";
+    const selectedSubmissionCount = args?.submissionSummary?.selectedFiscalYearCount ?? 0;
+    const totalSubmissionCount = args?.submissionSummary?.totalCount ?? 0;
+    const submissionState = selectedSubmissionCount > 0
+        ? "available"
+        : "empty";
+    const submissionStatusLabel = selectedSubmissionCount > 0
+        ? `${selectedSubmissionCount} in queue`
+        : totalSubmissionCount > 0
+            ? "Other fiscal years only"
+            : "No submissions";
+    const submissionDescription = selectedSubmissionCount > 0
+        ? "Open the live submissions queue to sort, filter, and hand plans into the reserved review route without leaving the /po shell."
+        : totalSubmissionCount > 0
+            ? "This fiscal year has no matching plans yet, but the tenant already has submissions in other fiscal years."
+            : "No submitted or reviewed plans are available yet. This queue will update live as departments submit.";
     return [
         {
             cta: {
@@ -442,15 +463,15 @@ function buildFuturePanels(args) {
         },
         {
             cta: {
-                href: "/po/requests",
-                label: "Submission monitoring later",
-                state: "unavailable",
+                href: "/po/submissions",
+                label: "Open submissions queue",
+                state: submissionState,
             },
-            description: "Submission monitoring is reserved for a later story, so this dashboard does not invent pending-plan or overdue totals.",
+            description: submissionDescription,
             id: "submission_monitoring",
             label: "Submission monitoring",
-            state: "unavailable",
-            statusLabel: "Unavailable",
+            state: submissionState,
+            statusLabel: submissionStatusLabel,
         },
         {
             cta: {

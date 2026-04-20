@@ -59,6 +59,12 @@ export interface BlocklyWorkspaceValidationNotice {
     message: string;
 }
 
+export interface BlocklyWorkspaceSelectedBlockLike {
+    getFieldValue(name: string): string;
+    getParent?(): BlocklyWorkspaceSelectedBlockLike | null;
+    type: string;
+}
+
 export function BlocklyWorkspace(props: {
     budgetAllocation: number | null;
     categories: Array<{
@@ -73,6 +79,7 @@ export function BlocklyWorkspace(props: {
         }
     >;
     onBudgetStateChange: (state: DepartmentUserBudgetMeterState) => void;
+    onSelectedBlockChange?: (block: BlocklyWorkspaceSelectedBlockLike | null) => void;
     onValidationNotice?: (notice: BlocklyWorkspaceValidationNotice) => void;
     onWorkspaceChange: (payload: BlocklyWorkspaceChangePayload) => void;
     onWorkspaceStructureChange: (sourceUsage: DepartmentUserWorkspaceSourceUsage) => void;
@@ -93,6 +100,7 @@ export function BlocklyWorkspace(props: {
     );
     const initialWorkspaceStateRef = useRef<BlocklyWorkspaceRecord | null>(props.workspaceState);
     const onBudgetStateChangeRef = useRef(props.onBudgetStateChange);
+    const onSelectedBlockChangeRef = useRef(props.onSelectedBlockChange);
     const onWorkspaceChangeRef = useRef(props.onWorkspaceChange);
     const onValidationNoticeRef = useRef(props.onValidationNotice);
     const onWorkspaceStructureChangeRef = useRef(props.onWorkspaceStructureChange);
@@ -114,6 +122,10 @@ export function BlocklyWorkspace(props: {
     useEffect(() => {
         onBudgetStateChangeRef.current = props.onBudgetStateChange;
     }, [props.onBudgetStateChange]);
+
+    useEffect(() => {
+        onSelectedBlockChangeRef.current = props.onSelectedBlockChange;
+    }, [props.onSelectedBlockChange]);
 
     useEffect(() => {
         onWorkspaceChangeRef.current = props.onWorkspaceChange;
@@ -304,6 +316,7 @@ export function BlocklyWorkspace(props: {
                 const handleWorkspaceChange = (
                     event: {
                         blockId?: string;
+                        newElementId?: string;
                         oldJson?: Record<string, unknown>;
                         run?: (forward: boolean) => void;
                         scale?: number;
@@ -312,6 +325,17 @@ export function BlocklyWorkspace(props: {
                         viewTop?: number;
                     },
                 ) => {
+                    if (event.type === "selected") {
+                        const nextSelectedBlock =
+                            typeof event.newElementId === "string"
+                                ? (workspace.getBlockById(
+                                      event.newElementId,
+                                  ) as BlocklyWorkspaceSelectedBlockLike | null)
+                                : null;
+                        onSelectedBlockChangeRef.current?.(nextSelectedBlock ?? null);
+                        return;
+                    }
+
                     const eventResolution = resolveDepartmentUserWorkspaceEvent({
                         approvedCategoryDeletionIds:
                             approvedCategoryDeletionIdsRef.current,
@@ -437,6 +461,7 @@ export function BlocklyWorkspace(props: {
                 viewportPersistenceTimerRef.current = null;
             }
 
+            onSelectedBlockChangeRef.current?.(null);
             workspaceRef.current?.dispose();
             workspaceRef.current = null;
         };

@@ -4,12 +4,15 @@ exports.isValidDepartmentWindow = exports.formatCoverageValue = exports.derivePr
 const dashboard_1 = require("../tenant-admin/dashboard");
 const deadlines_1 = require("./deadlines");
 const catalog_filters_1 = require("./catalog-filters");
+const dashboard_search_1 = require("./dashboard-search");
+const submissions_1 = require("./submissions");
 exports.PROCUREMENT_OFFICER_WORKSPACE_MODALS = [
     "access-codes",
     "categories",
     "deadlines",
     "departments",
     "requests",
+    "submissions",
 ];
 exports.PROCUREMENT_OFFICER_WORKSPACE_SECTIONS = ["items"];
 function getProcurementFiscalYearForDate(input, args) {
@@ -66,6 +69,12 @@ function buildProcurementOfficerWorkspaceModalPath(state, options) {
     const searchParams = new URLSearchParams({
         modal: state.modal,
     });
+    const dashboardSearchParams = options?.dashboardSearchParams
+        ? (0, dashboard_search_1.extractProcurementOfficerDashboardSearchParams)(options.dashboardSearchParams)
+        : new URLSearchParams();
+    dashboardSearchParams.forEach((value, key) => {
+        searchParams.append(key, value);
+    });
     if (state.modal === "categories" && state.section) {
         searchParams.set("section", state.section);
         if (options?.itemWorkspaceSearchParams) {
@@ -74,6 +83,12 @@ function buildProcurementOfficerWorkspaceModalPath(state, options) {
                 searchParams.append(key, value);
             });
         }
+    }
+    if (state.modal === "submissions" && options?.submissionWorkspaceSearchParams) {
+        const submissionSearchParams = (0, submissions_1.extractProcurementOfficerSubmissionSearchParams)(options.submissionWorkspaceSearchParams);
+        submissionSearchParams.forEach((value, key) => {
+            searchParams.append(key, value);
+        });
     }
     return `/po?${searchParams.toString()}`;
 }
@@ -85,6 +100,8 @@ function resolveProcurementOfficerWorkspaceNavigation(href) {
             return {
                 href: buildProcurementOfficerWorkspaceModalPath({
                     modal: "departments",
+                }, {
+                    dashboardSearchParams: targetUrl.searchParams,
                 }),
                 type: "modal",
                 modalState: { modal: "departments" },
@@ -93,6 +110,8 @@ function resolveProcurementOfficerWorkspaceNavigation(href) {
             return {
                 href: buildProcurementOfficerWorkspaceModalPath({
                     modal: "access-codes",
+                }, {
+                    dashboardSearchParams: targetUrl.searchParams,
                 }),
                 type: "modal",
                 modalState: { modal: "access-codes" },
@@ -101,6 +120,8 @@ function resolveProcurementOfficerWorkspaceNavigation(href) {
             return {
                 href: buildProcurementOfficerWorkspaceModalPath({
                     modal: "deadlines",
+                }, {
+                    dashboardSearchParams: targetUrl.searchParams,
                 }),
                 type: "modal",
                 modalState: { modal: "deadlines" },
@@ -109,9 +130,22 @@ function resolveProcurementOfficerWorkspaceNavigation(href) {
             return {
                 href: buildProcurementOfficerWorkspaceModalPath({
                     modal: "requests",
+                }, {
+                    dashboardSearchParams: targetUrl.searchParams,
                 }),
                 type: "modal",
                 modalState: { modal: "requests" },
+            };
+        case "/po/submissions":
+            return {
+                href: buildProcurementOfficerWorkspaceModalPath({
+                    modal: "submissions",
+                }, {
+                    dashboardSearchParams: targetUrl.searchParams,
+                    submissionWorkspaceSearchParams: targetUrl.searchParams,
+                }),
+                type: "modal",
+                modalState: { modal: "submissions" },
             };
         case "/po/items":
         case "/po/categories/items":
@@ -120,6 +154,7 @@ function resolveProcurementOfficerWorkspaceNavigation(href) {
                     modal: "categories",
                     section: "items",
                 }, {
+                    dashboardSearchParams: targetUrl.searchParams,
                     itemWorkspaceSearchParams: targetUrl.searchParams,
                 }),
                 type: "modal",
@@ -132,6 +167,8 @@ function resolveProcurementOfficerWorkspaceNavigation(href) {
             return {
                 href: buildProcurementOfficerWorkspaceModalPath({
                     modal: "categories",
+                }, {
+                    dashboardSearchParams: targetUrl.searchParams,
                 }),
                 type: "modal",
                 modalState: { modal: "categories" },

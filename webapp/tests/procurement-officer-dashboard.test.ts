@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { getProtectedRouteRole } from "../lib/auth/roles";
+import { PROCUREMENT_OFFICER_DASHBOARD_QUERY_KEYS } from "../lib/procurement-officer/dashboard-search";
 import {
   buildAvailableProcurementFiscalYears,
   buildProcurementOfficerWorkspaceModalPath,
@@ -178,6 +179,20 @@ export function runProcurementOfficerDashboardTests(): string[] {
       },
     ],
     now: Date.UTC(2026, 7, 10, 12, 0, 0),
+    plans: [
+      {
+        fiscalYear: "2026-2027",
+        status: "submitted",
+      },
+      {
+        fiscalYear: "2026-2027",
+        status: "approved",
+      },
+      {
+        fiscalYear: "2025-2026",
+        status: "rejected",
+      },
+    ],
     requestSummary: {
       pendingCategoryCount: 0,
       pendingItemCount: 0,
@@ -238,8 +253,18 @@ export function runProcurementOfficerDashboardTests(): string[] {
     snapshot.futurePanels.find((panel) => panel.id === "request_inbox")?.state,
     "empty",
   );
+  assert.equal(
+    snapshot.futurePanels.find((panel) => panel.id === "submission_monitoring")
+      ?.state,
+    "available",
+  );
+  assert.equal(
+    snapshot.futurePanels.find((panel) => panel.id === "submission_monitoring")
+      ?.cta.href,
+    "/po/submissions",
+  );
   completedTests.push(
-    "procurement-officer snapshot shaping deduplicates access-code and DU coverage by department, keeps shared-deadline warnings honest, and promotes categories plus items into live dashboard workspaces",
+    "procurement-officer snapshot shaping deduplicates access-code and DU coverage by department, keeps shared-deadline warnings honest, and exposes the live submissions queue without inventing future review states",
   );
 
   const emptySnapshot = buildProcurementOfficerDashboardSnapshot({
@@ -247,6 +272,7 @@ export function runProcurementOfficerDashboardTests(): string[] {
     departments: [],
     departmentUserProfiles: [],
     now: Date.UTC(2026, 7, 10, 12, 0, 0),
+    plans: [],
     requestSummary: {
       pendingCategoryCount: 0,
       pendingItemCount: 0,
@@ -284,6 +310,25 @@ export function runProcurementOfficerDashboardTests(): string[] {
     }),
     "/po?modal=departments",
   );
+  assert.equal(
+    buildProcurementOfficerWorkspaceModalPath({
+      modal: "submissions",
+    }),
+    "/po?modal=submissions",
+  );
+  assert.equal(
+    buildProcurementOfficerWorkspaceModalPath(
+      {
+        modal: "submissions",
+      },
+      {
+        dashboardSearchParams: new URLSearchParams(
+          `${PROCUREMENT_OFFICER_DASHBOARD_QUERY_KEYS.fiscalYear}=2025-2026&junk=ignored`,
+        ),
+      },
+    ),
+    "/po?modal=submissions&poFiscalYear=2025-2026",
+  );
   assert.deepEqual(
     resolveProcurementOfficerWorkspaceNavigation("/po/categories/items"),
     {
@@ -291,6 +336,18 @@ export function runProcurementOfficerDashboardTests(): string[] {
       modalState: {
         modal: "categories",
         section: "items",
+      },
+      type: "modal",
+    },
+  );
+  assert.deepEqual(
+    resolveProcurementOfficerWorkspaceNavigation(
+      "/po/submissions?poFiscalYear=2025-2026&poSubmissionsStatus=submitted&itemSearch=laptop",
+    ),
+    {
+      href: "/po?modal=submissions&poFiscalYear=2025-2026&poSubmissionsStatus=submitted",
+      modalState: {
+        modal: "submissions",
       },
       type: "modal",
     },
@@ -318,10 +375,10 @@ export function runProcurementOfficerDashboardTests(): string[] {
   );
   assert.deepEqual(
     resolveProcurementOfficerWorkspaceNavigation(
-      "/po/items?itemSearch=laptop&itemCategory=cat-it&foo=bar&itemCompliance=agpo",
+      "/po/items?poFiscalYear=2025-2026&itemSearch=laptop&itemCategory=cat-it&foo=bar&itemCompliance=agpo",
     ),
     {
-      href: "/po?modal=categories&section=items&itemSearch=laptop&itemCategory=cat-it&itemCompliance=agpo",
+      href: "/po?modal=categories&poFiscalYear=2025-2026&section=items&itemSearch=laptop&itemCategory=cat-it&itemCompliance=agpo",
       modalState: {
         modal: "categories",
         section: "items",
@@ -355,6 +412,8 @@ export function runProcurementOfficerDashboardTests(): string[] {
     "/po/access-codes",
     "/po/deadlines",
     "/po/requests",
+    "/po/submissions",
+    "/po/review",
     "/po/consolidation",
   ];
   for (const route of poRoutes) {

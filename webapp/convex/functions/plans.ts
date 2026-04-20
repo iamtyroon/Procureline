@@ -24,7 +24,7 @@ const departmentUserWorkspaceStateValidator = v.union(
     v.literal("redirect"),
 );
 
-const workspaceRecordValidator = v.object({
+export const workspaceRecordValidator = v.object({
     editorMetadata: v.object({
         lastSavedAt: v.number(),
         lastSavedByUserId: v.string(),
@@ -42,14 +42,14 @@ const workspaceRecordValidator = v.object({
     workspaceJson: v.any(),
 });
 
-const workspaceCategorySummaryValidator = v.object({
+export const workspaceCategorySummaryValidator = v.object({
     amount: v.number(),
     categoryId: v.string(),
     categoryName: v.string(),
     itemCount: v.number(),
 });
 
-const workspaceItemValidator = v.object({
+export const workspaceItemValidator = v.object({
     categoryId: v.string(),
     complianceFlags: v.optional(v.array(v.string())),
     description: v.union(v.string(), v.null()),
@@ -66,7 +66,7 @@ const workspaceItemValidator = v.object({
     unitPrice: v.union(v.number(), v.null()),
 });
 
-const workspaceCategoryValidator = v.object({
+export const workspaceCategoryValidator = v.object({
     color: v.union(v.string(), v.null()),
     id: v.string(),
     icon: v.union(v.string(), v.null()),
@@ -75,7 +75,7 @@ const workspaceCategoryValidator = v.object({
     sortOrder: v.number(),
 });
 
-const workspaceDepartmentValidator = v.object({
+export const workspaceDepartmentValidator = v.object({
     budgetAllocation: v.union(v.number(), v.null()),
     code: v.string(),
     id: v.string(),
@@ -83,7 +83,7 @@ const workspaceDepartmentValidator = v.object({
     voteNumber: v.string(),
 });
 
-const planWorkspaceContextValidator = v.object({
+export const planWorkspaceContextValidator = v.object({
     catalog: v.object({
         categories: v.array(workspaceCategoryValidator),
         items: v.array(workspaceItemValidator),
@@ -147,7 +147,7 @@ function unexpectedAccessError(): never {
     });
 }
 
-function mapDepartmentDepartmentRecord(department: Doc<"departments">) {
+export function mapDepartmentDepartmentRecord(department: Doc<"departments">) {
     return {
         budgetAllocation: department.budgetAllocation ?? null,
         code: department.code,
@@ -205,7 +205,7 @@ async function loadDepartmentUserPlanBase(ctx: DataCtx): Promise<{
     };
 }
 
-async function loadTenantCatalog(ctx: DataCtx, tenantId: Id<"tenants">) {
+export async function loadTenantCatalog(ctx: DataCtx, tenantId: Id<"tenants">) {
     const [categories, items] = await Promise.all([
         ctx.db
             .query("procurementCategories")
