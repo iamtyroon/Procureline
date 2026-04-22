@@ -2,6 +2,7 @@ import { internalMutation } from "./_generated/server";
 import {
   normalizeDepartmentCode,
   normalizeDepartmentName,
+  normalizeDepartmentVoteNumber,
 } from "../lib/procurement-officer/departments";
 import {
   buildProcurementItemCatalogSearchText,
@@ -37,9 +38,13 @@ export const backfillDepartmentNormalization = internalMutation({
     for (const department of departments) {
       const normalizedCode = normalizeDepartmentCode(department.code);
       const normalizedName = normalizeDepartmentName(department.name);
+      const voteNumber = department.voteNumber ?? department.code;
+      const normalizedVoteNumber = normalizeDepartmentVoteNumber(voteNumber);
       const needsUpdate =
         department.normalizedCode !== normalizedCode ||
-        department.normalizedName !== normalizedName;
+        department.normalizedName !== normalizedName ||
+        department.voteNumber !== voteNumber ||
+        department.normalizedVoteNumber !== normalizedVoteNumber;
 
       if (!needsUpdate) {
         continue;
@@ -48,6 +53,8 @@ export const backfillDepartmentNormalization = internalMutation({
       await ctx.db.patch(department._id, {
         normalizedCode,
         normalizedName,
+        normalizedVoteNumber,
+        voteNumber,
       });
       updatedCount += 1;
     }

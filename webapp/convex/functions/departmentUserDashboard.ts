@@ -71,6 +71,8 @@ const dashboardSnapshotValidator = v.object({
     launchpad: v.object({
         categories: v.array(
             v.object({
+                disabled: v.boolean(),
+                disabledReason: v.union(v.string(), v.null()),
                 id: v.string(),
                 isSelected: v.boolean(),
                 itemCount: v.number(),

@@ -12,7 +12,7 @@ export const ACCOUNT_DEACTIVATED_REASON = "account_deactivated" as const;
 export const SUBSCRIPTION_INACTIVE_REASON = "subscription_inactive" as const;
 export const REMEMBER_ME_STORAGE_KEY = "pendingRememberMe";
 
-export const STANDARD_SESSION_INACTIVITY_MS = 1000 * 60 * 60 * 24;
+export const STANDARD_SESSION_INACTIVITY_MS = 1000 * 60 * 60 * 24 * 15;
 export const REMEMBER_ME_SESSION_WINDOW_MS = 1000 * 60 * 60 * 24 * 30;
 
 export type SessionRedirectReason =

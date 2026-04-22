@@ -8,8 +8,6 @@ import {
 } from "./blockly-serialization";
 
 const DEPARTMENT_USER_WORKSPACE_DRAFT_DB_NAME = "procureline-blockly-drafts";
-const DEPARTMENT_USER_WORKSPACE_DRAFT_DB_VERSION = 1;
-const DEPARTMENT_USER_WORKSPACE_DRAFT_STORE = "department-user-workspace-drafts";
 const DEPARTMENT_USER_WORKSPACE_LEASE_TTL_MS = 15_000;
 const DEPARTMENT_USER_WORKSPACE_RECOVERY_MESSAGE =
     "Recovered unsaved changes. Review and save.";
@@ -53,6 +51,23 @@ export interface DepartmentUserWorkspaceSaveFailure {
     stopRetry: boolean;
 }
 
+function sanitizeDepartmentUserWorkspaceSaveFailureMessage(rawMessage: string): string {
+    const normalizedMessage = rawMessage.trim();
+    if (normalizedMessage.length === 0) {
+        return "Cloud save failed. Your local draft is still available in this browser.";
+    }
+
+    const looksLikeSerializedWorkspacePayload =
+        normalizedMessage.length > 220 ||
+        /Document\(value:|workspaceJson|languageVersion|blocks:\s*\{|inputs:\s*\{|fields:\s*\{/i.test(
+            normalizedMessage,
+        );
+
+    return looksLikeSerializedWorkspacePayload
+        ? "Cloud save failed. Your local draft is still available in this browser."
+        : normalizedMessage;
+}
+
 export interface DepartmentUserWorkspaceLeaveGuardArgs {
     hasUnsyncedRisk: boolean;
     isSaveInFlight: boolean;
@@ -83,59 +98,19 @@ type DepartmentUserWorkspaceStorageWriteResult =
           ok: false;
       };
 
-function getIndexedDbFactory():
-    | IDBFactory
-    | null {
+function getLocalStorage(): Storage | null {
     if (typeof window === "undefined") {
         return null;
     }
 
-    return window.indexedDB;
-}
-
-async function openDepartmentUserWorkspaceDraftDatabase(): Promise<IDBDatabase> {
-    const indexedDbFactory = getIndexedDbFactory();
-    if (!indexedDbFactory) {
-        throw new Error("IndexedDB is unavailable in this browser context.");
-    }
-
-    return await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDbFactory.open(
-            DEPARTMENT_USER_WORKSPACE_DRAFT_DB_NAME,
-            DEPARTMENT_USER_WORKSPACE_DRAFT_DB_VERSION,
-        );
-
-        request.onupgradeneeded = () => {
-            const database = request.result;
-            if (
-                !database.objectStoreNames.contains(
-                    DEPARTMENT_USER_WORKSPACE_DRAFT_STORE,
-                )
-            ) {
-                database.createObjectStore(DEPARTMENT_USER_WORKSPACE_DRAFT_STORE, {
-                    keyPath: "id",
-                });
-            }
-        };
-
-        request.onsuccess = () => {
-            resolve(request.result);
-        };
-
-        request.onerror = () => {
-            reject(
-                request.error ??
-                    new Error("Failed to open the Blockly workspace draft database."),
-            );
-        };
-    });
+    return window.localStorage;
 }
 
 function createDepartmentUserWorkspaceDraftRecordId(args: {
     planId: string;
     userId: string;
 }): string {
-    return `procureline:blockly-draft:${args.userId}:${args.planId}`;
+    return `${DEPARTMENT_USER_WORKSPACE_DRAFT_DB_NAME}:${args.userId}:${args.planId}`;
 }
 
 function createDepartmentUserWorkspaceSessionLeaseStorageKey(args: {
@@ -274,17 +249,17 @@ export function getDepartmentUserWorkspaceSaveIndicatorLabel(args: {
 }): string {
     switch (args.indicatorState) {
         case "saving":
-            return "Saving draft...";
+            return "Saving to cloud...";
         case "saved":
             return args.lastSavedAt
-                ? `Saved ${new Date(args.lastSavedAt).toLocaleTimeString()}`
-                : "Saved";
+                ? `Saved to cloud ${new Date(args.lastSavedAt).toLocaleTimeString()}`
+                : "Saved to cloud";
         case "queued":
-            return "Saved locally. Sync pending.";
+            return "Saved locally";
         case "blocked":
-            return args.blockedMessage?.trim() || "Sync blocked. Review changes.";
+            return args.blockedMessage?.trim() || "Cloud save blocked. Review changes.";
         case "error":
-            return "Save failed";
+            return "Cloud save failed";
         case "idle":
         default:
             return "Draft open";
@@ -380,6 +355,9 @@ export function parseDepartmentUserWorkspaceSaveFailure(
         error instanceof Error && error.message.trim().length > 0
             ? error.message.trim()
             : "Draft sync could not be confirmed.";
+    const safeFallbackMessage = sanitizeDepartmentUserWorkspaceSaveFailureMessage(
+        rawMessage,
+    );
     const dataCode =
         typeof (error as { data?: { code?: unknown } }).data?.code === "string"
             ? ((error as { data?: { code?: string } }).data?.code ?? null)
@@ -422,7 +400,7 @@ export function parseDepartmentUserWorkspaceSaveFailure(
         default:
             return {
                 code: "UNKNOWN",
-                message: rawMessage,
+                message: safeFallbackMessage,
                 stopRetry: false,
             };
     }
@@ -555,22 +533,15 @@ export async function readDepartmentUserWorkspaceDraftState(args: {
     userId: string;
 }): Promise<DepartmentUserWorkspaceDraftStateResult> {
     try {
-        const database = await openDepartmentUserWorkspaceDraftDatabase();
-        const record = await new Promise<unknown>((resolve, reject) => {
-            const transaction = database.transaction(
-                DEPARTMENT_USER_WORKSPACE_DRAFT_STORE,
-                "readonly",
-            );
-            const store = transaction.objectStore(
-                DEPARTMENT_USER_WORKSPACE_DRAFT_STORE,
-            );
-            const request = store.get(
-                createDepartmentUserWorkspaceDraftRecordId(args),
-            );
+        const storage = getLocalStorage();
+        if (!storage) {
+            throw new Error("localStorage is unavailable in this browser context.");
+        }
 
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        const rawRecord = storage.getItem(
+            createDepartmentUserWorkspaceDraftRecordId(args),
+        );
+        const record = rawRecord ? (JSON.parse(rawRecord) as unknown) : null;
 
         if (!record) {
             return {
@@ -600,7 +571,7 @@ export async function readDepartmentUserWorkspaceDraftState(args: {
         return {
             error: toDepartmentUserWorkspaceStorageFailure(
                 error,
-                "This browser could not read local workspace recovery data.",
+                "This browser could not read localStorage workspace recovery data.",
             ),
             ok: false,
         };
@@ -614,36 +585,27 @@ async function writeDepartmentUserWorkspaceDraftState(args: {
     userId: string;
 }): Promise<DepartmentUserWorkspaceStorageWriteResult> {
     try {
-        const database = await openDepartmentUserWorkspaceDraftDatabase();
-        await new Promise<void>((resolve, reject) => {
-            const transaction = database.transaction(
-                DEPARTMENT_USER_WORKSPACE_DRAFT_STORE,
-                "readwrite",
-            );
-            const store = transaction.objectStore(
-                DEPARTMENT_USER_WORKSPACE_DRAFT_STORE,
-            );
-            const id = createDepartmentUserWorkspaceDraftRecordId(args);
-            const request =
-                args.queuedSnapshot === null && args.recoverySnapshot === null
-                    ? store.delete(id)
-                    : store.put({
-                          id,
-                          planId: args.planId,
-                          queuedSnapshot: args.queuedSnapshot,
-                          recoverySnapshot: args.recoverySnapshot,
-                          updatedAt: Date.now(),
-                          userId: args.userId,
-                      });
+        const storage = getLocalStorage();
+        if (!storage) {
+            throw new Error("localStorage is unavailable in this browser context.");
+        }
 
-            request.onerror = () => reject(request.error);
-            transaction.oncomplete = () => resolve();
-            transaction.onerror = () =>
-                reject(
-                    transaction.error ??
-                        new Error("Failed to update local workspace draft data."),
-                );
-        });
+        const id = createDepartmentUserWorkspaceDraftRecordId(args);
+        if (args.queuedSnapshot === null && args.recoverySnapshot === null) {
+            storage.removeItem(id);
+        } else {
+            storage.setItem(
+                id,
+                JSON.stringify({
+                    id,
+                    planId: args.planId,
+                    queuedSnapshot: args.queuedSnapshot,
+                    recoverySnapshot: args.recoverySnapshot,
+                    updatedAt: Date.now(),
+                    userId: args.userId,
+                }),
+            );
+        }
 
         return {
             ok: true,
@@ -652,7 +614,7 @@ async function writeDepartmentUserWorkspaceDraftState(args: {
         return {
             error: toDepartmentUserWorkspaceStorageFailure(
                 error,
-                "This browser could not update local workspace recovery data.",
+                "This browser could not update localStorage workspace recovery data.",
             ),
             ok: false,
         };

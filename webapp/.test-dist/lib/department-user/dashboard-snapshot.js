@@ -99,7 +99,6 @@ function buildDepartmentUserDashboardSnapshot(args) {
         deadlineHelperText: deadline.helperText,
         deadlineState: deadline.state,
         hasCanonicalPlan: currentPlan !== null,
-        selectedCategoryCount: selectedCategoryIds.length,
     });
     const planRows = canonicalPlans
         .slice()

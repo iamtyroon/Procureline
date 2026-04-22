@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getDepartmentUserReservedSubmitState = exports.getDepartmentUserWorkspaceAnnouncement = exports.applyDepartmentWorkspaceRollup = exports.extractDepartmentUserWorkspaceCategoriesFromWorkspaceRecord = exports.resolveDepartmentUserDisplayedWorkspaceSummary = exports.workspaceRecordHasMeaningfulDepartmentContent = exports.workspaceRecordHasDepartmentBlock = exports.hasMeaningfulDepartmentUserWorkspaceSummary = exports.hasMeaningfulDepartmentUserPersistedPlanSummary = exports.buildDepartmentUserWorkspaceSummaryFromPersistedPlan = exports.calculateDepartmentUserWorkspaceSummaryFromWorkspaceRecord = exports.mapDepartmentUserBudgetMeterState = exports.calculateDepartmentUserWorkspaceSummary = exports.calculateDepartmentUserDepartmentRollup = exports.calculateDepartmentUserCategoryRollup = exports.calculateDepartmentUserItemRollup = exports.sanitizeNonNegativeNumber = exports.sumQuarterTotals = exports.createEmptyQuarterTotals = exports.DU_BUDGET_WARNING_THRESHOLD_PERCENT = void 0;
+const blockly_serialization_1 = require("./blockly-serialization");
 const workspace_catalog_identity_1 = require("./workspace-catalog-identity");
 const compliance_1 = require("../procurement/compliance");
 const workspace_validation_1 = require("./workspace-validation");
@@ -316,8 +317,8 @@ function hasMeaningfulDepartmentUserWorkspaceSummary(workspaceSummary) {
 }
 exports.hasMeaningfulDepartmentUserWorkspaceSummary = hasMeaningfulDepartmentUserWorkspaceSummary;
 function workspaceRecordHasDepartmentBlock(workspaceState) {
-    const workspaceJson = workspaceState?.workspaceJson;
-    if (!workspaceJson || typeof workspaceJson !== "object") {
+    const workspaceJson = (0, blockly_serialization_1.parseBlocklyWorkspaceJson)(workspaceState?.workspaceJson);
+    if (!workspaceJson) {
         return false;
     }
     const topBlocks = getSerializedTopBlocks(workspaceJson);
@@ -328,8 +329,8 @@ function workspaceRecordHasDepartmentBlock(workspaceState) {
 }
 exports.workspaceRecordHasDepartmentBlock = workspaceRecordHasDepartmentBlock;
 function workspaceRecordHasMeaningfulDepartmentContent(workspaceState) {
-    const workspaceJson = workspaceState?.workspaceJson;
-    if (!workspaceJson || typeof workspaceJson !== "object") {
+    const workspaceJson = (0, blockly_serialization_1.parseBlocklyWorkspaceJson)(workspaceState?.workspaceJson);
+    if (!workspaceJson) {
         return false;
     }
     const topBlocks = getSerializedTopBlocks(workspaceJson);
@@ -370,8 +371,8 @@ function resolveDepartmentUserDisplayedWorkspaceSummary(args) {
 }
 exports.resolveDepartmentUserDisplayedWorkspaceSummary = resolveDepartmentUserDisplayedWorkspaceSummary;
 function extractDepartmentUserWorkspaceCategoriesFromWorkspaceRecord(args) {
-    const workspaceJson = args.workspaceState?.workspaceJson;
-    if (!workspaceJson || typeof workspaceJson !== "object") {
+    const workspaceJson = (0, blockly_serialization_1.parseBlocklyWorkspaceJson)(args.workspaceState?.workspaceJson);
+    if (!workspaceJson) {
         return [];
     }
     const topBlocks = getSerializedTopBlocks(workspaceJson);

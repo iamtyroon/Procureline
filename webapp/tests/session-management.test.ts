@@ -26,7 +26,7 @@ export function runSessionManagementTests(): string[] {
     assert.equal(activeStandardSession.isValid, true);
     assert.equal(activeStandardSession.status, "active");
     assert.equal(activeStandardSession.redirectReason, null);
-    completedTests.push("standard sessions stay active inside the 24 hour inactivity window");
+    completedTests.push("standard sessions stay active inside the 15 day inactivity window");
 
     const expiredStandardSession = resolveSessionState({
         authSession: {
@@ -42,7 +42,7 @@ export function runSessionManagementTests(): string[] {
     });
     assert.equal(expiredStandardSession.isValid, false);
     assert.equal(expiredStandardSession.status, "expired");
-    completedTests.push("standard sessions expire exactly at the 24 hour inactivity threshold");
+    completedTests.push("standard sessions expire exactly at the 15 day inactivity threshold");
 
     const activeRememberedSession = resolveSessionState({
         authSession: {

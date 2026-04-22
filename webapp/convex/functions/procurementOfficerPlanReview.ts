@@ -281,7 +281,7 @@ export const getProcurementOfficerPlanReviewWorkspace = query({
                           ...mapDepartmentDepartmentRecord(department),
                           code: departmentContext.code ?? "--",
                           name: departmentContext.name,
-                          voteNumber: department.code,
+                          voteNumber: department.voteNumber ?? department.code,
                       }
                     : {
                           budgetAllocation: null,

@@ -1,4 +1,8 @@
-import type { BlocklyWorkspaceRecord } from "./blockly-serialization";
+import {
+    parseBlocklyWorkspaceJson,
+    type BlocklyWorkspaceJson,
+    type BlocklyWorkspaceRecord,
+} from "./blockly-serialization";
 import {
     resolveDepartmentUserItemCatalogIdentity,
     type DepartmentUserCatalogItem,
@@ -578,8 +582,8 @@ export function hasMeaningfulDepartmentUserWorkspaceSummary(
 export function workspaceRecordHasDepartmentBlock(
     workspaceState: BlocklyWorkspaceRecord | null | undefined,
 ): boolean {
-    const workspaceJson = workspaceState?.workspaceJson;
-    if (!workspaceJson || typeof workspaceJson !== "object") {
+    const workspaceJson = parseBlocklyWorkspaceJson(workspaceState?.workspaceJson);
+    if (!workspaceJson) {
         return false;
     }
 
@@ -594,8 +598,8 @@ export function workspaceRecordHasDepartmentBlock(
 export function workspaceRecordHasMeaningfulDepartmentContent(
     workspaceState: BlocklyWorkspaceRecord | null | undefined,
 ): boolean {
-    const workspaceJson = workspaceState?.workspaceJson;
-    if (!workspaceJson || typeof workspaceJson !== "object") {
+    const workspaceJson = parseBlocklyWorkspaceJson(workspaceState?.workspaceJson);
+    if (!workspaceJson) {
         return false;
     }
 
@@ -659,8 +663,8 @@ export function extractDepartmentUserWorkspaceCategoriesFromWorkspaceRecord(args
     refreshCatalogMetadata?: boolean;
     workspaceState: BlocklyWorkspaceRecord | null | undefined;
 }): DepartmentUserWorkspaceCategory[] | null {
-    const workspaceJson = args.workspaceState?.workspaceJson;
-    if (!workspaceJson || typeof workspaceJson !== "object") {
+    const workspaceJson = parseBlocklyWorkspaceJson(args.workspaceState?.workspaceJson);
+    if (!workspaceJson) {
         return [];
     }
 
@@ -1236,7 +1240,7 @@ function updateDepartmentBudgetVisualState(
 }
 
 function getSerializedTopBlocks(
-    workspaceJson: Record<string, unknown>,
+    workspaceJson: BlocklyWorkspaceJson,
 ): SerializedBlocklyBlock[] | null {
     const blocksRecord =
         typeof workspaceJson.blocks === "object" && workspaceJson.blocks !== null

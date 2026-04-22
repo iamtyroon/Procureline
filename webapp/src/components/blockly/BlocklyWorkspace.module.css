@@ -1,37 +1,288 @@
-.editorGrid {
-    display: grid;
-    grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
-    gap: 1rem;
-    min-height: calc(100vh - 16rem);
+.workspaceShell {
+    flex: 1;
+    height: 100%;
+    min-height: 0;
+    position: relative;
 }
 
-.hostCard {
-    min-height: calc(100vh - 16rem);
+.workspaceNoticeStack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    pointer-events: none;
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    width: min(28rem, calc(100vw - 2rem));
+    z-index: 20;
 }
 
-.hostShell {
-    border-radius: 1.75rem;
+.workspaceNoticeStack :global(.rounded-2xl) {
+    pointer-events: auto;
+}
+
+.workspacePrototype {
+    background: #ffffff;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
     overflow: hidden;
+    position: relative;
 }
 
-.toolboxRail {
-    background:
-        radial-gradient(circle at top, rgba(24, 185, 105, 0.09), transparent 45%),
-        linear-gradient(180deg, rgba(250, 250, 249, 0.98), rgba(244, 244, 245, 0.98));
+.workspacePrototypeHeader {
+    align-items: center;
+    background: #ffffff;
+    border-bottom: 1px solid rgba(51, 65, 85, 0.12);
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 360px) auto;
+    padding: 1rem 1.5rem;
 }
 
-.blocklyViewport {
-    min-height: calc(100vh - 16rem);
+.workspacePrototypeLead {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.workspacePrototypeEyebrow {
+    color: rgb(100 116 139);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.workspacePrototypeTitle {
+    color: rgb(15 23 42);
+    font-size: clamp(1.05rem, 1.8vw, 1.3rem);
+    font-weight: 600;
+    line-height: 1.2;
+    margin: 0;
+}
+
+.workspacePrototypeSubtitle {
+    color: rgb(71 85 105);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    max-width: 48rem;
+}
+
+.workspacePrototypeStats {
+    display: flex;
+    justify-content: center;
+}
+
+.prototypeBudgetMeter {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 240px;
+}
+
+.prototypeBudgetLabel {
+    color: rgb(51 65 85);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.prototypeBudgetBar {
+    background: rgb(148 163 184);
+    border-radius: 9999px;
+    height: 0.55rem;
+    overflow: hidden;
     width: 100%;
 }
 
+.prototypeBudgetFill {
+    background: linear-gradient(90deg, #0f9f5f, #22c55e);
+    border-radius: 9999px;
+    height: 100%;
+    transition: width 240ms ease;
+}
+
+.prototypeBudgetText {
+    color: rgb(15 23 42);
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+    gap: 0.5rem;
+    line-height: 1.4;
+}
+
+.workspacePrototypeToolbar {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.workspacePrototypeToolbar :global(button) {
+    border-color: rgba(71, 85, 105, 0.28);
+}
+
+.workspacePrototypeCanvas {
+    flex: 1;
+    min-height: 0;
+    padding: 0;
+}
+
+.hostCard {
+    min-height: clamp(30rem, 54vh, 42rem);
+}
+
+.hostShell {
+    background: #ffffff;
+    border: 0;
+    border-radius: 0;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.blocklyViewport {
+    height: 100%;
+    min-height: 0;
+    width: 100%;
+}
+
+@media (max-width: 1280px) {
+    .workspacePrototypeHeader {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .workspacePrototypeStats {
+        justify-content: flex-start;
+    }
+
+    .workspacePrototypeToolbar {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 920px) {
+    .workspacePrototype {
+        height: auto;
+    }
+
+    .workspaceNoticeStack {
+        position: static;
+        width: 100%;
+    }
+}
+
 :global(.blockly-host .blocklyToolboxDiv) {
-    background: rgba(255, 255, 255, 0.72);
-    border-right: 1px solid rgba(15, 23, 42, 0.06);
+    background: #f3f4f6;
+    border-right: 1px solid rgba(100, 116, 139, 0.35);
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    width: 220px !important;
 }
 
 :global(.blockly-host .blocklyFlyout) {
-    fill: rgba(255, 255, 255, 0.95);
+    fill: #f8fafc;
+}
+
+:global(.blockly-host .blocklyMainBackground) {
+    fill: #ffffff;
+}
+
+:global(.blockly-host .blocklySvg) {
+    background: #ffffff;
+}
+
+:global(.blockly-host .blocklyScrollbarHandle) {
+    fill: rgba(100, 116, 139, 0.72);
+}
+
+:global(.blockly-host .blocklyTreeRow) {
+    border-radius: 0.65rem;
+    color: #0f172a;
+    margin: 0.15rem 0.35rem;
+}
+
+:global(.blockly-host .pl-toolbox-category--dept-info) {
+    background: rgba(187, 247, 208, 0.98) !important;
+}
+
+:global(.blockly-host .pl-toolbox-category--dept-info .blocklyTreeRowContentContainer) {
+    color: #064e3b !important;
+}
+
+:global(.blockly-host .pl-toolbox-category--dept-info:hover) {
+    background: rgba(167, 243, 208, 0.98) !important;
+}
+
+:global(.blockly-host .pl-toolbox-category--dept-info.blocklyTreeSelected) {
+    background: rgba(134, 239, 172, 0.98) !important;
+}
+
+:global(.blockly-host .pl-toolbox-category--dept-info .blocklyTreeLabel) {
+    color: #064e3b !important;
+    fill: #064e3b !important;
+    font-weight: 700 !important;
+    opacity: 1 !important;
+}
+
+:global(.blockly-host .pl-toolbox-category--dept-info .pl-toolbox-category__label) {
+    color: #064e3b !important;
+    fill: #064e3b !important;
+    font-weight: 700 !important;
+    opacity: 1 !important;
+}
+
+:global(.blockly-host .pl-toolbox-category--dept-info .pl-toolbox-category__icon::before) {
+    content: none !important;
+}
+
+:global(.blockly-host .pl-toolbox-category--dept-info *) {
+    color: #064e3b !important;
+    fill: #064e3b !important;
+    opacity: 1 !important;
+}
+
+:global(.blockly-host .blocklyTreeRow:hover) {
+    background: rgba(226, 232, 240, 0.88);
+}
+
+:global(.blockly-host .blocklyTreeSelected) {
+    background: rgba(191, 219, 254, 0.95) !important;
+}
+
+:global(.blockly-host .blocklyTreeLabel) {
+    color: #0f172a !important;
+    fill: #0f172a !important;
+    font-weight: 600;
+}
+
+:global(.blockly-host .pl-toolbox-category__label) {
+    color: #0f172a !important;
+    fill: #0f172a !important;
+    font-weight: 600 !important;
+    opacity: 1 !important;
+}
+
+:global(.blockly-host .blocklyTreeSelected .pl-toolbox-category__label) {
+    color: #0f172a !important;
+    fill: #0f172a !important;
+}
+
+:global(.blockly-host .blocklyFlyoutLabelText) {
+    fill: #0f172a !important;
+}
+
+:global(.blockly-host .blocklyText) {
+    fill: #0f172a;
 }
 
 :global(.blockly-host .dept-block-collapsed .blocklyPath) {
@@ -67,36 +318,68 @@
 }
 
 :global(.blockly-host .pl-toolbox-category .blocklyTreeRowContentContainer) {
-    gap: 0.4rem;
+    align-items: center;
+    gap: 0;
+    min-width: 0;
+    padding-right: 0.4rem;
+}
+
+:global(.blockly-host .pl-toolbox-category__icon) {
+    display: none !important;
+    flex: 0 0 0 !important;
+    height: 0 !important;
+    min-width: 0 !important;
+    overflow: hidden;
+    width: 0 !important;
+}
+
+:global(.blockly-host .pl-toolbox-category__label) {
+    display: inline-block;
+    line-height: 1.3;
+    text-shadow: none;
+}
+
+:global(.blockly-host .blocklyFlyoutScrollbar) {
+    pointer-events: auto;
 }
 
 :global(.blockly-host .pl-toolbox-category__icon::before) {
-    color: rgba(15, 23, 42, 0.8);
-    content: "C";
-    font-size: 0.72rem;
-    font-weight: 700;
+    content: none !important;
+    display: none !important;
 }
 
 :global(.blockly-host .pl-toolbox-category--archive .pl-toolbox-category__icon::before) {
-    content: "A";
+    content: none !important;
+}
+
+:global(.blockly-host .pl-toolbox-category--dept-info .pl-toolbox-category__icon::before) {
+    content: none !important;
 }
 
 :global(.blockly-host .pl-toolbox-category--boxes .pl-toolbox-category__icon::before) {
-    content: "S";
+    content: none !important;
 }
 
 :global(.blockly-host .pl-toolbox-category--building .pl-toolbox-category__icon::before) {
-    content: "B";
+    content: none !important;
 }
 
 :global(.blockly-host .pl-toolbox-category--cpu .pl-toolbox-category__icon::before) {
-    content: "T";
+    content: none !important;
 }
 
 :global(.blockly-host .pl-toolbox-category--folder .pl-toolbox-category__icon::before) {
-    content: "C";
+    content: none !important;
 }
 
 :global(.blockly-host .pl-toolbox-category--wrench .pl-toolbox-category__icon::before) {
-    content: "M";
+    content: none !important;
+}
+
+:global(.blockly-host .blocklyMainWorkspaceScrollbar),
+:global(.blockly-host .blocklyScrollbarVertical:not(.blocklyFlyoutScrollbar)),
+:global(.blockly-host .blocklyScrollbarHorizontal:not(.blocklyFlyoutScrollbar)) {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
 }

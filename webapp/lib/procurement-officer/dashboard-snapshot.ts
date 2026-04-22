@@ -23,8 +23,10 @@ export interface ProcurementOfficerDashboardTenantRecord {
 
 export interface ProcurementOfficerDashboardDepartmentRecord
     extends ProcurementDepartmentWindowRecord {
+    budgetAllocation?: number | null;
     code: string;
     name: string;
+    voteNumber: string;
 }
 
 export interface ProcurementOfficerDashboardAccessCodeRecord {
@@ -48,7 +50,10 @@ export interface ProcurementOfficerDashboardAction {
 }
 
 export interface ProcurementOfficerDashboardPlanSummaryRecord {
+    departmentId: string;
+    estimatedBudgetUsed: number;
     fiscalYear: string;
+    itemCount: number;
     status: ProcurementOfficerSubmissionStatus;
 }
 
@@ -83,6 +88,7 @@ export interface ProcurementOfficerDashboardDepartmentBadge {
 export interface ProcurementOfficerDashboardDepartmentReadinessItem {
     accessCode: ProcurementOfficerDashboardDepartmentBadge;
     blockerSummary: string;
+    budgetStatus: ProcurementOfficerDashboardDepartmentBadge;
     code: string;
     deadline: ProcurementOfficerDashboardDepartmentBadge;
     departmentUser: ProcurementOfficerDashboardDepartmentBadge;
@@ -90,6 +96,7 @@ export interface ProcurementOfficerDashboardDepartmentReadinessItem {
     name: string;
     overallState: ProcurementDashboardState;
     progressValue: number;
+    voteNumber: string;
 }
 
 export interface ProcurementOfficerDashboardFuturePanel {
@@ -134,6 +141,19 @@ export interface ProcurementOfficerDashboardSnapshot {
         state: ProcurementDashboardState;
         title: string;
     };
+    organizationOverview: {
+        activeDepartmentCount: number;
+        activeUserCount: number;
+        budget: {
+            state: ProcurementDashboardState;
+            totalBudget: number;
+            totalBudgetLabel: string;
+            usedBudget: number;
+            usedBudgetLabel: string;
+            utilizationPercent: number;
+        };
+        totalItemCount: number;
+    };
     meta: {
         activeDepartmentCount: number;
         generatedAt: number;
@@ -142,12 +162,20 @@ export interface ProcurementOfficerDashboardSnapshot {
         tenantId: string;
         tenantName: string;
     };
+    submissionProgress: {
+        helperText: string;
+        state: ProcurementDashboardState;
+        submittedDepartmentCount: number;
+        totalDepartmentCount: number;
+        utilizationPercent: number;
+    };
     setupChecklist: ReturnType<typeof deriveProcurementChecklist>;
     summaryCards: ProcurementOfficerDashboardSummaryCard[];
 }
 
 export interface BuildProcurementOfficerDashboardSnapshotArgs {
   accessCodes: readonly ProcurementOfficerDashboardAccessCodeRecord[];
+  activeItemCount?: number;
   departments: readonly ProcurementOfficerDashboardDepartmentRecord[];
   departmentUserProfiles: readonly ProcurementOfficerDashboardDepartmentUserProfileRecord[];
   fiscalYearStartMonth?: number | null;
@@ -162,6 +190,7 @@ export interface BuildProcurementOfficerDashboardSnapshotArgs {
   selectedFiscalYear?: string;
   submissionDeadlines?: readonly ProcurementSubmissionDeadlineRecord[];
   tenant: ProcurementOfficerDashboardTenantRecord;
+  tenantBudgetCeiling?: number | null;
   tenantTimeZone?: string | null;
 }
 
@@ -243,6 +272,24 @@ export function buildProcurementOfficerDashboardSnapshot(
         plans: args.plans ?? [],
         selectedFiscalYear,
     });
+    const submissionProgress = buildSubmissionProgress({
+        departmentIdsInScope,
+        departmentCount: departmentsInScope.length,
+        plans: args.plans ?? [],
+        selectedFiscalYear,
+    });
+    const organizationOverview = buildOrganizationOverview({
+        activeItemCount: args.activeItemCount ?? 0,
+        activeUserCount: args.departmentUserProfiles.filter(
+            (profile) => profile.isActive && profile.deactivatedAt == null,
+        ).length,
+        departmentCount: departmentsInScope.length,
+        departmentIdsInScope,
+        departments: departmentsInScope,
+        plans: args.plans ?? [],
+        selectedFiscalYear,
+        tenantBudgetCeiling: args.tenantBudgetCeiling ?? null,
+    });
 
     return {
         alerts: buildAlerts({
@@ -276,6 +323,8 @@ export function buildProcurementOfficerDashboardSnapshot(
                     )
                     .map((profile) => profile.departmentId),
             }),
+            plans: args.plans ?? [],
+            selectedFiscalYear,
             sharedDeadline,
         }),
         fiscalYears: {
@@ -294,6 +343,7 @@ export function buildProcurementOfficerDashboardSnapshot(
             selectedFiscalYear,
             sharedDeadline,
         }),
+        organizationOverview,
         meta: {
             activeDepartmentCount: activeDepartments.length,
             generatedAt: args.now,
@@ -302,6 +352,7 @@ export function buildProcurementOfficerDashboardSnapshot(
             tenantId: args.tenant.id,
             tenantName: args.tenant.name,
         },
+        submissionProgress,
         setupChecklist: deriveProcurementChecklist({
             accessCodeCoverage,
             departmentCount: departmentsInScope.length,
@@ -434,7 +485,7 @@ function buildHero(args: {
             },
             secondaryAction: {
                 href: "/po/departments",
-                label: "Open departments",
+                label: "Add department",
                 state: "available",
             },
             state: "setup_required",
@@ -448,7 +499,7 @@ function buildHero(args: {
         eyebrow: formatProcurementFiscalYearLabel(args.selectedFiscalYear),
         primaryAction: {
             href: "/po/departments",
-            label: "Open departments",
+            label: "Add department",
             state: "available",
         },
         secondaryAction: {
@@ -583,6 +634,8 @@ function buildDepartmentReadiness(args: {
     accessCodeDepartmentIds: ReadonlySet<string>;
     departments: readonly ProcurementOfficerDashboardDepartmentRecord[];
     departmentUserIds: ReadonlySet<string>;
+    plans: readonly ProcurementOfficerDashboardPlanSummaryRecord[];
+    selectedFiscalYear: string;
     sharedDeadline: ReturnType<typeof deriveSharedSubmissionDeadline>;
 }): ProcurementOfficerDashboardSnapshot["departmentReadiness"] {
     if (args.departments.length === 0) {
@@ -593,9 +646,16 @@ function buildDepartmentReadiness(args: {
         };
     }
 
+    const plansByDepartmentId = new Map(
+        args.plans
+            .filter((plan) => plan.fiscalYear === args.selectedFiscalYear)
+            .map((plan) => [plan.departmentId, plan] as const),
+    );
+
     const items = [...args.departments]
         .sort((left, right) => left.name.localeCompare(right.name))
         .map((department) => {
+            const departmentPlan = plansByDepartmentId.get(department.id) ?? null;
             const accessCodeReady = args.accessCodeDepartmentIds.has(department.id);
             const departmentUserReady = args.departmentUserIds.has(department.id);
             const deadlineReady = isValidDepartmentWindow(department);
@@ -630,6 +690,10 @@ function buildDepartmentReadiness(args: {
             }
             const overallState: ProcurementDashboardState =
                 blockers.length === 0 ? "available" : "setup_required";
+            const budgetStatus = resolveDepartmentBudgetStatus({
+                budgetAllocation: department.budgetAllocation ?? null,
+                estimatedBudgetUsed: departmentPlan?.estimatedBudgetUsed ?? null,
+            });
 
             return {
                 accessCode: {
@@ -637,6 +701,7 @@ function buildDepartmentReadiness(args: {
                     state: accessCodeState,
                 },
                 blockerSummary: blockers[0] ?? "Ready for Departmental Users.",
+                budgetStatus,
                 code: department.code,
                 deadline: {
                     label: deadlineReady ? "Window set" : "Setup required",
@@ -650,6 +715,7 @@ function buildDepartmentReadiness(args: {
                 name: department.name,
                 overallState,
                 progressValue,
+                voteNumber: department.voteNumber,
             };
         });
 
@@ -660,6 +726,45 @@ function buildDepartmentReadiness(args: {
             args.sharedDeadline.state === "available"
                 ? "Department readiness reflects access codes, DU coverage, and deadline setup."
                 : "Department readiness is visible, but the shared deadline still needs honest setup.",
+    };
+}
+
+function resolveDepartmentBudgetStatus(args: {
+    budgetAllocation?: number | null;
+    estimatedBudgetUsed?: number | null;
+}): ProcurementOfficerDashboardDepartmentBadge {
+    const budgetAllocation =
+        typeof args.budgetAllocation === "number" && args.budgetAllocation > 0
+            ? args.budgetAllocation
+            : null;
+
+    if (budgetAllocation === null) {
+        return {
+            label: "Budget not set",
+            state: "setup_required",
+        };
+    }
+
+    if (typeof args.estimatedBudgetUsed !== "number") {
+        return {
+            label: "Awaiting plan submission",
+            state: "empty",
+        };
+    }
+
+    const usedBudget = Math.max(0, args.estimatedBudgetUsed);
+    const utilizationPercent = Math.round((usedBudget / budgetAllocation) * 100);
+
+    if (usedBudget > budgetAllocation) {
+        return {
+            label: `Over budget (${utilizationPercent}%)`,
+            state: "setup_required",
+        };
+    }
+
+    return {
+        label: `Within budget (${utilizationPercent}%)`,
+        state: "available",
     };
 }
 
@@ -773,4 +878,123 @@ function buildFuturePanels(args?: {
             statusLabel: "Future workflow",
         },
     ];
+}
+
+function buildSubmissionProgress(args: {
+    departmentCount: number;
+    departmentIdsInScope: ReadonlySet<string>;
+    plans: readonly ProcurementOfficerDashboardPlanSummaryRecord[];
+    selectedFiscalYear: string;
+}): ProcurementOfficerDashboardSnapshot["submissionProgress"] {
+    if (args.departmentCount === 0) {
+        return {
+            helperText:
+                "Departments must exist before submission progress can be tracked truthfully.",
+            state: "empty",
+            submittedDepartmentCount: 0,
+            totalDepartmentCount: 0,
+            utilizationPercent: 0,
+        };
+    }
+
+    const submittedDepartmentCount = new Set(
+        args.plans
+            .filter(
+                (plan) =>
+                    plan.fiscalYear === args.selectedFiscalYear &&
+                    args.departmentIdsInScope.has(plan.departmentId),
+            )
+            .map((plan) => plan.departmentId),
+    ).size;
+    const utilizationPercent = Math.max(
+        0,
+        Math.min(
+            100,
+            Math.round((submittedDepartmentCount / args.departmentCount) * 100),
+        ),
+    );
+
+    let helperText = "Submission tracking is live for the selected fiscal year.";
+    if (submittedDepartmentCount === 0) {
+        helperText =
+            "No departments have submitted a plan yet. This bar moves only when a departmental plan enters the live submission queue.";
+    } else if (submittedDepartmentCount < args.departmentCount) {
+        const remainingCount = args.departmentCount - submittedDepartmentCount;
+        helperText = `${remainingCount} department${remainingCount === 1 ? "" : "s"} still need to submit their plan for this fiscal year.`;
+    } else {
+        helperText =
+            "All in-scope departments have submitted plans for the selected fiscal year.";
+    }
+
+    return {
+        helperText,
+        state: submittedDepartmentCount > 0 ? "available" : "empty",
+        submittedDepartmentCount,
+        totalDepartmentCount: args.departmentCount,
+        utilizationPercent,
+    };
+}
+
+function buildOrganizationOverview(args: {
+    activeItemCount: number;
+    activeUserCount: number;
+    departmentCount: number;
+    departmentIdsInScope: ReadonlySet<string>;
+    departments: readonly ProcurementOfficerDashboardDepartmentRecord[];
+    plans: readonly ProcurementOfficerDashboardPlanSummaryRecord[];
+    selectedFiscalYear: string;
+    tenantBudgetCeiling?: number | null;
+}): ProcurementOfficerDashboardSnapshot["organizationOverview"] {
+    const usedBudget = args.plans
+        .filter(
+            (plan) =>
+                plan.fiscalYear === args.selectedFiscalYear &&
+                args.departmentIdsInScope.has(plan.departmentId),
+        )
+        .reduce((total, plan) => total + Math.max(0, plan.estimatedBudgetUsed), 0);
+    const fallbackBudget = args.departments.reduce(
+        (total, department) => total + Math.max(0, department.budgetAllocation ?? 0),
+        0,
+    );
+    const totalBudget =
+        typeof args.tenantBudgetCeiling === "number" && args.tenantBudgetCeiling > 0
+            ? args.tenantBudgetCeiling
+            : fallbackBudget;
+    const budgetState: ProcurementDashboardState =
+        totalBudget > 0 ? "available" : "empty";
+    const utilizationPercent =
+        totalBudget > 0
+            ? Math.max(0, Math.round((usedBudget / totalBudget) * 100))
+            : 0;
+
+    return {
+        activeDepartmentCount: args.departmentCount,
+        activeUserCount: args.activeUserCount,
+        budget: {
+            state: budgetState,
+            totalBudget,
+            totalBudgetLabel:
+                totalBudget > 0
+                    ? formatProcurementBudget(totalBudget)
+                    : "--",
+            usedBudget,
+            usedBudgetLabel:
+                usedBudget > 0
+                    ? formatProcurementBudget(usedBudget)
+                    : "--",
+            utilizationPercent,
+        },
+        totalItemCount: args.activeItemCount,
+    };
+}
+
+function formatProcurementBudget(amount: number): string {
+    const absAmount = Math.abs(amount);
+    if (absAmount >= 1_000_000) {
+        return `KES ${(amount / 1_000_000).toFixed(1)}M`;
+    }
+    if (absAmount >= 1_000) {
+        return `KES ${(amount / 1_000).toFixed(1)}K`;
+    }
+    return `KES ${amount.toFixed(0)}`;
 }

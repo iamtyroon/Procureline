@@ -119,6 +119,11 @@ function buildDepartmentUserToolbox(args) {
                     type: "department_block",
                 }),
             ],
+            cssConfig: {
+                container: "pl-toolbox-category pl-toolbox-category--dept-info",
+                icon: "pl-toolbox-category__icon",
+                label: "pl-toolbox-category__label",
+            },
             kind: "category",
             name: "Dept Info",
         },

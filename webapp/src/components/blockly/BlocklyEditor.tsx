@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { ArrowLeft, FileDown, PackagePlus, RotateCcw, Send } from "lucide-react";
+import { ArrowLeft, FileDown, PackagePlus, Redo2, Save, Send, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -18,18 +18,17 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BlocklyBudgetHeader } from "@/src/components/blockly/BlocklyBudgetHeader";
-import { BlocklyComplianceSummary } from "@/src/components/blockly/BlocklyComplianceSummary";
 import { CatalogRequestDialog } from "@/src/components/blockly/CatalogRequestDialog";
-import { CatalogRequestInbox } from "@/src/components/blockly/CatalogRequestInbox";
 import { BlocklyLoadingSkeleton } from "@/src/components/blockly/BlocklyLoadingSkeleton";
-import { BlocklyToolboxRail } from "@/src/components/blockly/BlocklyToolboxRail";
-import type { BlocklyWorkspaceChangePayload } from "@/src/components/blockly/BlocklyWorkspace";
-import { buildPlanningWorkspacePresentation } from "@/lib/blockly/editor-contract";
-import type { BlocklyWorkspaceRecord } from "@/lib/blockly/blockly-serialization";
+import type {
+    BlocklyWorkspaceChangePayload,
+    BlocklyWorkspaceHistoryState,
+} from "@/src/components/blockly/BlocklyWorkspace";
+import {
+    areBlocklyWorkspaceJsonEquivalent,
+    type BlocklyWorkspaceRecord,
+} from "@/lib/blockly/blockly-serialization";
 import { getPersistedPlanSummaryForWorkspaceSummaryChange } from "@/lib/blockly/du-editor-fallback";
 import { buildDepartmentUserToolbox } from "@/lib/blockly/du-toolbox";
 import {
@@ -70,7 +69,6 @@ import {
     type DepartmentUserWorkspaceSaveIndicatorState,
     type DepartmentUserWorkspaceStorageFailure,
 } from "@/lib/blockly/workspace-draft-queue";
-import { calculateProcurementComplianceSnapshot } from "@/lib/procurement/compliance";
 import {
     buildCatalogRequestStatusMeta,
     type CatalogCategoryRequestFormValues,
@@ -202,7 +200,6 @@ export function BlocklyEditor(props: {
     const createItemRequest = useAction(api.functions.catalogRequests.createItemRequest);
     const updateCategoryRequest = useAction(api.functions.catalogRequests.updateCategoryRequest);
     const updateItemRequest = useAction(api.functions.catalogRequests.updateItemRequest);
-    const cancelCatalogRequest = useAction(api.functions.catalogRequests.cancelCatalogRequest);
     const catalogRequestData = useQuery(api.functions.catalogRequests.getDepartmentUserCatalogRequests, {
         planId: props.planId,
     }) as DepartmentUserCatalogRequestData | undefined;
@@ -215,6 +212,10 @@ export function BlocklyEditor(props: {
         useState<"category" | "item">("item");
     const [editingCatalogRequestId, setEditingCatalogRequestId] = useState<string | null>(null);
     const [workspaceMountKey, setWorkspaceMountKey] = useState(0);
+    const [historyActionRequest, setHistoryActionRequest] = useState<{
+        kind: "redo" | "undo";
+        nonce: number;
+    } | null>(null);
     const deferredSearchQuery = useDeferredValue(searchQuery);
     const initialSourceUsage = useMemo(
         () =>
@@ -310,7 +311,6 @@ export function BlocklyEditor(props: {
     const currentWorkspaceRecordRef = useRef<BlocklyWorkspaceRecord | null>(activeWorkspaceState);
     const queuedWorkspaceRef = useRef<BlocklyWorkspaceRecord | null>(null);
     const isSaveInFlightRef = useRef(false);
-    const flushRetryTimerRef = useRef<number | null>(null);
     const storageWarningMessageRef = useRef<string | null>(null);
     const saveIndicatorAnnouncementRef = useRef<string | null>(null);
     const hasSessionConflictRef = useRef(false);
@@ -338,18 +338,15 @@ export function BlocklyEditor(props: {
     const [recoverySnapshot, setRecoverySnapshot] = useState<BlocklyWorkspaceRecord | null>(null);
     const [hasUnsyncedRisk, setHasUnsyncedRisk] = useState(false);
     const [hasSessionConflict, setHasSessionConflict] = useState(false);
+    const [workspaceHistoryState, setWorkspaceHistoryState] =
+        useState<BlocklyWorkspaceHistoryState>({
+            canRedo: false,
+            canUndo: false,
+        });
     const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
     const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
     const previousCatalogRequestStatusRef = useRef<Map<string, string>>(new Map());
-    const presentation = useMemo(
-        () =>
-            buildPlanningWorkspacePresentation({
-                actor: props.actor,
-                actorLabel: props.actorLabel,
-                mode: props.mode,
-        }),
-        [props.actor, props.actorLabel, props.mode],
-    );
+    const previousIncomingWorkspaceSyncKeyRef = useRef<string | null>(null);
     const workspaceItemIds = useMemo(
         () =>
             new Set(
@@ -361,17 +358,46 @@ export function BlocklyEditor(props: {
             ),
         [workspaceSummary],
     );
+    const incomingWorkspaceSyncKey = `${props.planId}:${props.workspaceState?.editorMetadata.revision ?? 0}:${props.workspaceState?.editorMetadata.lastSavedAt ?? 0}`;
 
     useEffect(() => {
+        if (previousIncomingWorkspaceSyncKeyRef.current === incomingWorkspaceSyncKey) {
+            return;
+        }
+
+        previousIncomingWorkspaceSyncKeyRef.current = incomingWorkspaceSyncKey;
+
+        if (
+            isSameWorkspaceSnapshotIgnoringSavedAt(
+                props.workspaceState,
+                currentWorkspaceRecordRef.current,
+            )
+        ) {
+            setActiveWorkspaceState((currentState) =>
+                currentState
+                    ? {
+                          ...currentState,
+                          editorMetadata: {
+                              ...currentState.editorMetadata,
+                              lastSavedAt:
+                                  props.workspaceState?.editorMetadata.lastSavedAt ??
+                                  currentState.editorMetadata.lastSavedAt,
+                          },
+                      }
+                    : props.workspaceState,
+            );
+            currentWorkspaceRecordRef.current = props.workspaceState;
+            queuedWorkspaceRef.current = null;
+            return;
+        }
+
         setActiveWorkspaceState(props.workspaceState);
         currentWorkspaceRecordRef.current = props.workspaceState;
         queuedWorkspaceRef.current = null;
         setWorkspaceMountKey((current) => current + 1);
     }, [
-        props.planId,
+        incomingWorkspaceSyncKey,
         props.workspaceState,
-        props.workspaceState?.editorMetadata.lastSavedAt,
-        props.workspaceState?.editorMetadata.revision,
     ]);
 
     useEffect(() => {
@@ -400,6 +426,10 @@ export function BlocklyEditor(props: {
                 }),
         );
         setLastSavedAt(activeWorkspaceState?.editorMetadata.lastSavedAt ?? null);
+        setWorkspaceHistoryState({
+            canRedo: false,
+            canUndo: false,
+        });
         previousAnnouncementKeyRef.current = preferredInitialSummary
             ? getDepartmentUserWorkspaceAnnouncement(preferredInitialSummary).key
             : null;
@@ -633,7 +663,7 @@ export function BlocklyEditor(props: {
 
     function handleStorageFailure(error: DepartmentUserWorkspaceStorageFailure): void {
         const userFacingMessage =
-            "Local workspace recovery is unavailable in this browser. Keep this tab open until your draft shows as saved.";
+            "Local workspace recovery is unavailable in this browser. Keep this tab open until you save the draft to cloud.";
         if (storageWarningMessageRef.current === userFacingMessage) {
             return;
         }
@@ -646,15 +676,6 @@ export function BlocklyEditor(props: {
         }
     }
     handleStorageFailureRef.current = handleStorageFailure;
-
-    function clearQueuedFlushTimer(): void {
-        if (flushRetryTimerRef.current === null) {
-            return;
-        }
-
-        window.clearTimeout(flushRetryTimerRef.current);
-        flushRetryTimerRef.current = null;
-    }
 
     async function persistRecoverySnapshot(snapshot: BlocklyWorkspaceRecord): Promise<void> {
         const storageResult = await upsertDepartmentUserWorkspaceRecoverySnapshot({
@@ -700,22 +721,6 @@ export function BlocklyEditor(props: {
     }
     clearLocalDraftStateRef.current = clearLocalDraftState;
 
-    function scheduleQueuedFlush(delayMs = 1500): void {
-        if (props.mode !== "edit" || hasSessionConflict) {
-            return;
-        }
-
-        clearQueuedFlushTimer();
-        flushRetryTimerRef.current = window.setTimeout(() => {
-            flushRetryTimerRef.current = null;
-            if (!queuedWorkspaceRef.current) {
-                return;
-            }
-
-            void flushWorkspaceDraft(queuedWorkspaceRef.current);
-        }, delayMs);
-    }
-
     async function flushWorkspaceDraft(
         snapshot: BlocklyWorkspaceRecord,
     ): Promise<void> {
@@ -725,7 +730,7 @@ export function BlocklyEditor(props: {
 
         if (hasSessionConflict) {
             setBlockedSyncMessage(
-                "Another tab is actively editing this plan. Refresh this page before replaying its queued changes.",
+                "Another tab is actively editing this plan. Refresh this page before saving from this tab.",
             );
             setSaveState("blocked");
             setHasUnsyncedRisk(true);
@@ -745,7 +750,6 @@ export function BlocklyEditor(props: {
         }
 
         isSaveInFlightRef.current = true;
-        clearQueuedFlushTimer();
         setBlockedSyncMessage(null);
         setSaveState("saving");
         setHasUnsyncedRisk(true);
@@ -793,9 +797,6 @@ export function BlocklyEditor(props: {
             ) {
                 const queuedLocally = await queueSnapshotLocally(latestWorkspaceRecord);
                 setSaveState(queuedLocally ? "queued" : "error");
-                if (queuedLocally) {
-                    scheduleQueuedFlush(250);
-                }
                 return;
             }
 
@@ -820,12 +821,11 @@ export function BlocklyEditor(props: {
             const queuedLocally = await queueSnapshotLocally(snapshot);
             if (queuedLocally) {
                 setSaveState("queued");
-                scheduleQueuedFlush(4000);
                 return;
             }
 
             setSaveState("error");
-            toast.error("Draft workspace sync failed. Your current session is still open.");
+            toast.error("Cloud save failed. Your local draft is still available in this browser.");
         } finally {
             isSaveInFlightRef.current = false;
         }
@@ -855,7 +855,7 @@ export function BlocklyEditor(props: {
                 hasSessionConflictRef.current = true;
                 setHasSessionConflict(true);
                 setBlockedSyncMessage(
-                    "Another tab is actively editing this plan. Refresh this page before replaying its queued changes.",
+                    "Another tab is actively editing this plan. Refresh this page before saving from this tab.",
                 );
                 return;
             }
@@ -865,21 +865,6 @@ export function BlocklyEditor(props: {
             setHasSessionConflict(false);
             if (previouslyConflicted) {
                 setBlockedSyncMessage(null);
-                if (queuedWorkspaceRef.current) {
-                    if (flushRetryTimerRef.current !== null) {
-                        window.clearTimeout(flushRetryTimerRef.current);
-                    }
-                    flushRetryTimerRef.current = window.setTimeout(() => {
-                        flushRetryTimerRef.current = null;
-                        if (!queuedWorkspaceRef.current) {
-                            return;
-                        }
-
-                        void flushWorkspaceDraftRef.current(
-                            queuedWorkspaceRef.current,
-                        );
-                    }, 250);
-                }
             }
             const leaseResult = claimDepartmentUserWorkspaceSessionLease({
                 planId: props.planId,
@@ -996,15 +981,18 @@ export function BlocklyEditor(props: {
             return;
         }
 
-        const handleOnline = () => {
-            if (queuedWorkspaceRef.current) {
-                void flushWorkspaceDraftRef.current(queuedWorkspaceRef.current);
+        const handleVisibilityChange = () => {
+            const currentSnapshot = currentWorkspaceRecordRef.current;
+            if (document.visibilityState !== "hidden" || !currentSnapshot) {
+                return;
             }
+
+            void persistRecoverySnapshotRef.current(currentSnapshot);
         };
 
-        window.addEventListener("online", handleOnline);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
         return () => {
-            window.removeEventListener("online", handleOnline);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
         };
     }, [props.mode]);
 
@@ -1013,22 +1001,18 @@ export function BlocklyEditor(props: {
             return;
         }
 
-        const handleVisibilityChange = () => {
-            if (
-                document.visibilityState !== "hidden" ||
-                !currentWorkspaceRecordRef.current
-            ) {
+        const handleWindowBlur = () => {
+            const currentSnapshot = currentWorkspaceRecordRef.current;
+            if (!currentSnapshot) {
                 return;
             }
 
-            void persistRecoverySnapshotRef.current(
-                currentWorkspaceRecordRef.current,
-            );
+            void persistRecoverySnapshotRef.current(currentSnapshot);
         };
 
-        document.addEventListener("visibilitychange", handleVisibilityChange);
+        window.addEventListener("blur", handleWindowBlur);
         return () => {
-            document.removeEventListener("visibilitychange", handleVisibilityChange);
+            window.removeEventListener("blur", handleWindowBlur);
         };
     }, [props.mode]);
 
@@ -1201,25 +1185,17 @@ export function BlocklyEditor(props: {
         }
 
         await persistRecoverySnapshot(payload.workspaceState);
+        const queuedLocally = await queueSnapshotLocally(payload.workspaceState);
 
         if (hasSessionConflict) {
-            const queuedLocally = await queueSnapshotLocally(payload.workspaceState);
             setSaveState(queuedLocally ? "blocked" : "error");
             setBlockedSyncMessage(
-                "Another tab is actively editing this plan. Refresh this page before replaying its queued changes.",
+                "Another tab is actively editing this plan. Refresh this page before saving from this tab.",
             );
             return;
         }
 
-        await flushWorkspaceDraft(payload.workspaceState);
-    }
-
-    function formatCatalogRequestTimestamp(timestamp: number): string {
-        return new Intl.DateTimeFormat("en-US", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-        }).format(new Date(timestamp));
+        setSaveState(queuedLocally ? "queued" : "error");
     }
 
     function openCatalogRequestDialog(tab: "category" | "item"): void {
@@ -1307,39 +1283,6 @@ export function BlocklyEditor(props: {
         }
     }
 
-    async function handleEditCatalogRequest(requestId: string): Promise<void> {
-        const request = catalogRequestData?.requests.find((entry) => entry.id === requestId);
-        if (!request) {
-            return;
-        }
-
-        setEditingCatalogRequestId(requestId);
-        setCatalogRequestDialogTab(request.type === "category" ? "category" : "item");
-        setIsCatalogRequestDialogOpen(true);
-    }
-
-    async function handleCancelCatalogRequest(requestId: string): Promise<void> {
-        const request = catalogRequestData?.requests.find((entry) => entry.id === requestId);
-        if (!request) {
-            return;
-        }
-
-        try {
-            await cancelCatalogRequest({
-                planId: props.planId,
-                requestId,
-                requestType: request.type,
-            });
-            toast.success("Catalog request cancelled.");
-        } catch (error) {
-            toast.error(
-                error instanceof Error
-                    ? error.message
-                    : "We could not cancel that request right now.",
-            );
-        }
-    }
-
     function handleReservedAction(message: string): void {
         toast(message);
     }
@@ -1365,9 +1308,6 @@ export function BlocklyEditor(props: {
         setSaveState(
             queuedLocally ? (hasSessionConflict ? "blocked" : "queued") : "error",
         );
-        if (queuedLocally && !hasSessionConflict) {
-            scheduleQueuedFlush(250);
-        }
         toast.info(getDepartmentUserWorkspaceRecoveryMessage());
     }
 
@@ -1422,10 +1362,48 @@ export function BlocklyEditor(props: {
         const queuedLocally = await queueSnapshotLocally(clearedWorkspaceState);
         setSaveState(queuedLocally ? "queued" : "error");
         setHasUnsyncedRisk(true);
-        if (queuedLocally && !hasSessionConflict) {
-            scheduleQueuedFlush(150);
+        toast.success("Planning canvas cleared locally. Click Save to sync it to cloud.");
+    }
+
+    async function handleSaveToCloud(): Promise<void> {
+        if (props.mode !== "edit") {
+            return;
         }
-        toast.success("Planning canvas cleared. Sync will continue automatically.");
+
+        const snapshot = currentWorkspaceRecordRef.current ?? activeWorkspaceState;
+        if (!snapshot) {
+            return;
+        }
+
+        const queuedLocally = await queueSnapshotLocally(snapshot);
+        if (!queuedLocally) {
+            setSaveState("error");
+            return;
+        }
+
+        await flushWorkspaceDraftRef.current(snapshot);
+    }
+
+    function handleWorkspaceUndo(): void {
+        if (props.mode !== "edit" || !workspaceHistoryState.canUndo) {
+            return;
+        }
+
+        setHistoryActionRequest((current) => ({
+            kind: "undo",
+            nonce: (current?.nonce ?? 0) + 1,
+        }));
+    }
+
+    function handleWorkspaceRedo(): void {
+        if (props.mode !== "edit" || !workspaceHistoryState.canRedo) {
+            return;
+        }
+
+        setHistoryActionRequest((current) => ({
+            kind: "redo",
+            nonce: (current?.nonce ?? 0) + 1,
+        }));
     }
 
     function handleExitDialogOpenChange(nextOpen: boolean): void {
@@ -1472,37 +1450,26 @@ export function BlocklyEditor(props: {
         setIsExitDialogOpen(true);
     }
 
-    const complianceState =
-        workspaceSummary?.complianceState ??
-        calculateProcurementComplianceSnapshot({
-            items: [],
-            totalEligibleSpend: 0,
-        });
     const submitState = getDepartmentUserReservedSubmitState({
         budgetState,
         mode: props.mode,
         validationState: workspaceSummary?.validationState ?? null,
     });
-    const catalogRequestInboxRows = (catalogRequestData?.requests ?? []).map((request) => ({
-        canCancel: request.canCancel,
-        canEdit: request.canEdit,
-        createdAtLabel: formatCatalogRequestTimestamp(request.createdAt),
-        id: request.id,
-        reason: request.reason,
-        status: request.status,
-        statusLabel: buildCatalogRequestStatusMeta(request.status).label,
-        submittedAtLabel: formatCatalogRequestTimestamp(request.submittedAt),
-        summary:
-            request.type === "item" && request.categoryName
-                ? `${request.name} in ${request.categoryName}`
-                : request.name,
-        type: request.type,
-        typeLabel: request.type === "item" ? "Item request" : "Category request",
-        updatedAtLabel: formatCatalogRequestTimestamp(request.updatedAt),
-    }));
+    const isCloudSaveDisabled =
+        props.mode !== "edit" ||
+        saveState === "saving" ||
+        hasSessionConflict ||
+        !hasUnsyncedRisk;
+    const isUndoDisabled = props.mode !== "edit" || !workspaceHistoryState.canUndo;
+    const isRedoDisabled = props.mode !== "edit" || !workspaceHistoryState.canRedo;
+    const workspaceTitle = props.mode === "view" ? "Procurement Plan" : "New Procurement Plan";
+    const workspaceSubtitle =
+        props.mode === "view"
+            ? "Review the current procurement plan blocks and totals."
+            : "Drag items from left to build your plan.";
 
     return (
-        <div className="space-y-4">
+        <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
             <div aria-live="polite" className="sr-only">
                 {liveAnnouncement}
             </div>
@@ -1510,295 +1477,285 @@ export function BlocklyEditor(props: {
                 {saveAnnouncement}
             </div>
 
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
-                <Card className="rounded-[28px] border-border/70 shadow-sm">
-                    <CardHeader className="gap-4">
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                            <div className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                    <Badge className="rounded-full bg-primary text-primary-foreground hover:bg-primary">
-                                        {presentation.badgeLabel}
-                                    </Badge>
-                                    <Badge variant="secondary" className="rounded-full">
-                                        {presentation.actorBadgeLabel}
-                                    </Badge>
-                                    <Badge variant="outline" className="rounded-full">
-                                        FY {props.fiscalYear}
-                                    </Badge>
-                                    {props.modeIndicatorLabel ?? presentation.modeIndicatorLabel ? (
-                                        <Badge variant="outline" className="rounded-full">
-                                            {props.modeIndicatorLabel ?? presentation.modeIndicatorLabel}
-                                        </Badge>
-                                    ) : null}
-                                    {props.mode === "view" ? (
-                                        <Badge
-                                            variant="outline"
-                                            className="rounded-full border-amber-300 bg-amber-50 text-amber-800"
-                                        >
-                                            Read-only
-                                        </Badge>
-                                    ) : null}
-                                </div>
-                                <div>
-                                    <CardTitle className="text-3xl tracking-[-0.05em] text-foreground">
-                                        {props.department.name}
-                                    </CardTitle>
-                                    <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">
-                                        {props.subtitle}
-                                    </p>
-                                </div>
-                            </div>
+            <div className={styles.workspaceShell}>
+                <div className={styles.workspacePrototype}>
+                    <div className={styles.workspacePrototypeHeader}>
+                        <div className={styles.workspacePrototypeLead}>
+                            <span className={styles.workspacePrototypeEyebrow}>
+                                Fiscal year {props.fiscalYear}
+                            </span>
+                            <h1 className={styles.workspacePrototypeTitle}>{workspaceTitle}</h1>
+                            <p className={styles.workspacePrototypeSubtitle}>{workspaceSubtitle}</p>
+                        </div>
 
-                            <div className="space-y-2">
-                                <div className="flex flex-wrap items-center justify-end gap-2">
-                                    <Badge variant="outline" className="rounded-full">
-                                        {saveIndicatorLabel}
-                                    </Badge>
-                                    <Button onClick={handleExitIntent} type="button" variant="outline">
-                                        <ArrowLeft className="mr-2 h-4 w-4" />
-                                        Exit
-                                    </Button>
-                                    {props.mode === "edit" ? (
-                                        <Button
-                                            onClick={() => setIsClearDialogOpen(true)}
-                                            type="button"
-                                            variant="outline"
-                                        >
-                                            <RotateCcw className="mr-2 h-4 w-4" />
-                                            Start Over
-                                        </Button>
-                                    ) : null}
-                                    <Button
-                                        disabled={props.mode !== "edit" || catalogRequestData?.meta.canCreate === false}
-                                        onClick={() => startTransition(() => openCatalogRequestDialog("item"))}
-                                        type="button"
-                                        variant="outline"
-                                    >
-                                        <PackagePlus className="mr-2 h-4 w-4" />
-                                        Catalog request
-                                    </Button>
-                                    <Button
-                                        onClick={() =>
-                                            startTransition(() =>
-                                                handleReservedAction(
-                                                    "Export handoff stays reserved until the export stories land.",
-                                                ),
-                                            )
-                                        }
-                                        type="button"
-                                        variant="outline"
-                                    >
-                                        <FileDown className="mr-2 h-4 w-4" />
-                                        Export
-                                    </Button>
-                                    <Button
-                                        disabled={submitState.disabled}
-                                        type="button"
-                                        variant={
-                                            submitState.label === "Submit Reserved"
-                                                ? "default"
-                                                : "outline"
-                                        }
-                                    >
-                                        <Send className="mr-2 h-4 w-4" />
-                                        {submitState.label}
-                                    </Button>
+                        <div className={styles.workspacePrototypeStats}>
+                            <div className={styles.prototypeBudgetMeter}>
+                                <div className={styles.prototypeBudgetLabel}>
+                                    Department budget
                                 </div>
-                                <p className="max-w-md text-right text-xs text-muted-foreground">
-                                    {submitState.reason}
-                                </p>
+                                <div className={styles.prototypeBudgetBar}>
+                                    <div
+                                        className={styles.prototypeBudgetFill}
+                                        style={{
+                                            width: `${Math.max(
+                                                0,
+                                                Math.min(100, budgetState.usedPercent ?? 0),
+                                            )}%`,
+                                        }}
+                                    />
+                                </div>
+                                <div className={styles.prototypeBudgetText}>
+                                    <span>{formatKenyanCurrency(budgetState.usedAmount)}</span>
+                                    <span>
+                                        {budgetState.totalBudget === null
+                                            ? "Not allocated"
+                                            : formatKenyanCurrency(budgetState.totalBudget)}
+                                    </span>
+                                    <span>{budgetState.usageLabel}</span>
+                                </div>
                             </div>
                         </div>
-                    </CardHeader>
-                </Card>
 
-                <div className="space-y-4">
-                    <BlocklyBudgetHeader budgetState={budgetState} />
-                    <BlocklyComplianceSummary complianceState={complianceState} />
-                </div>
-            </div>
-
-            {recoverySnapshot ? (
-                <Alert className="rounded-2xl border-emerald-300 bg-emerald-50 text-emerald-900">
-                    <AlertTitle>Unsaved recovery available</AlertTitle>
-                    <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-                        <span>{getDepartmentUserWorkspaceRecoveryMessage()}</span>
-                        <span className="flex flex-wrap gap-2">
+                        <div className={styles.workspacePrototypeToolbar}>
+                            <span className="mr-2 text-xs font-medium text-slate-500">
+                                {saveIndicatorLabel}
+                            </span>
                             <Button
+                                className="border-slate-400 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                                onClick={handleExitIntent}
+                                type="button"
+                                variant="outline"
+                            >
+                                <ArrowLeft className="mr-2 h-4 w-4" />
+                                Exit
+                            </Button>
+                            <Button
+                                className="border-slate-400 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                                disabled={props.mode !== "edit" || catalogRequestData?.meta.canCreate === false}
+                                onClick={() => startTransition(() => openCatalogRequestDialog("item"))}
+                                type="button"
+                                variant="outline"
+                            >
+                                <PackagePlus className="mr-2 h-4 w-4" />
+                                Request Item
+                            </Button>
+                            <Button
+                                className="border-slate-400 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                                onClick={() =>
+                                    startTransition(() =>
+                                        handleReservedAction(
+                                            "Export handoff stays reserved until the export stories land.",
+                                        ),
+                                    )
+                                }
+                                type="button"
+                                variant="outline"
+                            >
+                                <FileDown className="mr-2 h-4 w-4" />
+                                Export to Excel
+                            </Button>
+                            <Button
+                                className="border-slate-400 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 disabled:border-slate-300 disabled:text-slate-400"
+                                disabled={isUndoDisabled}
+                                onClick={handleWorkspaceUndo}
+                                type="button"
+                                variant="outline"
+                            >
+                                <Undo2 className="mr-2 h-4 w-4" />
+                                Undo
+                            </Button>
+                            <Button
+                                className="border-slate-400 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 disabled:border-slate-300 disabled:text-slate-400"
+                                disabled={isRedoDisabled}
+                                onClick={handleWorkspaceRedo}
+                                type="button"
+                                variant="outline"
+                            >
+                                <Redo2 className="mr-2 h-4 w-4" />
+                                Redo
+                            </Button>
+                            <Button
+                                className="border-emerald-500 bg-white text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 disabled:border-slate-300 disabled:text-slate-400"
+                                disabled={isCloudSaveDisabled}
                                 onClick={() => {
-                                    void handleRecoverUnsavedChanges();
+                                    void handleSaveToCloud();
                                 }}
                                 type="button"
                                 variant="outline"
                             >
-                                Recover changes
+                                <Save className="mr-2 h-4 w-4" />
+                                {saveState === "saving" ? "Saving..." : "Save"}
                             </Button>
                             <Button
+                                className="bg-emerald-500 text-white hover:bg-emerald-600 disabled:bg-emerald-200 disabled:text-slate-600"
+                                disabled={submitState.disabled}
                                 onClick={() => {
-                                    void handleDiscardRecoveredChanges();
+                                    handleReservedAction(
+                                        submitState.reason ||
+                                            "Submission stays reserved until the submission flow lands.",
+                                    );
                                 }}
                                 type="button"
-                                variant="ghost"
+                                variant="default"
                             >
-                                Dismiss local copy
+                                <Send className="mr-2 h-4 w-4" />
+                                {submitState.disabled ? submitState.label : "Submit to PO"}
                             </Button>
-                        </span>
-                    </AlertDescription>
-                </Alert>
-            ) : null}
+                        </div>
+                    </div>
 
-            {blockedSyncMessage ? (
-                <Alert className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900">
-                    <AlertTitle>Draft sync is paused</AlertTitle>
-                    <AlertDescription>{blockedSyncMessage}</AlertDescription>
-                </Alert>
-            ) : null}
+                    <div className={styles.workspacePrototypeCanvas}>
+                        <LazyBlocklyWorkspace
+                            key={`${props.planId}:${workspaceMountKey}`}
+                            budgetAllocation={props.department.budgetAllocation}
+                            categories={props.categories}
+                            currentUserId={props.currentUserId}
+                            editorMode={props.mode}
+                            historyActionRequest={historyActionRequest}
+                            items={props.items}
+                            onBudgetStateChange={(nextBudgetState) => {
+                                if (props.mode !== "view") {
+                                    setBudgetState(nextBudgetState);
+                                    return;
+                                }
 
-            {storageWarning ? (
-                <Alert className="rounded-2xl border-border/70 bg-muted/30">
-                    <AlertTitle>Local recovery warning</AlertTitle>
-                    <AlertDescription>{storageWarning}</AlertDescription>
-                </Alert>
-            ) : null}
-
-            {props.mode === "view" ? (
-                <Alert className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900">
-                    <AlertTitle>Read-only planning surface</AlertTitle>
-                    <AlertDescription>
-                        {presentation.readOnlyMessage}
-                    </AlertDescription>
-                </Alert>
-            ) : null}
-
-            {props.unavailableCategories.length > 0 ? (
-                <Alert className="rounded-2xl border-border/70 bg-muted/30">
-                    <AlertTitle>Unavailable selected categories</AlertTitle>
-                    <AlertDescription>
-                        {props.unavailableCategories
-                            .map((category) => `${category.name}: ${category.reason}`)
-                            .join(" ")}
-                    </AlertDescription>
-                </Alert>
-            ) : null}
-
-            {(workspaceSummary?.validationState.submitBlockedReasons.length ?? 0) > 0 ? (
-                <Alert className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900">
-                    <AlertTitle>Validation issues on the canvas</AlertTitle>
-                    <AlertDescription>
-                        {workspaceSummary?.validationState.submitBlockedReasons.join(" ")}
-                    </AlertDescription>
-                </Alert>
-            ) : null}
-
-            {workspaceSummary?.validationState.validationUnavailableReason ? (
-                <Alert className="rounded-2xl border-border/70 bg-muted/30">
-                    <AlertTitle>Validation details unavailable</AlertTitle>
-                    <AlertDescription>
-                        {workspaceSummary.validationState.validationUnavailableReason}
-                    </AlertDescription>
-                </Alert>
-            ) : null}
-
-            <CatalogRequestInbox
-                mode={props.mode}
-                onCancelRequest={(requestId) => {
-                    void handleCancelCatalogRequest(requestId);
-                }}
-                onEditRequest={(requestId) => {
-                    void handleEditCatalogRequest(requestId);
-                }}
-                requests={catalogRequestInboxRows}
-                summary={
-                    catalogRequestData?.summary ?? {
-                        pendingCategoryCount: 0,
-                        pendingItemCount: 0,
-                        totalCount: 0,
-                        totalPendingCount: 0,
-                    }
-                }
-            />
-
-            <div className={styles.editorGrid}>
-                <Card className={styles.toolboxRail}>
-                    <CardHeader className="space-y-3">
-                        <Badge variant="outline" className="w-fit rounded-full">
-                            Toolbox contract
-                        </Badge>
-                        <CardTitle className="text-xl tracking-[-0.04em]">
-                            Selected categories
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <BlocklyToolboxRail
-                            categories={toolbox.categoryStates}
-                            department={{
-                                budgetAllocation: props.department.budgetAllocation,
-                                name: props.department.name,
-                                voteNumber: props.department.voteNumber,
+                                setBudgetState(
+                                    resolveDepartmentUserDisplayedWorkspaceSummary({
+                                        persistedPlanSummary: props.persistedPlanSummary,
+                                        totalBudget: props.department.budgetAllocation,
+                                        workspaceState: activeWorkspaceState,
+                                        workspaceSummary,
+                                    })?.budgetState ?? nextBudgetState,
+                                );
                             }}
-                            mode={props.mode}
-                            onSearchQueryChange={setSearchQuery}
-                            searchQuery={searchQuery}
+                            onHistoryStateChange={setWorkspaceHistoryState}
+                            onWorkspaceChange={(payload) => {
+                                void handleWorkspaceChange(payload);
+                            }}
+                            onValidationNotice={(notice) => {
+                                toast.warning(notice.message);
+                            }}
+                            onWorkspaceStructureChange={(nextSourceUsage) => {
+                                setSourceUsage(nextSourceUsage);
+                            }}
+                            onWorkspaceSummaryChange={(nextSummary) => {
+                                const persistedPlanSummary =
+                                    getPersistedPlanSummaryForWorkspaceSummaryChange({
+                                        allowEditModePersistedFallback:
+                                            allowEditModePersistedFallbackRef.current,
+                                        mode: props.mode,
+                                        persistedPlanSummary: props.persistedPlanSummary,
+                                    });
+                                allowEditModePersistedFallbackRef.current = false;
+
+                                setWorkspaceSummary(
+                                    resolveDepartmentUserDisplayedWorkspaceSummary({
+                                        persistedPlanSummary,
+                                        totalBudget: props.department.budgetAllocation,
+                                        workspaceState: activeWorkspaceState,
+                                        workspaceSummary: nextSummary,
+                                    }),
+                                );
+                            }}
+                            planId={props.planId}
+                            selectedCategoryIds={toolbox.sanitizedCategoryIds}
+                            toolboxDefinition={toolbox.toolboxDefinition}
+                            workspaceState={activeWorkspaceState}
                         />
-                    </CardContent>
-                </Card>
-
-                <LazyBlocklyWorkspace
-                    key={`${props.planId}:${workspaceMountKey}`}
-                    budgetAllocation={props.department.budgetAllocation}
-                    categories={props.categories}
-                    currentUserId={props.currentUserId}
-                    editorMode={props.mode}
-                    items={props.items}
-                    onBudgetStateChange={(nextBudgetState) => {
-                        if (props.mode !== "view") {
-                            setBudgetState(nextBudgetState);
-                            return;
-                        }
-
-                        setBudgetState(
-                            resolveDepartmentUserDisplayedWorkspaceSummary({
-                                persistedPlanSummary: props.persistedPlanSummary,
-                                totalBudget: props.department.budgetAllocation,
-                                workspaceState: activeWorkspaceState,
-                                workspaceSummary,
-                            })?.budgetState ?? nextBudgetState,
-                        );
-                    }}
-                    onWorkspaceChange={(payload) => {
-                        void handleWorkspaceChange(payload);
-                    }}
-                    onValidationNotice={(notice) => {
-                        toast.warning(notice.message);
-                    }}
-                    onWorkspaceStructureChange={(nextSourceUsage) => {
-                        setSourceUsage(nextSourceUsage);
-                    }}
-                    onWorkspaceSummaryChange={(nextSummary) => {
-                        const persistedPlanSummary =
-                            getPersistedPlanSummaryForWorkspaceSummaryChange({
-                                allowEditModePersistedFallback:
-                                    allowEditModePersistedFallbackRef.current,
-                                mode: props.mode,
-                                persistedPlanSummary: props.persistedPlanSummary,
-                            });
-                        allowEditModePersistedFallbackRef.current = false;
-
-                        setWorkspaceSummary(
-                            resolveDepartmentUserDisplayedWorkspaceSummary({
-                                persistedPlanSummary,
-                                totalBudget: props.department.budgetAllocation,
-                                workspaceState: activeWorkspaceState,
-                                workspaceSummary: nextSummary,
-                            }),
-                        );
-                    }}
-                    planId={props.planId}
-                    selectedCategoryIds={toolbox.sanitizedCategoryIds}
-                    toolboxDefinition={toolbox.toolboxDefinition}
-                    workspaceState={activeWorkspaceState}
-                />
+                    </div>
+                </div>
             </div>
+
+            {recoverySnapshot ||
+            blockedSyncMessage ||
+            storageWarning ||
+            props.mode === "view" ||
+            props.unavailableCategories.length > 0 ||
+            (workspaceSummary?.validationState.submitBlockedReasons.length ?? 0) > 0 ||
+            workspaceSummary?.validationState.validationUnavailableReason ? (
+                <div className={styles.workspaceNoticeStack}>
+                    {recoverySnapshot ? (
+                        <Alert className="rounded-2xl border-emerald-300 bg-emerald-50 text-emerald-900 shadow-lg">
+                            <AlertTitle>Unsaved recovery available</AlertTitle>
+                            <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                                <span>{getDepartmentUserWorkspaceRecoveryMessage()}</span>
+                                <span className="flex flex-wrap gap-2">
+                                    <Button
+                                        onClick={() => {
+                                            void handleRecoverUnsavedChanges();
+                                        }}
+                                        type="button"
+                                        variant="outline"
+                                    >
+                                        Recover changes
+                                    </Button>
+                                    <Button
+                                        onClick={() => {
+                                            void handleDiscardRecoveredChanges();
+                                        }}
+                                        type="button"
+                                        variant="ghost"
+                                    >
+                                        Dismiss local copy
+                                    </Button>
+                                </span>
+                            </AlertDescription>
+                        </Alert>
+                    ) : null}
+
+                    {blockedSyncMessage ? (
+                        <Alert className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900 shadow-lg">
+                            <AlertTitle>Cloud save is paused</AlertTitle>
+                            <AlertDescription>{blockedSyncMessage}</AlertDescription>
+                        </Alert>
+                    ) : null}
+
+                    {storageWarning ? (
+                        <Alert className="rounded-2xl border-border/70 bg-muted/95 shadow-lg">
+                            <AlertTitle>Local recovery warning</AlertTitle>
+                            <AlertDescription>{storageWarning}</AlertDescription>
+                        </Alert>
+                    ) : null}
+
+                    {props.mode === "view" ? (
+                        <Alert className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900 shadow-lg">
+                            <AlertTitle>Read-only planning surface</AlertTitle>
+                            <AlertDescription>
+                                This plan is open in read-only mode, so editing and submission stay unavailable here.
+                            </AlertDescription>
+                        </Alert>
+                    ) : null}
+
+                    {props.unavailableCategories.length > 0 ? (
+                        <Alert className="rounded-2xl border-border/70 bg-muted/95 shadow-lg">
+                            <AlertTitle>Unavailable selected categories</AlertTitle>
+                            <AlertDescription>
+                                {props.unavailableCategories
+                                    .map((category) => `${category.name}: ${category.reason}`)
+                                    .join(" ")}
+                            </AlertDescription>
+                        </Alert>
+                    ) : null}
+
+                    {(workspaceSummary?.validationState.submitBlockedReasons.length ?? 0) > 0 ? (
+                        <Alert className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900 shadow-lg">
+                            <AlertTitle>Validation issues on the canvas</AlertTitle>
+                            <AlertDescription>
+                                {workspaceSummary?.validationState.submitBlockedReasons.join(" ")}
+                            </AlertDescription>
+                        </Alert>
+                    ) : null}
+
+                    {workspaceSummary?.validationState.validationUnavailableReason ? (
+                        <Alert className="rounded-2xl border-border/70 bg-muted/95 shadow-lg">
+                            <AlertTitle>Validation details unavailable</AlertTitle>
+                            <AlertDescription>
+                                {workspaceSummary.validationState.validationUnavailableReason}
+                            </AlertDescription>
+                        </Alert>
+                    ) : null}
+                </div>
+            ) : null}
 
             <CatalogRequestDialog
                 activeTab={catalogRequestDialogTab}
@@ -1841,7 +1798,7 @@ export function BlocklyEditor(props: {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Leave this draft?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Unsynced changes may be lost. Stay here to keep the local queue and recovery copy active, or leave the editor now.
+                            Unsaved local changes may be lost. Stay here to keep the local draft and recovery copy active, or leave the editor now.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -1858,7 +1815,7 @@ export function BlocklyEditor(props: {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Start over on this draft?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This clears the current Blockly canvas, replaces any queued local recovery snapshots for this plan, and syncs the emptied draft back through the normal save path.
+                            This clears the current Blockly canvas and replaces the local recovery snapshot for this plan. Use Save afterwards if you want the cleared version synced to cloud.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -1876,5 +1833,31 @@ export function BlocklyEditor(props: {
                 </AlertDialogContent>
             </AlertDialog>
         </div>
+    );
+}
+
+function formatKenyanCurrency(amount: number): string {
+    return new Intl.NumberFormat("en-KE", {
+        currency: "KES",
+        maximumFractionDigits: 2,
+        minimumFractionDigits: 2,
+        style: "currency",
+    }).format(amount);
+}
+
+function isSameWorkspaceSnapshotIgnoringSavedAt(
+    left: BlocklyWorkspaceRecord | null | undefined,
+    right: BlocklyWorkspaceRecord | null | undefined,
+): boolean {
+    if (!left || !right) {
+        return false;
+    }
+
+    return (
+        left.editorMetadata.revision === right.editorMetadata.revision &&
+        left.editorMetadata.lastSavedByUserId === right.editorMetadata.lastSavedByUserId &&
+        left.editorMetadata.recoveredAt === right.editorMetadata.recoveredAt &&
+        left.editorMetadata.saveSource === right.editorMetadata.saveSource &&
+        areBlocklyWorkspaceJsonEquivalent(left.workspaceJson, right.workspaceJson)
     );
 }

@@ -1101,6 +1101,7 @@ window.ProcurelineDB = {
 
     <style>
         :root {
+            color-scheme: light;
             /* Theme: Procureline Green (tweakcn) */
             --background: #F7FAFC;
             --foreground: #2D3748;
@@ -1150,6 +1151,69 @@ window.ProcurelineDB = {
             --green-700: #276749;
             --green-800: #22543D;
             --green-900: #1C4532;
+
+            --surface-body: #F5F7F8;
+            --surface-elevated: #FFFFFF;
+            --surface-subtle: #F8FAFC;
+            --surface-soft: #F4F4F5;
+            --surface-overlay: rgba(0, 0, 0, 0.5);
+            --theme-toggle-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+        }
+
+        :root[data-theme="dark"] {
+            color-scheme: dark;
+            --background: #151B1D;
+            --foreground: #E6EEEA;
+
+            --card: #1A2225;
+            --card-foreground: #E6EEEA;
+
+            --popover: #1A2225;
+            --popover-foreground: #E6EEEA;
+
+            --primary: #44C586;
+            --primary-foreground: #082615;
+
+            --secondary: #202A2D;
+            --secondary-foreground: #D4E6DE;
+
+            --muted: #1E282B;
+            --muted-foreground: #9BACAA;
+
+            --accent: #273236;
+            --accent-foreground: #A4E8C1;
+
+            --destructive: #F87171;
+            --destructive-foreground: #FFF5F5;
+
+            --success: #4ADE80;
+            --warning: #F59E0B;
+            --info: #60A5FA;
+
+            --border: #314044;
+            --input: #314044;
+            --ring: #44C586;
+
+            --shadow-sm: 0 8px 24px rgba(0, 0, 0, 0.35);
+            --shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+
+            --green-50: #18241F;
+            --green-100: #22372B;
+            --green-200: #2E4E39;
+            --green-300: #3E6A4B;
+            --green-400: #4F8860;
+            --green-500: #5FA975;
+            --green-600: #74CB90;
+            --green-700: #93E3AC;
+            --green-800: #B8F0CA;
+            --green-900: #DDF8E6;
+
+            --surface-body: #151B1D;
+            --surface-elevated: #1A2225;
+            --surface-subtle: #20292C;
+            --surface-soft: #273236;
+            --surface-overlay: rgba(2, 6, 23, 0.78);
+            --theme-toggle-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
         }
 
         * {
@@ -1160,14 +1224,19 @@ window.ProcurelineDB = {
             -webkit-font-smoothing: antialiased;
         }
 
+        html {
+            background: var(--surface-body);
+        }
+
         body {
-            background-color: #fafafa; /* Slightly off-white background */
+            background-color: var(--surface-body);
             color: var(--foreground);
             height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             overflow: hidden; /* Prevent body scroll, handle inside containers */
+            transition: background-color 0.25s ease, color 0.25s ease;
         }
 
         /* --- Utility Classes --- */
@@ -1187,12 +1256,49 @@ window.ProcurelineDB = {
         .font-medium { font-weight: 500; }
         .text-muted { color: var(--muted-foreground); }
         .text-success { color: var(--success); }
-        .bg-white { background: white; }
+        .bg-white { background: var(--surface-elevated); }
         .border { border: 1px solid var(--border); }
         .rounded { border-radius: var(--radius); }
         .shadow-sm { box-shadow: var(--shadow-sm); }
         
         .hidden { display: none !important; }
+
+        .theme-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.65rem;
+            padding: 0.55rem 0.85rem;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--secondary);
+            color: var(--foreground);
+            cursor: pointer;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+            transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .theme-toggle:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--theme-toggle-shadow);
+        }
+        .theme-toggle:focus-visible {
+            outline: 2px solid var(--ring);
+            outline-offset: 3px;
+        }
+        .theme-toggle-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: currentColor;
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.12);
+        }
+        :root[data-theme="dark"] .theme-toggle {
+            background: var(--secondary);
+            color: var(--green-800);
+            border-color: var(--border);
+        }
 
         /* --- Auth Card Styles --- */
         .auth-container {
@@ -1316,20 +1422,19 @@ window.ProcurelineDB = {
             height: 100vh;
             display: flex;
             flex-direction: column;
-            background: #f8fafc; /* Lighter background for dashboard */
+            background: var(--surface-body);
             overflow: hidden;
         }
 
         /* Navbar */
         .nav-header {
-            background: var(--white);
+            background: var(--surface-elevated);
             border-bottom: 1px solid var(--border);
             padding: 0 2.5rem;
             height: 64px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background: white;
             flex-shrink: 0;
         }
         
@@ -1436,6 +1541,16 @@ window.ProcurelineDB = {
             padding-bottom: 2rem;
         }
 
+        .card-scroll {
+            min-height: 0;
+            overflow: auto;
+        }
+
+        .table-card-scroll {
+            min-height: 0;
+            overflow: auto;
+        }
+
         .card {
             background: white;
             border: 1px solid var(--border);
@@ -1467,7 +1582,7 @@ window.ProcurelineDB = {
 
         /* Enhanced Stat Cards */
         .stat-card {
-            background: white;
+            background: var(--surface-elevated);
             border: 1px solid var(--border);
             border-radius: 12px;
             padding: 1.5rem;
@@ -1882,7 +1997,7 @@ window.ProcurelineDB = {
 
         /* PO Dashboard Enhanced Cards */
         .po-card {
-            background: white;
+            background: var(--surface-elevated);
             border: 1px solid var(--border);
             border-radius: 16px;
             padding: 1.5rem;
@@ -1899,7 +2014,7 @@ window.ProcurelineDB = {
             align-items: center;
             margin-bottom: 1.25rem;
             padding-bottom: 1rem;
-            border-bottom: 1px solid #f4f4f5;
+            border-bottom: 1px solid var(--border);
         }
         .po-card-title {
             font-size: 1rem;
@@ -1935,8 +2050,8 @@ window.ProcurelineDB = {
 
         /* Highlight Box */
         .highlight-box {
-            background: linear-gradient(135deg, #fafafa 0%, #f4f4f5 100%);
-            border: 1px solid #e4e4e7;
+            background: linear-gradient(135deg, var(--surface-subtle) 0%, var(--surface-soft) 100%);
+            border: 1px solid var(--border);
             border-radius: 12px;
             padding: 1.25rem;
             margin-bottom: 1.25rem;
@@ -2150,11 +2265,11 @@ window.ProcurelineDB = {
             gap: 0.75rem;
         }
         .stats-mini-item {
-            background: linear-gradient(135deg, #fafafa, #f4f4f5);
+            background: linear-gradient(135deg, var(--surface-subtle), var(--surface-soft));
             border-radius: 10px;
             padding: 1rem;
             text-align: center;
-            border: 1px solid #e4e4e7;
+            border: 1px solid var(--border);
         }
         .stats-mini-value { font-size: 1.35rem; font-weight: 800; color: var(--foreground); }
         .stats-mini-label { font-size: 0.65rem; font-weight: 600; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.25rem; }
@@ -2169,18 +2284,18 @@ window.ProcurelineDB = {
             color: var(--muted-foreground);
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            border-bottom: 2px solid #e4e4e7;
-            background: #fafafa;
+            border-bottom: 2px solid var(--border);
+            background: var(--surface-subtle);
         }
         .table-enhanced thead th:first-child { border-radius: 8px 0 0 0; }
         .table-enhanced thead th:last-child { border-radius: 0 8px 0 0; }
         .table-enhanced tbody tr {
             transition: all 0.2s ease;
         }
-        .table-enhanced tbody tr:hover { background: #fafafa; }
+        .table-enhanced tbody tr:hover { background: var(--surface-subtle); }
         .table-enhanced tbody td {
             padding: 0.875rem 1rem;
-            border-bottom: 1px solid #f4f4f5;
+            border-bottom: 1px solid var(--border);
             font-size: 0.875rem;
             color: var(--foreground);
         }
@@ -2190,7 +2305,7 @@ window.ProcurelineDB = {
             width: 28px;
             height: 28px;
             border-radius: 6px;
-            background: linear-gradient(135deg, #e4e4e7, #f4f4f5);
+            background: linear-gradient(135deg, var(--surface-soft), var(--surface-subtle));
             display: flex;
             align-items: center;
             justify-content: center;
@@ -2198,7 +2313,7 @@ window.ProcurelineDB = {
             font-weight: 700;
             color: var(--muted-foreground);
         }
-        .table-enhanced .vote-code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem; color: var(--muted-foreground); background: #f4f4f5; padding: 2px 6px; border-radius: 4px; }
+        .table-enhanced .vote-code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem; color: var(--muted-foreground); background: var(--surface-soft); padding: 2px 6px; border-radius: 4px; }
 
         /* Status Pill */
         .status-pill {
@@ -2220,8 +2335,8 @@ window.ProcurelineDB = {
             width: 32px;
             height: 32px;
             border-radius: 8px;
-            border: 1px solid #e4e4e7;
-            background: white;
+            border: 1px solid var(--border);
+            background: var(--surface-elevated);
             color: var(--muted-foreground);
             display: inline-flex;
             align-items: center;
@@ -2236,8 +2351,8 @@ window.ProcurelineDB = {
         .request-card {
             padding: 1rem;
             border-radius: 10px;
-            border: 1px solid #e4e4e7;
-            background: white;
+            border: 1px solid var(--border);
+            background: var(--surface-elevated);
             margin-bottom: 0.75rem;
             transition: all 0.2s ease;
             position: relative;
@@ -2258,7 +2373,7 @@ window.ProcurelineDB = {
         .request-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; }
         .request-card-title { font-size: 0.875rem; font-weight: 600; color: var(--foreground); }
         .request-card-dept { font-size: 0.75rem; color: var(--muted-foreground); margin-top: 0.15rem; }
-        .request-card-desc { font-size: 0.8rem; color: #71717a; font-style: italic; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed #e4e4e7; }
+        .request-card-desc { font-size: 0.8rem; color: var(--muted-foreground); font-style: italic; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed var(--border); }
 
         /* Category Item */
         .category-item {
@@ -2267,14 +2382,14 @@ window.ProcurelineDB = {
             align-items: center;
             padding: 0.75rem 1rem;
             border-radius: 8px;
-            background: #fafafa;
+            background: var(--surface-subtle);
             margin-bottom: 0.5rem;
             border: 1px solid transparent;
             transition: all 0.2s ease;
         }
-        .category-item:hover { background: white; border-color: #e4e4e7; }
+        .category-item:hover { background: var(--surface-elevated); border-color: var(--border); }
         .category-item-name { font-size: 0.875rem; font-weight: 500; color: var(--foreground); display: flex; align-items: center; gap: 0.5rem; }
-        .category-item-count { font-size: 0.7rem; color: var(--muted-foreground); background: white; padding: 2px 8px; border-radius: 10px; border: 1px solid #e4e4e7; }
+        .category-item-count { font-size: 0.7rem; color: var(--muted-foreground); background: var(--surface-elevated); padding: 2px 8px; border-radius: 10px; border: 1px solid var(--border); }
         .category-item-actions { display: flex; gap: 0.25rem; }
         
         .col-span-2 { grid-column: span 2; }
@@ -3016,10 +3131,437 @@ window.ProcurelineDB = {
             width: 16px;
             height: 16px;
         }
+
+        :root[data-theme="dark"] .dashboard-container {
+            background: var(--surface-body) !important;
+        }
+        :root[data-theme="dark"] .nav-header,
+        :root[data-theme="dark"] .auth-container,
+        :root[data-theme="dark"] .stat-card,
+        :root[data-theme="dark"] .po-card,
+        :root[data-theme="dark"] .highlight-box,
+        :root[data-theme="dark"] .history-item,
+        :root[data-theme="dark"] .stats-mini-card,
+        :root[data-theme="dark"] .table-enhanced,
+        :root[data-theme="dark"] .request-card,
+        :root[data-theme="dark"] .category-item,
+        :root[data-theme="dark"] .announcement-item,
+        :root[data-theme="dark"] .modal-content,
+        :root[data-theme="dark"] .showcase-welcome-card,
+        :root[data-theme="dark"] .showcase-welcome-steps,
+        :root[data-theme="dark"] .showcase-tooltip,
+        :root[data-theme="dark"] .showcase-sidebar,
+        :root[data-theme="dark"] .showcase-progress,
+        :root[data-theme="dark"] .preview-table,
+        :root[data-theme="dark"] #excel-preview-table {
+            background: var(--card) !important;
+            color: var(--foreground);
+            border-color: var(--border) !important;
+        }
+        :root[data-theme="dark"] .modal,
+        :root[data-theme="dark"] .showcase-welcome {
+            background: var(--surface-overlay) !important;
+        }
+        :root[data-theme="dark"] .nav-officer {
+            background: linear-gradient(180deg, #15211D 0%, #1A2823 100%) !important;
+            border-color: var(--border) !important;
+        }
+        :root[data-theme="dark"] .nav-officer-avatar,
+        :root[data-theme="dark"] .category-item-count,
+        :root[data-theme="dark"] .history-icon.draft,
+        :root[data-theme="dark"] .table-enhanced .vote-code {
+            background: var(--surface-soft) !important;
+            color: var(--muted-foreground) !important;
+            border-color: var(--border) !important;
+        }
+        :root[data-theme="dark"] .notif-badge {
+            border-color: var(--card) !important;
+        }
+        :root[data-theme="dark"] .po-card:hover,
+        :root[data-theme="dark"] .history-item:hover,
+        :root[data-theme="dark"] .category-item:hover,
+        :root[data-theme="dark"] .table-enhanced tbody tr:hover {
+            background: var(--surface-soft) !important;
+            border-color: var(--border) !important;
+            box-shadow: var(--shadow-sm) !important;
+        }
+        :root[data-theme="dark"] .po-card-header,
+        :root[data-theme="dark"] .request-card-desc,
+        :root[data-theme="dark"] .showcase-welcome-footer {
+            border-color: var(--border) !important;
+        }
+        :root[data-theme="dark"] .progress-track,
+        :root[data-theme="dark"] .budget-meter-track,
+        :root[data-theme="dark"] .table-enhanced thead th,
+        :root[data-theme="dark"] .data-table th,
+        :root[data-theme="dark"] .preview-table th,
+        :root[data-theme="dark"] #excel-preview-table .header-title,
+        :root[data-theme="dark"] #excel-preview-table .quarter-header,
+        :root[data-theme="dark"] #excel-preview-table .sub-header,
+        :root[data-theme="dark"] #excel-preview-table .category-row td,
+        :root[data-theme="dark"] #excel-preview-table .department-row td {
+            background: var(--surface-soft) !important;
+            color: var(--foreground) !important;
+            border-color: var(--border) !important;
+        }
+        :root[data-theme="dark"] .data-table td,
+        :root[data-theme="dark"] .table-enhanced tbody td {
+            border-color: var(--border) !important;
+        }
+        :root[data-theme="dark"] .main-header,
+        :root[data-theme="dark"] .dept-header,
+        :root[data-theme="dark"] .planned-header-row,
+        :root[data-theme="dark"] .actual-header-row {
+            background-color: #22372B !important;
+            color: var(--foreground) !important;
+        }
+        :root[data-theme="dark"] .summary-header,
+        :root[data-theme="dark"] .cat-header,
+        :root[data-theme="dark"] .cat-total-row,
+        :root[data-theme="dark"] .total-row td,
+        :root[data-theme="dark"] .variance-header-row {
+            background-color: #2A3136 !important;
+            color: var(--foreground) !important;
+        }
+        :root[data-theme="dark"] [style*="background: white" i],
+        :root[data-theme="dark"] [style*="background:white" i],
+        :root[data-theme="dark"] [style*="background-color: white" i],
+        :root[data-theme="dark"] [style*="background-color:white" i] {
+            background: var(--card) !important;
+        }
+        :root[data-theme="dark"] [style*="background: #fafafa" i],
+        :root[data-theme="dark"] [style*="background:#fafafa" i],
+        :root[data-theme="dark"] [style*="background: #f9fafb" i],
+        :root[data-theme="dark"] [style*="background:#f9fafb" i],
+        :root[data-theme="dark"] [style*="background: #f8fafc" i],
+        :root[data-theme="dark"] [style*="background:#f8fafc" i],
+        :root[data-theme="dark"] [style*="background: #f4f4f5" i],
+        :root[data-theme="dark"] [style*="background:#f4f4f5" i],
+        :root[data-theme="dark"] [style*="background: #f1f5f9" i],
+        :root[data-theme="dark"] [style*="background:#f1f5f9" i],
+        :root[data-theme="dark"] [style*="background-color: #f2f2f2" i],
+        :root[data-theme="dark"] [style*="background-color:#f2f2f2" i] {
+            background: var(--surface-subtle) !important;
+        }
+        :root[data-theme="dark"] [style*="background: #e4e4e7" i],
+        :root[data-theme="dark"] [style*="background:#e4e4e7" i],
+        :root[data-theme="dark"] [style*="background: #e2e8f0" i],
+        :root[data-theme="dark"] [style*="background:#e2e8f0" i] {
+            background: var(--surface-soft) !important;
+        }
+        :root[data-theme="dark"] [style*="border-color: #e2e8f0" i],
+        :root[data-theme="dark"] [style*="border-color:#e2e8f0" i],
+        :root[data-theme="dark"] [style*="border-color: #e4e4e7" i],
+        :root[data-theme="dark"] [style*="border-color:#e4e4e7" i],
+        :root[data-theme="dark"] [style*="border-color: #d4d4d8" i],
+        :root[data-theme="dark"] [style*="border-color:#d4d4d8" i] {
+            border-color: var(--border) !important;
+        }
+        :root[data-theme="dark"] [style*="color: #64748b" i],
+        :root[data-theme="dark"] [style*="color:#64748b" i],
+        :root[data-theme="dark"] [style*="color: #71717a" i],
+        :root[data-theme="dark"] [style*="color:#71717a" i],
+        :root[data-theme="dark"] [style*="color: #475569" i],
+        :root[data-theme="dark"] [style*="color:#475569" i],
+        :root[data-theme="dark"] [style*="color: #a1a1aa" i],
+        :root[data-theme="dark"] [style*="color:#a1a1aa" i] {
+            color: var(--muted-foreground) !important;
+        }
+        :root[data-theme="dark"] [style*="color: #059669" i],
+        :root[data-theme="dark"] [style*="color:#059669" i],
+        :root[data-theme="dark"] [style*="color: #10b981" i],
+        :root[data-theme="dark"] [style*="color:#10b981" i] {
+            color: var(--success) !important;
+        }
+
+        @media (min-width: 1280px) and (min-height: 760px) {
+            #poDashboardView.dashboard-content {
+                height: calc(100vh - 64px);
+                display: flex;
+                flex-direction: column;
+                gap: 0.95rem;
+                padding: 1rem 1.5rem 1.1rem;
+                overflow: hidden;
+            }
+
+            #poDashboardView .area-stats {
+                flex: 0 0 auto;
+                gap: 1rem;
+                margin-bottom: 0;
+            }
+
+            #poDashboardView .stat-card {
+                min-height: 90px;
+                padding: 0.95rem 1rem;
+                border-radius: 12px;
+            }
+
+            #poDashboardView .stat-card-icon {
+                width: 26px;
+                height: 26px;
+                margin-bottom: 0.55rem;
+                border-radius: 7px;
+            }
+
+            #poDashboardView .stat-card-icon svg {
+                width: 14px;
+                height: 14px;
+            }
+
+            #poDashboardView .stat-label {
+                font-size: 0.58rem;
+            }
+
+            #poDashboardView .stat-value {
+                font-size: 0.98rem;
+                margin: 0.08rem 0;
+            }
+
+            #poDashboardView .stat-meta,
+            #poDashboardView .stat-trend {
+                font-size: 0.62rem;
+            }
+
+            #poDashboardView .bento-grid {
+                flex: 1 1 auto;
+                min-height: 0;
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                grid-template-rows: 148px 184px 102px;
+                gap: 1rem;
+                padding-bottom: 0;
+            }
+
+            #poDashboardView .col-span-2 {
+                grid-column: span 2;
+            }
+
+            #poDashboardView .col-span-1 {
+                grid-column: span 1;
+            }
+
+            #poDashboardView .po-card {
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
+                padding: 1rem 1rem 0.95rem;
+                border-radius: 14px;
+                overflow: hidden;
+            }
+
+            #poDashboardView .po-card-header {
+                margin-bottom: 0.7rem;
+                padding-bottom: 0.7rem;
+            }
+
+            #poDashboardView .po-card-title {
+                font-size: 0.9rem;
+                gap: 0.6rem;
+            }
+
+            #poDashboardView .po-card-title-icon {
+                width: 30px;
+                height: 30px;
+                border-radius: 8px;
+            }
+
+            #poDashboardView .po-badge {
+                padding: 3px 8px;
+                font-size: 0.58rem;
+            }
+
+            #poDashboardView .po-card--consolidation .highlight-box,
+            #poDashboardView .po-card--overview .budget-meter {
+                margin-bottom: 0;
+            }
+
+            #poDashboardView .highlight-box {
+                padding: 0.85rem 0.9rem;
+                margin-bottom: 0;
+                border-radius: 10px;
+            }
+
+            #poDashboardView .highlight-box::after {
+                width: 72px;
+                height: 72px;
+            }
+
+            #poDashboardView .highlight-box-header {
+                margin-bottom: 0.55rem;
+            }
+
+            #poDashboardView .highlight-label {
+                font-size: 0.56rem;
+                margin-bottom: 0.25rem;
+            }
+
+            #poDashboardView .highlight-title,
+            #poDashboardView .org-name {
+                font-size: 0.82rem;
+            }
+
+            #poDashboardView .highlight-subtitle,
+            #poDashboardView .org-location,
+            #poDashboardView .budget-meter-details,
+            #poDashboardView .highlight-metric-label {
+                font-size: 0.64rem;
+            }
+
+            #poDashboardView .highlight-metric-value {
+                font-size: 0.9rem;
+            }
+
+            #poDashboardView .progress-enhanced {
+                height: 5px;
+                margin-bottom: 0.55rem;
+            }
+
+            #poDashboardView .btn-primary-enhanced {
+                padding: 0.58rem 0.8rem;
+                font-size: 0.7rem;
+                border-radius: 8px;
+            }
+
+            #poDashboardView .btn-primary-enhanced svg {
+                width: 14px;
+                height: 14px;
+            }
+
+            #poDashboardView .btn-mini {
+                padding: 0.28rem 0.55rem;
+                font-size: 0.6rem;
+            }
+
+            #poDashboardView .org-header {
+                margin-bottom: 0.75rem;
+                padding-bottom: 0.65rem;
+            }
+
+            #poDashboardView .org-avatar {
+                width: 32px;
+                height: 32px;
+                border-radius: 8px;
+                font-size: 0.82rem;
+            }
+
+            #poDashboardView .budget-meter-header {
+                margin-bottom: 0.35rem;
+            }
+
+            #poDashboardView .budget-meter-label {
+                font-size: 0.58rem;
+            }
+
+            #poDashboardView .budget-meter-percent {
+                font-size: 0.78rem;
+            }
+
+            #poDashboardView .stats-mini-grid,
+            #poDashboardView .previous-cycles-shell {
+                display: none;
+            }
+
+            #poDashboardView .table-card-scroll,
+            #poDashboardView .card-scroll {
+                flex: 1 1 auto;
+                min-height: 0;
+                overflow: auto;
+            }
+
+            #poDashboardView .table-enhanced thead th,
+            #poDashboardView .data-table th {
+                padding: 0.5rem 0.65rem;
+                font-size: 0.58rem;
+            }
+
+            #poDashboardView .table-enhanced tbody td,
+            #poDashboardView .data-table td {
+                padding: 0.55rem 0.65rem;
+                font-size: 0.72rem;
+            }
+
+            #poDashboardView .table-enhanced .dept-avatar {
+                width: 18px;
+                height: 18px;
+                font-size: 0.48rem;
+                border-radius: 4px;
+            }
+
+            #poDashboardView .table-enhanced .vote-code {
+                font-size: 0.62rem;
+                padding: 2px 5px;
+            }
+
+            #poDashboardView .status-pill {
+                padding: 3px 8px;
+                font-size: 0.62rem;
+            }
+
+            #poDashboardView .action-btn-enhanced,
+            #poDashboardView .action-icon {
+                width: 24px;
+                height: 24px;
+            }
+
+            #poDashboardView .po-card--departments .table-enhanced th:nth-child(2),
+            #poDashboardView .po-card--departments .table-enhanced td:nth-child(2) {
+                display: none;
+            }
+
+            #poDashboardView .po-card--pending #pendingRequestsList {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            #poDashboardView .po-card--categories #categoriesListEnhanced {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 0.55rem;
+                align-content: start;
+            }
+
+            #poDashboardView .po-card--categories .category-item {
+                margin-bottom: 0;
+                padding: 0.55rem 0.7rem;
+                min-height: 34px;
+            }
+
+            #poDashboardView .po-card--categories .category-item-name {
+                font-size: 0.72rem;
+            }
+
+            #poDashboardView .po-card--categories .category-item-count {
+                font-size: 0.56rem;
+            }
+
+            #poDashboardView .po-card--categories .category-item-actions {
+                display: none;
+            }
+        }
     </style>
+    <script>
+        (function () {
+            const themeStorageKey = "procurelinedb_theme";
+            let theme = "light";
+
+            try {
+                const storedTheme = localStorage.getItem(themeStorageKey);
+                if (storedTheme === "light" || storedTheme === "dark") {
+                    theme = storedTheme;
+                } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+                    theme = "dark";
+                }
+            } catch (error) {
+                theme = "light";
+            }
+
+            document.documentElement.setAttribute("data-theme", theme);
+            document.documentElement.style.colorScheme = theme;
+        })();
+    </script>
 </head>
 <body>
-
     <!-- INTERACTIVE SHOWCASE SYSTEM -->
 
     <!-- Welcome Modal -->
@@ -3189,6 +3731,10 @@ window.ProcurelineDB = {
             </div>
             
             <div class="nav-right">
+                <button id="themeToggle" class="theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch to dark mode" onclick="toggleTheme()">
+                    <span class="theme-toggle-dot" aria-hidden="true"></span>
+                    <span id="themeToggleLabel">Dark mode</span>
+                </button>
                 <div id="duOfficerNav" class="nav-officer hidden">
                     <div class="nav-officer-avatar" data-bind="du-po-initials">--</div>
                     <div class="nav-officer-copy">
@@ -3258,7 +3804,7 @@ window.ProcurelineDB = {
             <div class="bento-grid">
 
                 <!-- 1. Consolidation Hub (Col Span 2) - Enhanced -->
-                <div class="po-card col-span-2">
+                <div class="po-card po-card--consolidation col-span-2">
                     <div class="po-card-header">
                         <div class="po-card-title">
                             <div class="po-card-title-icon" style="background: linear-gradient(135deg, var(--green-600), var(--green-400)); color: white;">
@@ -3294,7 +3840,7 @@ window.ProcurelineDB = {
                     </div>
 
                     <!-- History List -->
-                    <div style="margin-top: 0.5rem;">
+                    <div class="previous-cycles-shell card-scroll" style="margin-top: 0.5rem;">
                         <div class="text-xs font-bold text-muted uppercase" style="letter-spacing: 0.1em; margin-bottom: 0.75rem;">Previous Cycles</div>
                         <div id="previousCyclesList">
                             <!-- Rendered dynamically -->
@@ -3304,7 +3850,7 @@ window.ProcurelineDB = {
                 </div>
 
                 <!-- 2. University Budget Overview (Col Span 2) - Enhanced -->
-                <div class="po-card col-span-2">
+                <div class="po-card po-card--overview col-span-2">
                     <div class="po-card-header">
                         <div class="po-card-title">
                             <div class="po-card-title-icon" style="background: linear-gradient(135deg, #18181b, #3f3f46); color: white;">
@@ -3360,7 +3906,7 @@ window.ProcurelineDB = {
                 </div>
 
                 <!-- 3. Department Management (Col Span 2) - Enhanced -->
-                <div class="po-card col-span-2">
+                <div class="po-card po-card--departments col-span-2">
                     <div class="po-card-header">
                         <div class="po-card-title">
                             <div class="po-card-title-icon" style="background: linear-gradient(135deg, var(--green-700), var(--green-500)); color: white;">
@@ -3370,36 +3916,38 @@ window.ProcurelineDB = {
                         </div>
                         <button class="btn-mini" onclick="openDeptModal()">+ Add Department</button>
                     </div>
-                    <table class="table-enhanced">
-                        <thead>
-                            <tr>
-                                <th>Department</th>
-                                <th>Vote #</th>
-                                <th>Budget Status</th>
-                                <th style="text-align: right;">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="departmentsTableBody">
-                            <!-- Rendered dynamically -->
-                            <tr>
-                                <td colspan="4" class="text-muted text-sm" style="text-align: center; padding: 2rem;">No departments configured</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div class="table-card-scroll">
+                        <table class="table-enhanced">
+                            <thead>
+                                <tr>
+                                    <th>Department</th>
+                                    <th>Vote #</th>
+                                    <th>Budget Status</th>
+                                    <th style="text-align: right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="departmentsTableBody">
+                                <!-- Rendered dynamically -->
+                                <tr>
+                                    <td colspan="4" class="text-muted text-sm" style="text-align: center; padding: 2rem;">No departments configured</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <!-- 4. Submitted Plans for Review (Col Span 2) - NEW -->
-                <div class="po-card col-span-2">
+                <div class="po-card po-card--submitted col-span-2">
                     <div class="po-card-header">
                         <div class="po-card-title">
                             <div class="po-card-title-icon" style="background: linear-gradient(135deg, #f59e0b, #fbbf24); color: white;">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                             </div>
-                            Submitted Plans for Review
+                            Submitted Plans
                         </div>
                         <span class="po-badge warning" id="submittedPlansCount">0 pending</span>
                     </div>
-                    <div style="overflow-x: auto;">
+                    <div class="table-card-scroll" style="overflow-x: auto;">
                         <table class="table-enhanced" id="submittedPlansTable">
                             <thead>
                                 <tr>
@@ -3422,7 +3970,7 @@ window.ProcurelineDB = {
                 </div>
 
                 <!-- 5. Review Requests (Col Span 1) - Enhanced -->
-                <div class="po-card col-span-1">
+                <div class="po-card po-card--pending col-span-2">
                     <div class="po-card-header">
                         <div class="po-card-title">
                             <div class="po-card-title-icon" style="background: linear-gradient(135deg, #ef4444, #f87171); color: white;">
@@ -3433,14 +3981,14 @@ window.ProcurelineDB = {
                         <span class="po-badge danger" data-bind="po-pending-badge">--</span>
                     </div>
 
-                    <div id="pendingRequestsList" style="display: flex; flex-direction: column; gap: 0;">
+                    <div id="pendingRequestsList" class="card-scroll" style="display: flex; flex-direction: column; gap: 0;">
                         <!-- Rendered dynamically -->
                         <div class="text-sm text-muted" style="padding: 1.5rem; text-align: center;">No pending requests</div>
                     </div>
                 </div>
 
                 <!-- 5. Categories Manager (Col Span 1) - Enhanced -->
-                <div class="po-card col-span-1">
+                <div class="po-card po-card--categories col-span-2">
                     <div class="po-card-header">
                         <div class="po-card-title">
                             <div class="po-card-title-icon" style="background: linear-gradient(135deg, var(--green-600), var(--green-400)); color: white;">
@@ -3450,7 +3998,7 @@ window.ProcurelineDB = {
                         </div>
                         <button class="btn-mini" onclick="openCategoryModal()">+ New</button>
                     </div>
-                    <div id="categoriesListEnhanced">
+                    <div id="categoriesListEnhanced" class="card-scroll">
                         <!-- Categories rendered dynamically by renderCategories() -->
                     </div>
                     <!-- Hidden table for backward compatibility -->
@@ -7988,7 +8536,84 @@ window.ProcurelineDB = {
             }
         }
 
+        const THEME_STORAGE_KEY = 'procurelinedb_theme';
+
+        function getPreferredTheme() {
+            try {
+                const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+                if (storedTheme === 'light' || storedTheme === 'dark') {
+                    return storedTheme;
+                }
+            } catch (error) {
+                // Ignore storage errors and fall back to system preference.
+            }
+
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                return 'dark';
+            }
+
+            return 'light';
+        }
+
+        function syncThemeToggle(theme) {
+            const toggle = document.getElementById('themeToggle');
+            const label = document.getElementById('themeToggleLabel');
+            if (!toggle || !label) return;
+
+            const nextTheme = theme === 'dark' ? 'light' : 'dark';
+            label.textContent = nextTheme === 'dark' ? 'Dark mode' : 'Light mode';
+            toggle.setAttribute('aria-label', `Switch to ${nextTheme} mode`);
+            toggle.setAttribute('title', `Switch to ${nextTheme} mode`);
+            toggle.dataset.theme = theme;
+        }
+
+        function applyTheme(theme) {
+            const resolvedTheme = theme === 'dark' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', resolvedTheme);
+            document.documentElement.style.colorScheme = resolvedTheme;
+            syncThemeToggle(resolvedTheme);
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+            const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            applyTheme(nextTheme);
+
+            try {
+                localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+            } catch (error) {
+                // Ignore storage errors. Theme still applies for the current session.
+            }
+        }
+
+        function initThemeToggle() {
+            applyTheme(getPreferredTheme());
+
+            if (!window.matchMedia) return;
+
+            const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            const updateFromSystemPreference = (event) => {
+                try {
+                    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+                    if (storedTheme === 'light' || storedTheme === 'dark') {
+                        return;
+                    }
+                } catch (error) {
+                    // Ignore storage errors and continue with live system preference.
+                }
+
+                applyTheme(event.matches ? 'dark' : 'light');
+            };
+
+            if (typeof mediaQuery.addEventListener === 'function') {
+                mediaQuery.addEventListener('change', updateFromSystemPreference);
+            } else if (typeof mediaQuery.addListener === 'function') {
+                mediaQuery.addListener(updateFromSystemPreference);
+            }
+        }
+
         // Initialize immediately
+        initThemeToggle();
         initApp();
 
         // Check if we should show the showcase

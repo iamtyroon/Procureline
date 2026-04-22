@@ -10,7 +10,6 @@ import {
   resolveSubmissionDeadline,
   type SubmissionDeadlineRecordLike,
 } from "./deadlines";
-import { extractProcurementCatalogBrowseSearchParams } from "./catalog-filters";
 import { extractProcurementOfficerDashboardSearchParams } from "./dashboard-search";
 import { extractProcurementOfficerSubmissionSearchParams } from "./submissions";
 
@@ -23,23 +22,16 @@ export type ProcurementDashboardState =
 
 export const PROCUREMENT_OFFICER_WORKSPACE_MODALS = [
   "access-codes",
-  "categories",
   "deadlines",
-  "departments",
   "requests",
   "submissions",
 ] as const;
 
-export const PROCUREMENT_OFFICER_WORKSPACE_SECTIONS = ["items"] as const;
-
 export type ProcurementOfficerWorkspaceModal =
   (typeof PROCUREMENT_OFFICER_WORKSPACE_MODALS)[number];
-export type ProcurementOfficerWorkspaceSection =
-  (typeof PROCUREMENT_OFFICER_WORKSPACE_SECTIONS)[number];
 
 export interface ProcurementOfficerWorkspaceModalState {
   modal: ProcurementOfficerWorkspaceModal;
-  section?: ProcurementOfficerWorkspaceSection;
 }
 
 interface WorkspaceSearchParamsReader {
@@ -146,30 +138,11 @@ export function isProcurementOfficerWorkspaceModal(
   return PROCUREMENT_OFFICER_WORKSPACE_MODALS.some((modal) => modal === value);
 }
 
-export function isProcurementOfficerWorkspaceSection(
-  value: string | null | undefined,
-): value is ProcurementOfficerWorkspaceSection {
-  return PROCUREMENT_OFFICER_WORKSPACE_SECTIONS.some(
-    (section) => section === value,
-  );
-}
-
 export function normalizeProcurementOfficerWorkspaceModalState(args: {
   modal: string | null;
-  section?: string | null;
 }): ProcurementOfficerWorkspaceModalState | null {
   if (!isProcurementOfficerWorkspaceModal(args.modal)) {
     return null;
-  }
-
-  if (
-    args.modal === "categories" &&
-    isProcurementOfficerWorkspaceSection(args.section)
-  ) {
-    return {
-      modal: args.modal,
-      section: args.section,
-    };
   }
 
   return {
@@ -181,7 +154,6 @@ export function buildProcurementOfficerWorkspaceModalPath(
   state: ProcurementOfficerWorkspaceModalState,
   options?: {
     dashboardSearchParams?: WorkspaceSearchParamsReader | URLSearchParams;
-    itemWorkspaceSearchParams?: WorkspaceSearchParamsReader | URLSearchParams;
     submissionWorkspaceSearchParams?:
       | WorkspaceSearchParamsReader
       | URLSearchParams;
@@ -199,20 +171,6 @@ export function buildProcurementOfficerWorkspaceModalPath(
   dashboardSearchParams.forEach((value, key) => {
     searchParams.append(key, value);
   });
-
-  if (state.modal === "categories" && state.section) {
-    searchParams.set("section", state.section);
-
-    if (options?.itemWorkspaceSearchParams) {
-      const itemSearchParams = extractProcurementCatalogBrowseSearchParams(
-        options.itemWorkspaceSearchParams,
-      );
-
-      itemSearchParams.forEach((value, key) => {
-        searchParams.append(key, value);
-      });
-    }
-  }
 
   if (state.modal === "submissions" && options?.submissionWorkspaceSearchParams) {
     const submissionSearchParams =
@@ -236,16 +194,8 @@ export function resolveProcurementOfficerWorkspaceNavigation(
   switch (targetUrl.pathname) {
     case "/po/departments":
       return {
-        href: buildProcurementOfficerWorkspaceModalPath(
-          {
-            modal: "departments",
-          },
-          {
-            dashboardSearchParams: targetUrl.searchParams,
-          },
-        ),
-        type: "modal",
-        modalState: { modal: "departments" },
+        href: `${targetUrl.pathname}${targetUrl.search}`,
+        type: "route",
       };
     case "/po/access-codes":
       return {
@@ -301,36 +251,10 @@ export function resolveProcurementOfficerWorkspaceNavigation(
         modalState: { modal: "submissions" },
       };
     case "/po/items":
-    case "/po/categories/items":
-      return {
-        href: buildProcurementOfficerWorkspaceModalPath(
-          {
-            modal: "categories",
-            section: "items",
-          },
-          {
-            dashboardSearchParams: targetUrl.searchParams,
-            itemWorkspaceSearchParams: targetUrl.searchParams,
-          },
-        ),
-        type: "modal",
-        modalState: {
-          modal: "categories",
-          section: "items",
-        },
-      };
     case "/po/categories":
       return {
-        href: buildProcurementOfficerWorkspaceModalPath(
-          {
-            modal: "categories",
-          },
-          {
-            dashboardSearchParams: targetUrl.searchParams,
-          },
-        ),
-        type: "modal",
-        modalState: { modal: "categories" },
+        href: `${targetUrl.pathname}${targetUrl.search}`,
+        type: "route",
       };
     default:
       return {

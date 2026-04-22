@@ -183,6 +183,8 @@ export default defineSchema({
     normalizedName: v.string(),
     code: v.string(),
     normalizedCode: v.string(),
+    voteNumber: v.optional(v.string()),
+    normalizedVoteNumber: v.optional(v.string()),
     budgetAllocation: v.optional(v.number()),
     isActive: v.boolean(),
     submissionStartsAt: v.optional(v.number()),

@@ -41,22 +41,21 @@ function runPublicAuthEntryTests() {
     const procurementOfficerAccessUrl = toUrl(procurementOfficerState.procurementOfficerAccessHref);
     const procurementOfficerSelectionUrl = toUrl(procurementOfficerState.procurementOfficerSelectionHref);
     strict_1.default.equal(procurementOfficerState.activeRole, "procurement_officer");
-    strict_1.default.equal(procurementOfficerUrl.pathname, "/login");
+    strict_1.default.equal(procurementOfficerUrl.pathname, public_entry_1.PROCUREMENT_OFFICER_ACCESS_ROUTE);
     strict_1.default.equal(procurementOfficerAccessUrl.pathname, public_entry_1.PROCUREMENT_OFFICER_ACCESS_ROUTE);
     strict_1.default.equal(procurementOfficerSelectionUrl.pathname, public_entry_1.AUTH_ENTRY_ROUTE);
     strict_1.default.equal(procurementOfficerSelectionUrl.hash, "#role-guidance");
-    strict_1.default.equal(procurementOfficerUrl.searchParams.get("role"), "procurement_officer");
     strict_1.default.equal(procurementOfficerUrl.searchParams.get("invite"), "po-invite-token");
     strict_1.default.equal(procurementOfficerUrl.searchParams.get("activationCode"), "ACT-001");
     strict_1.default.equal(procurementOfficerAccessUrl.searchParams.get("invite"), "po-invite-token");
     strict_1.default.equal(procurementOfficerUrl.searchParams.get("ignored"), null);
-    strict_1.default.equal(procurementOfficerState.signInHref, "/login?role=procurement_officer&invite=po-invite-token&activationCode=ACT-001");
-    completedTests.push("procurement officer handoff preserves only the recognized opaque invite context across both the shared login helper and the reserved role-specific sign-in route");
+    strict_1.default.equal(procurementOfficerState.signInHref, "/access/procurement-officer?invite=po-invite-token&activationCode=ACT-001");
+    completedTests.push("procurement officer handoff preserves only the recognized opaque invite context while routing sign-in intent to the dedicated Procurement Officer access flow");
     const implicitProcurementOfficerState = (0, public_entry_1.resolvePublicEntryState)({
         activationToken: "po-activation-token",
     });
     strict_1.default.equal(implicitProcurementOfficerState.activeRole, "procurement_officer");
-    strict_1.default.equal(implicitProcurementOfficerState.signInHref, "/login?role=procurement_officer&activationToken=po-activation-token");
+    strict_1.default.equal(implicitProcurementOfficerState.signInHref, "/access/procurement-officer?activationToken=po-activation-token");
     completedTests.push("recognized procurement officer handoff params auto-select the PO guidance path even when the link omits an explicit role query");
     const invalidRoleState = (0, public_entry_1.resolvePublicEntryState)({
         role: "platform_admin",

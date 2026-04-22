@@ -1,6 +1,9 @@
 export const BLOCKLY_WORKSPACE_FORMAT = "blockly_json" as const;
 export const BLOCKLY_WORKSPACE_SCHEMA_VERSION = 1 as const;
 
+export type BlocklyWorkspaceJson = Record<string, unknown>;
+export type BlocklyWorkspaceStoredJson = BlocklyWorkspaceJson | string;
+
 export type BlocklyWorkspaceSaveSource =
     | "workspace_clear"
     | "workspace_recovery"
@@ -19,7 +22,7 @@ export interface BlocklyWorkspaceRecord {
     editorMetadata: BlocklyWorkspaceEditorMetadata;
     format: typeof BLOCKLY_WORKSPACE_FORMAT;
     schemaVersion: typeof BLOCKLY_WORKSPACE_SCHEMA_VERSION;
-    workspaceJson: Record<string, unknown>;
+    workspaceJson: BlocklyWorkspaceStoredJson;
 }
 
 type BlocklyModule = typeof import("blockly");
@@ -36,7 +39,7 @@ export function isBlocklyWorkspaceSaveSource(
     );
 }
 
-export function createEmptyBlocklyWorkspaceJson(): Record<string, unknown> {
+export function createEmptyBlocklyWorkspaceJson(): BlocklyWorkspaceJson {
     return {
         blocks: {
             blocks: [],
@@ -51,7 +54,7 @@ export function createBlocklyWorkspaceRecord(args?: {
     recoveredAt?: number | null;
     revision?: number;
     saveSource?: BlocklyWorkspaceSaveSource;
-    workspaceJson?: Record<string, unknown>;
+    workspaceJson?: BlocklyWorkspaceStoredJson;
 }): BlocklyWorkspaceRecord {
     return {
         editorMetadata: {
@@ -64,6 +67,49 @@ export function createBlocklyWorkspaceRecord(args?: {
         format: BLOCKLY_WORKSPACE_FORMAT,
         schemaVersion: BLOCKLY_WORKSPACE_SCHEMA_VERSION,
         workspaceJson: args?.workspaceJson ?? createEmptyBlocklyWorkspaceJson(),
+    };
+}
+
+export function parseBlocklyWorkspaceJson(value: unknown): BlocklyWorkspaceJson | null {
+    if (typeof value === "string") {
+        try {
+            const parsedValue = JSON.parse(value) as unknown;
+            return parsedValue && typeof parsedValue === "object" && !Array.isArray(parsedValue)
+                ? (parsedValue as BlocklyWorkspaceJson)
+                : null;
+        } catch {
+            return null;
+        }
+    }
+
+    return value && typeof value === "object" && !Array.isArray(value)
+        ? (value as BlocklyWorkspaceJson)
+        : null;
+}
+
+export function normalizeBlocklyWorkspaceJson(value: unknown): BlocklyWorkspaceJson {
+    return parseBlocklyWorkspaceJson(value) ?? createEmptyBlocklyWorkspaceJson();
+}
+
+export function stringifyBlocklyWorkspaceJson(value: unknown): string {
+    return JSON.stringify(normalizeBlocklyWorkspaceJson(value));
+}
+
+export function areBlocklyWorkspaceJsonEquivalent(
+    left: unknown,
+    right: unknown,
+): boolean {
+    return stringifyBlocklyWorkspaceJson(left) === stringifyBlocklyWorkspaceJson(right);
+}
+
+export function createPersistedBlocklyWorkspaceRecord(
+    record: BlocklyWorkspaceRecord,
+): BlocklyWorkspaceRecord {
+    const normalizedRecord = normalizeBlocklyWorkspaceRecord(record);
+
+    return {
+        ...normalizedRecord,
+        workspaceJson: stringifyBlocklyWorkspaceJson(normalizedRecord.workspaceJson),
     };
 }
 
@@ -81,8 +127,10 @@ export function isBlocklyWorkspaceRecord(value: unknown): value is BlocklyWorksp
     return (
         record.format === BLOCKLY_WORKSPACE_FORMAT &&
         record.schemaVersion === BLOCKLY_WORKSPACE_SCHEMA_VERSION &&
-        typeof record.workspaceJson === "object" &&
-        record.workspaceJson !== null &&
+        (typeof record.workspaceJson === "string" ||
+            (typeof record.workspaceJson === "object" &&
+                record.workspaceJson !== null &&
+                !Array.isArray(record.workspaceJson))) &&
         editorMetadata !== null &&
         typeof editorMetadata.lastSavedAt === "number" &&
         typeof editorMetadata.lastSavedByUserId === "string" &&
@@ -113,7 +161,7 @@ export function normalizeBlocklyWorkspaceRecord(
         recoveredAt: value.editorMetadata.recoveredAt,
         revision: value.editorMetadata.revision,
         saveSource: value.editorMetadata.saveSource,
-        workspaceJson: value.workspaceJson,
+        workspaceJson: normalizeBlocklyWorkspaceJson(value.workspaceJson),
     });
 }
 
@@ -168,5 +216,8 @@ export function loadBlocklyWorkspace(args: {
     workspace: BlocklyWorkspace;
 }): void {
     const record = normalizeBlocklyWorkspaceRecord(args.record);
-    args.Blockly.serialization.workspaces.load(record.workspaceJson, args.workspace);
+    args.Blockly.serialization.workspaces.load(
+        normalizeBlocklyWorkspaceJson(record.workspaceJson),
+        args.workspace,
+    );
 }

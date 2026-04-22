@@ -4,6 +4,7 @@ import {
     buildDepartmentBudgetChangeAnnouncement,
     createCategorySelectionState,
     deriveDeadlinePresentation,
+    deriveLaunchpadInteractivity,
     deriveLaunchpadState,
     derivePlanAction,
     getDepartmentUserFiscalYearForDate,
@@ -167,7 +168,6 @@ export function runDepartmentUserDashboardTests(): string[] {
             status: "No Plan",
         }),
         hasCanonicalPlan: false,
-        selectedCategoryCount: 0,
     });
     const readyLaunchpad = deriveLaunchpadState({
         accessMode: "editable",
@@ -180,7 +180,6 @@ export function runDepartmentUserDashboardTests(): string[] {
             status: "No Plan",
         }),
         hasCanonicalPlan: false,
-        selectedCategoryCount: 2,
     });
     assert.equal(
         setupLaunchpad.disabledReason,
@@ -189,7 +188,60 @@ export function runDepartmentUserDashboardTests(): string[] {
     assert.equal(setupLaunchpad.primaryAction.disabled, true);
     assert.equal(readyLaunchpad.primaryAction.disabled, false);
     completedTests.push(
-        "department-user launchpad gating disables creation when budget or catalog truth is missing and only enables the CTA once setup is genuinely ready",
+        "department-user launchpad gating disables creation when budget or catalog truth is missing and otherwise leaves ready-state selection handling to the client",
+    );
+
+    const staleSelectionLaunchpad = deriveLaunchpadInteractivity({
+        canSelectCategories: true,
+        disabledReason: "Select at least one category to start planning.",
+        primaryAction: {
+            disabled: true,
+            href: "/du/plans/new",
+            kind: "create",
+            label: "Start Your Plan",
+        },
+        selectedCategoryCount: 2,
+        state: "available",
+    });
+    const emptySelectionLaunchpad = deriveLaunchpadInteractivity({
+        canSelectCategories: true,
+        disabledReason: null,
+        primaryAction: {
+            disabled: false,
+            href: "/du/plans/new",
+            kind: "create",
+            label: "Start Your Plan",
+        },
+        selectedCategoryCount: 0,
+        state: "available",
+    });
+    const readOnlyLaunchpadInteractivity = deriveLaunchpadInteractivity({
+        canSelectCategories: true,
+        disabledReason: "Submission deadline has passed. Your plan is now read-only.",
+        primaryAction: {
+            disabled: true,
+            href: "/du/plans/new",
+            kind: "create",
+            label: "Start Your Plan",
+        },
+        selectedCategoryCount: 2,
+        state: "read_only",
+    });
+    assert.equal(staleSelectionLaunchpad.disabled, false);
+    assert.equal(staleSelectionLaunchpad.disabledReason, null);
+    assert.equal(staleSelectionLaunchpad.statusLabel, "Ready to launch");
+    assert.equal(emptySelectionLaunchpad.disabled, true);
+    assert.equal(
+        emptySelectionLaunchpad.disabledReason,
+        "Select at least one category to start planning.",
+    );
+    assert.equal(readOnlyLaunchpadInteractivity.disabled, true);
+    assert.equal(
+        readOnlyLaunchpadInteractivity.disabledReason,
+        "Submission deadline has passed. Your plan is now read-only.",
+    );
+    completedTests.push(
+        "department-user launchpad interactivity now clears stale no-selection blocking once live category picks exist while preserving read-only blocking states",
     );
 
     const truthfulSnapshot = buildDepartmentUserDashboardSnapshot({

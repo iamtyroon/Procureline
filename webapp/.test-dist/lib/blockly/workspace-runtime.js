@@ -12,7 +12,7 @@ function buildDepartmentUserBlocklyInjectionOptions(args) {
         move: {
             drag: true,
             scrollbars: true,
-            wheel: true,
+            wheel: false,
         },
         readOnly: args.editorMode === "view",
         toolbox: args.toolboxDefinition,
@@ -24,7 +24,7 @@ function buildDepartmentUserBlocklyInjectionOptions(args) {
             pinch: true,
             scaleSpeed: 1.1,
             startScale: 0.9,
-            wheel: true,
+            wheel: false,
         },
     };
 }

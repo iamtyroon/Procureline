@@ -5,6 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runProcurementOfficerDashboardTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
+const node_fs_1 = require("node:fs");
+const node_path_1 = require("node:path");
 const roles_1 = require("../lib/auth/roles");
 const dashboard_search_1 = require("../lib/procurement-officer/dashboard-search");
 const dashboard_1 = require("../lib/procurement-officer/dashboard");
@@ -98,6 +100,7 @@ function runProcurementOfficerDashboardTests() {
                 name: "Finance",
                 submissionEndsAt: Date.UTC(2026, 7, 20, 12, 0, 0),
                 submissionStartsAt: Date.UTC(2026, 7, 1, 12, 0, 0),
+                voteNumber: "FIN-2026-Q1",
             },
             {
                 code: "ICT",
@@ -106,6 +109,7 @@ function runProcurementOfficerDashboardTests() {
                 name: "ICT",
                 submissionEndsAt: Date.UTC(2026, 7, 20, 12, 0, 0),
                 submissionStartsAt: Date.UTC(2026, 7, 1, 12, 0, 0),
+                voteNumber: "ICT-2026-Q1",
             },
             {
                 code: "HR",
@@ -114,6 +118,7 @@ function runProcurementOfficerDashboardTests() {
                 name: "Human Resources",
                 submissionEndsAt: Date.UTC(2026, 7, 24, 12, 0, 0),
                 submissionStartsAt: Date.UTC(2026, 7, 1, 12, 0, 0),
+                voteNumber: "HR-2026-Q1",
             },
             {
                 code: "ARCHIVE",
@@ -122,6 +127,7 @@ function runProcurementOfficerDashboardTests() {
                 name: "Archived",
                 submissionEndsAt: Date.UTC(2026, 7, 20, 12, 0, 0),
                 submissionStartsAt: Date.UTC(2026, 7, 1, 12, 0, 0),
+                voteNumber: "ARCHIVE-2026-Q1",
             },
         ],
         departmentUserProfiles: [
@@ -159,15 +165,24 @@ function runProcurementOfficerDashboardTests() {
         now: Date.UTC(2026, 7, 10, 12, 0, 0),
         plans: [
             {
+                departmentId: "department-1",
+                estimatedBudgetUsed: 125_000,
                 fiscalYear: "2026-2027",
+                itemCount: 4,
                 status: "submitted",
             },
             {
+                departmentId: "department-2",
+                estimatedBudgetUsed: 250_000,
                 fiscalYear: "2026-2027",
+                itemCount: 7,
                 status: "approved",
             },
             {
+                departmentId: "department-3",
+                estimatedBudgetUsed: 75_000,
                 fiscalYear: "2025-2026",
+                itemCount: 2,
                 status: "rejected",
             },
         ],
@@ -181,6 +196,7 @@ function runProcurementOfficerDashboardTests() {
             id: "tenant-1",
             name: "Pwani University",
         },
+        tenantBudgetCeiling: 500_000,
     });
     strict_1.default.equal(snapshot.meta.selectedFiscalYear, "2026-2027");
     strict_1.default.equal(snapshot.summaryCards.find((card) => card.id === "access_code_coverage")
@@ -190,8 +206,15 @@ function runProcurementOfficerDashboardTests() {
     strict_1.default.equal(snapshot.summaryCards.find((card) => card.id === "deadline_readiness")
         ?.value, "3 / 3");
     strict_1.default.equal(snapshot.departmentReadiness.items.length, 3);
+    strict_1.default.equal(snapshot.submissionProgress.submittedDepartmentCount, 2);
+    strict_1.default.equal(snapshot.submissionProgress.totalDepartmentCount, 3);
+    strict_1.default.equal(snapshot.submissionProgress.utilizationPercent, 67);
+    strict_1.default.equal(snapshot.organizationOverview.budget.usedBudget, 375_000);
+    strict_1.default.equal(snapshot.organizationOverview.budget.totalBudget, 500_000);
+    strict_1.default.equal(snapshot.organizationOverview.budget.utilizationPercent, 75);
     strict_1.default.equal(snapshot.departmentReadiness.items.find((item) => item.id === "department-1")?.accessCode.state, "available");
     strict_1.default.equal(snapshot.departmentReadiness.items.find((item) => item.id === "department-2")?.departmentUser.state, "setup_required");
+    strict_1.default.equal(snapshot.departmentReadiness.items.find((item) => item.id === "department-1")?.voteNumber, "FIN-2026-Q1");
     strict_1.default.equal(snapshot.alerts.some((alert) => alert.message ===
         "Submission deadline not set. Configure before DUs can submit."), true);
     strict_1.default.equal(snapshot.futurePanels.find((panel) => panel.id === "categories")?.state, "available");
@@ -224,15 +247,10 @@ function runProcurementOfficerDashboardTests() {
     strict_1.default.equal(emptySnapshot.departmentReadiness.state, "empty");
     completedTests.push("procurement-officer empty states surface the first-department CTA without inventing fiscal-year blockers before real deadline setup starts");
     strict_1.default.deepEqual((0, dashboard_1.normalizeProcurementOfficerWorkspaceModalState)({
-        modal: "categories",
-        section: "items",
+        modal: "access-codes",
     }), {
-        modal: "categories",
-        section: "items",
+        modal: "access-codes",
     });
-    strict_1.default.equal((0, dashboard_1.buildProcurementOfficerWorkspaceModalPath)({
-        modal: "departments",
-    }), "/po?modal=departments");
     strict_1.default.equal((0, dashboard_1.buildProcurementOfficerWorkspaceModalPath)({
         modal: "submissions",
     }), "/po?modal=submissions");
@@ -241,13 +259,13 @@ function runProcurementOfficerDashboardTests() {
     }, {
         dashboardSearchParams: new URLSearchParams(`${dashboard_search_1.PROCUREMENT_OFFICER_DASHBOARD_QUERY_KEYS.fiscalYear}=2025-2026&junk=ignored`),
     }), "/po?modal=submissions&poFiscalYear=2025-2026");
-    strict_1.default.deepEqual((0, dashboard_1.resolveProcurementOfficerWorkspaceNavigation)("/po/categories/items"), {
-        href: "/po?modal=categories&section=items",
-        modalState: {
-            modal: "categories",
-            section: "items",
-        },
-        type: "modal",
+    strict_1.default.deepEqual((0, dashboard_1.resolveProcurementOfficerWorkspaceNavigation)("/po/categories"), {
+        href: "/po/categories",
+        type: "route",
+    });
+    strict_1.default.deepEqual((0, dashboard_1.resolveProcurementOfficerWorkspaceNavigation)("/po/departments"), {
+        href: "/po/departments",
+        type: "route",
     });
     strict_1.default.deepEqual((0, dashboard_1.resolveProcurementOfficerWorkspaceNavigation)("/po/submissions?poFiscalYear=2025-2026&poSubmissionsStatus=submitted&itemSearch=laptop"), {
         href: "/po?modal=submissions&poFiscalYear=2025-2026&poSubmissionsStatus=submitted",
@@ -260,34 +278,15 @@ function runProcurementOfficerDashboardTests() {
         href: "/po/consolidation",
         type: "route",
     });
-    strict_1.default.equal((0, dashboard_1.buildProcurementOfficerWorkspaceModalPath)({
-        modal: "categories",
-        section: "items",
-    }, {
-        itemWorkspaceSearchParams: new URLSearchParams("itemSearch=laptop&itemCategory=cat-it&foo=bar&itemCompliance=agpo"),
-    }), "/po?modal=categories&section=items&itemSearch=laptop&itemCategory=cat-it&itemCompliance=agpo");
     strict_1.default.deepEqual((0, dashboard_1.resolveProcurementOfficerWorkspaceNavigation)("/po/items?poFiscalYear=2025-2026&itemSearch=laptop&itemCategory=cat-it&foo=bar&itemCompliance=agpo"), {
-        href: "/po?modal=categories&poFiscalYear=2025-2026&section=items&itemSearch=laptop&itemCategory=cat-it&itemCompliance=agpo",
-        modalState: {
-            modal: "categories",
-            section: "items",
-        },
-        type: "modal",
+        href: "/po/items?poFiscalYear=2025-2026&itemSearch=laptop&itemCategory=cat-it&foo=bar&itemCompliance=agpo",
+        type: "route",
     });
-    strict_1.default.deepEqual((0, dashboard_1.resolveProcurementOfficerWorkspaceNavigation)("/po/categories/items?itemPage=9&itemCompliance=pwd&itemCompliance=bad&junk=yes"), {
-        href: "/po?modal=categories&section=items&itemPage=9&itemCompliance=pwd",
-        modalState: {
-            modal: "categories",
-            section: "items",
-        },
-        type: "modal",
-    });
-    completedTests.push("procurement-officer workspace routing keeps consolidation as a real page while dashboard surfaces resolve to modal-backed paths and preserve only whitelisted item-workspace deep-link params");
+    completedTests.push("procurement-officer workspace routing keeps categories and items as real routes while dashboard-only workspaces still resolve to modal-backed paths");
     const poRoutes = [
         "/po",
         "/po/departments",
         "/po/categories",
-        "/po/categories/items",
         "/po/items",
         "/po/access-codes",
         "/po/deadlines",
@@ -300,6 +299,19 @@ function runProcurementOfficerDashboardTests() {
         strict_1.default.equal((0, roles_1.getProtectedRouteRole)(route), "procurement_officer");
     }
     completedTests.push("procurement-officer placeholder routes remain under the existing segment-aware role guard");
+    const componentSource = (0, node_fs_1.readFileSync)((0, node_path_1.join)(process.cwd(), "src/components/procurement-officer/ProcurementOfficerDashboard.tsx"), "utf8");
+    strict_1.default.equal(componentSource.includes("useMutation(api.functions.categories.createCategory)"), true);
+    strict_1.default.equal(componentSource.includes("openDashboardCategoryCreateDialog"), true);
+    strict_1.default.equal(componentSource.includes("Create category"), true);
+    strict_1.default.equal(componentSource.includes("Category created."), true);
+    strict_1.default.equal(componentSource.includes("useMutation(api.functions.items.createItem)"), true);
+    strict_1.default.equal(componentSource.includes("Add item"), true);
+    strict_1.default.equal(componentSource.includes("Item created."), true);
+    strict_1.default.equal(componentSource.includes("Current Items in Category"), true);
+    strict_1.default.equal(componentSource.includes("Archive item"), true);
+    strict_1.default.equal(componentSource.includes("Active plan warning"), true);
+    strict_1.default.equal(componentSource.includes("Category preview"), false);
+    completedTests.push("procurement-officer dashboard source keeps the category and item create mutations wired into the dashboard modals and renders the live category item list inside the category flow");
     return completedTests;
 }
 exports.runProcurementOfficerDashboardTests = runProcurementOfficerDashboardTests;

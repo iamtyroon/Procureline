@@ -13,7 +13,6 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { BlocklyEditor } from "@/src/components/blockly/BlocklyEditor";
 import { BlocklyLoadingSkeleton } from "@/src/components/blockly/BlocklyLoadingSkeleton";
 import {
-    getDepartmentUserWorkspaceAccessRefreshDelay,
     getDepartmentUserWorkspaceAccessRefreshKey,
     getDepartmentUserMissingLaunchContextMessage,
     parseDepartmentUserLaunchContext,
@@ -149,28 +148,7 @@ function DepartmentUserNewPlanWorkspace(): JSX.Element {
 function DepartmentUserExistingPlanWorkspace(): JSX.Element {
     const params = useParams<{ planId?: string }>();
     const searchParams = useSearchParams();
-    const [accessRefreshKey, setAccessRefreshKey] = useState(() =>
-        getDepartmentUserWorkspaceAccessRefreshKey(),
-    );
-
-    useEffect(() => {
-        let timerId: number | null = null;
-
-        function scheduleRefresh(now = Date.now()): void {
-            setAccessRefreshKey(getDepartmentUserWorkspaceAccessRefreshKey(now));
-            timerId = window.setTimeout(() => {
-                scheduleRefresh(Date.now());
-            }, getDepartmentUserWorkspaceAccessRefreshDelay(now));
-        }
-
-        scheduleRefresh();
-
-        return () => {
-            if (timerId !== null) {
-                window.clearTimeout(timerId);
-            }
-        };
-    }, []);
+    const [accessRefreshKey] = useState(() => getDepartmentUserWorkspaceAccessRefreshKey());
 
     const workspaceContext = useQuery(api.functions.plans.getDepartmentUserPlanWorkspace, {
         accessRefreshKey,
@@ -232,7 +210,7 @@ function DepartmentUserWorkspaceScaffold({
     children: ReactNode;
 }): JSX.Element {
     return (
-        <div className="min-h-[calc(100vh-4rem)] bg-background">
+        <div className="bg-background">
             <div className="px-4 py-8 sm:px-6 lg:hidden">
                 <Card className="mx-auto max-w-2xl rounded-[24px] border-border/70 bg-card shadow-sm">
                     <CardHeader className="space-y-4">
@@ -243,14 +221,15 @@ function DepartmentUserWorkspaceScaffold({
                             DU planning workspaces are designed for desktop viewports
                         </CardTitle>
                         <CardDescription className="text-base leading-7 text-muted-foreground">
-                            Open this route on a desktop-sized viewport to use the Blockly editor, toolbox, and budget meter.
+                            Open this route on a desktop-sized viewport to use the Blockly editor,
+                            toolbox, and budget meter.
                         </CardDescription>
                     </CardHeader>
                 </Card>
             </div>
 
-            <div className="hidden lg:block">
-                <div className="mx-auto flex w-full max-w-none flex-col gap-4 px-4 py-4 xl:px-5">
+            <div className="hidden h-[calc(100dvh-4rem)] overflow-hidden lg:block">
+                <div className="flex h-full w-full flex-col overflow-hidden">
                     {children}
                 </div>
             </div>
@@ -270,7 +249,10 @@ function DepartmentUserWorkspaceState({
             <Card className="w-full rounded-[32px] border-border/70 bg-card/95 shadow-sm">
                 <CardHeader className="space-y-4">
                     <div className="flex items-center justify-between gap-4">
-                        <Badge variant="outline" className="rounded-full border-amber-300 bg-amber-50 text-amber-800">
+                        <Badge
+                            variant="outline"
+                            className="rounded-full border-amber-300 bg-amber-50 text-amber-800"
+                        >
                             Planning blocked
                         </Badge>
                         <AlertTriangle className="h-5 w-5 text-muted-foreground" />
@@ -286,7 +268,8 @@ function DepartmentUserWorkspaceState({
                     <Alert className="rounded-2xl border-border/70 bg-muted/20">
                         <AlertTitle>Recovery path</AlertTitle>
                         <AlertDescription>
-                            Return to the DU dashboard launchpad, confirm the fiscal year, and open the workspace from there.
+                            Return to the DU dashboard launchpad, confirm the fiscal year, and
+                            open the workspace from there.
                         </AlertDescription>
                     </Alert>
                     <div className="flex items-center gap-3">

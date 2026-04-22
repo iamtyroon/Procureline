@@ -2,7 +2,13 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAction } from "convex/react";
-import { AlertTriangle } from "lucide-react";
+import {
+    AlertTriangle,
+    CheckCircle2,
+    KeyRound,
+    ShieldCheck,
+    Users2,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -30,6 +36,8 @@ import {
     buildDepartmentOverAllocationWarning,
     getDepartmentCodeFieldDescription,
 } from "@/lib/procurement-officer/departments";
+import type { ProcurementDashboardState } from "@/lib/procurement-officer/dashboard";
+import { cn } from "@/lib/utils";
 import {
     departmentFormSchema,
     type DepartmentFormData,
@@ -39,6 +47,7 @@ interface DepartmentFormInput {
     budgetAllocation: number;
     code: string;
     name: string;
+    voteNumber: string;
 }
 
 export interface DepartmentFormDialogDepartment {
@@ -47,6 +56,13 @@ export interface DepartmentFormDialogDepartment {
     id: string;
     name: string;
     planningImpactWarning: string | null;
+    voteNumber: string;
+    readinessPills?: ReadonlyArray<{
+        id: "access_code" | "budget" | "deadline" | "department_user";
+        label: string;
+        state: ProcurementDashboardState;
+        value: string;
+    }>;
 }
 
 interface DepartmentFormDialogProps {
@@ -81,6 +97,7 @@ export function DepartmentFormDialog({
             budgetAllocation: department?.budgetAllocation ?? Number.NaN,
             code: department?.code ?? "",
             name: department?.name ?? "",
+            voteNumber: department?.voteNumber ?? "",
         },
     });
 
@@ -93,6 +110,7 @@ export function DepartmentFormDialog({
             budgetAllocation: department?.budgetAllocation ?? Number.NaN,
             code: department?.code ?? "",
             name: department?.name ?? "",
+            voteNumber: department?.voteNumber ?? "",
         });
     }, [department, form, open]);
     const draftBudgetAllocation = form.watch("budgetAllocation");
@@ -111,10 +129,6 @@ export function DepartmentFormDialog({
         : "Add a department to anchor DU ownership, budgets, and procurement setup.";
 
     async function handleCodeAction(): Promise<void> {
-        if (!isCreateMode) {
-            return;
-        }
-
         setIsGeneratingCode(true);
         try {
             const result = await generateDepartmentCode({
@@ -187,45 +201,51 @@ export function DepartmentFormDialog({
 
                         <FormField
                             control={form.control}
+                            name="voteNumber"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Vote number</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="BUS-2025-Q1" {...field} />
+                                    </FormControl>
+                                    <FormDescription>
+                                        Use the institution&apos;s vote reference for this
+                                        department. This is separate from the DU access code.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
                             name="code"
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Department code</FormLabel>
                                     <FormControl>
-                                        {isCreateMode ? (
-                                            <div className="relative">
-                                                <Input
-                                                    autoCapitalize="characters"
-                                                    className="pr-28"
-                                                    placeholder="2025-HR-A7K9"
-                                                    {...field}
-                                                />
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="absolute right-1 top-1/2 h-7 -translate-y-1/2 rounded-md px-3"
-                                                    disabled={
-                                                        isSubmitting ||
-                                                        isGeneratingCode
-                                                    }
-                                                    onClick={() => {
-                                                        void handleCodeAction();
-                                                    }}
-                                                >
-                                                    {isGeneratingCode
-                                                        ? "Generating..."
-                                                        : "Generate"}
-                                                </Button>
-                                            </div>
-                                        ) : (
+                                        <div className="relative">
                                             <Input
                                                 autoCapitalize="characters"
+                                                className="pr-28"
                                                 placeholder="2025-HR-A7K9"
-                                                readOnly
                                                 {...field}
                                             />
-                                        )}
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                className="absolute right-1 top-1/2 h-7 -translate-y-1/2 rounded-md px-3"
+                                                disabled={isSubmitting || isGeneratingCode}
+                                                onClick={() => {
+                                                    void handleCodeAction();
+                                                }}
+                                            >
+                                                {isGeneratingCode
+                                                    ? "Generating..."
+                                                    : "Generate"}
+                                            </Button>
+                                        </div>
                                     </FormControl>
                                     <FormDescription>
                                         {getDepartmentCodeFieldDescription({
@@ -264,6 +284,24 @@ export function DepartmentFormDialog({
                             )}
                         />
 
+                        {department?.readinessPills?.length ? (
+                            <div className="space-y-2">
+                                <div className="text-sm font-medium text-foreground">
+                                    Readiness status
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {department.readinessPills.map((pill) => (
+                                        <DepartmentReadinessPill
+                                            key={pill.id}
+                                            label={pill.label}
+                                            state={pill.state}
+                                            value={pill.value}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        ) : null}
+
                         <DialogFooter>
                             <Button
                                 type="button"
@@ -287,5 +325,60 @@ export function DepartmentFormDialog({
                 </Form>
             </DialogContent>
         </Dialog>
+    );
+}
+
+function DepartmentReadinessPill({
+    label,
+    state,
+    value,
+}: {
+    label: string;
+    state: ProcurementDashboardState;
+    value: string;
+}): JSX.Element {
+    const icon =
+        label === "Access code" ? (
+            <KeyRound className="h-3.5 w-3.5" />
+        ) : label === "DU" ? (
+            <Users2 className="h-3.5 w-3.5" />
+        ) : label === "Deadline" ? (
+            <ShieldCheck className="h-3.5 w-3.5" />
+        ) : (
+            <CheckCircle2 className="h-3.5 w-3.5" />
+        );
+
+    return (
+        <div className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/20 px-3 py-1.5">
+            <div
+                className={cn(
+                    "flex h-7 w-7 items-center justify-center rounded-full",
+                    state === "available" &&
+                        "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
+                    state === "setup_required" &&
+                        "bg-amber-500/15 text-amber-600 dark:text-amber-300",
+                    (state === "empty" || state === "unavailable") &&
+                        "bg-muted text-muted-foreground",
+                )}
+            >
+                {icon}
+            </div>
+            <div className="min-w-0">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    {label}
+                </div>
+                <div className="text-xs font-medium text-foreground">{value}</div>
+            </div>
+            <span
+                aria-label={state === "available" ? `${label} ready` : `${label} not ready`}
+                className={cn(
+                    "ml-auto h-2.5 w-2.5 shrink-0 rounded-full",
+                    state === "available" &&
+                        "bg-emerald-500 shadow-[0_0_0_3px_rgba(34,197,94,0.12)]",
+                    state !== "available" &&
+                        "bg-muted-foreground/35 shadow-[0_0_0_3px_rgba(148,163,184,0.12)]",
+                )}
+            />
+        </div>
     );
 }

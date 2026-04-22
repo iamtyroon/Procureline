@@ -21,7 +21,7 @@ export const getProcurementOfficerDashboardSnapshot = query({
             });
         }
 
-        const [departments, accessCodes, departmentUserProfiles, submissionDeadlines, categoryRequests, itemRequests, plans] = await Promise.all([
+        const [departments, accessCodes, departmentUserProfiles, submissionDeadlines, categoryRequests, itemRequests, plans, procurementItems] = await Promise.all([
             ctx.db
                 .query("departments")
                 .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
@@ -50,6 +50,10 @@ export const getProcurementOfficerDashboardSnapshot = query({
                 .query("plans")
                 .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
                 .collect(),
+            ctx.db
+                .query("procurementItems")
+                .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
+                .collect(),
         ]);
 
         return buildProcurementOfficerDashboardSnapshot({
@@ -60,12 +64,14 @@ export const getProcurementOfficerDashboardSnapshot = query({
                 isActive: accessCode.isActive,
             })),
             departments: departments.map((department) => ({
+                budgetAllocation: department.budgetAllocation,
                 code: department.code,
                 id: String(department._id),
                 isActive: department.isActive,
                 name: department.name,
                 submissionEndsAt: department.submissionEndsAt,
                 submissionStartsAt: department.submissionStartsAt,
+                voteNumber: department.voteNumber ?? department.code,
             })),
             departmentUserProfiles: departmentUserProfiles.map((profile) => ({
                 deactivatedAt: profile.deactivatedAt,
@@ -75,6 +81,7 @@ export const getProcurementOfficerDashboardSnapshot = query({
             })),
             fiscalYearStartMonth: tenant.fiscalYearStartMonth,
             now: Date.now(),
+            activeItemCount: procurementItems.filter((item) => item.isActive).length,
             plans: plans
                 .filter(
                     (
@@ -84,7 +91,10 @@ export const getProcurementOfficerDashboardSnapshot = query({
                     } => plan.status !== "draft",
                 )
                 .map((plan) => ({
+                    departmentId: String(plan.departmentId),
+                    estimatedBudgetUsed: plan.estimatedBudgetUsed,
                     fiscalYear: plan.fiscalYear,
+                    itemCount: plan.itemCount,
                     status: plan.status,
                 })),
             requestSummary: resolveProcurementCatalogRequestSummary({
@@ -119,6 +129,7 @@ export const getProcurementOfficerDashboardSnapshot = query({
                 id: String(tenant._id),
                 name: tenant.name,
             },
+            tenantBudgetCeiling: tenant.procurementBudgetCeiling ?? null,
             tenantTimeZone: tenant.timeZone,
         });
     },

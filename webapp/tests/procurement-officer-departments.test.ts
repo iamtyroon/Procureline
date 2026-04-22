@@ -6,19 +6,19 @@ import {
     buildDepartmentTierLimitState,
     buildDepartmentWorkspaceSummary,
     DEPARTMENT_BUDGET_POSITIVE_MESSAGE,
-    DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE,
     DEPARTMENT_CODE_EXISTS_MESSAGE,
     DEPARTMENT_NAME_EXISTS_MESSAGE,
     DEPARTMENT_NOT_FOUND_MESSAGE,
+    DEPARTMENT_VOTE_NUMBER_EXISTS_MESSAGE,
     departmentFormSchema,
     formatDepartmentBudget,
     getDepartmentCodeFieldDescription,
     getDepartmentCrudRecoveryHref,
     getDepartmentUpgradeHref,
-    getDepartmentCrudErrorMessage,
     isDepartmentCrudAuthorizationError,
     normalizeDepartmentCode,
     normalizeDepartmentName,
+    normalizeDepartmentVoteNumber,
 } from "../lib/procurement-officer/departments";
 import { buildDashboardPath, FORBIDDEN_ACCESS_REASON } from "../lib/auth/roles";
 
@@ -28,19 +28,23 @@ export function runProcurementOfficerDepartmentTests(): string[] {
     assert.equal(normalizeDepartmentName("  Human   Resources  "), "human resources");
     assert.equal(normalizeDepartmentCode(" 2025 hr a7k9 "), "2025-HR-A7K9");
     assert.equal(normalizeDepartmentCode("2025__it---a7k9"), "2025-IT-A7K9");
+    assert.equal(normalizeDepartmentVoteNumber(" bus 2025 q1 "), "BUS 2025 Q1");
     completedTests.push(
-        "department normalization collapses whitespace, lowercases names for uniqueness, and stores department codes in the shared canonical access-code format",
+        "department normalization collapses whitespace, lowercases names for uniqueness, preserves separate vote numbers, and stores department codes in the shared canonical access-code format",
     );
 
     const parsedDepartment = departmentFormSchema.parse({
         budgetAllocation: "2500000",
         code: "2025-hr-a7k9",
         name: " Human   Resources ",
+        voteNumber: " hr-2025-q1 ",
     });
     assert.equal(parsedDepartment.name, "Human Resources");
     assert.equal(parsedDepartment.code, "2025-HR-A7K9");
     assert.equal(parsedDepartment.normalizedName, "human resources");
     assert.equal(parsedDepartment.normalizedCode, "2025-HR-A7K9");
+    assert.equal(parsedDepartment.voteNumber, "HR-2025-Q1");
+    assert.equal(parsedDepartment.normalizedVoteNumber, "HR-2025-Q1");
     assert.equal(parsedDepartment.adminEmail, undefined);
     assert.equal(parsedDepartment.budgetAllocation, 2_500_000);
     assert.equal(
@@ -49,6 +53,7 @@ export function runProcurementOfficerDepartmentTests(): string[] {
             budgetAllocation: "2500000",
             code: "2025-IT-A7K9",
             name: "Information Technology",
+            voteNumber: "IT-2025-Q1",
         }).success,
         true,
     );
@@ -58,6 +63,7 @@ export function runProcurementOfficerDepartmentTests(): string[] {
             budgetAllocation: "2500000",
             code: "2025-IT-A7K9",
             name: "Information Technology",
+            voteNumber: "IT-2025-Q1",
         }).success,
         false,
     );
@@ -66,6 +72,7 @@ export function runProcurementOfficerDepartmentTests(): string[] {
             budgetAllocation: 0,
             code: "2025-HR-A7K9",
             name: "Human Resources",
+            voteNumber: "HR-2025-Q1",
         }).success,
         false,
     );
@@ -74,11 +81,12 @@ export function runProcurementOfficerDepartmentTests(): string[] {
             budgetAllocation: 5_000,
             code: "HR01",
             name: "Human Resources",
+            voteNumber: "HR-2025-Q1",
         }).success,
         false,
     );
     completedTests.push(
-        "department form validation requires positive budgets and only accepts the canonical access-code format for department codes",
+        "department form validation requires a separate vote number, positive budgets, and the canonical access-code format for department codes",
     );
 
     const freeTierLimit = buildDepartmentTierLimitState({
@@ -144,6 +152,7 @@ export function runProcurementOfficerDepartmentTests(): string[] {
                 lastUpdatedAt: Date.UTC(2026, 2, 20, 10, 0, 0),
                 name: "Finance",
                 planStatuses: ["draft"],
+                voteNumber: "FIN-2025-Q1",
             },
             {
                 activeDepartmentUserEmails: ["du@example.com"],
@@ -155,6 +164,7 @@ export function runProcurementOfficerDepartmentTests(): string[] {
                 lastUpdatedAt: Date.UTC(2026, 2, 21, 10, 0, 0),
                 name: "Human Resources",
                 planStatuses: ["approved"],
+                voteNumber: "HR-2025-Q1",
             },
         ],
         budgetCeiling: null,
@@ -210,32 +220,19 @@ export function runProcurementOfficerDepartmentTests(): string[] {
     assert.equal(formatDepartmentBudget(1_500_000), "KES 1,500,000.00");
     assert.equal(
         getDepartmentCodeFieldDescription({ isCreateMode: true }),
-        "Generate a canonical code now, then manage future rotation, deactivation, and delivery from Access Codes.",
+        "Generate the DU access code now, or enter the canonical department code manually before creating the department.",
     );
     assert.equal(
         getDepartmentCodeFieldDescription({ isCreateMode: false }),
-        "Department code changes are managed from Access Codes so the active DU sign-in code stays in sync.",
+        "Update the department code here if the DU access identifier changes. Generate a new canonical code or enter one manually.",
     );
     assert.equal(DEPARTMENT_CODE_EXISTS_MESSAGE, "Department code already exists");
-    assert.equal(
-        DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE,
-        "Use Access Codes to rotate or replace the department code.",
-    );
     assert.equal(DEPARTMENT_NAME_EXISTS_MESSAGE, "Department name already exists");
+    assert.equal(DEPARTMENT_VOTE_NUMBER_EXISTS_MESSAGE, "Vote number already exists");
     assert.equal(DEPARTMENT_BUDGET_POSITIVE_MESSAGE, "Budget must be a positive number");
     assert.equal(DEPARTMENT_NOT_FOUND_MESSAGE, "Department not found");
     completedTests.push(
         "department CRUD helpers preserve the exact user-facing validation and not-found messages required by Story 4.2",
-    );
-
-    assert.equal(
-        getDepartmentCrudErrorMessage(
-            new Error(DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE),
-        ),
-        DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE,
-    );
-    completedTests.push(
-        "department edit helpers now keep code rotation in the dedicated Access Codes flow instead of letting the edit dialog drift away from the active DU credential",
     );
 
     assert.equal(

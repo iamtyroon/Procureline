@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.loadBlocklyWorkspace = exports.compareBlocklyWorkspaceRecords = exports.serializeBlocklyWorkspace = exports.normalizeBlocklyWorkspaceRecord = exports.isBlocklyWorkspaceRecord = exports.createBlocklyWorkspaceRecord = exports.createEmptyBlocklyWorkspaceJson = exports.isBlocklyWorkspaceSaveSource = exports.BLOCKLY_WORKSPACE_SCHEMA_VERSION = exports.BLOCKLY_WORKSPACE_FORMAT = void 0;
+exports.loadBlocklyWorkspace = exports.compareBlocklyWorkspaceRecords = exports.serializeBlocklyWorkspace = exports.normalizeBlocklyWorkspaceRecord = exports.isBlocklyWorkspaceRecord = exports.createPersistedBlocklyWorkspaceRecord = exports.areBlocklyWorkspaceJsonEquivalent = exports.stringifyBlocklyWorkspaceJson = exports.normalizeBlocklyWorkspaceJson = exports.parseBlocklyWorkspaceJson = exports.createBlocklyWorkspaceRecord = exports.createEmptyBlocklyWorkspaceJson = exports.isBlocklyWorkspaceSaveSource = exports.BLOCKLY_WORKSPACE_SCHEMA_VERSION = exports.BLOCKLY_WORKSPACE_FORMAT = void 0;
 exports.BLOCKLY_WORKSPACE_FORMAT = "blockly_json";
 exports.BLOCKLY_WORKSPACE_SCHEMA_VERSION = 1;
 function isBlocklyWorkspaceSaveSource(value) {
@@ -34,6 +34,43 @@ function createBlocklyWorkspaceRecord(args) {
     };
 }
 exports.createBlocklyWorkspaceRecord = createBlocklyWorkspaceRecord;
+function parseBlocklyWorkspaceJson(value) {
+    if (typeof value === "string") {
+        try {
+            const parsedValue = JSON.parse(value);
+            return parsedValue && typeof parsedValue === "object" && !Array.isArray(parsedValue)
+                ? parsedValue
+                : null;
+        }
+        catch {
+            return null;
+        }
+    }
+    return value && typeof value === "object" && !Array.isArray(value)
+        ? value
+        : null;
+}
+exports.parseBlocklyWorkspaceJson = parseBlocklyWorkspaceJson;
+function normalizeBlocklyWorkspaceJson(value) {
+    return parseBlocklyWorkspaceJson(value) ?? createEmptyBlocklyWorkspaceJson();
+}
+exports.normalizeBlocklyWorkspaceJson = normalizeBlocklyWorkspaceJson;
+function stringifyBlocklyWorkspaceJson(value) {
+    return JSON.stringify(normalizeBlocklyWorkspaceJson(value));
+}
+exports.stringifyBlocklyWorkspaceJson = stringifyBlocklyWorkspaceJson;
+function areBlocklyWorkspaceJsonEquivalent(left, right) {
+    return stringifyBlocklyWorkspaceJson(left) === stringifyBlocklyWorkspaceJson(right);
+}
+exports.areBlocklyWorkspaceJsonEquivalent = areBlocklyWorkspaceJsonEquivalent;
+function createPersistedBlocklyWorkspaceRecord(record) {
+    const normalizedRecord = normalizeBlocklyWorkspaceRecord(record);
+    return {
+        ...normalizedRecord,
+        workspaceJson: stringifyBlocklyWorkspaceJson(normalizedRecord.workspaceJson),
+    };
+}
+exports.createPersistedBlocklyWorkspaceRecord = createPersistedBlocklyWorkspaceRecord;
 function isBlocklyWorkspaceRecord(value) {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
         return false;
@@ -44,8 +81,10 @@ function isBlocklyWorkspaceRecord(value) {
         : null;
     return (record.format === exports.BLOCKLY_WORKSPACE_FORMAT &&
         record.schemaVersion === exports.BLOCKLY_WORKSPACE_SCHEMA_VERSION &&
-        typeof record.workspaceJson === "object" &&
-        record.workspaceJson !== null &&
+        (typeof record.workspaceJson === "string" ||
+            (typeof record.workspaceJson === "object" &&
+                record.workspaceJson !== null &&
+                !Array.isArray(record.workspaceJson))) &&
         editorMetadata !== null &&
         typeof editorMetadata.lastSavedAt === "number" &&
         typeof editorMetadata.lastSavedByUserId === "string" &&
@@ -65,7 +104,7 @@ function normalizeBlocklyWorkspaceRecord(value, fallback) {
         recoveredAt: value.editorMetadata.recoveredAt,
         revision: value.editorMetadata.revision,
         saveSource: value.editorMetadata.saveSource,
-        workspaceJson: value.workspaceJson,
+        workspaceJson: normalizeBlocklyWorkspaceJson(value.workspaceJson),
     });
 }
 exports.normalizeBlocklyWorkspaceRecord = normalizeBlocklyWorkspaceRecord;
@@ -100,6 +139,6 @@ function compareBlocklyWorkspaceRecords(left, right) {
 exports.compareBlocklyWorkspaceRecords = compareBlocklyWorkspaceRecords;
 function loadBlocklyWorkspace(args) {
     const record = normalizeBlocklyWorkspaceRecord(args.record);
-    args.Blockly.serialization.workspaces.load(record.workspaceJson, args.workspace);
+    args.Blockly.serialization.workspaces.load(normalizeBlocklyWorkspaceJson(record.workspaceJson), args.workspace);
 }
 exports.loadBlocklyWorkspace = loadBlocklyWorkspace;

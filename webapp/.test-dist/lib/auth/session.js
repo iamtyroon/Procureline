@@ -7,7 +7,7 @@ exports.SESSION_EXPIRED_REASON = "session_expired";
 exports.ACCOUNT_DEACTIVATED_REASON = "account_deactivated";
 exports.SUBSCRIPTION_INACTIVE_REASON = "subscription_inactive";
 exports.REMEMBER_ME_STORAGE_KEY = "pendingRememberMe";
-exports.STANDARD_SESSION_INACTIVITY_MS = 1000 * 60 * 60 * 24;
+exports.STANDARD_SESSION_INACTIVITY_MS = 1000 * 60 * 60 * 24 * 15;
 exports.REMEMBER_ME_SESSION_WINDOW_MS = 1000 * 60 * 60 * 24 * 30;
 function getSessionInactivityWindowMs(rememberMe, isPlatformAdminSession = false) {
     if (isPlatformAdminSession) {

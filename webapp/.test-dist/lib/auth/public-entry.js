@@ -191,10 +191,7 @@ function buildInstitutionSignupHref(searchParams) {
 }
 exports.buildInstitutionSignupHref = buildInstitutionSignupHref;
 function buildProcurementOfficerLoginHref(searchParams) {
-    const params = new URLSearchParams();
-    params.set("role", "procurement_officer");
-    appendRecognizedHandoffParams(params, searchParams);
-    return buildPath("/login", params);
+    return buildProcurementOfficerAccessHref(searchParams);
 }
 exports.buildProcurementOfficerLoginHref = buildProcurementOfficerLoginHref;
 function buildProcurementOfficerAccessHref(searchParams) {

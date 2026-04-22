@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
-import { Bell, Building2, CircleAlert } from "lucide-react";
+import { Bell, Building2, CheckCircle2, CircleAlert, FileStack, Users2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { Badge } from "@/components/ui/badge";
@@ -21,10 +21,53 @@ import {
     getRoleLabel,
     shouldTerminateAuthenticatedSession,
 } from "@/lib/auth/roles";
+import { PROCUREMENT_OFFICER_DASHBOARD_QUERY_KEYS } from "@/lib/procurement-officer/dashboard-search";
 import { cn } from "@/lib/utils";
 import { ModeToggle } from "@/src/components/mode-toggle";
 import { RoleGuard } from "@/src/components/auth/RoleGuard";
 import { Spinner } from "@/src/components/ui/Spinner";
+
+function ProcurementHeaderPill({
+    icon,
+    label,
+    value,
+    tone = "neutral",
+}: {
+    icon: React.ReactNode;
+    label: string;
+    value: string;
+    tone?: "neutral" | "positive" | "warning";
+}) {
+    return (
+        <div
+            className={cn(
+                "flex min-w-[8.5rem] items-center gap-2 rounded-full border px-2.5 py-1.5",
+                tone === "positive" && "border-emerald-500/25 bg-emerald-500/10",
+                tone === "warning" && "border-amber-500/25 bg-amber-500/10",
+                tone === "neutral" && "border-border/70 bg-muted/20",
+            )}
+        >
+            <div
+                className={cn(
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
+                    tone === "positive" && "bg-emerald-500/15 text-emerald-500",
+                    tone === "warning" && "bg-amber-500/15 text-amber-500",
+                    tone === "neutral" && "bg-primary/10 text-primary",
+                )}
+            >
+                {icon}
+            </div>
+            <div className="min-w-0">
+                <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    {label}
+                </div>
+                <div className="truncate text-[13px] font-semibold text-foreground">
+                    {value}
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default function AppLayout({
     children,
@@ -33,13 +76,26 @@ export default function AppLayout({
 }) {
     const { signOut } = useAuthActions();
     const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const selectedProcurementFiscalYear =
+        searchParams.get(PROCUREMENT_OFFICER_DASHBOARD_QUERY_KEYS.fiscalYear) ?? undefined;
     const authContext = useQuery(
         api.functions.users.getAuthContext,
         isAuthenticated ? {} : "skip",
     );
     const procurementDashboardSnapshot = useQuery(
         api.functions.procurementOfficerDashboard.getProcurementOfficerDashboardSnapshot,
-        authContext?.role === "procurement_officer" ? {} : "skip",
+        authContext?.role === "procurement_officer"
+            ? {
+                ...(selectedProcurementFiscalYear
+                    ? {
+                        selectedFiscalYear: selectedProcurementFiscalYear,
+                    }
+                    : {}),
+            }
+            : "skip",
     );
     const departmentUserDashboardSnapshot = useQuery(
         api.functions.departmentUserDashboard.getDepartmentUserDashboardSnapshot,
@@ -49,9 +105,6 @@ export default function AppLayout({
         api.functions.sessions.markCurrentSessionLoggedOut,
     );
     const touchCurrentSession = useMutation(api.functions.sessions.touchCurrentSession);
-    const router = useRouter();
-    const pathname = usePathname();
-    const searchParams = useSearchParams();
 
     useEffect(() => {
         if (authLoading) {
@@ -172,11 +225,35 @@ export default function AppLayout({
         authContext.role === "department_user"
             ? (departmentUserDashboardSnapshot?.heroSupport ?? null)
             : null;
+    const procurementRequestPanel =
+        authContext.role === "procurement_officer"
+            ? procurementDashboardSnapshot?.futurePanels.find(
+                (panel) => panel.id === "request_inbox",
+            ) ?? null
+            : null;
+    const procurementSubmittedDepartments =
+        authContext.role === "procurement_officer"
+            ? procurementDashboardSnapshot?.submissionProgress
+                .submittedDepartmentCount ?? 0
+            : 0;
+    const procurementDepartmentScope =
+        authContext.role === "procurement_officer"
+            ? procurementDashboardSnapshot?.submissionProgress
+                .totalDepartmentCount ??
+              procurementDashboardSnapshot?.meta.selectedDepartmentCount ??
+              0
+            : 0;
+    const procurementStatusValue =
+        authContext.role === "procurement_officer"
+            ? procurementAlerts.length > 0
+                ? "Attention needed"
+                : "Online"
+            : null;
 
     return (
         <div className="min-h-screen bg-background">
             <header className="border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-                <div className={cn("px-4 sm:px-6 lg:px-8", departmentUserHeroSupport ? "w-full" : "mx-auto max-w-6xl")}>
+                <div className="w-full px-4 sm:px-6 lg:px-8">
                     {departmentUserHeroSupport ? (
                         <div className="flex h-16 items-center gap-4">
                             <div className="flex shrink-0 items-center gap-3">
@@ -245,16 +322,50 @@ export default function AppLayout({
                             </div>
                         </div>
                     ) : (
-                        <div className="flex h-16 items-center justify-between gap-4">
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
-                                    Procureline Workspace
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                    Signed in as {getRoleLabel(authContext.role)}
-                                </p>
+                        <div className="flex min-h-14 items-center justify-between gap-3 py-2">
+                            <div className="min-w-0">
+                                <div className="min-w-0">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
+                                        Procureline Workspace
+                                    </p>
+                                    <p className="truncate text-sm text-muted-foreground">
+                                        Signed in as {getRoleLabel(authContext.role)}
+                                    </p>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex shrink-0 items-center gap-3">
+                                {authContext.role === "procurement_officer" ? (
+                                    <div className="hidden min-w-0 items-center gap-1.5 xl:flex">
+                                        <ProcurementHeaderPill
+                                            icon={<Users2 className="h-4 w-4" />}
+                                            label="Plans submitted"
+                                            tone={
+                                                procurementDepartmentScope > 0 &&
+                                                    procurementSubmittedDepartments === procurementDepartmentScope
+                                                    ? "positive"
+                                                    : "neutral"
+                                            }
+                                            value={`${procurementSubmittedDepartments}/${procurementDepartmentScope}`}
+                                        />
+                                        <ProcurementHeaderPill
+                                            icon={<FileStack className="h-4 w-4" />}
+                                            label="Pending requests"
+                                            tone={
+                                                procurementRequestPanel?.state === "available"
+                                                    ? "warning"
+                                                    : "neutral"
+                                            }
+                                            value={procurementRequestPanel?.statusLabel ?? "No pending"}
+                                        />
+                                        <ProcurementHeaderPill
+                                            icon={<CheckCircle2 className="h-4 w-4" />}
+                                            label="System status"
+                                            tone={procurementAlerts.length > 0 ? "warning" : "positive"}
+                                            value={procurementStatusValue ?? "Online"}
+                                        />
+                                    </div>
+                                ) : null}
+                                <div className="flex shrink-0 items-center gap-2">
                                 {authContext.role === "procurement_officer" ? (
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
@@ -320,6 +431,7 @@ export default function AppLayout({
                                 >
                                     Log out
                                 </Button>
+                                </div>
                             </div>
                         </div>
                     )}

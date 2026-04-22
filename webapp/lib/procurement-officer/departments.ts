@@ -18,14 +18,14 @@ import {
 export const DEPARTMENT_CODE_MAX_LENGTH = CANONICAL_ACCESS_CODE_MAX_LENGTH;
 export const DEPARTMENT_CODE_EXISTS_MESSAGE = "Department code already exists";
 export const DEPARTMENT_NAME_EXISTS_MESSAGE = "Department name already exists";
+export const DEPARTMENT_VOTE_NUMBER_EXISTS_MESSAGE =
+    "Vote number already exists";
 export const DEPARTMENT_BUDGET_POSITIVE_MESSAGE = "Budget must be a positive number";
 export const DEPARTMENT_NOT_FOUND_MESSAGE = "Department not found";
 export const DEPARTMENT_DELETE_PLANS_MESSAGE =
     "Cannot delete department with submitted plans";
 export const DEPARTMENT_DELETE_DU_MESSAGE =
     "Deactivate assigned Departmental Users before deleting this department.";
-export const DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE =
-    "Use Access Codes to rotate or replace the department code.";
 export const DEPARTMENT_CODE_EMAIL_AFTER_CREATE_MESSAGE =
     "Create the department first, then queue the active code from Access Codes.";
 export const DEPARTMENT_SAVE_GENERIC_ERROR_MESSAGE =
@@ -75,6 +75,7 @@ export interface DepartmentWorkspaceRecord {
     lastUpdatedAt: number;
     name: string;
     planStatuses: DepartmentPlanStatus[];
+    voteNumber: string;
 }
 
 export interface DepartmentWorkspaceRow extends DepartmentWorkspaceRecord {
@@ -96,6 +97,8 @@ export interface DepartmentWorkspaceSummary {
 
 export const DEPARTMENT_NAME_REQUIRED_MESSAGE = "Department name is required";
 export const DEPARTMENT_CODE_REQUIRED_MESSAGE = "Department code is required";
+export const DEPARTMENT_VOTE_NUMBER_REQUIRED_MESSAGE =
+    "Vote number is required";
 export const DEPARTMENT_CODE_FORMAT_MESSAGE = ACCESS_CODE_FORMAT_MESSAGE;
 
 const TIER_LABELS: Record<DepartmentTier, string> = {
@@ -126,6 +129,10 @@ export function normalizeDepartmentCode(input: string): string {
     return normalizeCanonicalDepartmentAccessCode(input);
 }
 
+export function normalizeDepartmentVoteNumber(input: string): string {
+    return normalizePlainText(input).toUpperCase();
+}
+
 export function validateDepartmentCode(code: string): DepartmentCodeValidationResult {
     return validateCanonicalDepartmentAccessCode(code);
 }
@@ -136,11 +143,13 @@ export const departmentFormSchema = z
         budgetAllocation: z.coerce.number(),
         code: z.string(),
         name: z.string(),
+        voteNumber: z.string(),
     })
     .superRefine((value, ctx) => {
         const adminEmail = normalizeAuthEmail(value.adminEmail ?? "");
         const normalizedName = normalizeDepartmentName(value.name);
         const normalizedCode = normalizeDepartmentCode(value.code);
+        const normalizedVoteNumber = normalizeDepartmentVoteNumber(value.voteNumber);
         const codeValidation = validateDepartmentCode(normalizedCode);
 
         if (adminEmail.length > 0) {
@@ -159,6 +168,14 @@ export const departmentFormSchema = z
                 code: z.ZodIssueCode.custom,
                 message: DEPARTMENT_NAME_REQUIRED_MESSAGE,
                 path: ["name"],
+            });
+        }
+
+        if (normalizedVoteNumber.length === 0) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: DEPARTMENT_VOTE_NUMBER_REQUIRED_MESSAGE,
+                path: ["voteNumber"],
             });
         }
 
@@ -192,6 +209,7 @@ export const departmentFormSchema = z
         const adminEmail = normalizeAuthEmail(value.adminEmail ?? "");
         const code = normalizeDepartmentCode(value.code);
         const name = normalizePlainText(value.name);
+        const voteNumber = normalizeDepartmentVoteNumber(value.voteNumber);
 
         return {
             adminEmail: adminEmail.length > 0 ? adminEmail : undefined,
@@ -200,6 +218,8 @@ export const departmentFormSchema = z
             name,
             normalizedCode: code,
             normalizedName: normalizeDepartmentName(name),
+            normalizedVoteNumber: voteNumber,
+            voteNumber,
         };
     });
 
@@ -209,8 +229,8 @@ export function getDepartmentCodeFieldDescription(args: {
     isCreateMode: boolean;
 }): string {
     return args.isCreateMode
-        ? "Generate a canonical code now, then manage future rotation, deactivation, and delivery from Access Codes."
-        : "Department code changes are managed from Access Codes so the active DU sign-in code stays in sync.";
+        ? "Generate the DU access code now, or enter the canonical department code manually before creating the department."
+        : "Update the department code here if the DU access identifier changes. Generate a new canonical code or enter one manually.";
 }
 
 export function formatDepartmentBudget(amount: number): string {
@@ -245,12 +265,16 @@ export function getDepartmentCrudErrorMessage(error: unknown): string {
     if (
         [
             DEPARTMENT_BUDGET_POSITIVE_MESSAGE,
-            DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE,
+            DEPARTMENT_CODE_FORMAT_MESSAGE,
             DEPARTMENT_CODE_EXISTS_MESSAGE,
+            DEPARTMENT_CODE_REQUIRED_MESSAGE,
             DEPARTMENT_DELETE_DU_MESSAGE,
             DEPARTMENT_DELETE_PLANS_MESSAGE,
             DEPARTMENT_NAME_EXISTS_MESSAGE,
+            DEPARTMENT_NAME_REQUIRED_MESSAGE,
             DEPARTMENT_NOT_FOUND_MESSAGE,
+            DEPARTMENT_VOTE_NUMBER_EXISTS_MESSAGE,
+            DEPARTMENT_VOTE_NUMBER_REQUIRED_MESSAGE,
         ].includes(message)
     ) {
         return message;

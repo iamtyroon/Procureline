@@ -153,7 +153,7 @@ export function mapDepartmentDepartmentRecord(department: Doc<"departments">) {
         code: department.code,
         id: String(department._id),
         name: department.name,
-        voteNumber: department.code,
+        voteNumber: department.voteNumber ?? department.code,
     };
 }
 

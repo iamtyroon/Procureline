@@ -20,13 +20,14 @@ import {
     buildDepartmentWorkspaceSummary,
     DEPARTMENT_CODE_EMAIL_AFTER_CREATE_MESSAGE,
     DEPARTMENT_CODE_EXISTS_MESSAGE,
-    DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE,
     DEPARTMENT_DELETE_DU_MESSAGE,
     DEPARTMENT_DELETE_PLANS_MESSAGE,
     DEPARTMENT_NAME_EXISTS_MESSAGE,
     DEPARTMENT_NOT_FOUND_MESSAGE,
+    DEPARTMENT_VOTE_NUMBER_EXISTS_MESSAGE,
     departmentFormSchema,
     normalizeDepartmentCode,
+    normalizeDepartmentVoteNumber,
     type DepartmentPlanStatus,
 } from "../../lib/procurement-officer/departments";
 import { buildCanonicalDepartmentAccessCode } from "../../lib/procurement-officer/access-codes";
@@ -139,6 +140,7 @@ export const getDepartmentsWorkspace = query({
                     planStatuses: plans
                         .filter((plan) => plan.departmentId === department._id)
                         .map((plan) => plan.status as DepartmentPlanStatus),
+                    voteNumber: department.voteNumber ?? department.code,
                 };
             }),
             now,
@@ -181,6 +183,7 @@ export const getDepartmentsWorkspace = query({
                     )
                         ? "configured"
                         : "setup_required",
+                voteNumber: row.voteNumber,
             })),
         };
     },
@@ -191,6 +194,7 @@ export const createDepartment = mutation({
         budgetAllocation: v.number(),
         code: v.string(),
         name: v.string(),
+        voteNumber: v.string(),
     },
     handler: async (ctx, args) => {
         const { authContext, tenant, tenantUser } = await loadDepartmentMutationContext(ctx);
@@ -199,6 +203,7 @@ export const createDepartment = mutation({
         await assertDepartmentUnique(ctx, {
             normalizedCode: parsed.normalizedCode,
             normalizedName: parsed.normalizedName,
+            normalizedVoteNumber: parsed.normalizedVoteNumber,
             tenantId: authContext.tenantId,
         });
         await assertDepartmentTierCapacity(ctx, {
@@ -215,9 +220,11 @@ export const createDepartment = mutation({
             name: parsed.name,
             normalizedCode: parsed.normalizedCode,
             normalizedName: parsed.normalizedName,
+            normalizedVoteNumber: parsed.normalizedVoteNumber,
             procurementOfficerTenantUserId: tenantUser._id,
             tenantId: authContext.tenantId,
             updatedAt: now,
+            voteNumber: parsed.voteNumber,
         });
 
         await appendAuditLogRequired(
@@ -231,6 +238,7 @@ export const createDepartment = mutation({
                     budgetAllocation: parsed.budgetAllocation,
                     departmentCode: parsed.code,
                     departmentName: parsed.name,
+                    voteNumber: parsed.voteNumber,
                     summary: `Created department ${parsed.name}.`,
                 },
                 tenantId: authContext.tenantId,
@@ -249,6 +257,7 @@ export const updateDepartment = mutation({
         code: v.string(),
         departmentId: departmentIdValidator,
         name: v.string(),
+        voteNumber: v.string(),
     },
     handler: async (ctx, args) => {
         const { authContext, tenantUser } = await loadDepartmentMutationContext(ctx);
@@ -258,18 +267,11 @@ export const updateDepartment = mutation({
         });
         const parsed = parseDepartmentInput(args);
 
-        if (parsed.normalizedCode !== department.normalizedCode) {
-            throw new ConvexError({
-                code: "VALIDATION_FAILED",
-                field: "code",
-                message: DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE,
-            });
-        }
-
         await assertDepartmentUnique(ctx, {
             excludeDepartmentId: args.departmentId,
             normalizedCode: parsed.normalizedCode,
             normalizedName: parsed.normalizedName,
+            normalizedVoteNumber: parsed.normalizedVoteNumber,
             tenantId: authContext.tenantId,
         });
 
@@ -285,7 +287,9 @@ export const updateDepartment = mutation({
             name: parsed.name,
             normalizedCode: parsed.normalizedCode,
             normalizedName: parsed.normalizedName,
+            normalizedVoteNumber: parsed.normalizedVoteNumber,
             updatedAt: now,
+            voteNumber: parsed.voteNumber,
         });
 
         const auditEntries = [
@@ -298,6 +302,7 @@ export const updateDepartment = mutation({
                     budgetAllocation: parsed.budgetAllocation,
                     departmentCode: parsed.code,
                     departmentName: parsed.name,
+                    voteNumber: parsed.voteNumber,
                     summary: `Updated department ${parsed.name}.`,
                 },
                 tenantId: authContext.tenantId,
@@ -541,6 +546,7 @@ function parseDepartmentInput(args: {
     budgetAllocation: number;
     code: string;
     name: string;
+    voteNumber: string;
 }) {
     const result = departmentFormSchema.safeParse(args);
 
@@ -565,10 +571,11 @@ async function assertDepartmentUnique(
         excludeDepartmentId?: Id<"departments">;
         normalizedCode: string;
         normalizedName: string;
+        normalizedVoteNumber: string;
         tenantId: Id<"tenants">;
     },
 ) {
-    const [codeMatches, nameMatches] = await Promise.all([
+    const [codeMatches, nameMatches, tenantDepartments] = await Promise.all([
         ctx.db
             .query("departments")
             .withIndex("by_tenantId_normalizedCode", (q) =>
@@ -580,6 +587,10 @@ async function assertDepartmentUnique(
             .withIndex("by_tenantId_normalizedName", (q) =>
                 q.eq("tenantId", args.tenantId).eq("normalizedName", args.normalizedName),
             )
+            .collect(),
+        ctx.db
+            .query("departments")
+            .withIndex("by_tenantId", (q) => q.eq("tenantId", args.tenantId))
             .collect(),
     ]);
 
@@ -608,6 +619,20 @@ async function assertDepartmentUnique(
             code: "ALREADY_EXISTS",
             field: "name",
             message: DEPARTMENT_NAME_EXISTS_MESSAGE,
+        });
+    }
+
+    const hasVoteNumberConflict = tenantDepartments.some(
+        (department) =>
+            isActiveDepartment(department) &&
+            (args.excludeDepartmentId ? department._id !== args.excludeDepartmentId : true) &&
+            getComparableNormalizedVoteNumber(department) === args.normalizedVoteNumber,
+    );
+    if (hasVoteNumberConflict) {
+        throw new ConvexError({
+            code: "ALREADY_EXISTS",
+            field: "voteNumber",
+            message: DEPARTMENT_VOTE_NUMBER_EXISTS_MESSAGE,
         });
     }
 }
@@ -765,4 +790,14 @@ function getComparableNormalizedName(
     department: Pick<DepartmentRecord, "name" | "normalizedName">,
 ): string {
     return department.normalizedName;
+}
+
+function getComparableNormalizedVoteNumber(
+    department: Pick<
+        DepartmentRecord,
+        "code" | "normalizedVoteNumber" | "voteNumber"
+    >,
+): string {
+    return department.normalizedVoteNumber ??
+        normalizeDepartmentVoteNumber(department.voteNumber ?? department.code);
 }

@@ -54,7 +54,7 @@ function runBlocklyWorkspacePersistenceTests() {
     strict_1.default.equal((0, workspace_draft_queue_1.getDepartmentUserWorkspaceSaveIndicatorLabel)({
         indicatorState: "queued",
         lastSavedAt: null,
-    }), "Saved locally. Sync pending.");
+    }), "Saved locally");
     strict_1.default.equal((0, workspace_draft_queue_1.getDepartmentUserWorkspaceSaveIndicatorLabel)({
         blockedMessage: "Another tab owns this draft.",
         indicatorState: "blocked",
@@ -89,6 +89,8 @@ function runBlocklyWorkspacePersistenceTests() {
         message: "Refresh before replaying older changes.",
         stopRetry: true,
     });
+    strict_1.default.equal((0, workspace_draft_queue_1.parseDepartmentUserWorkspaceSaveFailure)(new Error("Network connection dropped")).message, "Network connection dropped");
+    strict_1.default.equal((0, workspace_draft_queue_1.parseDepartmentUserWorkspaceSaveFailure)(new Error('Document(value: { workspaceJson: { blocks: { blocks: [{ id: "abc" }] } } }) is too nested')).message, "Cloud save failed. Your local draft is still available in this browser.");
     strict_1.default.equal((0, workspace_draft_queue_1.parseDepartmentUserWorkspaceSaveFailure)(new Error("Network connection dropped")).stopRetry, false);
     completedTests.push("save failure parsing distinguishes stale-revision conflicts from transient retryable sync failures");
     strict_1.default.equal((0, workspace_save_1.isDepartmentUserWorkspaceDraftStale)({

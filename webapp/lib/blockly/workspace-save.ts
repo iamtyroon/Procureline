@@ -1,4 +1,6 @@
 import {
+    areBlocklyWorkspaceJsonEquivalent,
+    createPersistedBlocklyWorkspaceRecord,
     isBlocklyWorkspaceRecord,
     normalizeBlocklyWorkspaceRecord,
     serializeBlocklyWorkspace,
@@ -129,8 +131,10 @@ export function isDepartmentUserWorkspaceDraftStale(args: {
     }
 
     return (
-        JSON.stringify(args.incomingWorkspaceState.workspaceJson) !==
-            JSON.stringify(persistedWorkspaceState.workspaceJson) ||
+        !areBlocklyWorkspaceJsonEquivalent(
+            args.incomingWorkspaceState.workspaceJson,
+            persistedWorkspaceState.workspaceJson,
+        ) ||
         args.incomingWorkspaceState.editorMetadata.saveSource !==
             persistedWorkspaceState.editorMetadata.saveSource ||
         args.incomingWorkspaceState.editorMetadata.recoveredAt !==
@@ -174,7 +178,7 @@ export function buildDepartmentUserWorkspaceDraftSaveInput(args: {
         itemCount: args.summary?.totalItemCount ?? 0,
         planId: args.planId,
         selectedCategoryIds: args.selectedCategoryIds,
-        workspaceState: args.workspaceState,
+        workspaceState: createPersistedBlocklyWorkspaceRecord(args.workspaceState),
     };
 }
 
@@ -391,7 +395,9 @@ export function prepareDepartmentUserWorkspaceDraftPersistence<
             itemCount: Math.max(0, persistencePatch.itemCount),
             selectedCategoryIds,
             updatedAt: savedAt,
-            workspaceState: persistencePatch.workspaceState,
+            workspaceState: createPersistedBlocklyWorkspaceRecord(
+                persistencePatch.workspaceState,
+            ),
         },
     };
 }

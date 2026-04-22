@@ -77,7 +77,7 @@ export function runBlocklyWorkspacePersistenceTests(): string[] {
             indicatorState: "queued",
             lastSavedAt: null,
         }),
-        "Saved locally. Sync pending.",
+        "Saved locally",
     );
     assert.equal(
         getDepartmentUserWorkspaceSaveIndicatorLabel({
@@ -133,6 +133,20 @@ export function runBlocklyWorkspacePersistenceTests(): string[] {
             message: "Refresh before replaying older changes.",
             stopRetry: true,
         },
+    );
+    assert.equal(
+        parseDepartmentUserWorkspaceSaveFailure(
+            new Error("Network connection dropped"),
+        ).message,
+        "Network connection dropped",
+    );
+    assert.equal(
+        parseDepartmentUserWorkspaceSaveFailure(
+            new Error(
+                'Document(value: { workspaceJson: { blocks: { blocks: [{ id: "abc" }] } } }) is too nested',
+            ),
+        ).message,
+        "Cloud save failed. Your local draft is still available in this browser.",
     );
     assert.equal(
         parseDepartmentUserWorkspaceSaveFailure(

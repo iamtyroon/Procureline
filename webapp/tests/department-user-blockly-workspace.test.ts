@@ -750,7 +750,7 @@ export async function runDepartmentUserBlocklyWorkspaceTests(): Promise<string[]
     assert.deepEqual(editInjectionOptions.move, {
         drag: true,
         scrollbars: true,
-        wheel: true,
+        wheel: false,
     });
     assert.equal(editInjectionOptions.zoom.maxScale, 1.8);
     assert.equal(editInjectionOptions.zoom.minScale, 0.4);
@@ -760,9 +760,9 @@ export async function runDepartmentUserBlocklyWorkspaceTests(): Promise<string[]
     assert.deepEqual(viewInjectionOptions.move, {
         drag: true,
         scrollbars: true,
-        wheel: true,
+        wheel: false,
     });
-    completedTests.push("workspace injection options now keep read-only plans non-destructive while preserving native toolbox browsing and panning affordances");
+    completedTests.push("workspace injection options now keep read-only plans non-destructive while preventing wheel-driven canvas jumps that made the editor feel unstable");
 
     const workspaceState = createBlocklyWorkspaceRecord({
         lastSavedAt: 100,
@@ -952,6 +952,7 @@ export async function runDepartmentUserBlocklyWorkspaceTests(): Promise<string[]
         workspaceState,
     });
     assert.equal(draftSaveInput.estimatedBudgetUsed, 260_000);
+    assert.equal(typeof draftSaveInput.workspaceState.workspaceJson, "string");
 
     const derivedPersistenceSummary = deriveDepartmentUserWorkspaceDraftPersistenceSummary({
         categories: [{ id: "cat-it", name: "ICT Equipment" }],

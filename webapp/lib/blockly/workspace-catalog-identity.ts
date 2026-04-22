@@ -1,3 +1,4 @@
+import { parseBlocklyWorkspaceJson } from "./blockly-serialization";
 import { serializeProcurementComplianceFlags } from "../procurement/compliance";
 
 interface BlocklyConnectionLike {
@@ -116,11 +117,14 @@ function getSerializedNextBlock(
 }
 
 function getSerializedTopBlocks(
-    workspaceJson: Record<string, unknown> | null | undefined,
+    workspaceJson: Record<string, unknown> | string | null | undefined,
 ): SerializedBlocklyBlock[] {
+    const normalizedWorkspaceJson = parseBlocklyWorkspaceJson(workspaceJson);
     const blocksRecord =
-        workspaceJson && typeof workspaceJson.blocks === "object" && workspaceJson.blocks !== null
-            ? (workspaceJson.blocks as Record<string, unknown>)
+        normalizedWorkspaceJson &&
+        typeof normalizedWorkspaceJson.blocks === "object" &&
+        normalizedWorkspaceJson.blocks !== null
+            ? (normalizedWorkspaceJson.blocks as Record<string, unknown>)
             : null;
     const blocks = blocksRecord?.blocks;
 
@@ -228,7 +232,7 @@ export function collectDepartmentUserWorkspaceSourceUsage(args: {
     categories: DepartmentUserCatalogCategory[];
     items: DepartmentUserCatalogItem[];
     workspaceState: {
-        workspaceJson?: Record<string, unknown> | null;
+        workspaceJson?: Record<string, unknown> | string | null;
     } | null | undefined;
 }): DepartmentUserWorkspaceSourceUsage {
     const topBlocks = getSerializedTopBlocks(args.workspaceState?.workspaceJson);

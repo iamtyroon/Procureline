@@ -111,7 +111,6 @@ function runDepartmentUserDashboardTests() {
             status: "No Plan",
         }),
         hasCanonicalPlan: false,
-        selectedCategoryCount: 0,
     });
     const readyLaunchpad = (0, dashboard_1.deriveLaunchpadState)({
         accessMode: "editable",
@@ -124,12 +123,55 @@ function runDepartmentUserDashboardTests() {
             status: "No Plan",
         }),
         hasCanonicalPlan: false,
-        selectedCategoryCount: 2,
     });
     strict_1.default.equal(setupLaunchpad.disabledReason, "No budget allocated. Contact your Procurement Officer.");
     strict_1.default.equal(setupLaunchpad.primaryAction.disabled, true);
     strict_1.default.equal(readyLaunchpad.primaryAction.disabled, false);
-    completedTests.push("department-user launchpad gating disables creation when budget or catalog truth is missing and only enables the CTA once setup is genuinely ready");
+    completedTests.push("department-user launchpad gating disables creation when budget or catalog truth is missing and otherwise leaves ready-state selection handling to the client");
+    const staleSelectionLaunchpad = (0, dashboard_1.deriveLaunchpadInteractivity)({
+        canSelectCategories: true,
+        disabledReason: "Select at least one category to start planning.",
+        primaryAction: {
+            disabled: true,
+            href: "/du/plans/new",
+            kind: "create",
+            label: "Start Your Plan",
+        },
+        selectedCategoryCount: 2,
+        state: "available",
+    });
+    const emptySelectionLaunchpad = (0, dashboard_1.deriveLaunchpadInteractivity)({
+        canSelectCategories: true,
+        disabledReason: null,
+        primaryAction: {
+            disabled: false,
+            href: "/du/plans/new",
+            kind: "create",
+            label: "Start Your Plan",
+        },
+        selectedCategoryCount: 0,
+        state: "available",
+    });
+    const readOnlyLaunchpadInteractivity = (0, dashboard_1.deriveLaunchpadInteractivity)({
+        canSelectCategories: true,
+        disabledReason: "Submission deadline has passed. Your plan is now read-only.",
+        primaryAction: {
+            disabled: true,
+            href: "/du/plans/new",
+            kind: "create",
+            label: "Start Your Plan",
+        },
+        selectedCategoryCount: 2,
+        state: "read_only",
+    });
+    strict_1.default.equal(staleSelectionLaunchpad.disabled, false);
+    strict_1.default.equal(staleSelectionLaunchpad.disabledReason, null);
+    strict_1.default.equal(staleSelectionLaunchpad.statusLabel, "Ready to launch");
+    strict_1.default.equal(emptySelectionLaunchpad.disabled, true);
+    strict_1.default.equal(emptySelectionLaunchpad.disabledReason, "Select at least one category to start planning.");
+    strict_1.default.equal(readOnlyLaunchpadInteractivity.disabled, true);
+    strict_1.default.equal(readOnlyLaunchpadInteractivity.disabledReason, "Submission deadline has passed. Your plan is now read-only.");
+    completedTests.push("department-user launchpad interactivity now clears stale no-selection blocking once live category picks exist while preserving read-only blocking states");
     const truthfulSnapshot = (0, dashboard_snapshot_1.buildDepartmentUserDashboardSnapshot)({
         announcements: [],
         auth: {

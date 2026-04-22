@@ -66,6 +66,7 @@ interface DepartmentWorkspaceRow {
     planningStateLabel: string;
     planStatuses: string[];
     submissionWindowState: "configured" | "setup_required";
+    voteNumber: string;
 }
 
 interface DepartmentWorkspaceData {
@@ -133,6 +134,7 @@ export function ProcurementOfficerDepartmentsWorkspace(): JSX.Element {
                     code: values.code,
                     departmentId: formDepartment.id as any,
                     name: values.name,
+                    voteNumber: values.voteNumber,
                 });
                 toast.success("Department updated.");
             } else {
@@ -140,6 +142,7 @@ export function ProcurementOfficerDepartmentsWorkspace(): JSX.Element {
                     budgetAllocation: values.budgetAllocation,
                     code: values.code,
                     name: values.name,
+                    voteNumber: values.voteNumber,
                 });
                 toast.success("Department created.");
             }
@@ -218,6 +221,7 @@ export function ProcurementOfficerDepartmentsWorkspace(): JSX.Element {
             id: row.id,
             name: row.name,
             planningImpactWarning: row.planningImpactWarning,
+            voteNumber: row.voteNumber,
         });
         setIsFormOpen(true);
     }
@@ -328,8 +332,11 @@ export function ProcurementOfficerDepartmentsWorkspace(): JSX.Element {
                                     <tr key={row.id} className="border-t border-border/60 align-top">
                                         <td className="px-5 py-4">
                                             <div className="font-semibold text-foreground">{row.name}</div>
+                                            <div className="mt-1 text-xs text-muted-foreground">
+                                                Vote #: {row.voteNumber}
+                                            </div>
                                             <div className="mt-1 text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                                                {row.code}
+                                                Code: {row.code}
                                             </div>
                                         </td>
                                         <td className="px-5 py-4 text-foreground">

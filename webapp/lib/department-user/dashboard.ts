@@ -60,6 +60,12 @@ export interface DepartmentUserLaunchpadState {
     state: DepartmentUserDashboardState;
 }
 
+export interface DepartmentUserLaunchpadInteractivity {
+    disabled: boolean;
+    disabledReason: string | null;
+    statusLabel: string;
+}
+
 export interface DepartmentUserAnnouncement {
     id: string;
     message: string;
@@ -294,7 +300,6 @@ export function deriveLaunchpadState(args: {
     deadlineHelperText?: string;
     deadlineState?: DepartmentUserDashboardState;
     hasCanonicalPlan: boolean;
-    selectedCategoryCount: number;
 }): DepartmentUserLaunchpadState {
     if (args.hasCanonicalPlan) {
         return {
@@ -361,18 +366,6 @@ export function deriveLaunchpadState(args: {
         };
     }
 
-    if (args.selectedCategoryCount === 0) {
-        return {
-            canSelectCategories: true,
-            disabledReason: "Select at least one category to start planning.",
-            primaryAction: {
-                ...args.currentPlanAction,
-                disabled: true,
-            },
-            state: "available",
-        };
-    }
-
     return {
         canSelectCategories: true,
         disabledReason: null,
@@ -381,6 +374,58 @@ export function deriveLaunchpadState(args: {
             disabled: false,
         },
         state: "available",
+    };
+}
+
+export function deriveLaunchpadInteractivity(args: {
+    canSelectCategories: boolean;
+    disabledReason: string | null;
+    primaryAction: DepartmentUserPlanAction;
+    selectedCategoryCount: number;
+    state: DepartmentUserDashboardState;
+}): DepartmentUserLaunchpadInteractivity {
+    const requiresSelection =
+        args.primaryAction.kind === "create" &&
+        args.canSelectCategories &&
+        args.state === "available" &&
+        args.selectedCategoryCount === 0;
+
+    if (requiresSelection) {
+        return {
+            disabled: true,
+            disabledReason: "Select at least one category to start planning.",
+            statusLabel: "Select categories to enable launch",
+        };
+    }
+
+    if (!args.canSelectCategories) {
+        return {
+            disabled: args.primaryAction.disabled,
+            disabledReason: args.disabledReason,
+            statusLabel: "Waiting for setup",
+        };
+    }
+
+    if (args.primaryAction.kind === "create" && args.state === "available") {
+        return {
+            disabled: false,
+            disabledReason: null,
+            statusLabel: "Ready to launch",
+        };
+    }
+
+    if (args.primaryAction.disabled) {
+        return {
+            disabled: true,
+            disabledReason: args.disabledReason,
+            statusLabel: "Launch unavailable",
+        };
+    }
+
+    return {
+        disabled: false,
+        disabledReason: null,
+        statusLabel: "Ready to launch",
     };
 }
 

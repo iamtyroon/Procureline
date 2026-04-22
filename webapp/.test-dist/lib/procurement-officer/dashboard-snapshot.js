@@ -62,6 +62,22 @@ function buildProcurementOfficerDashboardSnapshot(args) {
         plans: args.plans ?? [],
         selectedFiscalYear,
     });
+    const submissionProgress = buildSubmissionProgress({
+        departmentIdsInScope,
+        departmentCount: departmentsInScope.length,
+        plans: args.plans ?? [],
+        selectedFiscalYear,
+    });
+    const organizationOverview = buildOrganizationOverview({
+        activeItemCount: args.activeItemCount ?? 0,
+        activeUserCount: args.departmentUserProfiles.filter((profile) => profile.isActive && profile.deactivatedAt == null).length,
+        departmentCount: departmentsInScope.length,
+        departmentIdsInScope,
+        departments: departmentsInScope,
+        plans: args.plans ?? [],
+        selectedFiscalYear,
+        tenantBudgetCeiling: args.tenantBudgetCeiling ?? null,
+    });
     return {
         alerts: buildAlerts({
             sharedDeadline,
@@ -88,6 +104,8 @@ function buildProcurementOfficerDashboardSnapshot(args) {
                     departmentIdsInScope.has(profile.departmentId))
                     .map((profile) => profile.departmentId),
             }),
+            plans: args.plans ?? [],
+            selectedFiscalYear,
             sharedDeadline,
         }),
         fiscalYears: {
@@ -106,6 +124,7 @@ function buildProcurementOfficerDashboardSnapshot(args) {
             selectedFiscalYear,
             sharedDeadline,
         }),
+        organizationOverview,
         meta: {
             activeDepartmentCount: activeDepartments.length,
             generatedAt: args.now,
@@ -114,6 +133,7 @@ function buildProcurementOfficerDashboardSnapshot(args) {
             tenantId: args.tenant.id,
             tenantName: args.tenant.name,
         },
+        submissionProgress,
         setupChecklist: (0, dashboard_1.deriveProcurementChecklist)({
             accessCodeCoverage,
             departmentCount: departmentsInScope.length,
@@ -215,7 +235,7 @@ function buildHero(args) {
             },
             secondaryAction: {
                 href: "/po/departments",
-                label: "Open departments",
+                label: "Add department",
                 state: "available",
             },
             state: "setup_required",
@@ -227,7 +247,7 @@ function buildHero(args) {
         eyebrow: (0, dashboard_1.formatProcurementFiscalYearLabel)(args.selectedFiscalYear),
         primaryAction: {
             href: "/po/departments",
-            label: "Open departments",
+            label: "Add department",
             state: "available",
         },
         secondaryAction: {
@@ -339,9 +359,13 @@ function buildDepartmentReadiness(args) {
             summary: "No departments are configured yet.",
         };
     }
+    const plansByDepartmentId = new Map(args.plans
+        .filter((plan) => plan.fiscalYear === args.selectedFiscalYear)
+        .map((plan) => [plan.departmentId, plan]));
     const items = [...args.departments]
         .sort((left, right) => left.name.localeCompare(right.name))
         .map((department) => {
+        const departmentPlan = plansByDepartmentId.get(department.id) ?? null;
         const accessCodeReady = args.accessCodeDepartmentIds.has(department.id);
         const departmentUserReady = args.departmentUserIds.has(department.id);
         const deadlineReady = (0, dashboard_1.isValidDepartmentWindow)(department);
@@ -372,12 +396,17 @@ function buildDepartmentReadiness(args) {
             blockers.push("Awaiting one shared tenant-wide deadline.");
         }
         const overallState = blockers.length === 0 ? "available" : "setup_required";
+        const budgetStatus = resolveDepartmentBudgetStatus({
+            budgetAllocation: department.budgetAllocation ?? null,
+            estimatedBudgetUsed: departmentPlan?.estimatedBudgetUsed ?? null,
+        });
         return {
             accessCode: {
                 label: accessCodeReady ? "Ready" : "Setup required",
                 state: accessCodeState,
             },
             blockerSummary: blockers[0] ?? "Ready for Departmental Users.",
+            budgetStatus,
             code: department.code,
             deadline: {
                 label: deadlineReady ? "Window set" : "Setup required",
@@ -391,6 +420,7 @@ function buildDepartmentReadiness(args) {
             name: department.name,
             overallState,
             progressValue,
+            voteNumber: department.voteNumber,
         };
     });
     return {
@@ -399,6 +429,35 @@ function buildDepartmentReadiness(args) {
         summary: args.sharedDeadline.state === "available"
             ? "Department readiness reflects access codes, DU coverage, and deadline setup."
             : "Department readiness is visible, but the shared deadline still needs honest setup.",
+    };
+}
+function resolveDepartmentBudgetStatus(args) {
+    const budgetAllocation = typeof args.budgetAllocation === "number" && args.budgetAllocation > 0
+        ? args.budgetAllocation
+        : null;
+    if (budgetAllocation === null) {
+        return {
+            label: "Budget not set",
+            state: "setup_required",
+        };
+    }
+    if (typeof args.estimatedBudgetUsed !== "number") {
+        return {
+            label: "Awaiting plan submission",
+            state: "empty",
+        };
+    }
+    const usedBudget = Math.max(0, args.estimatedBudgetUsed);
+    const utilizationPercent = Math.round((usedBudget / budgetAllocation) * 100);
+    if (usedBudget > budgetAllocation) {
+        return {
+            label: `Over budget (${utilizationPercent}%)`,
+            state: "setup_required",
+        };
+    }
+    return {
+        label: `Within budget (${utilizationPercent}%)`,
+        state: "available",
     };
 }
 function buildFuturePanels(args) {
@@ -486,4 +545,81 @@ function buildFuturePanels(args) {
             statusLabel: "Future workflow",
         },
     ];
+}
+function buildSubmissionProgress(args) {
+    if (args.departmentCount === 0) {
+        return {
+            helperText: "Departments must exist before submission progress can be tracked truthfully.",
+            state: "empty",
+            submittedDepartmentCount: 0,
+            totalDepartmentCount: 0,
+            utilizationPercent: 0,
+        };
+    }
+    const submittedDepartmentCount = new Set(args.plans
+        .filter((plan) => plan.fiscalYear === args.selectedFiscalYear &&
+        args.departmentIdsInScope.has(plan.departmentId))
+        .map((plan) => plan.departmentId)).size;
+    const utilizationPercent = Math.max(0, Math.min(100, Math.round((submittedDepartmentCount / args.departmentCount) * 100)));
+    let helperText = "Submission tracking is live for the selected fiscal year.";
+    if (submittedDepartmentCount === 0) {
+        helperText =
+            "No departments have submitted a plan yet. This bar moves only when a departmental plan enters the live submission queue.";
+    }
+    else if (submittedDepartmentCount < args.departmentCount) {
+        const remainingCount = args.departmentCount - submittedDepartmentCount;
+        helperText = `${remainingCount} department${remainingCount === 1 ? "" : "s"} still need to submit their plan for this fiscal year.`;
+    }
+    else {
+        helperText =
+            "All in-scope departments have submitted plans for the selected fiscal year.";
+    }
+    return {
+        helperText,
+        state: submittedDepartmentCount > 0 ? "available" : "empty",
+        submittedDepartmentCount,
+        totalDepartmentCount: args.departmentCount,
+        utilizationPercent,
+    };
+}
+function buildOrganizationOverview(args) {
+    const usedBudget = args.plans
+        .filter((plan) => plan.fiscalYear === args.selectedFiscalYear &&
+        args.departmentIdsInScope.has(plan.departmentId))
+        .reduce((total, plan) => total + Math.max(0, plan.estimatedBudgetUsed), 0);
+    const fallbackBudget = args.departments.reduce((total, department) => total + Math.max(0, department.budgetAllocation ?? 0), 0);
+    const totalBudget = typeof args.tenantBudgetCeiling === "number" && args.tenantBudgetCeiling > 0
+        ? args.tenantBudgetCeiling
+        : fallbackBudget;
+    const budgetState = totalBudget > 0 ? "available" : "empty";
+    const utilizationPercent = totalBudget > 0
+        ? Math.max(0, Math.round((usedBudget / totalBudget) * 100))
+        : 0;
+    return {
+        activeDepartmentCount: args.departmentCount,
+        activeUserCount: args.activeUserCount,
+        budget: {
+            state: budgetState,
+            totalBudget,
+            totalBudgetLabel: totalBudget > 0
+                ? formatProcurementBudget(totalBudget)
+                : "--",
+            usedBudget,
+            usedBudgetLabel: usedBudget > 0
+                ? formatProcurementBudget(usedBudget)
+                : "--",
+            utilizationPercent,
+        },
+        totalItemCount: args.activeItemCount,
+    };
+}
+function formatProcurementBudget(amount) {
+    const absAmount = Math.abs(amount);
+    if (absAmount >= 1_000_000) {
+        return `KES ${(amount / 1_000_000).toFixed(1)}M`;
+    }
+    if (absAmount >= 1_000) {
+        return `KES ${(amount / 1_000).toFixed(1)}K`;
+    }
+    return `KES ${amount.toFixed(0)}`;
 }

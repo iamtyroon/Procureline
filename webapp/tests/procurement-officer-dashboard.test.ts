@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { getProtectedRouteRole } from "../lib/auth/roles";
 import { PROCUREMENT_OFFICER_DASHBOARD_QUERY_KEYS } from "../lib/procurement-officer/dashboard-search";
 import {
@@ -120,6 +122,7 @@ export function runProcurementOfficerDashboardTests(): string[] {
         name: "Finance",
         submissionEndsAt: Date.UTC(2026, 7, 20, 12, 0, 0),
         submissionStartsAt: Date.UTC(2026, 7, 1, 12, 0, 0),
+        voteNumber: "FIN-2026-Q1",
       },
       {
         code: "ICT",
@@ -128,6 +131,7 @@ export function runProcurementOfficerDashboardTests(): string[] {
         name: "ICT",
         submissionEndsAt: Date.UTC(2026, 7, 20, 12, 0, 0),
         submissionStartsAt: Date.UTC(2026, 7, 1, 12, 0, 0),
+        voteNumber: "ICT-2026-Q1",
       },
       {
         code: "HR",
@@ -136,6 +140,7 @@ export function runProcurementOfficerDashboardTests(): string[] {
         name: "Human Resources",
         submissionEndsAt: Date.UTC(2026, 7, 24, 12, 0, 0),
         submissionStartsAt: Date.UTC(2026, 7, 1, 12, 0, 0),
+        voteNumber: "HR-2026-Q1",
       },
       {
         code: "ARCHIVE",
@@ -144,6 +149,7 @@ export function runProcurementOfficerDashboardTests(): string[] {
         name: "Archived",
         submissionEndsAt: Date.UTC(2026, 7, 20, 12, 0, 0),
         submissionStartsAt: Date.UTC(2026, 7, 1, 12, 0, 0),
+        voteNumber: "ARCHIVE-2026-Q1",
       },
     ],
     departmentUserProfiles: [
@@ -181,15 +187,24 @@ export function runProcurementOfficerDashboardTests(): string[] {
     now: Date.UTC(2026, 7, 10, 12, 0, 0),
     plans: [
       {
+        departmentId: "department-1",
+        estimatedBudgetUsed: 125_000,
         fiscalYear: "2026-2027",
+        itemCount: 4,
         status: "submitted",
       },
       {
+        departmentId: "department-2",
+        estimatedBudgetUsed: 250_000,
         fiscalYear: "2026-2027",
+        itemCount: 7,
         status: "approved",
       },
       {
+        departmentId: "department-3",
+        estimatedBudgetUsed: 75_000,
         fiscalYear: "2025-2026",
+        itemCount: 2,
         status: "rejected",
       },
     ],
@@ -203,6 +218,7 @@ export function runProcurementOfficerDashboardTests(): string[] {
       id: "tenant-1",
       name: "Pwani University",
     },
+    tenantBudgetCeiling: 500_000,
   });
   assert.equal(snapshot.meta.selectedFiscalYear, "2026-2027");
   assert.equal(
@@ -221,6 +237,12 @@ export function runProcurementOfficerDashboardTests(): string[] {
     "3 / 3",
   );
   assert.equal(snapshot.departmentReadiness.items.length, 3);
+  assert.equal(snapshot.submissionProgress.submittedDepartmentCount, 2);
+  assert.equal(snapshot.submissionProgress.totalDepartmentCount, 3);
+  assert.equal(snapshot.submissionProgress.utilizationPercent, 67);
+  assert.equal(snapshot.organizationOverview.budget.usedBudget, 375_000);
+  assert.equal(snapshot.organizationOverview.budget.totalBudget, 500_000);
+  assert.equal(snapshot.organizationOverview.budget.utilizationPercent, 75);
   assert.equal(
     snapshot.departmentReadiness.items.find(
       (item) => item.id === "department-1",
@@ -232,6 +254,12 @@ export function runProcurementOfficerDashboardTests(): string[] {
       (item) => item.id === "department-2",
     )?.departmentUser.state,
     "setup_required",
+  );
+  assert.equal(
+    snapshot.departmentReadiness.items.find(
+      (item) => item.id === "department-1",
+    )?.voteNumber,
+    "FIN-2026-Q1",
   );
   assert.equal(
     snapshot.alerts.some(
@@ -296,19 +324,11 @@ export function runProcurementOfficerDashboardTests(): string[] {
 
   assert.deepEqual(
     normalizeProcurementOfficerWorkspaceModalState({
-      modal: "categories",
-      section: "items",
+      modal: "access-codes",
     }),
     {
-      modal: "categories",
-      section: "items",
+      modal: "access-codes",
     },
-  );
-  assert.equal(
-    buildProcurementOfficerWorkspaceModalPath({
-      modal: "departments",
-    }),
-    "/po?modal=departments",
   );
   assert.equal(
     buildProcurementOfficerWorkspaceModalPath({
@@ -330,14 +350,17 @@ export function runProcurementOfficerDashboardTests(): string[] {
     "/po?modal=submissions&poFiscalYear=2025-2026",
   );
   assert.deepEqual(
-    resolveProcurementOfficerWorkspaceNavigation("/po/categories/items"),
+    resolveProcurementOfficerWorkspaceNavigation("/po/categories"),
     {
-      href: "/po?modal=categories&section=items",
-      modalState: {
-        modal: "categories",
-        section: "items",
-      },
-      type: "modal",
+      href: "/po/categories",
+      type: "route",
+    },
+  );
+  assert.deepEqual(
+    resolveProcurementOfficerWorkspaceNavigation("/po/departments"),
+    {
+      href: "/po/departments",
+      type: "route",
     },
   );
   assert.deepEqual(
@@ -359,55 +382,23 @@ export function runProcurementOfficerDashboardTests(): string[] {
       type: "route",
     },
   );
-  assert.equal(
-    buildProcurementOfficerWorkspaceModalPath(
-      {
-        modal: "categories",
-        section: "items",
-      },
-      {
-        itemWorkspaceSearchParams: new URLSearchParams(
-          "itemSearch=laptop&itemCategory=cat-it&foo=bar&itemCompliance=agpo",
-        ),
-      },
-    ),
-    "/po?modal=categories&section=items&itemSearch=laptop&itemCategory=cat-it&itemCompliance=agpo",
-  );
   assert.deepEqual(
     resolveProcurementOfficerWorkspaceNavigation(
       "/po/items?poFiscalYear=2025-2026&itemSearch=laptop&itemCategory=cat-it&foo=bar&itemCompliance=agpo",
     ),
     {
-      href: "/po?modal=categories&poFiscalYear=2025-2026&section=items&itemSearch=laptop&itemCategory=cat-it&itemCompliance=agpo",
-      modalState: {
-        modal: "categories",
-        section: "items",
-      },
-      type: "modal",
-    },
-  );
-  assert.deepEqual(
-    resolveProcurementOfficerWorkspaceNavigation(
-      "/po/categories/items?itemPage=9&itemCompliance=pwd&itemCompliance=bad&junk=yes",
-    ),
-    {
-      href: "/po?modal=categories&section=items&itemPage=9&itemCompliance=pwd",
-      modalState: {
-        modal: "categories",
-        section: "items",
-      },
-      type: "modal",
+      href: "/po/items?poFiscalYear=2025-2026&itemSearch=laptop&itemCategory=cat-it&foo=bar&itemCompliance=agpo",
+      type: "route",
     },
   );
   completedTests.push(
-    "procurement-officer workspace routing keeps consolidation as a real page while dashboard surfaces resolve to modal-backed paths and preserve only whitelisted item-workspace deep-link params",
+    "procurement-officer workspace routing keeps categories and items as real routes while dashboard-only workspaces still resolve to modal-backed paths",
   );
 
   const poRoutes = [
     "/po",
     "/po/departments",
     "/po/categories",
-    "/po/categories/items",
     "/po/items",
     "/po/access-codes",
     "/po/deadlines",
@@ -421,6 +412,37 @@ export function runProcurementOfficerDashboardTests(): string[] {
   }
   completedTests.push(
     "procurement-officer placeholder routes remain under the existing segment-aware role guard",
+  );
+
+  const componentSource = readFileSync(
+    join(
+      process.cwd(),
+      "src/components/procurement-officer/ProcurementOfficerDashboard.tsx",
+    ),
+    "utf8",
+  );
+  assert.equal(
+    componentSource.includes("useMutation(api.functions.categories.createCategory)"),
+    true,
+  );
+  assert.equal(
+    componentSource.includes("openDashboardCategoryCreateDialog"),
+    true,
+  );
+  assert.equal(componentSource.includes("Create category"), true);
+  assert.equal(componentSource.includes("Category created."), true);
+  assert.equal(
+    componentSource.includes("useMutation(api.functions.items.createItem)"),
+    true,
+  );
+  assert.equal(componentSource.includes("Add item"), true);
+  assert.equal(componentSource.includes("Item created."), true);
+  assert.equal(componentSource.includes("Current Items in Category"), true);
+  assert.equal(componentSource.includes("Archive item"), true);
+  assert.equal(componentSource.includes("Active plan warning"), true);
+  assert.equal(componentSource.includes("Category preview"), false);
+  completedTests.push(
+    "procurement-officer dashboard source keeps the category and item create mutations wired into the dashboard modals and renders the live category item list inside the category flow",
   );
 
   return completedTests;

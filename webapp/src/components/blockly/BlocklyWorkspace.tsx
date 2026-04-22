@@ -59,6 +59,11 @@ export interface BlocklyWorkspaceValidationNotice {
     message: string;
 }
 
+export interface BlocklyWorkspaceHistoryState {
+    canRedo: boolean;
+    canUndo: boolean;
+}
+
 export interface BlocklyWorkspaceSelectedBlockLike {
     getFieldValue(name: string): string;
     getParent?(): BlocklyWorkspaceSelectedBlockLike | null;
@@ -78,7 +83,12 @@ export function BlocklyWorkspace(props: {
             lastPriceChangedAt: number | null;
         }
     >;
+    historyActionRequest?: {
+        kind: "redo" | "undo";
+        nonce: number;
+    } | null;
     onBudgetStateChange: (state: DepartmentUserBudgetMeterState) => void;
+    onHistoryStateChange?: (state: BlocklyWorkspaceHistoryState) => void;
     onSelectedBlockChange?: (block: BlocklyWorkspaceSelectedBlockLike | null) => void;
     onValidationNotice?: (notice: BlocklyWorkspaceValidationNotice) => void;
     onWorkspaceChange: (payload: BlocklyWorkspaceChangePayload) => void;
@@ -99,7 +109,9 @@ export function BlocklyWorkspace(props: {
         props.workspaceState,
     );
     const initialWorkspaceStateRef = useRef<BlocklyWorkspaceRecord | null>(props.workspaceState);
+    const lastHistoryActionNonceRef = useRef<number | null>(null);
     const onBudgetStateChangeRef = useRef(props.onBudgetStateChange);
+    const onHistoryStateChangeRef = useRef(props.onHistoryStateChange);
     const onSelectedBlockChangeRef = useRef(props.onSelectedBlockChange);
     const onWorkspaceChangeRef = useRef(props.onWorkspaceChange);
     const onValidationNoticeRef = useRef(props.onValidationNotice);
@@ -118,10 +130,15 @@ export function BlocklyWorkspace(props: {
     const [initializationError, setInitializationError] = useState<string | null>(null);
     const [pendingCategoryDeletion, setPendingCategoryDeletion] =
         useState<DepartmentUserCategoryDeletionConfirmation | null>(null);
+    const layoutRefreshTimerRef = useRef<number | null>(null);
 
     useEffect(() => {
         onBudgetStateChangeRef.current = props.onBudgetStateChange;
     }, [props.onBudgetStateChange]);
+
+    useEffect(() => {
+        onHistoryStateChangeRef.current = props.onHistoryStateChange;
+    }, [props.onHistoryStateChange]);
 
     useEffect(() => {
         onSelectedBlockChangeRef.current = props.onSelectedBlockChange;
@@ -161,6 +178,21 @@ export function BlocklyWorkspace(props: {
                 }),
         );
     }, [props.budgetAllocation]);
+
+    const emitHistoryState = useCallback((workspace: BlocklyWorkspaceSvg | null): void => {
+        if (!workspace) {
+            onHistoryStateChangeRef.current?.({
+                canRedo: false,
+                canUndo: false,
+            });
+            return;
+        }
+
+        onHistoryStateChangeRef.current?.({
+            canRedo: workspace.getRedoStack().length > 0,
+            canUndo: workspace.getUndoStack().length > 0,
+        });
+    }, []);
 
     const emitWorkspaceSnapshot = useCallback((summary: DepartmentUserWorkspaceSummary | null): void => {
         if (!blocklyRef.current || !workspaceRef.current) {
@@ -313,6 +345,51 @@ export function BlocklyWorkspace(props: {
                 blocklyRef.current = Blockly;
                 workspaceRef.current = workspace;
 
+                const scheduleWorkspaceLayoutRefresh = () => {
+                    if (layoutRefreshTimerRef.current !== null) {
+                        window.clearTimeout(layoutRefreshTimerRef.current);
+                    }
+
+                    const refresh = () => {
+                        Blockly.svgResize(workspace);
+                        workspace.resizeContents();
+                        (
+                            workspace as BlocklyWorkspaceSvg & {
+                                scrollbar?: {
+                                    resize?: () => void;
+                                };
+                            }
+                        ).scrollbar?.resize?.();
+                    };
+
+                    window.requestAnimationFrame(refresh);
+                    layoutRefreshTimerRef.current = window.setTimeout(() => {
+                        refresh();
+                        layoutRefreshTimerRef.current = null;
+                    }, 90);
+                };
+
+                const blocklyRoot = hostRef.current;
+                const stopWheelPropagation: EventListener = (event) => {
+                    event.stopPropagation();
+                };
+                const protectedWheelTargets = [
+                    blocklyRoot.querySelector(".blocklyToolboxDiv"),
+                    blocklyRoot.querySelector(".blocklyFlyout"),
+                    blocklyRoot.querySelector(".blocklyFlyoutScrollbar"),
+                ].filter((target): target is Element => target instanceof Element);
+
+                for (const target of protectedWheelTargets) {
+                    target.addEventListener("wheel", stopWheelPropagation, {
+                        passive: true,
+                    });
+                    target.addEventListener("wheel", scheduleWorkspaceLayoutRefresh, {
+                        passive: true,
+                    });
+                    target.addEventListener("pointerup", scheduleWorkspaceLayoutRefresh);
+                    target.addEventListener("click", scheduleWorkspaceLayoutRefresh);
+                }
+
                 const handleWorkspaceChange = (
                     event: {
                         blockId?: string;
@@ -333,6 +410,7 @@ export function BlocklyWorkspace(props: {
                                   ) as BlocklyWorkspaceSelectedBlockLike | null)
                                 : null;
                         onSelectedBlockChangeRef.current?.(nextSelectedBlock ?? null);
+                        emitHistoryState(workspace);
                         return;
                     }
 
@@ -363,6 +441,7 @@ export function BlocklyWorkspace(props: {
                         setPendingCategoryDeletion(
                             eventResolution.categoryDeletionConfirmation,
                         );
+                        emitHistoryState(workspace);
                         return;
                     }
 
@@ -375,6 +454,7 @@ export function BlocklyWorkspace(props: {
                     }
 
                     if (!eventResolution.shouldRecalculate) {
+                        emitHistoryState(workspace);
                         return;
                     }
 
@@ -413,9 +493,14 @@ export function BlocklyWorkspace(props: {
                     ) {
                         queueWorkspaceSnapshot(nextSummary);
                     }
+
+                    emitHistoryState(workspace);
                 };
 
                 workspace.addChangeListener(handleWorkspaceChange);
+                window.requestAnimationFrame(() => {
+                    scheduleWorkspaceLayoutRefresh();
+                });
 
                 loadBlocklyWorkspace({
                     Blockly,
@@ -431,6 +516,7 @@ export function BlocklyWorkspace(props: {
                     workspace,
                 });
                 recalculateWorkspaceRef.current?.(Blockly, workspace);
+                emitHistoryState(workspace);
             } catch (error) {
                 if (isDisposed) {
                     return;
@@ -460,8 +546,13 @@ export function BlocklyWorkspace(props: {
                 window.clearTimeout(viewportPersistenceTimerRef.current);
                 viewportPersistenceTimerRef.current = null;
             }
+            if (layoutRefreshTimerRef.current !== null) {
+                window.clearTimeout(layoutRefreshTimerRef.current);
+                layoutRefreshTimerRef.current = null;
+            }
 
             onSelectedBlockChangeRef.current?.(null);
+            emitHistoryState(null);
             workspaceRef.current?.dispose();
             workspaceRef.current = null;
         };
@@ -480,6 +571,9 @@ export function BlocklyWorkspace(props: {
         }
 
         workspaceRef.current.updateToolbox(props.toolboxDefinition as never);
+        blocklyRef.current?.svgResize(workspaceRef.current);
+        workspaceRef.current.resizeContents();
+        emitHistoryState(workspaceRef.current);
     }, [props.toolboxDefinition]);
 
     useEffect(() => {
@@ -492,14 +586,34 @@ export function BlocklyWorkspace(props: {
             queueWorkspaceSnapshot(nextSummary);
         }
         queueStructureSourceUsageRefresh();
+        emitHistoryState(workspaceRef.current);
     }, [
         props.categories,
         props.editorMode,
+        emitHistoryState,
         props.items,
         queueWorkspaceSnapshot,
         queueStructureSourceUsageRefresh,
         recalculateWorkspace,
     ]);
+
+    useEffect(() => {
+        if (
+            !props.historyActionRequest ||
+            !workspaceRef.current ||
+            props.editorMode !== "edit"
+        ) {
+            return;
+        }
+
+        if (lastHistoryActionNonceRef.current === props.historyActionRequest.nonce) {
+            return;
+        }
+
+        lastHistoryActionNonceRef.current = props.historyActionRequest.nonce;
+        workspaceRef.current.undo(props.historyActionRequest.kind === "redo");
+        emitHistoryState(workspaceRef.current);
+    }, [emitHistoryState, props.editorMode, props.historyActionRequest]);
 
     if (initializationError) {
         return (

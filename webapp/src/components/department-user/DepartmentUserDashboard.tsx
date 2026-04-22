@@ -23,8 +23,13 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+    deriveLaunchpadInteractivity,
+    sanitizeCategorySelection,
+    selectAllCategories,
+    toggleCategorySelection,
+} from "@/lib/department-user/dashboard";
 import { formatDeadlineCountdown } from "@/lib/procurement-officer/deadlines";
-import { sanitizeCategorySelection, selectAllCategories, toggleCategorySelection } from "@/lib/department-user/dashboard";
 import type { DepartmentUserDashboardSnapshot } from "@/lib/department-user/dashboard-snapshot";
 import { cn } from "@/lib/utils";
 
@@ -83,17 +88,20 @@ export function DepartmentUserDashboard(): JSX.Element {
     const effectiveSelectedCategoryIds = dashboardSnapshot.launchpad.canSelectCategories
         ? selectedCategoryIds
         : dashboardSnapshot.launchpad.selectedCategoryIds;
-    const launchpadDisabled =
-        dashboardSnapshot.launchpad.primaryAction.disabled ||
-        (dashboardSnapshot.launchpad.primaryAction.kind === "create" &&
-            effectiveSelectedCategoryIds.length === 0);
+    const launchpadInteractivity = deriveLaunchpadInteractivity({
+        canSelectCategories: dashboardSnapshot.launchpad.canSelectCategories,
+        disabledReason: dashboardSnapshot.launchpad.disabledReason,
+        primaryAction: dashboardSnapshot.launchpad.primaryAction,
+        selectedCategoryCount: effectiveSelectedCategoryIds.length,
+        state: dashboardSnapshot.launchpad.state,
+    });
     const launchpadActionLabel =
         dashboardSnapshot.launchpad.primaryAction.kind === "create"
             ? "+ New Plan"
             : dashboardSnapshot.launchpad.primaryAction.label;
 
     function handleLaunchpadAction(): void {
-        if (launchpadDisabled) {
+        if (launchpadInteractivity.disabled) {
             return;
         }
 
@@ -159,12 +167,13 @@ export function DepartmentUserDashboard(): JSX.Element {
                         <LaunchpadCard
                             categories={dashboardSnapshot.launchpad.categories}
                             canSelectCategories={dashboardSnapshot.launchpad.canSelectCategories}
-                            disabledReason={dashboardSnapshot.launchpad.disabledReason}
+                            disabledReason={launchpadInteractivity.disabledReason}
                             launchpadActionLabel={launchpadActionLabel}
-                            launchpadDisabled={launchpadDisabled}
+                            launchpadDisabled={launchpadInteractivity.disabled}
                             onAction={handleLaunchpadAction}
                             selectedCategoryIds={effectiveSelectedCategoryIds}
                             setSelectedCategoryIds={setSelectedCategoryIds}
+                            statusLabel={launchpadInteractivity.statusLabel}
                             subtitle={dashboardSnapshot.launchpad.subtitle}
                             title={dashboardSnapshot.launchpad.title}
                         />
@@ -439,6 +448,7 @@ function LaunchpadCard({
     onAction,
     selectedCategoryIds,
     setSelectedCategoryIds,
+    statusLabel,
     subtitle,
     title,
 }: {
@@ -456,6 +466,7 @@ function LaunchpadCard({
     onAction: () => void;
     selectedCategoryIds: string[];
     setSelectedCategoryIds: React.Dispatch<React.SetStateAction<string[]>>;
+    statusLabel: string;
     subtitle: string;
     title: string;
 }) {
@@ -557,7 +568,7 @@ function LaunchpadCard({
                         {selectedCategoryIds.length} categories selected
                     </div>
                     <div className="text-sm font-medium text-foreground">
-                        {canSelectCategories ? "Select categories to enable launch" : "Waiting for setup"}
+                        {statusLabel}
                     </div>
                 </div>
 

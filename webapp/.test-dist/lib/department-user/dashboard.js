@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.buildDepartmentDeadlineAnnouncement = exports.buildDepartmentBudgetChangeAnnouncement = exports.formatDepartmentUserCount = exports.formatDepartmentUserCurrency = exports.deriveLaunchpadState = exports.deriveDeadlinePresentation = exports.derivePlanAction = exports.normalizeDepartmentUserPlanStatus = exports.sanitizeCategorySelection = exports.selectAllCategories = exports.toggleCategorySelection = exports.createCategorySelectionState = exports.formatDepartmentUserFiscalYearLabel = exports.getDepartmentUserFiscalYearForDate = void 0;
+exports.buildDepartmentDeadlineAnnouncement = exports.buildDepartmentBudgetChangeAnnouncement = exports.formatDepartmentUserCount = exports.formatDepartmentUserCurrency = exports.deriveLaunchpadInteractivity = exports.deriveLaunchpadState = exports.deriveDeadlinePresentation = exports.derivePlanAction = exports.normalizeDepartmentUserPlanStatus = exports.sanitizeCategorySelection = exports.selectAllCategories = exports.toggleCategorySelection = exports.createCategorySelectionState = exports.formatDepartmentUserFiscalYearLabel = exports.getDepartmentUserFiscalYearForDate = void 0;
 const department_user_access_1 = require("../auth/department-user-access");
 const deadlines_1 = require("../procurement-officer/deadlines");
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -233,17 +233,6 @@ function deriveLaunchpadState(args) {
             state: "coming_soon",
         };
     }
-    if (args.selectedCategoryCount === 0) {
-        return {
-            canSelectCategories: true,
-            disabledReason: "Select at least one category to start planning.",
-            primaryAction: {
-                ...args.currentPlanAction,
-                disabled: true,
-            },
-            state: "available",
-        };
-    }
     return {
         canSelectCategories: true,
         disabledReason: null,
@@ -255,6 +244,46 @@ function deriveLaunchpadState(args) {
     };
 }
 exports.deriveLaunchpadState = deriveLaunchpadState;
+function deriveLaunchpadInteractivity(args) {
+    const requiresSelection = args.primaryAction.kind === "create" &&
+        args.canSelectCategories &&
+        args.state === "available" &&
+        args.selectedCategoryCount === 0;
+    if (requiresSelection) {
+        return {
+            disabled: true,
+            disabledReason: "Select at least one category to start planning.",
+            statusLabel: "Select categories to enable launch",
+        };
+    }
+    if (!args.canSelectCategories) {
+        return {
+            disabled: args.primaryAction.disabled,
+            disabledReason: args.disabledReason,
+            statusLabel: "Waiting for setup",
+        };
+    }
+    if (args.primaryAction.kind === "create" && args.state === "available") {
+        return {
+            disabled: false,
+            disabledReason: null,
+            statusLabel: "Ready to launch",
+        };
+    }
+    if (args.primaryAction.disabled) {
+        return {
+            disabled: true,
+            disabledReason: args.disabledReason,
+            statusLabel: "Launch unavailable",
+        };
+    }
+    return {
+        disabled: false,
+        disabledReason: null,
+        statusLabel: "Ready to launch",
+    };
+}
+exports.deriveLaunchpadInteractivity = deriveLaunchpadInteractivity;
 function formatDepartmentUserCurrency(amount) {
     const absAmount = Math.abs(amount);
     if (absAmount >= 1_000_000) {

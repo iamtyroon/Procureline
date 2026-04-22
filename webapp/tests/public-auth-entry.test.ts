@@ -67,17 +67,13 @@ export function runPublicAuthEntryTests(): string[] {
         procurementOfficerState.procurementOfficerSelectionHref,
     );
     assert.equal(procurementOfficerState.activeRole, "procurement_officer");
-    assert.equal(procurementOfficerUrl.pathname, "/login");
+    assert.equal(procurementOfficerUrl.pathname, PROCUREMENT_OFFICER_ACCESS_ROUTE);
     assert.equal(
         procurementOfficerAccessUrl.pathname,
         PROCUREMENT_OFFICER_ACCESS_ROUTE,
     );
     assert.equal(procurementOfficerSelectionUrl.pathname, AUTH_ENTRY_ROUTE);
     assert.equal(procurementOfficerSelectionUrl.hash, "#role-guidance");
-    assert.equal(
-        procurementOfficerUrl.searchParams.get("role"),
-        "procurement_officer",
-    );
     assert.equal(procurementOfficerUrl.searchParams.get("invite"), "po-invite-token");
     assert.equal(procurementOfficerUrl.searchParams.get("activationCode"), "ACT-001");
     assert.equal(
@@ -87,10 +83,10 @@ export function runPublicAuthEntryTests(): string[] {
     assert.equal(procurementOfficerUrl.searchParams.get("ignored"), null);
     assert.equal(
         procurementOfficerState.signInHref,
-        "/login?role=procurement_officer&invite=po-invite-token&activationCode=ACT-001",
+        "/access/procurement-officer?invite=po-invite-token&activationCode=ACT-001",
     );
     completedTests.push(
-        "procurement officer handoff preserves only the recognized opaque invite context across both the shared login helper and the reserved role-specific sign-in route",
+        "procurement officer handoff preserves only the recognized opaque invite context while routing sign-in intent to the dedicated Procurement Officer access flow",
     );
 
     const implicitProcurementOfficerState = resolvePublicEntryState({
@@ -102,7 +98,7 @@ export function runPublicAuthEntryTests(): string[] {
     );
     assert.equal(
         implicitProcurementOfficerState.signInHref,
-        "/login?role=procurement_officer&activationToken=po-activation-token",
+        "/access/procurement-officer?activationToken=po-activation-token",
     );
     completedTests.push(
         "recognized procurement officer handoff params auto-select the PO guidance path even when the link omits an explicit role query",

@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.synchronizeDepartmentUserWorkspaceCatalogIdentity = exports.collectDepartmentUserWorkspaceSourceUsageFromDepartmentBlock = exports.collectDepartmentUserWorkspaceSourceUsage = exports.resolveDepartmentUserItemCatalogIdentity = exports.resolveDepartmentUserCategoryCatalogIdentity = void 0;
+const blockly_serialization_1 = require("./blockly-serialization");
 const compliance_1 = require("../procurement/compliance");
 function normalizeText(value) {
     return value?.trim().toLocaleLowerCase() ?? "";
@@ -41,8 +42,11 @@ function getSerializedNextBlock(block) {
     return nextBlock && typeof nextBlock === "object" ? nextBlock : null;
 }
 function getSerializedTopBlocks(workspaceJson) {
-    const blocksRecord = workspaceJson && typeof workspaceJson.blocks === "object" && workspaceJson.blocks !== null
-        ? workspaceJson.blocks
+    const normalizedWorkspaceJson = (0, blockly_serialization_1.parseBlocklyWorkspaceJson)(workspaceJson);
+    const blocksRecord = normalizedWorkspaceJson &&
+        typeof normalizedWorkspaceJson.blocks === "object" &&
+        normalizedWorkspaceJson.blocks !== null
+        ? normalizedWorkspaceJson.blocks
         : null;
     const blocks = blocksRecord?.blocks;
     if (!Array.isArray(blocks)) {

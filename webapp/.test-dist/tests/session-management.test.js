@@ -24,7 +24,7 @@ function runSessionManagementTests() {
     strict_1.default.equal(activeStandardSession.isValid, true);
     strict_1.default.equal(activeStandardSession.status, "active");
     strict_1.default.equal(activeStandardSession.redirectReason, null);
-    completedTests.push("standard sessions stay active inside the 24 hour inactivity window");
+    completedTests.push("standard sessions stay active inside the 15 day inactivity window");
     const expiredStandardSession = (0, session_1.resolveSessionState)({
         authSession: {
             _creationTime: NOW - session_1.REMEMBER_ME_SESSION_WINDOW_MS,
@@ -39,7 +39,7 @@ function runSessionManagementTests() {
     });
     strict_1.default.equal(expiredStandardSession.isValid, false);
     strict_1.default.equal(expiredStandardSession.status, "expired");
-    completedTests.push("standard sessions expire exactly at the 24 hour inactivity threshold");
+    completedTests.push("standard sessions expire exactly at the 15 day inactivity threshold");
     const activeRememberedSession = (0, session_1.resolveSessionState)({
         authSession: {
             _creationTime: NOW - 1000,

@@ -39,8 +39,7 @@ function isDepartmentUserWorkspaceDraftStale(args) {
     if (incomingRevision > persistedRevision) {
         return false;
     }
-    return (JSON.stringify(args.incomingWorkspaceState.workspaceJson) !==
-        JSON.stringify(persistedWorkspaceState.workspaceJson) ||
+    return (!(0, blockly_serialization_1.areBlocklyWorkspaceJsonEquivalent)(args.incomingWorkspaceState.workspaceJson, persistedWorkspaceState.workspaceJson) ||
         args.incomingWorkspaceState.editorMetadata.saveSource !==
             persistedWorkspaceState.editorMetadata.saveSource ||
         args.incomingWorkspaceState.editorMetadata.recoveredAt !==
@@ -71,7 +70,7 @@ function buildDepartmentUserWorkspaceDraftSaveInput(args) {
         itemCount: args.summary?.totalItemCount ?? 0,
         planId: args.planId,
         selectedCategoryIds: args.selectedCategoryIds,
-        workspaceState: args.workspaceState,
+        workspaceState: (0, blockly_serialization_1.createPersistedBlocklyWorkspaceRecord)(args.workspaceState),
     };
 }
 exports.buildDepartmentUserWorkspaceDraftSaveInput = buildDepartmentUserWorkspaceDraftSaveInput;
@@ -219,7 +218,7 @@ function prepareDepartmentUserWorkspaceDraftPersistence(args) {
             itemCount: Math.max(0, persistencePatch.itemCount),
             selectedCategoryIds,
             updatedAt: savedAt,
-            workspaceState: persistencePatch.workspaceState,
+            workspaceState: (0, blockly_serialization_1.createPersistedBlocklyWorkspaceRecord)(persistencePatch.workspaceState),
         },
     };
 }
