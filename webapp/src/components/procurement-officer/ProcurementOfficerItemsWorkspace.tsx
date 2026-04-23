@@ -79,7 +79,6 @@ import {
   CATEGORY_DRAFT_STORAGE_KEY,
   parseStoredCategoryDraft,
 } from "@/lib/procurement-officer/categories";
-import { buildProcurementOfficerWorkspaceModalPath } from "@/lib/procurement-officer/dashboard";
 import {
   buildProcurementItemEditorCategoryOptions,
   buildProcurementItemTemplateRows,
@@ -899,11 +898,7 @@ export function ProcurementOfficerItemsWorkspace(): JSX.Element {
               </p>
             </div>
             <Button asChild type="button" variant="outline">
-              <Link
-                href={buildProcurementOfficerWorkspaceModalPath({
-                  modal: "categories",
-                })}
-              >
+              <Link href="/po/categories">
                 <FolderTree className="mr-2 h-4 w-4" />
                 Back to Categories
               </Link>

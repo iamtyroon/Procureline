@@ -238,8 +238,13 @@ export function runProcurementOfficerDashboardTests(): string[] {
   );
   assert.equal(snapshot.departmentReadiness.items.length, 3);
   assert.equal(snapshot.submissionProgress.submittedDepartmentCount, 2);
+  assert.equal(snapshot.submissionProgress.approvedDepartmentCount, 1);
   assert.equal(snapshot.submissionProgress.totalDepartmentCount, 3);
-  assert.equal(snapshot.submissionProgress.utilizationPercent, 67);
+  assert.equal(snapshot.submissionProgress.utilizationPercent, 33);
+  assert.equal(
+    snapshot.submissionProgress.helperText,
+    "2 departments submitted and 1 approved. 2 departments still need approved plans for consolidation.",
+  );
   assert.equal(snapshot.organizationOverview.budget.usedBudget, 375_000);
   assert.equal(snapshot.organizationOverview.budget.totalBudget, 500_000);
   assert.equal(snapshot.organizationOverview.budget.utilizationPercent, 75);
@@ -289,10 +294,10 @@ export function runProcurementOfficerDashboardTests(): string[] {
   assert.equal(
     snapshot.futurePanels.find((panel) => panel.id === "submission_monitoring")
       ?.cta.href,
-    "/po/submissions",
+    "/po",
   );
   completedTests.push(
-    "procurement-officer snapshot shaping deduplicates access-code and DU coverage by department, keeps shared-deadline warnings honest, and exposes the live submissions queue without inventing future review states",
+    "procurement-officer snapshot shaping deduplicates access-code and DU coverage by department, keeps shared-deadline warnings honest, and surfaces submitted plans in the dashboard without inventing future review states",
   );
 
   const emptySnapshot = buildProcurementOfficerDashboardSnapshot({
@@ -332,14 +337,16 @@ export function runProcurementOfficerDashboardTests(): string[] {
   );
   assert.equal(
     buildProcurementOfficerWorkspaceModalPath({
-      modal: "submissions",
+      modal: "review",
+      planId: "plan-77",
     }),
-    "/po?modal=submissions",
+    "/po?modal=review&planId=plan-77",
   );
   assert.equal(
     buildProcurementOfficerWorkspaceModalPath(
       {
-        modal: "submissions",
+        modal: "review",
+        planId: "plan-77",
       },
       {
         dashboardSearchParams: new URLSearchParams(
@@ -347,7 +354,7 @@ export function runProcurementOfficerDashboardTests(): string[] {
         ),
       },
     ),
-    "/po?modal=submissions&poFiscalYear=2025-2026",
+    "/po?modal=review&poFiscalYear=2025-2026&planId=plan-77",
   );
   assert.deepEqual(
     resolveProcurementOfficerWorkspaceNavigation("/po/categories"),
@@ -368,9 +375,19 @@ export function runProcurementOfficerDashboardTests(): string[] {
       "/po/submissions?poFiscalYear=2025-2026&poSubmissionsStatus=submitted&itemSearch=laptop",
     ),
     {
-      href: "/po?modal=submissions&poFiscalYear=2025-2026&poSubmissionsStatus=submitted",
+      href: "/po?poFiscalYear=2025-2026",
+      type: "route",
+    },
+  );
+  assert.deepEqual(
+    resolveProcurementOfficerWorkspaceNavigation(
+      "/po/review?planId=plan-77&poFiscalYear=2025-2026",
+    ),
+    {
+      href: "/po?modal=review&poFiscalYear=2025-2026&planId=plan-77",
       modalState: {
-        modal: "submissions",
+        modal: "review",
+        planId: "plan-77",
       },
       type: "modal",
     },
@@ -392,7 +409,7 @@ export function runProcurementOfficerDashboardTests(): string[] {
     },
   );
   completedTests.push(
-    "procurement-officer workspace routing keeps categories and items as real routes while dashboard-only workspaces still resolve to modal-backed paths",
+    "procurement-officer workspace routing keeps categories and items as real routes, sends legacy submissions URLs back to the dashboard, and resolves review links to the summary modal",
   );
 
   const poRoutes = [

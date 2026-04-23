@@ -367,6 +367,64 @@ export function runDepartmentUserDashboardTests(): string[] {
         "department-user rejected plans surface revision comments prominently and reuse the canonical plan selection instead of implying a duplicate same-year draft",
     );
 
+    const submittedSnapshot = buildDepartmentUserDashboardSnapshot({
+        announcements: [],
+        auth: {
+            departmentAccessMode: "editable",
+            departmentId: "department-1",
+            tenantId: "tenant-1",
+        },
+        categories: [
+            { id: "cat-1", isActive: true, name: "ICT Equipment", sortOrder: 1 },
+        ],
+        currentUser: {
+            email: "du@example.com",
+            initials: "DU",
+            name: "Department User",
+        },
+        department: {
+            budgetAllocation: 8_000_000,
+            code: "CS",
+            id: "department-1",
+            name: "Computer Science",
+            submissionEndsAt: Date.UTC(2026, 7, 20, 12, 0, 0),
+            submissionStartsAt: Date.UTC(2026, 7, 1, 12, 0, 0),
+        },
+        items: [{ categoryId: "cat-1", id: "item-1", isActive: true }],
+        leaderboardEntries: [],
+        now: Date.UTC(2026, 7, 10, 12, 0, 0),
+        plans: [
+            {
+                categorySummaries: [],
+                createdAt: Date.UTC(2026, 7, 1, 10, 0, 0),
+                estimatedBudgetUsed: 1_200_000,
+                fiscalYear: "2026-2027",
+                id: "plan-3",
+                itemCount: 6,
+                rejectionComment: null,
+                selectedCategoryIds: ["cat-1"],
+                status: "submitted",
+                submissionReference: "CS-2627-003",
+                submittedAt: Date.UTC(2026, 7, 9, 10, 0, 0),
+                updatedAt: Date.UTC(2026, 7, 9, 10, 0, 0),
+            },
+        ],
+        procurementOfficer: null,
+        tenant: {
+            id: "tenant-1",
+            name: "Pwani University",
+        },
+    });
+    assert.equal(
+        submittedSnapshot.quickStats.plan.helperText,
+        "Awaiting review as CS-2627-003",
+    );
+    assert.equal(submittedSnapshot.quickStats.plan.submissionReference, "CS-2627-003");
+    assert.equal(submittedSnapshot.plans.rows[0]?.submissionReference, "CS-2627-003");
+    completedTests.push(
+        "department-user submitted plans now surface the canonical submission reference in quick stats and plan history rows instead of a generic awaiting-review message",
+    );
+
     const archivedCategorySnapshot = buildDepartmentUserDashboardSnapshot({
         announcements: [],
         auth: {

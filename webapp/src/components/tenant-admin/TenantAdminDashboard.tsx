@@ -367,7 +367,15 @@ export function TenantAdminDashboard({
                     <div className="px-8 py-8">
                         <div className="mx-auto max-w-[1400px] space-y-6">
                             {resolvedSnapshotState.showStaleBanner ? (
-                                <Alert className="rounded-2xl border-amber-200 bg-amber-50/90 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+                                <Alert
+                                    className="rounded-2xl border-amber-200 bg-amber-50/90 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+                                    dismissible
+                                    dismissKey={
+                                        resolvedSnapshotState.lastUpdatedAt
+                                            ? `tenant-admin-stale-${resolvedSnapshotState.lastUpdatedAt}`
+                                            : "tenant-admin-stale-unknown"
+                                    }
+                                >
                                     <CircleAlert className="h-4 w-4" />
                                     <AlertTitle>Showing cached dashboard data</AlertTitle>
                                     <AlertDescription>

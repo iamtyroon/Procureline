@@ -74,7 +74,7 @@ export function runProcurementOfficerSubmissionTests(): string[] {
   assert.equal(shapedRows[1]?.totalAmountLabel, "KES 250,000.00");
   assert.equal(
     shapedRows[0]?.reviewHref,
-    "/po/review?planId=plan-1&from=submissions",
+    "/po?modal=review&planId=plan-1",
   );
   assert.equal(shapedRows[0]?.urgencyLabel, "10d waiting");
   completedTests.push(
@@ -245,7 +245,7 @@ export function runProcurementOfficerSubmissionTests(): string[] {
         `${PROCUREMENT_OFFICER_DASHBOARD_QUERY_KEYS.fiscalYear}=2025-2026&poSubmissionsStatus=submitted&itemSearch=laptop&poSubmissionsSort=status`,
       ),
     }),
-    "/po/review?planId=plan-77&from=submissions&poFiscalYear=2025-2026&poSubmissionsStatus=submitted&poSubmissionsSort=status",
+    "/po?modal=review&planId=plan-77&poFiscalYear=2025-2026",
   );
   assert.equal(
     buildProcurementOfficerSubmissionModalPath({
@@ -253,10 +253,10 @@ export function runProcurementOfficerSubmissionTests(): string[] {
         `${PROCUREMENT_OFFICER_DASHBOARD_QUERY_KEYS.fiscalYear}=2025-2026&poSubmissionsStatus=submitted&itemSearch=laptop`,
       ),
     }),
-    "/po?modal=submissions&poFiscalYear=2025-2026&poSubmissionsStatus=submitted",
+    "/po?poFiscalYear=2025-2026&poSubmissionsStatus=submitted",
   );
   completedTests.push(
-    "procurement-officer submission deep links preserve the selected fiscal year while keeping queue params namespaced so dashboard modal state cannot collide with other workspaces",
+    "procurement-officer submission deep links now open review as a dashboard modal while keeping submission params namespaced and legacy queue links pointed back to the dashboard shell",
   );
 
   return completedTests;

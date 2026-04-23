@@ -20,6 +20,8 @@ import {
     type DepartmentUserWorkspaceValidationState,
     type DepartmentUserWorkspaceValidationQuarterTotals,
 } from "./workspace-validation";
+import { getDepartmentUserPlanSubmitState } from "./plan-submission";
+import type { DepartmentUserWorkspaceSaveIndicatorState } from "./workspace-draft-queue";
 
 export const DU_BUDGET_WARNING_THRESHOLD_PERCENT = 80;
 
@@ -742,52 +744,20 @@ export function getDepartmentUserWorkspaceAnnouncement(
 
 export function getDepartmentUserReservedSubmitState(args: {
     budgetState: DepartmentUserBudgetMeterState;
+    hasUnsyncedChanges?: boolean;
     mode: "edit" | "view";
+    saveState?: DepartmentUserWorkspaceSaveIndicatorState;
+    totalItemCount?: number;
     validationState?: DepartmentUserWorkspaceValidationState | null;
 }): DepartmentUserReservedSubmitState {
-    if (args.mode === "view") {
-        return {
-            disabled: true,
-            label: "Read-only - Cannot Submit",
-            reason:
-                "This plan is open in read-only mode, so submission stays unavailable here.",
-        };
-    }
-
-    if (args.budgetState.state === "over_budget") {
-        return {
-            disabled: true,
-            label: "Over Budget - Cannot Submit",
-            reason:
-                args.budgetState.bannerText ??
-                "Budget exceeded. Remove items or reduce quantities before submission can unlock.",
-        };
-    }
-
-    if (args.budgetState.state === "unallocated") {
-        return {
-            disabled: true,
-            label: "No Budget - Cannot Submit",
-            reason:
-                "Budget allocation is unavailable, so submission must remain blocked.",
-        };
-    }
-
-    if ((args.validationState?.submitBlockedReasons.length ?? 0) > 0) {
-        return {
-            disabled: true,
-            label: "Fix Validation Issues",
-            reason: args.validationState?.submitBlockedReasons.join(" ") ??
-                "Resolve the flagged workspace validation issues before submission can unlock.",
-        };
-    }
-
-    return {
-        disabled: true,
-        label: "Submit Reserved",
-        reason:
-            "Submission stays reserved until Story 6.1 completes the plan-submission flow.",
-    };
+    return getDepartmentUserPlanSubmitState({
+        budgetState: args.budgetState,
+        hasUnsyncedChanges: args.hasUnsyncedChanges ?? false,
+        mode: args.mode,
+        saveState: args.saveState ?? "idle",
+        totalItemCount: args.totalItemCount ?? 0,
+        validationState: args.validationState ?? null,
+    });
 }
 
 const QUARTER_FIELD_KEY_MAP = [

@@ -224,12 +224,19 @@ function buildDepartmentUserDashboardSnapshot(args) {
             plan: {
                 helperText: currentPlan === null
                     ? "No Plan"
-                    : `${currentPlanStatus} for ${fiscalYearKey}`,
+                    : currentPlanStatus === "Submitted"
+                        ? currentPlan.submissionReference
+                            ? `Awaiting review as ${currentPlan.submissionReference}`
+                            : `Awaiting review for ${fiscalYearKey}`
+                        : currentPlanStatus === "Approved"
+                            ? "Approved and closed for department edits"
+                            : `${currentPlanStatus} for ${fiscalYearKey}`,
                 itemCount: currentPlan?.itemCount ?? 0,
                 primaryActionHref: currentPlanAction.href,
                 primaryActionLabel: currentPlanAction.label,
                 state: currentPlan === null ? "empty" : "available",
                 statusLabel: currentPlanStatus,
+                submissionReference: currentPlan?.submissionReference ?? null,
             },
         },
         rejectionNotice: currentPlanStatus === "Rejected" && currentPlan?.rejectionComment
@@ -339,6 +346,7 @@ function createBlockedSnapshot(args) {
                 primaryActionLabel: "Start Your Plan",
                 state: "unavailable",
                 statusLabel: "No Plan",
+                submissionReference: null,
             },
         },
         rejectionNotice: null,
@@ -362,6 +370,7 @@ function createPlanRow(args) {
         itemCountLabel: (0, dashboard_1.formatDepartmentUserCount)(args.plan.itemCount, "item"),
         rejectionComment: args.plan.rejectionComment ?? null,
         statusLabel,
+        submissionReference: args.plan.submissionReference ?? null,
         viewHref: `/du/plans/${args.plan.id}?mode=view`,
     };
 }

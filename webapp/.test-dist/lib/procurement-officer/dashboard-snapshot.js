@@ -479,7 +479,7 @@ function buildFuturePanels(args) {
             ? "Other fiscal years only"
             : "No submissions";
     const submissionDescription = selectedSubmissionCount > 0
-        ? "Open the live submissions queue to sort, filter, and hand plans into the reserved review route without leaving the /po shell."
+        ? "Review submitted plans directly from the dashboard card, then open a simple summary modal for the selected department plan."
         : totalSubmissionCount > 0
             ? "This fiscal year has no matching plans yet, but the tenant already has submissions in other fiscal years."
             : "No submitted or reviewed plans are available yet. This queue will update live as departments submit.";
@@ -522,8 +522,8 @@ function buildFuturePanels(args) {
         },
         {
             cta: {
-                href: "/po/submissions",
-                label: "Open submissions queue",
+                href: "/po",
+                label: "Review submitted plans",
                 state: submissionState,
             },
             description: submissionDescription,
@@ -549,6 +549,7 @@ function buildFuturePanels(args) {
 function buildSubmissionProgress(args) {
     if (args.departmentCount === 0) {
         return {
+            approvedDepartmentCount: 0,
             helperText: "Departments must exist before submission progress can be tracked truthfully.",
             state: "empty",
             submittedDepartmentCount: 0,
@@ -558,25 +559,37 @@ function buildSubmissionProgress(args) {
     }
     const submittedDepartmentCount = new Set(args.plans
         .filter((plan) => plan.fiscalYear === args.selectedFiscalYear &&
-        args.departmentIdsInScope.has(plan.departmentId))
+        args.departmentIdsInScope.has(plan.departmentId) &&
+        (plan.status === "submitted" || plan.status === "approved"))
         .map((plan) => plan.departmentId)).size;
-    const utilizationPercent = Math.max(0, Math.min(100, Math.round((submittedDepartmentCount / args.departmentCount) * 100)));
+    const approvedDepartmentCount = new Set(args.plans
+        .filter((plan) => plan.fiscalYear === args.selectedFiscalYear &&
+        args.departmentIdsInScope.has(plan.departmentId) &&
+        plan.status === "approved")
+        .map((plan) => plan.departmentId)).size;
+    const utilizationPercent = Math.max(0, Math.min(100, Math.round((approvedDepartmentCount / args.departmentCount) * 100)));
     let helperText = "Submission tracking is live for the selected fiscal year.";
     if (submittedDepartmentCount === 0) {
         helperText =
-            "No departments have submitted a plan yet. This bar moves only when a departmental plan enters the live submission queue.";
+            "No departments have submitted a plan yet. Consolidation progress only starts after departments submit and then moves forward as plans are approved.";
     }
-    else if (submittedDepartmentCount < args.departmentCount) {
-        const remainingCount = args.departmentCount - submittedDepartmentCount;
-        helperText = `${remainingCount} department${remainingCount === 1 ? "" : "s"} still need to submit their plan for this fiscal year.`;
+    else if (approvedDepartmentCount === 0) {
+        helperText = `${submittedDepartmentCount} department${submittedDepartmentCount === 1 ? "" : "s"} submitted plans, but approvals have not started yet for this fiscal year.`;
+    }
+    else if (approvedDepartmentCount < args.departmentCount) {
+        const remainingApprovalCount = args.departmentCount - approvedDepartmentCount;
+        helperText = `${submittedDepartmentCount} department${submittedDepartmentCount === 1 ? "" : "s"} submitted and ${approvedDepartmentCount} approved. ${remainingApprovalCount} department${remainingApprovalCount === 1 ? "" : "s"} still need approved plans for consolidation.`;
     }
     else {
         helperText =
-            "All in-scope departments have submitted plans for the selected fiscal year.";
+            "All in-scope departments now have approved plans for the selected fiscal year.";
     }
     return {
+        approvedDepartmentCount,
         helperText,
-        state: submittedDepartmentCount > 0 ? "available" : "empty",
+        state: submittedDepartmentCount > 0 || approvedDepartmentCount > 0
+            ? "available"
+            : "empty",
         submittedDepartmentCount,
         totalDepartmentCount: args.departmentCount,
         utilizationPercent,

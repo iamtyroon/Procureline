@@ -1,5 +1,6 @@
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
+import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -19,17 +20,73 @@ const alertVariants = cva(
   }
 )
 
+interface AlertProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof alertVariants> {
+  closeLabel?: string
+  dismissKey?: string
+  dismissible?: boolean
+  onDismiss?: () => void
+}
+
 const Alert = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
->(({ className, variant, ...props }, ref) => (
-  <div
-    ref={ref}
-    role="alert"
-    className={cn(alertVariants({ variant }), className)}
-    {...props}
-  />
-))
+  AlertProps
+>(
+  (
+    {
+      children,
+      className,
+      closeLabel = "Dismiss alert",
+      dismissKey,
+      dismissible = false,
+      onDismiss,
+      variant,
+      ...props
+    },
+    ref
+  ) => {
+    const [isDismissed, setIsDismissed] = React.useState(false)
+
+    React.useEffect(() => {
+      if (dismissible) {
+        setIsDismissed(false)
+      }
+    }, [dismissKey, dismissible])
+
+    if (dismissible && isDismissed) {
+      return null
+    }
+
+    return (
+      <div
+        ref={ref}
+        role="alert"
+        className={cn(
+          alertVariants({ variant }),
+          dismissible && "pr-12",
+          className
+        )}
+        {...props}
+      >
+        {dismissible ? (
+          <button
+            type="button"
+            aria-label={closeLabel}
+            className="absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-full text-current/70 transition-colors hover:bg-black/5 hover:text-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:hover:bg-white/10"
+            onClick={() => {
+              setIsDismissed(true)
+              onDismiss?.()
+            }}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : null}
+        {children}
+      </div>
+    )
+  }
+)
 Alert.displayName = "Alert"
 
 const AlertTitle = React.forwardRef<

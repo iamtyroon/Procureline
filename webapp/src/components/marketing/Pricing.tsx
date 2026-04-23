@@ -298,7 +298,11 @@ export function Pricing(): JSX.Element {
                     </div>
 
                     {pricingCatalog.usingFallback ? (
-                        <Alert className="mb-8 rounded-2xl border-amber-300/60 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+                        <Alert
+                            className="mb-8 rounded-2xl border-amber-300/60 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+                            dismissible
+                            dismissKey="pricing-fallback"
+                        >
                             <CircleAlert className="h-4 w-4" />
                             <AlertTitle>Showing fallback pricing</AlertTitle>
                             <AlertDescription>

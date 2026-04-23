@@ -33,7 +33,6 @@ import { getPersistedPlanSummaryForWorkspaceSummaryChange } from "@/lib/blockly/
 import { buildDepartmentUserToolbox } from "@/lib/blockly/du-toolbox";
 import {
     calculateDepartmentUserWorkspaceSummaryFromWorkspaceRecord,
-    getDepartmentUserReservedSubmitState,
     getDepartmentUserWorkspaceAnnouncement,
     mapDepartmentUserBudgetMeterState,
     resolveDepartmentUserDisplayedWorkspaceSummary,
@@ -41,6 +40,11 @@ import {
     type DepartmentUserPersistedPlanSummary,
     type DepartmentUserWorkspaceSummary,
 } from "@/lib/blockly/du-workspace-calculations";
+import {
+    buildDepartmentUserPlanSubmissionReviewSummary,
+    canDepartmentUserOpenPlanSubmissionReview,
+    getDepartmentUserPlanSubmitState,
+} from "@/lib/blockly/plan-submission";
 import { buildDepartmentUserWorkspaceDraftSaveInput } from "@/lib/blockly/workspace-save";
 import {
     collectDepartmentUserWorkspaceSourceUsage,
@@ -184,6 +188,15 @@ export function BlocklyEditor(props: {
     mode: "edit" | "view";
     modeIndicatorLabel: string | null;
     planId: string;
+    planMeta: {
+        canWithdraw: boolean;
+        reviewStartedAt: number | null;
+        status: "approved" | "draft" | "rejected" | "submitted";
+        submissionEmailErrorMessage: string | null;
+        submissionEmailStatus: "failed" | "queued" | null;
+        submissionReference: string | null;
+        submittedAt: number | null;
+    };
     persistedPlanSummary: DepartmentUserPersistedPlanSummary;
     selectedCategoryIds: string[];
     subtitle: string;
@@ -196,6 +209,10 @@ export function BlocklyEditor(props: {
 }) {
     const router = useRouter();
     const saveWorkspaceDraft = useMutation(api.functions.plans.saveDepartmentUserWorkspaceDraft);
+    const submitDepartmentUserPlan = useMutation(api.functions.plans.submitDepartmentUserPlan);
+    const withdrawDepartmentUserPlanSubmission = useMutation(
+        api.functions.plans.withdrawDepartmentUserPlanSubmission,
+    );
     const createCategoryRequest = useAction(api.functions.catalogRequests.createCategoryRequest);
     const createItemRequest = useAction(api.functions.catalogRequests.createItemRequest);
     const updateCategoryRequest = useAction(api.functions.catalogRequests.updateCategoryRequest);
@@ -345,6 +362,9 @@ export function BlocklyEditor(props: {
         });
     const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
     const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
+    const [isSubmitReviewOpen, setIsSubmitReviewOpen] = useState(false);
+    const [isSubmitPending, setIsSubmitPending] = useState(false);
+    const [isWithdrawPending, setIsWithdrawPending] = useState(false);
     const previousCatalogRequestStatusRef = useRef<Map<string, string>>(new Map());
     const previousIncomingWorkspaceSyncKeyRef = useRef<string | null>(null);
     const workspaceItemIds = useMemo(
@@ -502,6 +522,12 @@ export function BlocklyEditor(props: {
             toast.info(PROCUREMENT_ITEM_VALIDATION_CHANGE_NOTICE);
         }
     }, [props.items, workspaceItemIds]);
+
+    useEffect(() => {
+        if (!canDepartmentUserOpenPlanSubmissionReview(props.planMeta.status)) {
+            setIsSubmitReviewOpen(false);
+        }
+    }, [props.planMeta.status]);
 
     useEffect(() => {
         const announcement = getDepartmentUserWorkspaceAnnouncement(workspaceSummary);
@@ -1283,8 +1309,70 @@ export function BlocklyEditor(props: {
         }
     }
 
-    function handleReservedAction(message: string): void {
+    function handlePlaceholderAction(message: string): void {
         toast(message);
+    }
+
+    function handleOpenSubmitReview(): void {
+        setIsSubmitReviewOpen(true);
+    }
+
+    async function handleConfirmSubmit(): Promise<void> {
+        if (isSubmitPending) {
+            return;
+        }
+
+        setIsSubmitPending(true);
+        try {
+            const result = await submitDepartmentUserPlan({
+                planId: props.planId,
+            });
+            setIsSubmitReviewOpen(false);
+            if (result.emailStatus === "failed") {
+                toast.warning(
+                    result.emailErrorMessage?.trim() ||
+                        `Plan submitted as ${result.submissionReference}, but the confirmation email could not be queued.`,
+                );
+            } else {
+                toast.success(`Plan submitted as ${result.submissionReference}.`);
+            }
+            startTransition(() => {
+                router.replace(`/du/plans/${props.planId}?mode=view`);
+            });
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "We could not submit this plan right now.",
+            );
+        } finally {
+            setIsSubmitPending(false);
+        }
+    }
+
+    async function handleWithdrawSubmission(): Promise<void> {
+        if (isWithdrawPending) {
+            return;
+        }
+
+        setIsWithdrawPending(true);
+        try {
+            await withdrawDepartmentUserPlanSubmission({
+                planId: props.planId,
+            });
+            toast.success("Submission withdrawn. This draft is editable again.");
+            startTransition(() => {
+                router.replace(`/du/plans/${props.planId}?mode=edit`);
+            });
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "We could not withdraw this submission right now.",
+            );
+        } finally {
+            setIsWithdrawPending(false);
+        }
     }
 
     async function handleRecoverUnsavedChanges(): Promise<void> {
@@ -1450,11 +1538,23 @@ export function BlocklyEditor(props: {
         setIsExitDialogOpen(true);
     }
 
-    const submitState = getDepartmentUserReservedSubmitState({
+    const submissionReviewSummary = useMemo(
+        () => buildDepartmentUserPlanSubmissionReviewSummary(workspaceSummary),
+        [workspaceSummary],
+    );
+    const submitState = getDepartmentUserPlanSubmitState({
         budgetState,
+        hasUnsyncedChanges: hasUnsyncedRisk,
         mode: props.mode,
+        saveState,
+        totalItemCount: submissionReviewSummary.itemCount,
         validationState: workspaceSummary?.validationState ?? null,
     });
+    const canOpenSubmitReview = canDepartmentUserOpenPlanSubmissionReview(
+        props.planMeta.status,
+    );
+    const canWithdrawCurrentSubmission =
+        props.planMeta.status === "submitted" && props.planMeta.canWithdraw;
     const isCloudSaveDisabled =
         props.mode !== "edit" ||
         saveState === "saving" ||
@@ -1467,6 +1567,9 @@ export function BlocklyEditor(props: {
         props.mode === "view"
             ? "Review the current procurement plan blocks and totals."
             : "Drag items from left to build your plan.";
+    const submittedAtLabel = props.planMeta.submittedAt
+        ? formatSubmittedAtLabel(props.planMeta.submittedAt)
+        : null;
 
     return (
         <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
@@ -1543,7 +1646,7 @@ export function BlocklyEditor(props: {
                                 className="border-slate-400 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900"
                                 onClick={() =>
                                     startTransition(() =>
-                                        handleReservedAction(
+                                        handlePlaceholderAction(
                                             "Export handoff stays reserved until the export stories land.",
                                         ),
                                     )
@@ -1586,21 +1689,43 @@ export function BlocklyEditor(props: {
                                 <Save className="mr-2 h-4 w-4" />
                                 {saveState === "saving" ? "Saving..." : "Save"}
                             </Button>
-                            <Button
-                                className="bg-emerald-500 text-white hover:bg-emerald-600 disabled:bg-emerald-200 disabled:text-slate-600"
-                                disabled={submitState.disabled}
-                                onClick={() => {
-                                    handleReservedAction(
-                                        submitState.reason ||
-                                            "Submission stays reserved until the submission flow lands.",
-                                    );
-                                }}
-                                type="button"
-                                variant="default"
-                            >
-                                <Send className="mr-2 h-4 w-4" />
-                                {submitState.disabled ? submitState.label : "Submit to PO"}
-                            </Button>
+                            {canOpenSubmitReview ? (
+                                <Button
+                                    className="bg-emerald-500 text-white hover:bg-emerald-600 disabled:bg-emerald-200 disabled:text-slate-600"
+                                    disabled={submitState.disabled || isSubmitPending}
+                                    onClick={() => {
+                                        handleOpenSubmitReview();
+                                    }}
+                                    type="button"
+                                    variant="default"
+                                >
+                                    <Send className="mr-2 h-4 w-4" />
+                                    {isSubmitPending ? "Submitting..." : submitState.label}
+                                </Button>
+                            ) : canWithdrawCurrentSubmission ? (
+                                <Button
+                                    className="bg-amber-500 text-white hover:bg-amber-600 disabled:bg-amber-200 disabled:text-slate-600"
+                                    disabled={isWithdrawPending}
+                                    onClick={() => {
+                                        void handleWithdrawSubmission();
+                                    }}
+                                    type="button"
+                                    variant="default"
+                                >
+                                    <Send className="mr-2 h-4 w-4" />
+                                    {isWithdrawPending ? "Withdrawing..." : "Withdraw Submission"}
+                                </Button>
+                            ) : (
+                                <Button
+                                    className="bg-slate-300 text-slate-700 hover:bg-slate-300"
+                                    disabled
+                                    type="button"
+                                    variant="default"
+                                >
+                                    <Send className="mr-2 h-4 w-4" />
+                                    {props.planMeta.status === "submitted" ? "Submitted" : "View Only"}
+                                </Button>
+                            )}
                         </div>
                     </div>
 
@@ -1667,15 +1792,130 @@ export function BlocklyEditor(props: {
             </div>
 
             {recoverySnapshot ||
+            isSubmitReviewOpen ||
             blockedSyncMessage ||
             storageWarning ||
             props.mode === "view" ||
+            props.planMeta.submissionReference ||
             props.unavailableCategories.length > 0 ||
+            ((props.planMeta.status === "draft" || props.planMeta.status === "rejected") &&
+                submitState.disabled) ||
             (workspaceSummary?.validationState.submitBlockedReasons.length ?? 0) > 0 ||
             workspaceSummary?.validationState.validationUnavailableReason ? (
                 <div className={styles.workspaceNoticeStack}>
+                    {isSubmitReviewOpen ? (
+                        <Alert
+                            className="rounded-2xl border-emerald-300 bg-emerald-50 text-emerald-950 shadow-lg"
+                            dismissible
+                            dismissKey={`submit-review-${submissionReviewSummary.itemCount}-${submissionReviewSummary.estimatedBudgetUsed}-${submissionReviewSummary.categories.length}-${submissionReviewSummary.blockerMessages.join("|")}`}
+                            onDismiss={() => {
+                                setIsSubmitReviewOpen(false);
+                            }}
+                        >
+                            <AlertTitle>Review before submission</AlertTitle>
+                            <AlertDescription className="space-y-4">
+                                <div className="grid gap-3 sm:grid-cols-3">
+                                    <div className="rounded-2xl border border-emerald-200 bg-white/80 px-4 py-3">
+                                        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                                            Items
+                                        </div>
+                                        <div className="mt-1 text-2xl font-bold">
+                                            {submissionReviewSummary.itemCount}
+                                        </div>
+                                    </div>
+                                    <div className="rounded-2xl border border-emerald-200 bg-white/80 px-4 py-3">
+                                        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                                            Estimated Spend
+                                        </div>
+                                        <div className="mt-1 text-2xl font-bold">
+                                            {formatKenyanCurrency(
+                                                submissionReviewSummary.estimatedBudgetUsed,
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="rounded-2xl border border-emerald-200 bg-white/80 px-4 py-3">
+                                        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                                            Categories
+                                        </div>
+                                        <div className="mt-1 text-2xl font-bold">
+                                            {submissionReviewSummary.categories.length}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <div className="text-sm font-semibold text-emerald-900">
+                                        Category breakdown
+                                    </div>
+                                    {submissionReviewSummary.categories.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {submissionReviewSummary.categories.map((category) => (
+                                                <div
+                                                    key={category.categoryId}
+                                                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-white/80 px-4 py-3"
+                                                >
+                                                    <div>
+                                                        <div className="font-medium">{category.categoryName}</div>
+                                                        <div className="text-sm text-emerald-800/80">
+                                                            {category.itemCount} item{category.itemCount === 1 ? "" : "s"}
+                                                        </div>
+                                                    </div>
+                                                    <div className="font-semibold">
+                                                        {formatKenyanCurrency(
+                                                            category.estimatedBudgetUsed,
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="rounded-2xl border border-dashed border-emerald-200 bg-white/70 px-4 py-4 text-sm text-emerald-900/80">
+                                            This draft does not contain any actionable items yet.
+                                        </div>
+                                    )}
+                                </div>
+
+                                {submissionReviewSummary.blockerMessages.length > 0 ? (
+                                    <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                        {submissionReviewSummary.blockerMessages.join(" ")}
+                                    </div>
+                                ) : (
+                                    <div className="rounded-2xl border border-emerald-200 bg-white/70 px-4 py-3 text-sm text-emerald-900">
+                                        Submission will lock this workspace for editing and hand the plan to Procurement for review.
+                                    </div>
+                                )}
+
+                                <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        disabled={isSubmitPending}
+                                        onClick={() => {
+                                            void handleConfirmSubmit();
+                                        }}
+                                        type="button"
+                                    >
+                                        {isSubmitPending ? "Submitting..." : "Confirm submission"}
+                                    </Button>
+                                    <Button
+                                        disabled={isSubmitPending}
+                                        onClick={() => {
+                                            setIsSubmitReviewOpen(false);
+                                        }}
+                                        type="button"
+                                        variant="outline"
+                                    >
+                                        Cancel
+                                    </Button>
+                                </div>
+                            </AlertDescription>
+                        </Alert>
+                    ) : null}
+
                     {recoverySnapshot ? (
-                        <Alert className="rounded-2xl border-emerald-300 bg-emerald-50 text-emerald-900 shadow-lg">
+                        <Alert
+                            className="rounded-2xl border-emerald-300 bg-emerald-50 text-emerald-900 shadow-lg"
+                            dismissible
+                            dismissKey={getDepartmentUserWorkspaceRecoveryMessage()}
+                        >
                             <AlertTitle>Unsaved recovery available</AlertTitle>
                             <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
                                 <span>{getDepartmentUserWorkspaceRecoveryMessage()}</span>
@@ -1704,30 +1944,90 @@ export function BlocklyEditor(props: {
                     ) : null}
 
                     {blockedSyncMessage ? (
-                        <Alert className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900 shadow-lg">
+                        <Alert
+                            className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900 shadow-lg"
+                            dismissible
+                            dismissKey={blockedSyncMessage}
+                        >
                             <AlertTitle>Cloud save is paused</AlertTitle>
                             <AlertDescription>{blockedSyncMessage}</AlertDescription>
                         </Alert>
                     ) : null}
 
                     {storageWarning ? (
-                        <Alert className="rounded-2xl border-border/70 bg-muted/95 shadow-lg">
+                        <Alert
+                            className="rounded-2xl border-border/70 bg-muted/95 shadow-lg"
+                            dismissible
+                            dismissKey={storageWarning}
+                        >
                             <AlertTitle>Local recovery warning</AlertTitle>
                             <AlertDescription>{storageWarning}</AlertDescription>
                         </Alert>
                     ) : null}
 
+                    {props.planMeta.submissionReference ? (
+                        <Alert
+                            className="rounded-2xl border-emerald-300 bg-emerald-50 text-emerald-950 shadow-lg"
+                            dismissible
+                            dismissKey={`${props.planMeta.status}-${props.planMeta.submissionReference}-${submittedAtLabel ?? "unknown"}`}
+                        >
+                            <AlertTitle>
+                                {props.planMeta.status === "submitted"
+                                    ? "Plan submitted to Procurement"
+                                    : "Submission history on this plan"}
+                            </AlertTitle>
+                            <AlertDescription className="space-y-2">
+                                <div>
+                                    Reference: <span className="font-semibold">{props.planMeta.submissionReference}</span>
+                                </div>
+                                {submittedAtLabel ? <div>Submitted at: {submittedAtLabel}</div> : null}
+                                {props.planMeta.status === "submitted" && canWithdrawCurrentSubmission ? (
+                                    <div className="text-sm text-emerald-900/80">
+                                        Withdrawal stays available until Procurement review starts.
+                                    </div>
+                                ) : null}
+                            </AlertDescription>
+                        </Alert>
+                    ) : null}
+
+                    {props.planMeta.submissionEmailStatus === "failed" ? (
+                        <Alert
+                            className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900 shadow-lg"
+                            dismissible
+                            dismissKey={
+                                props.planMeta.submissionEmailErrorMessage?.trim() ||
+                                "submission-email-failed"
+                            }
+                        >
+                            <AlertTitle>Confirmation email needs attention</AlertTitle>
+                            <AlertDescription>
+                                {props.planMeta.submissionEmailErrorMessage?.trim() ||
+                                    "The plan was submitted, but the confirmation email could not be queued."}
+                            </AlertDescription>
+                        </Alert>
+                    ) : null}
+
                     {props.mode === "view" ? (
-                        <Alert className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900 shadow-lg">
+                        <Alert
+                            className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900 shadow-lg"
+                            dismissible
+                            dismissKey="read-only-planning-surface"
+                        >
                             <AlertTitle>Read-only planning surface</AlertTitle>
                             <AlertDescription>
-                                This plan is open in read-only mode, so editing and submission stay unavailable here.
+                                This plan is open in read-only mode, so editing stays unavailable here.
                             </AlertDescription>
                         </Alert>
                     ) : null}
 
                     {props.unavailableCategories.length > 0 ? (
-                        <Alert className="rounded-2xl border-border/70 bg-muted/95 shadow-lg">
+                        <Alert
+                            className="rounded-2xl border-border/70 bg-muted/95 shadow-lg"
+                            dismissible
+                            dismissKey={props.unavailableCategories
+                                .map((category) => `${category.name}:${category.reason}`)
+                                .join("|")}
+                        >
                             <AlertTitle>Unavailable selected categories</AlertTitle>
                             <AlertDescription>
                                 {props.unavailableCategories
@@ -1737,8 +2037,26 @@ export function BlocklyEditor(props: {
                         </Alert>
                     ) : null}
 
+                    {canOpenSubmitReview && submitState.disabled ? (
+                        <Alert
+                            className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900 shadow-lg"
+                            dismissible
+                            dismissKey={submitState.reason}
+                        >
+                            <AlertTitle>Submission not ready</AlertTitle>
+                            <AlertDescription>{submitState.reason}</AlertDescription>
+                        </Alert>
+                    ) : null}
+
                     {(workspaceSummary?.validationState.submitBlockedReasons.length ?? 0) > 0 ? (
-                        <Alert className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900 shadow-lg">
+                        <Alert
+                            className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900 shadow-lg"
+                            dismissible
+                            dismissKey={
+                                workspaceSummary?.validationState.submitBlockedReasons.join("|") ??
+                                "validation-issues"
+                            }
+                        >
                             <AlertTitle>Validation issues on the canvas</AlertTitle>
                             <AlertDescription>
                                 {workspaceSummary?.validationState.submitBlockedReasons.join(" ")}
@@ -1747,7 +2065,13 @@ export function BlocklyEditor(props: {
                     ) : null}
 
                     {workspaceSummary?.validationState.validationUnavailableReason ? (
-                        <Alert className="rounded-2xl border-border/70 bg-muted/95 shadow-lg">
+                        <Alert
+                            className="rounded-2xl border-border/70 bg-muted/95 shadow-lg"
+                            dismissible
+                            dismissKey={
+                                workspaceSummary.validationState.validationUnavailableReason
+                            }
+                        >
                             <AlertTitle>Validation details unavailable</AlertTitle>
                             <AlertDescription>
                                 {workspaceSummary.validationState.validationUnavailableReason}
@@ -1843,6 +2167,13 @@ function formatKenyanCurrency(amount: number): string {
         minimumFractionDigits: 2,
         style: "currency",
     }).format(amount);
+}
+
+function formatSubmittedAtLabel(timestamp: number): string {
+    return new Intl.DateTimeFormat("en-KE", {
+        dateStyle: "medium",
+        timeStyle: "short",
+    }).format(timestamp);
 }
 
 function isSameWorkspaceSnapshotIgnoringSavedAt(

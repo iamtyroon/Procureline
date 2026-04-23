@@ -137,8 +137,9 @@ import {
   type DepartmentFormDialogDepartment,
 } from "./DepartmentFormDialog";
 import { ProcurementOfficerDeadlinesWorkspace } from "./ProcurementOfficerDeadlinesWorkspace";
+import { ProcurementOfficerPlanReviewSummaryModal } from "./ProcurementOfficerPlanReviewSummaryModal";
 import { ProcurementOfficerRequestsWorkspace } from "./ProcurementOfficerRequestsWorkspace";
-import { ProcurementOfficerSubmissionsWorkspace } from "./ProcurementOfficerSubmissionsWorkspace";
+import { ProcurementOfficerSubmittedPlansPanel } from "./ProcurementOfficerSubmittedPlansPanel";
 
 /* ─── Donut Ring ──────────────────────────────────────────────────── */
 
@@ -431,6 +432,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
 
   const activeModal = normalizeProcurementOfficerWorkspaceModalState({
     modal: searchParams.get("modal"),
+    planId: searchParams.get("planId"),
   });
   const selectedFiscalYear =
     snapshot.fiscalYears.selectedFiscalYear ?? requestedFiscalYear;
@@ -496,6 +498,8 @@ export function ProcurementOfficerDashboard(): JSX.Element {
         );
   const submittedDepartmentCount =
     snapshot.submissionProgress.submittedDepartmentCount;
+  const approvedDepartmentCount =
+    snapshot.submissionProgress.approvedDepartmentCount;
   const submittedDepartmentScope = snapshot.submissionProgress.totalDepartmentCount;
   const submissionPercent = snapshot.submissionProgress.utilizationPercent;
   const submissionHelperText = snapshot.submissionProgress.helperText;
@@ -579,6 +583,16 @@ export function ProcurementOfficerDashboard(): JSX.Element {
       return;
     }
     setWorkspaceModal(target.modalState, "push");
+  }
+
+  function openDashboardReviewModal(planId: string): void {
+    setWorkspaceModal(
+      {
+        modal: "review",
+        planId,
+      },
+      "push",
+    );
   }
 
   function openDashboardDepartmentCreateDialog(): void {
@@ -1255,10 +1269,10 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                     Workflow Panels
                   </span>
                 </div>
-                {submissionPanel ? (
+                {requestPanel ? (
                   <StateBadge
-                    state={submissionPanel.state}
-                    label={submissionPanel.statusLabel}
+                    state={requestPanel.state}
+                    label={requestPanel.statusLabel}
                   />
                 ) : null}
               </div>
@@ -1278,7 +1292,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                     ) : null}
                   </div>
                   <div className="space-y-2">
-                    {[requestPanel, submissionPanel]
+                    {[requestPanel]
                       .filter(
                         (p): p is ProcurementOfficerDashboardFuturePanel =>
                           Boolean(p),
@@ -1432,8 +1446,9 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                         {fiscalYearLabel} Master Plan
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {submittedDepartmentCount} of {submittedDepartmentScope}{" "}
-                        departments submitted
+                        {submittedDepartmentCount} submitted •{" "}
+                        {approvedDepartmentCount} approved out of{" "}
+                        {submittedDepartmentScope} departments
                       </div>
                     </div>
                     <div className="text-right">
@@ -1441,7 +1456,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                         {submissionPercent}%
                       </div>
                       <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                        Submitted
+                        Approved
                       </div>
                     </div>
                   </div>
@@ -1754,28 +1769,10 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                 ) : null}
               </div>
               <div className="p-5">
-                <div className="flex min-h-[13rem] flex-col justify-between rounded-xl border border-dashed border-border/60 bg-muted/10 p-4">
-                  <div className="space-y-2">
-                    <div className="text-sm font-semibold text-foreground">
-                      Submission monitoring
-                    </div>
-                    <div className="text-sm leading-6 text-muted-foreground">
-                      {submissionPanel?.description ??
-                        "Submitted plans will appear here as departments move into review."}
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button
-                      variant="outline"
-                      className="h-9 rounded-lg text-xs"
-                      onClick={() => handleWorkspaceAction("/po/submissions")}
-                      type="button"
-                    >
-                      Open submissions
-                      <ArrowRight className="ml-2 h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
+                <ProcurementOfficerSubmittedPlansPanel
+                  onOpenReview={openDashboardReviewModal}
+                  selectedFiscalYear={selectedFiscalYear}
+                />
               </div>
             </BentoCard>
           </div>
@@ -1988,10 +1985,15 @@ export function ProcurementOfficerDashboard(): JSX.Element {
 
       {/* Workspace modal */}
       <WorkspaceModal
-        activeModal={activeModal}
+        activeModal={activeModal?.modal === "review" ? null : activeModal}
         selectedFiscalYear={selectedFiscalYear}
         onSelectedFiscalYearChange={replaceSelectedFiscalYear}
         onClose={() => setWorkspaceModal(null, "replace")}
+      />
+      <ProcurementOfficerPlanReviewSummaryModal
+        onClose={() => setWorkspaceModal(null, "replace")}
+        open={activeModal?.modal === "review"}
+        planId={activeModal?.modal === "review" ? activeModal.planId : null}
       />
     </div>
   );
@@ -3120,7 +3122,12 @@ function WorkspaceModal({
   onSelectedFiscalYearChange,
   onClose,
 }: {
-  activeModal: ProcurementOfficerWorkspaceModalState | null;
+  activeModal:
+    | Extract<
+        ProcurementOfficerWorkspaceModalState,
+        { modal: "access-codes" | "deadlines" | "requests" }
+      >
+    | null;
   selectedFiscalYear?: string;
   onSelectedFiscalYearChange: (fiscalYear: string) => void;
   onClose: () => void;
@@ -3160,12 +3167,6 @@ function WorkspaceModal({
         <div className="max-h-[75vh] space-y-5 overflow-y-auto p-6">
           {activeModal?.modal === "requests" ? (
             <ProcurementOfficerRequestsWorkspace />
-          ) : null}
-
-          {activeModal?.modal === "submissions" ? (
-            <ProcurementOfficerSubmissionsWorkspace
-              selectedFiscalYear={selectedFiscalYear}
-            />
           ) : null}
 
           {activeModal?.modal === "access-codes" ? (
@@ -3229,11 +3230,9 @@ function findFuturePanel(
 }
 
 function getWorkspaceIcon(
-  modal: ProcurementOfficerWorkspaceModalState["modal"],
+  modal: "access-codes" | "deadlines" | "requests",
 ) {
   switch (modal) {
-    case "submissions":
-      return <CheckCircle2 className="h-5 w-5" />;
     case "requests":
       return <FileStack className="h-5 w-5" />;
     case "access-codes":
@@ -3244,11 +3243,14 @@ function getWorkspaceIcon(
 }
 
 function getWorkspaceTitle(
-  activeModal: ProcurementOfficerWorkspaceModalState | null,
+  activeModal:
+    | Extract<
+        ProcurementOfficerWorkspaceModalState,
+        { modal: "access-codes" | "deadlines" | "requests" }
+      >
+    | null,
 ): string {
   switch (activeModal?.modal) {
-    case "submissions":
-      return "Submission queue";
     case "requests":
       return "Requests workspace";
     case "access-codes":
@@ -3261,11 +3263,14 @@ function getWorkspaceTitle(
 }
 
 function getWorkspaceDescription(
-  activeModal: ProcurementOfficerWorkspaceModalState | null,
+  activeModal:
+    | Extract<
+        ProcurementOfficerWorkspaceModalState,
+        { modal: "access-codes" | "deadlines" | "requests" }
+      >
+    | null,
 ): string {
   switch (activeModal?.modal) {
-    case "submissions":
-      return "Track submitted, approved, and rejected departmental plans in one live queue, then hand each row into the reserved review route without leaving the /po shell.";
     case "requests":
       return "Review item and category requests, approve or deny with audit trails, and track history without leaving the /po shell.";
     case "access-codes":

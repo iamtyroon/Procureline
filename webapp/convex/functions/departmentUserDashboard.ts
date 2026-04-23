@@ -132,6 +132,7 @@ const dashboardSnapshotValidator = v.object({
                 itemCountLabel: v.string(),
                 rejectionComment: v.union(v.string(), v.null()),
                 statusLabel: planStatusValidator,
+                submissionReference: v.union(v.string(), v.null()),
                 viewHref: v.string(),
             }),
         ),
@@ -181,6 +182,7 @@ const dashboardSnapshotValidator = v.object({
             primaryActionLabel: v.string(),
             state: dashboardStateValidator,
             statusLabel: planStatusValidator,
+            submissionReference: v.union(v.string(), v.null()),
         }),
     }),
     rejectionNotice: v.union(
@@ -414,6 +416,8 @@ export const getDepartmentUserDashboardSnapshot = query({
                     String(categoryId),
                 ),
                 status: plan.status,
+                submissionReference: plan.submissionReference ?? null,
+                submittedAt: plan.submittedAt ?? null,
                 updatedAt: plan.updatedAt,
             })),
             procurementOfficer: procurementOfficer

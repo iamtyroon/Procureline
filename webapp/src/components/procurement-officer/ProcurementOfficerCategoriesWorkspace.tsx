@@ -41,7 +41,6 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { buildProcurementOfficerWorkspaceModalPath } from "@/lib/procurement-officer/dashboard";
 import {
     buildCategoryTierLimitModalContent,
     buildCategoryToolboxStyle,
@@ -380,12 +379,7 @@ export function ProcurementOfficerCategoriesWorkspace(): JSX.Element {
             name: values.name,
             revision: editingCategory?.revision ?? 0,
         });
-        router.push(
-            buildProcurementOfficerWorkspaceModalPath({
-                modal: "categories",
-                section: "items",
-            }),
-        );
+        router.push("/po/items");
     }
 
     return (

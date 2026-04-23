@@ -5,6 +5,7 @@ const blockly_serialization_1 = require("./blockly-serialization");
 const workspace_catalog_identity_1 = require("./workspace-catalog-identity");
 const compliance_1 = require("../procurement/compliance");
 const workspace_validation_1 = require("./workspace-validation");
+const plan_submission_1 = require("./plan-submission");
 exports.DU_BUDGET_WARNING_THRESHOLD_PERCENT = 80;
 function createEmptyQuarterTotals() {
     return {
@@ -430,41 +431,14 @@ function getDepartmentUserWorkspaceAnnouncement(summary) {
 }
 exports.getDepartmentUserWorkspaceAnnouncement = getDepartmentUserWorkspaceAnnouncement;
 function getDepartmentUserReservedSubmitState(args) {
-    if (args.mode === "view") {
-        return {
-            disabled: true,
-            label: "Read-only - Cannot Submit",
-            reason: "This plan is open in read-only mode, so submission stays unavailable here.",
-        };
-    }
-    if (args.budgetState.state === "over_budget") {
-        return {
-            disabled: true,
-            label: "Over Budget - Cannot Submit",
-            reason: args.budgetState.bannerText ??
-                "Budget exceeded. Remove items or reduce quantities before submission can unlock.",
-        };
-    }
-    if (args.budgetState.state === "unallocated") {
-        return {
-            disabled: true,
-            label: "No Budget - Cannot Submit",
-            reason: "Budget allocation is unavailable, so submission must remain blocked.",
-        };
-    }
-    if ((args.validationState?.submitBlockedReasons.length ?? 0) > 0) {
-        return {
-            disabled: true,
-            label: "Fix Validation Issues",
-            reason: args.validationState?.submitBlockedReasons.join(" ") ??
-                "Resolve the flagged workspace validation issues before submission can unlock.",
-        };
-    }
-    return {
-        disabled: true,
-        label: "Submit Reserved",
-        reason: "Submission stays reserved until Story 6.1 completes the plan-submission flow.",
-    };
+    return (0, plan_submission_1.getDepartmentUserPlanSubmitState)({
+        budgetState: args.budgetState,
+        hasUnsyncedChanges: args.hasUnsyncedChanges ?? false,
+        mode: args.mode,
+        saveState: args.saveState ?? "idle",
+        totalItemCount: args.totalItemCount ?? 0,
+        validationState: args.validationState ?? null,
+    });
 }
 exports.getDepartmentUserReservedSubmitState = getDepartmentUserReservedSubmitState;
 const QUARTER_FIELD_KEY_MAP = [

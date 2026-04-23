@@ -11,7 +11,6 @@ import {
   type SubmissionDeadlineRecordLike,
 } from "./deadlines";
 import { extractProcurementOfficerDashboardSearchParams } from "./dashboard-search";
-import { extractProcurementOfficerSubmissionSearchParams } from "./submissions";
 
 export type ProcurementDashboardState =
   | "available"
@@ -24,15 +23,20 @@ export const PROCUREMENT_OFFICER_WORKSPACE_MODALS = [
   "access-codes",
   "deadlines",
   "requests",
-  "submissions",
+  "review",
 ] as const;
 
 export type ProcurementOfficerWorkspaceModal =
   (typeof PROCUREMENT_OFFICER_WORKSPACE_MODALS)[number];
 
-export interface ProcurementOfficerWorkspaceModalState {
-  modal: ProcurementOfficerWorkspaceModal;
-}
+export type ProcurementOfficerWorkspaceModalState =
+  | {
+      modal: "access-codes" | "deadlines" | "requests";
+    }
+  | {
+      modal: "review";
+      planId: string;
+    };
 
 interface WorkspaceSearchParamsReader {
   get(name: string): string | null;
@@ -140,9 +144,22 @@ export function isProcurementOfficerWorkspaceModal(
 
 export function normalizeProcurementOfficerWorkspaceModalState(args: {
   modal: string | null;
+  planId?: string | null;
 }): ProcurementOfficerWorkspaceModalState | null {
   if (!isProcurementOfficerWorkspaceModal(args.modal)) {
     return null;
+  }
+
+  if (args.modal === "review") {
+    const planId = args.planId?.trim() ?? "";
+    if (planId.length === 0) {
+      return null;
+    }
+
+    return {
+      modal: "review",
+      planId,
+    };
   }
 
   return {
@@ -154,9 +171,6 @@ export function buildProcurementOfficerWorkspaceModalPath(
   state: ProcurementOfficerWorkspaceModalState,
   options?: {
     dashboardSearchParams?: WorkspaceSearchParamsReader | URLSearchParams;
-    submissionWorkspaceSearchParams?:
-      | WorkspaceSearchParamsReader
-      | URLSearchParams;
   },
 ): string {
   const searchParams = new URLSearchParams({
@@ -172,15 +186,8 @@ export function buildProcurementOfficerWorkspaceModalPath(
     searchParams.append(key, value);
   });
 
-  if (state.modal === "submissions" && options?.submissionWorkspaceSearchParams) {
-    const submissionSearchParams =
-      extractProcurementOfficerSubmissionSearchParams(
-        options.submissionWorkspaceSearchParams,
-      );
-
-    submissionSearchParams.forEach((value, key) => {
-      searchParams.append(key, value);
-    });
+  if (state.modal === "review") {
+    searchParams.set("planId", state.planId);
   }
 
   return `/po?${searchParams.toString()}`;
@@ -238,18 +245,45 @@ export function resolveProcurementOfficerWorkspaceNavigation(
       };
     case "/po/submissions":
       return {
+        href: (() => {
+          const dashboardSearchParams = extractProcurementOfficerDashboardSearchParams(
+            targetUrl.searchParams,
+          );
+          const query = dashboardSearchParams.toString();
+          return query.length > 0 ? `/po?${query}` : "/po";
+        })(),
+        type: "route",
+      };
+    case "/po/review": {
+      const planId = targetUrl.searchParams.get("planId")?.trim() ?? "";
+      if (planId.length === 0) {
+        const dashboardSearchParams = extractProcurementOfficerDashboardSearchParams(
+          targetUrl.searchParams,
+        );
+        const query = dashboardSearchParams.toString();
+        return {
+          href: query.length > 0 ? `/po?${query}` : "/po",
+          type: "route",
+        };
+      }
+
+      return {
         href: buildProcurementOfficerWorkspaceModalPath(
           {
-            modal: "submissions",
+            modal: "review",
+            planId,
           },
           {
             dashboardSearchParams: targetUrl.searchParams,
-            submissionWorkspaceSearchParams: targetUrl.searchParams,
           },
         ),
         type: "modal",
-        modalState: { modal: "submissions" },
+        modalState: {
+          modal: "review",
+          planId,
+        },
       };
+    }
     case "/po/items":
     case "/po/categories":
       return {

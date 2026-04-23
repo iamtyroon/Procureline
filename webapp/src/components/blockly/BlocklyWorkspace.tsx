@@ -570,11 +570,20 @@ export function BlocklyWorkspace(props: {
             return;
         }
 
-        workspaceRef.current.updateToolbox(props.toolboxDefinition as never);
-        blocklyRef.current?.svgResize(workspaceRef.current);
-        workspaceRef.current.resizeContents();
-        emitHistoryState(workspaceRef.current);
-    }, [props.toolboxDefinition]);
+        const workspace = workspaceRef.current as BlocklyWorkspaceSvg & {
+            options?: {
+                languageTree?: unknown;
+            };
+        };
+        if (!workspace.options?.languageTree) {
+            return;
+        }
+
+        workspace.updateToolbox(props.toolboxDefinition as never);
+        blocklyRef.current?.svgResize(workspace);
+        workspace.resizeContents();
+        emitHistoryState(workspace);
+    }, [emitHistoryState, props.toolboxDefinition]);
 
     useEffect(() => {
         if (!blocklyRef.current || !workspaceRef.current) {

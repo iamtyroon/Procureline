@@ -27,6 +27,7 @@ async function main() {
     const { runDepartmentUserDashboardTests } = await import("./department-user-dashboard.test.js");
     const { runDepartmentUserBlocklyWorkspaceTests } = await import("./department-user-blockly-workspace.test.js");
     const { runDepartmentUserBlocklyWorkspaceUiTests } = await import("./department-user-blockly-workspace-ui.test.js");
+    const { runDepartmentUserPlanSubmissionTests } = await import("./department-user-plan-submission.test.js");
     const { runDepartmentUserAccessTests } = await import("./department-user-access.test.js");
     const { runDepartmentUserRequestContextTests } = await import("./department-user-request-context.test.js");
     const { runPasswordResetTests } = await import("./password-reset.test.js");
@@ -67,6 +68,7 @@ async function main() {
         ...runDepartmentUserDashboardTests(),
         ...(await runDepartmentUserBlocklyWorkspaceTests()),
         ...runDepartmentUserBlocklyWorkspaceUiTests(),
+        ...runDepartmentUserPlanSubmissionTests(),
         ...(await runDepartmentUserAccessTests()),
         ...(await runDepartmentUserRequestContextTests()),
         ...runPasswordResetTests(),

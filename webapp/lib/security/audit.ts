@@ -40,6 +40,12 @@ export const AUDIT_EVENT_NAMES = {
   departmentCreated: "department.created",
   departmentDeleted: "department.deleted",
   departmentUpdated: "department.updated",
+  planSubmitted: "plan.submitted",
+  planSubmissionBlocked: "plan.submission_blocked",
+  planSubmissionEmailFailed: "plan.submission_email_failed",
+  planSubmissionEmailQueued: "plan.submission_email_queued",
+  planWithdrawn: "plan.withdrawn",
+  planWithdrawalBlocked: "plan.withdrawal_blocked",
   departmentUserChallengeStarted: "du.access_code.challenge_started",
   departmentUserChallengeVerified: "du.access_code.challenge_verified",
   departmentUserCollision: "du.access_code.role_collision",
@@ -103,6 +109,7 @@ export const AUDIT_OUTCOMES = {
   blockedMissingOrigin: "blocked_missing_origin",
   blockedNotFound: "blocked_not_found",
   blockedPlatformAdminAccessDenied: "blocked_platform_admin_access_denied",
+  blockedStateTransition: "blocked_state_transition",
   blockedPlatformAdminBackupCodeReplay:
     "blocked_platform_admin_backup_code_replay",
   blockedPlatformAdminChallengeExpired:

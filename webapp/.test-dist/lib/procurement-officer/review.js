@@ -1,7 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.buildProcurementOfficerReviewComparison = exports.resolveProcurementOfficerReviewRenderState = exports.revalidateProcurementOfficerReviewSelection = exports.prepareProcurementOfficerPlanReviewStart = exports.buildProcurementOfficerReviewSnapshotSequenceKey = exports.resolveProcurementOfficerReviewSelectionFromBlocklyBlock = exports.buildProcurementOfficerReviewSelectionId = exports.selectPriorFiscalYearBaseline = exports.selectPreviousSubmissionBaseline = exports.derivePreviousFiscalYearKey = exports.buildProcurementOfficerReviewStartPatch = exports.normalizeProcurementOfficerReviewComment = exports.resolveProcurementOfficerReviewDepartmentContext = exports.resolveProcurementOfficerReviewTargetState = exports.PROCUREMENT_OFFICER_REVIEW_TARGET_UNAVAILABLE_MESSAGE = exports.PROCUREMENT_OFFICER_REVIEW_EMPTY_STATES = void 0;
+exports.buildProcurementOfficerReviewComparison = exports.resolveProcurementOfficerReviewRenderState = exports.revalidateProcurementOfficerReviewSelection = exports.prepareProcurementOfficerPlanReviewStart = exports.buildProcurementOfficerReviewSnapshotSequenceKey = exports.resolveProcurementOfficerReviewSelectionFromBlocklyBlock = exports.buildProcurementOfficerReviewSelectionId = exports.selectPriorFiscalYearBaseline = exports.selectPreviousSubmissionBaseline = exports.derivePreviousFiscalYearKey = exports.buildProcurementOfficerReviewStartPatch = exports.normalizeProcurementOfficerReviewBudgetAdjustment = exports.normalizeProcurementOfficerReviewComment = exports.resolveProcurementOfficerReviewDepartmentContext = exports.shouldStartProcurementOfficerReviewTracking = exports.resolveProcurementOfficerReviewTargetState = exports.PROCUREMENT_OFFICER_REVIEW_TARGET_UNAVAILABLE_MESSAGE = exports.PROCUREMENT_OFFICER_REVIEW_EMPTY_STATES = void 0;
 const du_workspace_calculations_1 = require("../blockly/du-workspace-calculations");
+const submission_1 = require("../plans/submission");
 exports.PROCUREMENT_OFFICER_REVIEW_EMPTY_STATES = {
     previousFiscalYear: "A prior fiscal-year comparison is unavailable for this department.",
     previousSubmission: "No previous submitted baseline is available for this plan yet.",
@@ -23,6 +24,10 @@ function resolveProcurementOfficerReviewTargetState(args) {
     };
 }
 exports.resolveProcurementOfficerReviewTargetState = resolveProcurementOfficerReviewTargetState;
+function shouldStartProcurementOfficerReviewTracking(status) {
+    return status === "submitted";
+}
+exports.shouldStartProcurementOfficerReviewTracking = shouldStartProcurementOfficerReviewTracking;
 function resolveProcurementOfficerReviewDepartmentContext(args) {
     const joinedName = args.joinedDepartmentName?.trim() ?? "";
     const snapshotName = args.planDepartmentNameSnapshot?.trim() ?? "";
@@ -62,6 +67,25 @@ function normalizeProcurementOfficerReviewComment(value) {
     };
 }
 exports.normalizeProcurementOfficerReviewComment = normalizeProcurementOfficerReviewComment;
+function normalizeProcurementOfficerReviewBudgetAdjustment(value) {
+    if (value === null || value === undefined) {
+        return {
+            ok: true,
+            value: null,
+        };
+    }
+    if (!Number.isFinite(value) || Number.isNaN(value) || value <= 0) {
+        return {
+            message: "Updated department budget must be greater than zero.",
+            ok: false,
+        };
+    }
+    return {
+        ok: true,
+        value,
+    };
+}
+exports.normalizeProcurementOfficerReviewBudgetAdjustment = normalizeProcurementOfficerReviewBudgetAdjustment;
 function buildProcurementOfficerReviewStartPatch(args) {
     const patch = {};
     if (!args.existingReviewStartedAt) {
@@ -97,25 +121,7 @@ function derivePreviousFiscalYearKey(fiscalYear) {
 }
 exports.derivePreviousFiscalYearKey = derivePreviousFiscalYearKey;
 function selectPreviousSubmissionBaseline(args) {
-    if (args.currentSubmittedAt === null) {
-        return null;
-    }
-    const currentSubmittedAt = args.currentSubmittedAt;
-    const eligibleSnapshots = args.snapshots.filter((snapshot) => {
-        if (snapshot.submittedAt === null) {
-            return false;
-        }
-        return snapshot.submittedAt < currentSubmittedAt;
-    });
-    if (eligibleSnapshots.length === 0) {
-        return null;
-    }
-    return [...eligibleSnapshots].sort((left, right) => {
-        if (left.submittedAt !== right.submittedAt) {
-            return (right.submittedAt ?? 0) - (left.submittedAt ?? 0);
-        }
-        return right.capturedAt - left.capturedAt;
-    })[0] ?? null;
+    return (0, submission_1.selectPreviousActivePlanSubmissionSnapshot)(args);
 }
 exports.selectPreviousSubmissionBaseline = selectPreviousSubmissionBaseline;
 function selectPriorFiscalYearBaseline(args) {
@@ -192,7 +198,7 @@ function resolveProcurementOfficerReviewSelectionFromBlocklyBlock(block) {
 }
 exports.resolveProcurementOfficerReviewSelectionFromBlocklyBlock = resolveProcurementOfficerReviewSelectionFromBlocklyBlock;
 function buildProcurementOfficerReviewSnapshotSequenceKey(args) {
-    return `${args.tenantId}:${args.planId}:${args.submittedAt ?? "no-submission"}`;
+    return (0, submission_1.buildPlanSubmissionSequenceKey)(args);
 }
 exports.buildProcurementOfficerReviewSnapshotSequenceKey = buildProcurementOfficerReviewSnapshotSequenceKey;
 function prepareProcurementOfficerPlanReviewStart(args) {
@@ -233,6 +239,7 @@ function prepareProcurementOfficerPlanReviewStart(args) {
         shouldCaptureSnapshot: !args.snapshotAlreadyExists,
         submissionSequenceKey: buildProcurementOfficerReviewSnapshotSequenceKey({
             planId: args.planId,
+            submissionSequence: args.submissionSequence,
             submittedAt: args.submittedAt,
             tenantId: args.tenantId,
         }),

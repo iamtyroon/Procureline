@@ -139,7 +139,11 @@ export function DepartmentUserDashboard(): JSX.Element {
             <div className="hidden lg:block">
                 <div className="mx-auto flex w-full max-w-none flex-col gap-4 px-4 py-4 xl:px-5">
                     {dashboardSnapshot.rejectionNotice ? (
-                        <Alert className="rounded-2xl border-amber-200 bg-amber-50/90 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+                        <Alert
+                            className="rounded-2xl border-amber-200 bg-amber-50/90 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+                            dismissible
+                            dismissKey={`${dashboardSnapshot.rejectionNotice.title}-${dashboardSnapshot.rejectionNotice.message}-${dashboardSnapshot.rejectionNotice.action.href}`}
+                        >
                             <AlertTriangle className="h-4 w-4" />
                             <AlertTitle>{dashboardSnapshot.rejectionNotice.title}</AlertTitle>
                             <AlertDescription className="flex items-center justify-between gap-4">
@@ -295,6 +299,11 @@ function PlanStatCard({ plan }: { plan: DepartmentUserDashboardSnapshot["quickSt
                 <div className="rounded-2xl border border-border/60 bg-muted/30 px-4 py-4 text-sm text-muted-foreground">
                     {plan.helperText}
                 </div>
+                {plan.submissionReference ? (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-900">
+                        Submission reference: <span className="font-semibold">{plan.submissionReference}</span>
+                    </div>
+                ) : null}
                 {plan.statusLabel !== "No Plan" ? (
                     <Button asChild className="w-full rounded-2xl">
                         <Link href={plan.primaryActionHref}>
@@ -595,6 +604,7 @@ function PlansCard({
         itemCountLabel: string;
         rejectionComment: string | null;
         statusLabel: string;
+        submissionReference: string | null;
         viewHref: string;
     }>;
     title: string;
@@ -641,6 +651,11 @@ function PlansCard({
                                             <Badge variant="outline" className="rounded-full">
                                                 {row.statusLabel}
                                             </Badge>
+                                            {row.submissionReference ? (
+                                                <div className="mt-2 text-xs font-medium text-emerald-700">
+                                                    Ref: {row.submissionReference}
+                                                </div>
+                                            ) : null}
                                             {row.rejectionComment ? (
                                                 <div className="mt-2 max-w-[220px] text-xs leading-5 text-muted-foreground">
                                                     {row.rejectionComment}

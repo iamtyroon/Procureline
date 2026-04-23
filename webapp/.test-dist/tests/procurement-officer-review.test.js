@@ -34,6 +34,19 @@ function runProcurementOfficerReviewTests() {
         value: "Needs revision on ICT items.",
     });
     completedTests.push("procurement-officer review comment validation trims canonical notes and rejects blank submissions");
+    strict_1.default.deepEqual((0, review_1.normalizeProcurementOfficerReviewBudgetAdjustment)(null), {
+        ok: true,
+        value: null,
+    });
+    strict_1.default.deepEqual((0, review_1.normalizeProcurementOfficerReviewBudgetAdjustment)(0), {
+        message: "Updated department budget must be greater than zero.",
+        ok: false,
+    });
+    strict_1.default.deepEqual((0, review_1.normalizeProcurementOfficerReviewBudgetAdjustment)(125000), {
+        ok: true,
+        value: 125000,
+    });
+    completedTests.push("procurement-officer review budget adjustments stay optional while failing closed for zero or invalid values");
     strict_1.default.deepEqual((0, review_1.buildProcurementOfficerReviewStartPatch)({
         currentDepartmentCode: "ICT",
         currentDepartmentName: "ICT Services",
@@ -67,7 +80,13 @@ function runProcurementOfficerReviewTests() {
         planId: "plan-1",
         submittedAt: 5_000,
         tenantId: "tenant-1",
-    }), "tenant-1:plan-1:5000");
+    }), "tenant-1:plan-1:submitted-at:5000");
+    strict_1.default.equal((0, review_1.buildProcurementOfficerReviewSnapshotSequenceKey)({
+        planId: "plan-1",
+        submissionSequence: 2,
+        submittedAt: 5_000,
+        tenantId: "tenant-1",
+    }), "tenant-1:plan-1:sequence:2");
     strict_1.default.deepEqual((0, review_1.prepareProcurementOfficerPlanReviewStart)({
         currentDepartmentCode: "ICT",
         currentDepartmentName: "ICT Services",
@@ -81,6 +100,7 @@ function runProcurementOfficerReviewTests() {
         reviewerTenantUserId: "tenant-user-1",
         reviewerUserId: "user-1",
         snapshotAlreadyExists: false,
+        submissionSequence: null,
         submittedAt: 5_000,
         tenantId: "tenant-1",
     }), {
@@ -95,7 +115,7 @@ function runProcurementOfficerReviewTests() {
         },
         reviewStartedAt: 9_000,
         shouldCaptureSnapshot: true,
-        submissionSequenceKey: "tenant-1:plan-1:5000",
+        submissionSequenceKey: "tenant-1:plan-1:submitted-at:5000",
     });
     strict_1.default.deepEqual((0, review_1.prepareProcurementOfficerPlanReviewStart)({
         currentDepartmentCode: "ICT",
@@ -110,6 +130,7 @@ function runProcurementOfficerReviewTests() {
         reviewerTenantUserId: "tenant-user-1",
         reviewerUserId: "user-1",
         snapshotAlreadyExists: true,
+        submissionSequence: 3,
         submittedAt: 5_000,
         tenantId: "tenant-1",
     }), {
@@ -118,18 +139,21 @@ function runProcurementOfficerReviewTests() {
         planPatch: {},
         reviewStartedAt: 8_500,
         shouldCaptureSnapshot: false,
-        submissionSequenceKey: "tenant-1:plan-1:5000",
+        submissionSequenceKey: "tenant-1:plan-1:sequence:3",
     });
     completedTests.push("procurement-officer review start preparation now makes the first-open patch and immutable snapshot contract explicit for initial and repeat visits");
     strict_1.default.equal((0, review_1.derivePreviousFiscalYearKey)("2026-2027"), "2025-2026");
     strict_1.default.equal((0, review_1.derivePreviousFiscalYearKey)("bad-value"), null);
     const selectedPreviousSnapshot = (0, review_1.selectPreviousSubmissionBaseline)({
+        currentSubmissionSequence: 3,
         currentSubmittedAt: 5_000,
         snapshots: [
             {
                 capturedAt: 5_100,
                 fiscalYear: "2026-2027",
+                lifecycleStatus: "active",
                 planId: "plan-1",
+                submissionSequence: 3,
                 submittedAt: 5_000,
                 summary: {
                     categorySummaries: [],
@@ -141,7 +165,9 @@ function runProcurementOfficerReviewTests() {
             {
                 capturedAt: 4_200,
                 fiscalYear: "2025-2026",
+                lifecycleStatus: "active",
                 planId: "plan-1",
+                submissionSequence: 2,
                 submittedAt: 4_000,
                 summary: {
                     categorySummaries: [],
@@ -151,9 +177,25 @@ function runProcurementOfficerReviewTests() {
                 workspaceState: null,
             },
             {
+                capturedAt: 4_300,
+                fiscalYear: "2025-2026",
+                lifecycleStatus: "withdrawn",
+                planId: "plan-1",
+                submissionSequence: 2,
+                submittedAt: 4_100,
+                summary: {
+                    categorySummaries: [],
+                    estimatedBudgetUsed: 710_000,
+                    itemCount: 8,
+                },
+                workspaceState: null,
+            },
+            {
                 capturedAt: 3_200,
                 fiscalYear: "2024-2025",
+                lifecycleStatus: "active",
                 planId: "plan-1",
+                submissionSequence: 1,
                 submittedAt: 3_000,
                 summary: {
                     categorySummaries: [],
@@ -165,7 +207,13 @@ function runProcurementOfficerReviewTests() {
         ],
     });
     strict_1.default.equal(selectedPreviousSnapshot?.submittedAt, 4_000);
-    completedTests.push("procurement-officer review baseline selection skips the current immutable snapshot and picks the latest older submission for the same plan lifecycle");
+    strict_1.default.equal(selectedPreviousSnapshot?.submissionSequence, 2);
+    completedTests.push("procurement-officer review baseline selection skips the current immutable snapshot, ignores withdrawn histories, and picks the latest older active submission for the same plan lifecycle");
+    strict_1.default.equal((0, review_1.shouldStartProcurementOfficerReviewTracking)("submitted"), true);
+    strict_1.default.equal((0, review_1.shouldStartProcurementOfficerReviewTracking)("approved"), false);
+    strict_1.default.equal((0, review_1.shouldStartProcurementOfficerReviewTracking)("rejected"), false);
+    strict_1.default.equal((0, review_1.shouldStartProcurementOfficerReviewTracking)("draft"), false);
+    completedTests.push("procurement-officer review tracking only auto-starts for actively submitted plans so closed review surfaces remain read-only");
     strict_1.default.deepEqual((0, review_1.resolveProcurementOfficerReviewTargetState)({
         planExists: false,
         planStatus: null,
@@ -250,7 +298,7 @@ function runProcurementOfficerReviewTests() {
         type: "department_block",
     }), null);
     completedTests.push("procurement-officer review block selection now resolves read-only Blockly category and item clicks into stable flag-candidate targets");
-    const currentWorkspace = (0, blockly_serialization_1.createBlocklyWorkspaceRecord)({
+    const currentWorkspace = (0, blockly_serialization_1.createPersistedBlocklyWorkspaceRecord)((0, blockly_serialization_1.createBlocklyWorkspaceRecord)({
         workspaceJson: {
             blocks: {
                 blocks: [
@@ -310,8 +358,8 @@ function runProcurementOfficerReviewTests() {
                 languageVersion: 0,
             },
         },
-    });
-    const previousWorkspace = (0, blockly_serialization_1.createBlocklyWorkspaceRecord)({
+    }));
+    const previousWorkspace = (0, blockly_serialization_1.createPersistedBlocklyWorkspaceRecord)((0, blockly_serialization_1.createBlocklyWorkspaceRecord)({
         workspaceJson: {
             blocks: {
                 blocks: [
@@ -371,7 +419,7 @@ function runProcurementOfficerReviewTests() {
                 languageVersion: 0,
             },
         },
-    });
+    }));
     const comparison = (0, review_1.buildProcurementOfficerReviewComparison)({
         baseline: {
             capturedAt: 4_200,

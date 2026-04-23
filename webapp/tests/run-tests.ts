@@ -65,6 +65,9 @@ async function main(): Promise<void> {
     const { runDepartmentUserBlocklyWorkspaceUiTests } = await import(
         "./department-user-blockly-workspace-ui.test.js"
     );
+    const { runDepartmentUserPlanSubmissionTests } = await import(
+        "./department-user-plan-submission.test.js"
+    );
     const { runDepartmentUserAccessTests } = await import(
         "./department-user-access.test.js"
     );
@@ -142,6 +145,7 @@ async function main(): Promise<void> {
         ...runDepartmentUserDashboardTests(),
         ...(await runDepartmentUserBlocklyWorkspaceTests()),
         ...runDepartmentUserBlocklyWorkspaceUiTests(),
+        ...runDepartmentUserPlanSubmissionTests(),
         ...(await runDepartmentUserAccessTests()),
         ...(await runDepartmentUserRequestContextTests()),
         ...runPasswordResetTests(),

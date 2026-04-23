@@ -125,7 +125,11 @@ export function PlatformAdminDashboard(): JSX.Element {
             <div className="min-h-[calc(100vh-4rem)] bg-background">
                 <PlatformAdminMobileFallback />
                 <div className="hidden px-8 py-10 lg:block">
-                    <Alert className="mx-auto max-w-2xl rounded-[28px] border-border/70">
+                    <Alert
+                        className="mx-auto max-w-2xl rounded-[28px] border-border/70"
+                        dismissible
+                        dismissKey={dashboardAccessError}
+                    >
                         <AlertTitle>Dashboard access needs to be re-established</AlertTitle>
                         <AlertDescription className="mt-2 space-y-4">
                             <p>{dashboardAccessError}</p>
@@ -423,7 +427,11 @@ export function PlatformAdminDashboard(): JSX.Element {
                                 </div>
 
                                 {visibleWidgetOrder.length === 0 ? (
-                                    <Alert className="rounded-3xl border-border/70">
+                                    <Alert
+                                        className="rounded-3xl border-border/70"
+                                        dismissible
+                                        dismissKey="all-platform-admin-widgets-hidden"
+                                    >
                                         <AlertTitle>All widgets are hidden</AlertTitle>
                                         <AlertDescription>
                                             Open Customize to restore Recent Tenants, System Health,

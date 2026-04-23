@@ -350,9 +350,7 @@ export function buildProcurementOfficerSubmissionModalPath(args?: {
   notice?: ProcurementOfficerSubmissionNotice | null;
   submissionWorkspaceSearchParams?: SearchParamsReader | URLSearchParams;
 }): string {
-  const searchParams = new URLSearchParams({
-    modal: "submissions",
-  });
+  const searchParams = new URLSearchParams();
   const dashboardSearchParams = args?.submissionWorkspaceSearchParams
     ? extractProcurementOfficerDashboardSearchParams(
         args.submissionWorkspaceSearchParams,
@@ -385,28 +383,21 @@ export function buildProcurementOfficerSubmissionReviewHref(args: {
   returnToSearchParams?: SearchParamsReader | URLSearchParams;
 }): string {
   const searchParams = new URLSearchParams({
+    modal: "review",
     planId: args.planId,
-    from: "submissions",
   });
 
   if (args.returnToSearchParams) {
     const dashboardSearchParams = extractProcurementOfficerDashboardSearchParams(
       args.returnToSearchParams,
     );
-    const queueSearchParams = extractProcurementOfficerSubmissionSearchParams(
-      args.returnToSearchParams,
-    );
 
     dashboardSearchParams.forEach((value, key) => {
       searchParams.append(key, value);
     });
-
-    queueSearchParams.forEach((value, key) => {
-      searchParams.append(key, value);
-    });
   }
 
-  return `/po/review?${searchParams.toString()}`;
+  return `/po?${searchParams.toString()}`;
 }
 
 export function getProcurementOfficerSubmissionStatusLabel(

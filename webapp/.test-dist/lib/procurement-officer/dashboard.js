@@ -4,12 +4,11 @@ exports.isValidDepartmentWindow = exports.formatCoverageValue = exports.derivePr
 const dashboard_1 = require("../tenant-admin/dashboard");
 const deadlines_1 = require("./deadlines");
 const dashboard_search_1 = require("./dashboard-search");
-const submissions_1 = require("./submissions");
 exports.PROCUREMENT_OFFICER_WORKSPACE_MODALS = [
     "access-codes",
     "deadlines",
     "requests",
-    "submissions",
+    "review",
 ];
 function getProcurementFiscalYearForDate(input, args) {
     if (!args?.timeZone && !args?.fiscalYearStartMonth) {
@@ -45,6 +44,16 @@ function normalizeProcurementOfficerWorkspaceModalState(args) {
     if (!isProcurementOfficerWorkspaceModal(args.modal)) {
         return null;
     }
+    if (args.modal === "review") {
+        const planId = args.planId?.trim() ?? "";
+        if (planId.length === 0) {
+            return null;
+        }
+        return {
+            modal: "review",
+            planId,
+        };
+    }
     return {
         modal: args.modal,
     };
@@ -60,11 +69,8 @@ function buildProcurementOfficerWorkspaceModalPath(state, options) {
     dashboardSearchParams.forEach((value, key) => {
         searchParams.append(key, value);
     });
-    if (state.modal === "submissions" && options?.submissionWorkspaceSearchParams) {
-        const submissionSearchParams = (0, submissions_1.extractProcurementOfficerSubmissionSearchParams)(options.submissionWorkspaceSearchParams);
-        submissionSearchParams.forEach((value, key) => {
-            searchParams.append(key, value);
-        });
+    if (state.modal === "review") {
+        searchParams.set("planId", state.planId);
     }
     return `/po?${searchParams.toString()}`;
 }
@@ -109,15 +115,37 @@ function resolveProcurementOfficerWorkspaceNavigation(href) {
             };
         case "/po/submissions":
             return {
+                href: (() => {
+                    const dashboardSearchParams = (0, dashboard_search_1.extractProcurementOfficerDashboardSearchParams)(targetUrl.searchParams);
+                    const query = dashboardSearchParams.toString();
+                    return query.length > 0 ? `/po?${query}` : "/po";
+                })(),
+                type: "route",
+            };
+        case "/po/review": {
+            const planId = targetUrl.searchParams.get("planId")?.trim() ?? "";
+            if (planId.length === 0) {
+                const dashboardSearchParams = (0, dashboard_search_1.extractProcurementOfficerDashboardSearchParams)(targetUrl.searchParams);
+                const query = dashboardSearchParams.toString();
+                return {
+                    href: query.length > 0 ? `/po?${query}` : "/po",
+                    type: "route",
+                };
+            }
+            return {
                 href: buildProcurementOfficerWorkspaceModalPath({
-                    modal: "submissions",
+                    modal: "review",
+                    planId,
                 }, {
                     dashboardSearchParams: targetUrl.searchParams,
-                    submissionWorkspaceSearchParams: targetUrl.searchParams,
                 }),
                 type: "modal",
-                modalState: { modal: "submissions" },
+                modalState: {
+                    modal: "review",
+                    planId,
+                },
             };
+        }
         case "/po/items":
         case "/po/categories":
             return {

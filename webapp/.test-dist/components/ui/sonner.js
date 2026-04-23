@@ -7,9 +7,10 @@ const next_themes_1 = require("next-themes");
 const sonner_1 = require("sonner");
 const Toaster = ({ ...props }) => {
     const { theme = "system" } = (0, next_themes_1.useTheme)();
-    return ((0, jsx_runtime_1.jsx)(sonner_1.Toaster, { theme: theme, className: "toaster group", toastOptions: {
+    return ((0, jsx_runtime_1.jsx)(sonner_1.Toaster, { closeButton: true, theme: theme, className: "toaster group", toastOptions: {
             classNames: {
                 toast: "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
+                closeButton: "group-[.toast]:border-border group-[.toast]:bg-background group-[.toast]:text-muted-foreground group-[.toast]:hover:text-foreground",
                 description: "group-[.toast]:text-muted-foreground",
                 actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
                 cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",

@@ -25,6 +25,7 @@ import {
     revalidateProcurementOfficerReviewSelection,
     resolveProcurementOfficerReviewSelectionFromBlocklyBlock,
     resolveProcurementOfficerReviewRenderState,
+    shouldStartProcurementOfficerReviewTracking,
     type ProcurementOfficerReviewComparison,
 } from "@/lib/procurement-officer/review";
 import { buildProcurementOfficerSubmissionModalPath } from "@/lib/procurement-officer/submissions";
@@ -79,7 +80,15 @@ export function ProcurementOfficerPlanReviewWorkspace(): JSX.Element {
     }, [reviewWorkspace, router, searchParams]);
 
     useEffect(() => {
-        if (!planId || !reviewWorkspace || reviewWorkspace.state !== "ready" || hasStartedReviewRef.current) {
+        if (
+            !planId ||
+            !reviewWorkspace ||
+            reviewWorkspace.state !== "ready" ||
+            hasStartedReviewRef.current ||
+            !shouldStartProcurementOfficerReviewTracking(
+                reviewWorkspace.workspace.plan.status,
+            )
+        ) {
             return;
         }
 

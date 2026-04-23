@@ -1,17 +1,22 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "../_generated/server";
-import { normalizeBlocklyWorkspaceRecord } from "../../lib/blockly/blockly-serialization";
+import {
+    createPersistedBlocklyWorkspaceRecord,
+    normalizeBlocklyWorkspaceRecord,
+} from "../../lib/blockly/blockly-serialization";
 import { formatDepartmentBudget } from "../../lib/procurement-officer/departments";
 import { formatDeadlineDateTime, resolveDeadlineTimeZone } from "../../lib/procurement-officer/deadlines";
 import {
     buildProcurementOfficerReviewSnapshotSequenceKey,
     derivePreviousFiscalYearKey,
+    normalizeProcurementOfficerReviewBudgetAdjustment,
     normalizeProcurementOfficerReviewComment,
     prepareProcurementOfficerPlanReviewStart,
     PROCUREMENT_OFFICER_REVIEW_TARGET_UNAVAILABLE_MESSAGE,
     resolveProcurementOfficerReviewDepartmentContext,
     resolveProcurementOfficerReviewTargetState,
+    shouldStartProcurementOfficerReviewTracking,
     selectPreviousSubmissionBaseline,
     selectPriorFiscalYearBaseline,
     type ProcurementOfficerReviewPlanLike,
@@ -22,7 +27,13 @@ import {
     loadTenantCatalog,
     mapDepartmentDepartmentRecord,
 } from "./plans";
+import { appendAuditLogRequired } from "./_audit";
 import { requireTenantRole } from "./_roleGuard";
+import {
+    AUDIT_EVENT_NAMES,
+    AUDIT_OUTCOMES,
+    createAuthenticatedAuditActor,
+} from "../../lib/security/audit";
 
 function readAuthUserSummary(
     userDocument: unknown,
@@ -73,6 +84,7 @@ function toPersistedPlanSummary(plan: Doc<"plans">) {
 function toReviewPlanLike(plan: Doc<"plans">): ProcurementOfficerReviewPlanLike {
     return {
         fiscalYear: plan.fiscalYear,
+        submissionSequence: plan.submissionSequence ?? null,
         submittedAt: plan.submittedAt ?? null,
         summary: toPersistedPlanSummary(plan),
         updatedAt: plan.updatedAt,
@@ -94,7 +106,9 @@ function toReviewSnapshotLike(
     return {
         capturedAt: snapshot.capturedAt,
         fiscalYear: snapshot.fiscalYear,
+        lifecycleStatus: snapshot.lifecycleStatus ?? null,
         planId: String(snapshot.planId),
+        submissionSequence: snapshot.submissionSequence ?? null,
         submittedAt: snapshot.submittedAt ?? null,
         summary: {
             categorySummaries: snapshot.categorySummaries,
@@ -151,6 +165,15 @@ function getReviewablePlanStatus(
     }
 
     return status;
+}
+
+function assertPlanIsPendingReview(plan: Doc<"plans">): void {
+    if (!shouldStartProcurementOfficerReviewTracking(plan.status)) {
+        throw new ConvexError({
+            code: "VALIDATION_FAILED",
+            message: "Only submitted plans can be reviewed from this workspace.",
+        });
+    }
 }
 
 export const getProcurementOfficerPlanReviewWorkspace = query({
@@ -239,6 +262,7 @@ export const getProcurementOfficerPlanReviewWorkspace = query({
         const planLike = toReviewPlanLike(reviewPlan);
         const reviewSnapshots = planSnapshots.map(toReviewSnapshotLike);
         const previousSubmissionBaseline = selectPreviousSubmissionBaseline({
+            currentSubmissionSequence: reviewPlan.submissionSequence ?? null,
             currentSubmittedAt: reviewPlan.submittedAt ?? null,
             snapshots: reviewSnapshots,
         });
@@ -369,11 +393,13 @@ export const startProcurementOfficerPlanReview = mutation({
             });
         }
         const reviewPlan = plan;
+        assertPlanIsPendingReview(reviewPlan);
 
         const department = await ctx.db.get(reviewPlan.departmentId);
         const now = Date.now();
         const submissionSequenceKey = buildProcurementOfficerReviewSnapshotSequenceKey({
             planId: String(reviewPlan._id),
+            submissionSequence: reviewPlan.submissionSequence ?? null,
             submittedAt: reviewPlan.submittedAt ?? null,
             tenantId: String(authContext.tenantId),
         });
@@ -400,6 +426,7 @@ export const startProcurementOfficerPlanReview = mutation({
             reviewerTenantUserId: String(tenantUser._id),
             reviewerUserId: String(authContext.userId),
             snapshotAlreadyExists: existingSnapshot !== null,
+            submissionSequence: reviewPlan.submissionSequence ?? null,
             submittedAt: reviewPlan.submittedAt ?? null,
             tenantId: String(authContext.tenantId),
         });
@@ -443,18 +470,23 @@ export const startProcurementOfficerPlanReview = mutation({
                 estimatedBudgetUsed: reviewPlan.estimatedBudgetUsed,
                 fiscalYear: reviewPlan.fiscalYear,
                 itemCount: reviewPlan.itemCount,
+                lifecycleStatus: "active",
                 planId: reviewPlan._id,
                 selectedCategoryIds: reviewPlan.selectedCategoryIds.map((categoryId) =>
                     String(categoryId),
                 ),
+                submissionReference: reviewPlan.submissionReference ?? undefined,
+                submissionSequence: reviewPlan.submissionSequence ?? undefined,
                 submissionSequenceKey,
                 submittedAt: reviewPlan.submittedAt ?? null,
                 tenantId: reviewPlan.tenantId,
                 workspaceState: reviewPlan.workspaceState
-                    ? normalizeBlocklyWorkspaceRecord(reviewPlan.workspaceState, {
-                          lastSavedAt: reviewPlan.updatedAt,
-                          lastSavedByUserId: String(authContext.userId),
-                      })
+                    ? createPersistedBlocklyWorkspaceRecord(
+                          normalizeBlocklyWorkspaceRecord(reviewPlan.workspaceState, {
+                              lastSavedAt: reviewPlan.updatedAt,
+                              lastSavedByUserId: String(authContext.userId),
+                          }),
+                      )
                     : undefined,
             });
         }
@@ -535,6 +567,243 @@ export const addProcurementOfficerPlanReviewComment = mutation({
         return {
             commentId: String(commentId),
             createdAt,
+        };
+    },
+});
+
+export const rejectProcurementOfficerPlanReview = mutation({
+    args: {
+        body: v.string(),
+        nextDepartmentBudgetAllocation: v.optional(v.union(v.number(), v.null())),
+        planId: v.string(),
+    },
+    returns: v.object({
+        departmentBudgetChanged: v.boolean(),
+        rejectedAt: v.number(),
+        status: v.literal("rejected"),
+    }),
+    handler: async (ctx, args) => {
+        const authContext = await requireTenantRole(ctx, ["procurement_officer"]);
+        const normalizedPlanId = ctx.db.normalizeId("plans", args.planId);
+        if (!normalizedPlanId) {
+            throw new ConvexError({
+                code: "PLAN_NOT_FOUND",
+                message: PROCUREMENT_OFFICER_REVIEW_TARGET_UNAVAILABLE_MESSAGE,
+            });
+        }
+
+        const [plan, tenantUser, authUser] = await Promise.all([
+            ctx.db.get(normalizedPlanId),
+            loadProcurementOfficerTenantUser(ctx, authContext),
+            ctx.db.get(authContext.userId),
+        ]);
+        const targetState = resolveProcurementOfficerReviewTargetState({
+            planExists: Boolean(plan),
+            planStatus: plan?.status ?? null,
+            requestPlanIdIsValid: true,
+            tenantMatches: plan?.tenantId === authContext.tenantId,
+        });
+        if (targetState.state === "redirect") {
+            throw new ConvexError({
+                code: "PLAN_NOT_FOUND",
+                message:
+                    targetState.message ?? PROCUREMENT_OFFICER_REVIEW_TARGET_UNAVAILABLE_MESSAGE,
+            });
+        }
+        if (!plan) {
+            throw new ConvexError({
+                code: "PLAN_NOT_FOUND",
+                message: PROCUREMENT_OFFICER_REVIEW_TARGET_UNAVAILABLE_MESSAGE,
+            });
+        }
+
+        assertPlanIsPendingReview(plan);
+
+        const normalizedComment = normalizeProcurementOfficerReviewComment(args.body);
+        if (!normalizedComment.ok || !normalizedComment.value) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message:
+                    normalizedComment.message ??
+                    "Internal comments cannot be blank.",
+            });
+        }
+
+        const normalizedBudget = normalizeProcurementOfficerReviewBudgetAdjustment(
+            args.nextDepartmentBudgetAllocation ?? null,
+        );
+        if (!normalizedBudget.ok) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message:
+                    normalizedBudget.message ??
+                    "Updated department budget must be greater than zero.",
+            });
+        }
+
+        const department = await ctx.db.get(plan.departmentId);
+        if (
+            normalizedBudget.value !== null &&
+            (!department ||
+                department.tenantId !== authContext.tenantId ||
+                !department.isActive)
+        ) {
+            throw new ConvexError({
+                code: "DEPARTMENT_NOT_FOUND",
+                message:
+                    "The department budget cannot be updated because the active department record is unavailable.",
+            });
+        }
+
+        const rejectedAt = Date.now();
+        await ctx.db.patch(plan._id, {
+            approvedAt: undefined,
+            rejectedAt,
+            rejectionComment: normalizedComment.value,
+            status: "rejected",
+            updatedAt: rejectedAt,
+        });
+
+        await ctx.db.insert("planReviewComments", {
+            authorNameSnapshot: readAuthUserSummary(authUser, "Procurement Officer").name,
+            authorTenantUserId: tenantUser._id,
+            authorUserId: authContext.userId,
+            body: normalizedComment.value,
+            createdAt: rejectedAt,
+            planId: plan._id,
+            tenantId: authContext.tenantId,
+        });
+
+        let departmentBudgetChanged = false;
+        if (
+            normalizedBudget.value !== null &&
+            department &&
+            department.budgetAllocation !== normalizedBudget.value
+        ) {
+            departmentBudgetChanged = true;
+            await ctx.db.patch(department._id, {
+                budgetAllocation: normalizedBudget.value,
+                lastBudgetChangedAt: rejectedAt,
+                lastBudgetChangedByTenantUserId: tenantUser._id,
+                updatedAt: rejectedAt,
+            });
+
+            await appendAuditLogRequired(ctx, {
+                action: "update_budget",
+                actor: createAuthenticatedAuditActor({
+                    role: "procurement_officer",
+                    userId: String(authContext.userId),
+                }),
+                entityType: "department",
+                event: AUDIT_EVENT_NAMES.departmentBudgetChanged,
+                metadata: {
+                    budgetAllocation: normalizedBudget.value,
+                    previousBudgetAllocation: department.budgetAllocation ?? null,
+                    reviewPlanId: String(plan._id),
+                    summary: `Updated the budget allocation for ${department.name} during plan review.`,
+                },
+                outcome: AUDIT_OUTCOMES.allowed,
+                recordId: String(department._id),
+                sourceTenantId: String(authContext.tenantId),
+                tableName: "departments",
+                targetTenantId: String(authContext.tenantId),
+                timestamp: rejectedAt,
+            });
+        }
+
+        return {
+            departmentBudgetChanged,
+            rejectedAt,
+            status: "rejected",
+        };
+    },
+});
+
+export const approveProcurementOfficerPlanReview = mutation({
+    args: {
+        body: v.optional(v.string()),
+        planId: v.string(),
+    },
+    returns: v.object({
+        approvedAt: v.number(),
+        status: v.literal("approved"),
+    }),
+    handler: async (ctx, args) => {
+        const authContext = await requireTenantRole(ctx, ["procurement_officer"]);
+        const normalizedPlanId = ctx.db.normalizeId("plans", args.planId);
+        if (!normalizedPlanId) {
+            throw new ConvexError({
+                code: "PLAN_NOT_FOUND",
+                message: PROCUREMENT_OFFICER_REVIEW_TARGET_UNAVAILABLE_MESSAGE,
+            });
+        }
+
+        const [plan, tenantUser, authUser] = await Promise.all([
+            ctx.db.get(normalizedPlanId),
+            loadProcurementOfficerTenantUser(ctx, authContext),
+            ctx.db.get(authContext.userId),
+        ]);
+        const targetState = resolveProcurementOfficerReviewTargetState({
+            planExists: Boolean(plan),
+            planStatus: plan?.status ?? null,
+            requestPlanIdIsValid: true,
+            tenantMatches: plan?.tenantId === authContext.tenantId,
+        });
+        if (targetState.state === "redirect") {
+            throw new ConvexError({
+                code: "PLAN_NOT_FOUND",
+                message:
+                    targetState.message ?? PROCUREMENT_OFFICER_REVIEW_TARGET_UNAVAILABLE_MESSAGE,
+            });
+        }
+        if (!plan) {
+            throw new ConvexError({
+                code: "PLAN_NOT_FOUND",
+                message: PROCUREMENT_OFFICER_REVIEW_TARGET_UNAVAILABLE_MESSAGE,
+            });
+        }
+
+        assertPlanIsPendingReview(plan);
+
+        const normalizedOptionalComment = (args.body ?? "").trim();
+        if (normalizedOptionalComment.length > 0) {
+            const normalizedComment = normalizeProcurementOfficerReviewComment(
+                normalizedOptionalComment,
+            );
+            if (!normalizedComment.ok || !normalizedComment.value) {
+                throw new ConvexError({
+                    code: "VALIDATION_FAILED",
+                    message:
+                        normalizedComment.message ??
+                        "Internal comments cannot be blank.",
+                });
+            }
+        }
+
+        const approvedAt = Date.now();
+        await ctx.db.patch(plan._id, {
+            approvedAt,
+            rejectedAt: undefined,
+            rejectionComment: undefined,
+            status: "approved",
+            updatedAt: approvedAt,
+        });
+
+        if (normalizedOptionalComment.length > 0) {
+            await ctx.db.insert("planReviewComments", {
+                authorNameSnapshot: readAuthUserSummary(authUser, "Procurement Officer").name,
+                authorTenantUserId: tenantUser._id,
+                authorUserId: authContext.userId,
+                body: normalizedOptionalComment,
+                createdAt: approvedAt,
+                planId: plan._id,
+                tenantId: authContext.tenantId,
+            });
+        }
+
+        return {
+            approvedAt,
+            status: "approved",
         };
     },
 });

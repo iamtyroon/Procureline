@@ -174,9 +174,7 @@ function extractProcurementOfficerSubmissionSearchParams(searchParams) {
 }
 exports.extractProcurementOfficerSubmissionSearchParams = extractProcurementOfficerSubmissionSearchParams;
 function buildProcurementOfficerSubmissionModalPath(args) {
-    const searchParams = new URLSearchParams({
-        modal: "submissions",
-    });
+    const searchParams = new URLSearchParams();
     const dashboardSearchParams = args?.submissionWorkspaceSearchParams
         ? (0, dashboard_search_1.extractProcurementOfficerDashboardSearchParams)(args.submissionWorkspaceSearchParams)
         : new URLSearchParams();
@@ -197,20 +195,16 @@ function buildProcurementOfficerSubmissionModalPath(args) {
 exports.buildProcurementOfficerSubmissionModalPath = buildProcurementOfficerSubmissionModalPath;
 function buildProcurementOfficerSubmissionReviewHref(args) {
     const searchParams = new URLSearchParams({
+        modal: "review",
         planId: args.planId,
-        from: "submissions",
     });
     if (args.returnToSearchParams) {
         const dashboardSearchParams = (0, dashboard_search_1.extractProcurementOfficerDashboardSearchParams)(args.returnToSearchParams);
-        const queueSearchParams = extractProcurementOfficerSubmissionSearchParams(args.returnToSearchParams);
         dashboardSearchParams.forEach((value, key) => {
             searchParams.append(key, value);
         });
-        queueSearchParams.forEach((value, key) => {
-            searchParams.append(key, value);
-        });
     }
-    return `/po/review?${searchParams.toString()}`;
+    return `/po?${searchParams.toString()}`;
 }
 exports.buildProcurementOfficerSubmissionReviewHref = buildProcurementOfficerSubmissionReviewHref;
 function getProcurementOfficerSubmissionStatusLabel(status) {

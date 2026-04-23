@@ -8,6 +8,11 @@ import {
     type DepartmentUserWorkspaceSummary,
 } from "../blockly/du-workspace-calculations";
 import type { DepartmentUserCatalogItem } from "../blockly/workspace-catalog-identity";
+import {
+    buildPlanSubmissionSequenceKey,
+    selectPreviousActivePlanSubmissionSnapshot,
+    type PlanSubmissionLifecycleStatus,
+} from "../plans/submission";
 
 export const PROCUREMENT_OFFICER_REVIEW_EMPTY_STATES = {
     previousFiscalYear:
@@ -26,7 +31,9 @@ export type ProcurementOfficerReviewComparisonKind =
 export interface ProcurementOfficerReviewSnapshotLike {
     capturedAt: number;
     fiscalYear: string;
+    lifecycleStatus?: PlanSubmissionLifecycleStatus | null;
     planId: string;
+    submissionSequence?: number | null;
     submittedAt: number | null;
     summary: DepartmentUserPersistedPlanSummary;
     workspaceState: BlocklyWorkspaceRecord | null;
@@ -34,6 +41,7 @@ export interface ProcurementOfficerReviewSnapshotLike {
 
 export interface ProcurementOfficerReviewPlanLike {
     fiscalYear: string;
+    submissionSequence?: number | null;
     summary: DepartmentUserPersistedPlanSummary;
     submittedAt?: number | null;
     updatedAt?: number | null;
@@ -167,6 +175,12 @@ export function resolveProcurementOfficerReviewTargetState(args: {
     };
 }
 
+export function shouldStartProcurementOfficerReviewTracking(
+    status: "approved" | "draft" | "rejected" | "submitted",
+): boolean {
+    return status === "submitted";
+}
+
 export function resolveProcurementOfficerReviewDepartmentContext(args: {
     joinedDepartmentCode?: string | null;
     joinedDepartmentIsActive?: boolean | null;
@@ -220,6 +234,29 @@ export function normalizeProcurementOfficerReviewComment(
     return {
         ok: true,
         value: normalized,
+    };
+}
+
+export function normalizeProcurementOfficerReviewBudgetAdjustment(
+    value: number | null | undefined,
+): { message?: string; ok: boolean; value?: number | null } {
+    if (value === null || value === undefined) {
+        return {
+            ok: true,
+            value: null,
+        };
+    }
+
+    if (!Number.isFinite(value) || Number.isNaN(value) || value <= 0) {
+        return {
+            message: "Updated department budget must be greater than zero.",
+            ok: false,
+        };
+    }
+
+    return {
+        ok: true,
+        value,
     };
 }
 
@@ -280,33 +317,11 @@ export function derivePreviousFiscalYearKey(
 }
 
 export function selectPreviousSubmissionBaseline(args: {
+    currentSubmissionSequence?: number | null;
     currentSubmittedAt: number | null;
     snapshots: readonly ProcurementOfficerReviewSnapshotLike[];
 }): ProcurementOfficerReviewSnapshotLike | null {
-    if (args.currentSubmittedAt === null) {
-        return null;
-    }
-    const currentSubmittedAt = args.currentSubmittedAt;
-
-    const eligibleSnapshots = args.snapshots.filter((snapshot) => {
-        if (snapshot.submittedAt === null) {
-            return false;
-        }
-
-        return snapshot.submittedAt < currentSubmittedAt;
-    });
-
-    if (eligibleSnapshots.length === 0) {
-        return null;
-    }
-
-    return [...eligibleSnapshots].sort((left, right) => {
-        if (left.submittedAt !== right.submittedAt) {
-            return (right.submittedAt ?? 0) - (left.submittedAt ?? 0);
-        }
-
-        return right.capturedAt - left.capturedAt;
-    })[0] ?? null;
+    return selectPreviousActivePlanSubmissionSnapshot(args);
 }
 
 export function selectPriorFiscalYearBaseline(args: {
@@ -413,10 +428,11 @@ export function resolveProcurementOfficerReviewSelectionFromBlocklyBlock(
 
 export function buildProcurementOfficerReviewSnapshotSequenceKey(args: {
     planId: string;
+    submissionSequence?: number | null;
     submittedAt: number | null;
     tenantId: string;
 }): string {
-    return `${args.tenantId}:${args.planId}:${args.submittedAt ?? "no-submission"}`;
+    return buildPlanSubmissionSequenceKey(args);
 }
 
 export function prepareProcurementOfficerPlanReviewStart(args: {
@@ -432,6 +448,7 @@ export function prepareProcurementOfficerPlanReviewStart(args: {
     reviewerTenantUserId: string;
     reviewerUserId: string;
     snapshotAlreadyExists: boolean;
+    submissionSequence?: number | null;
     submittedAt: number | null;
     tenantId: string;
 }): ProcurementOfficerPlanReviewStartPreparation {
@@ -481,6 +498,7 @@ export function prepareProcurementOfficerPlanReviewStart(args: {
         shouldCaptureSnapshot: !args.snapshotAlreadyExists,
         submissionSequenceKey: buildProcurementOfficerReviewSnapshotSequenceKey({
             planId: args.planId,
+            submissionSequence: args.submissionSequence,
             submittedAt: args.submittedAt,
             tenantId: args.tenantId,
         }),

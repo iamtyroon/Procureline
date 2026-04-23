@@ -190,6 +190,16 @@ function DepartmentUserExistingPlanWorkspace(): JSX.Element {
                 mode={workspaceContext.meta.mode}
                 modeIndicatorLabel={workspaceContext.meta.modeIndicatorLabel}
                 planId={workspaceContext.plan.id}
+                planMeta={{
+                    canWithdraw: workspaceContext.plan.canWithdraw,
+                    reviewStartedAt: workspaceContext.plan.reviewStartedAt,
+                    status: workspaceContext.plan.status,
+                    submissionEmailErrorMessage:
+                        workspaceContext.plan.submissionEmailErrorMessage,
+                    submissionEmailStatus: workspaceContext.plan.submissionEmailStatus,
+                    submissionReference: workspaceContext.plan.submissionReference,
+                    submittedAt: workspaceContext.plan.submittedAt,
+                }}
                 persistedPlanSummary={{
                     categorySummaries: workspaceContext.plan.categorySummaries,
                     estimatedBudgetUsed: workspaceContext.plan.estimatedBudgetUsed,
@@ -265,7 +275,11 @@ function DepartmentUserWorkspaceState({
                             {description}
                         </CardDescription>
                     </div>
-                    <Alert className="rounded-2xl border-border/70 bg-muted/20">
+                    <Alert
+                        className="rounded-2xl border-border/70 bg-muted/20"
+                        dismissible
+                        dismissKey="du-workspace-recovery-path"
+                    >
                         <AlertTitle>Recovery path</AlertTitle>
                         <AlertDescription>
                             Return to the DU dashboard launchpad, confirm the fiscal year, and

@@ -17,6 +17,7 @@ export const queueTransactionalEmail = action({
       v.literal("catalog-request-submitted"),
       v.literal("deadline-extension"),
       v.literal("deadline-reminder"),
+      v.literal("plan-submission-confirmation"),
     ),
     templateProps: v.optional(v.any()),
     to: v.string(),

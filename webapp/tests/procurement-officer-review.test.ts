@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
-import { createBlocklyWorkspaceRecord } from "../lib/blockly/blockly-serialization";
+import {
+    createBlocklyWorkspaceRecord,
+    createPersistedBlocklyWorkspaceRecord,
+} from "../lib/blockly/blockly-serialization";
 import {
     buildProcurementOfficerReviewComparison,
     buildProcurementOfficerReviewSelectionId,
     buildProcurementOfficerReviewSnapshotSequenceKey,
     buildProcurementOfficerReviewStartPatch,
     derivePreviousFiscalYearKey,
+    normalizeProcurementOfficerReviewBudgetAdjustment,
     normalizeProcurementOfficerReviewComment,
     prepareProcurementOfficerPlanReviewStart,
     PROCUREMENT_OFFICER_REVIEW_TARGET_UNAVAILABLE_MESSAGE,
@@ -14,6 +18,7 @@ import {
     resolveProcurementOfficerReviewDepartmentContext,
     resolveProcurementOfficerReviewRenderState,
     resolveProcurementOfficerReviewTargetState,
+    shouldStartProcurementOfficerReviewTracking,
     selectPreviousSubmissionBaseline,
 } from "../lib/procurement-officer/review";
 
@@ -55,6 +60,31 @@ export function runProcurementOfficerReviewTests(): string[] {
     });
     completedTests.push(
         "procurement-officer review comment validation trims canonical notes and rejects blank submissions",
+    );
+
+    assert.deepEqual(
+        normalizeProcurementOfficerReviewBudgetAdjustment(null),
+        {
+            ok: true,
+            value: null,
+        },
+    );
+    assert.deepEqual(
+        normalizeProcurementOfficerReviewBudgetAdjustment(0),
+        {
+            message: "Updated department budget must be greater than zero.",
+            ok: false,
+        },
+    );
+    assert.deepEqual(
+        normalizeProcurementOfficerReviewBudgetAdjustment(125000),
+        {
+            ok: true,
+            value: 125000,
+        },
+    );
+    completedTests.push(
+        "procurement-officer review budget adjustments stay optional while failing closed for zero or invalid values",
     );
 
     assert.deepEqual(
@@ -101,7 +131,16 @@ export function runProcurementOfficerReviewTests(): string[] {
             submittedAt: 5_000,
             tenantId: "tenant-1",
         }),
-        "tenant-1:plan-1:5000",
+        "tenant-1:plan-1:submitted-at:5000",
+    );
+    assert.equal(
+        buildProcurementOfficerReviewSnapshotSequenceKey({
+            planId: "plan-1",
+            submissionSequence: 2,
+            submittedAt: 5_000,
+            tenantId: "tenant-1",
+        }),
+        "tenant-1:plan-1:sequence:2",
     );
     assert.deepEqual(
         prepareProcurementOfficerPlanReviewStart({
@@ -117,6 +156,7 @@ export function runProcurementOfficerReviewTests(): string[] {
             reviewerTenantUserId: "tenant-user-1",
             reviewerUserId: "user-1",
             snapshotAlreadyExists: false,
+            submissionSequence: null,
             submittedAt: 5_000,
             tenantId: "tenant-1",
         }),
@@ -132,7 +172,7 @@ export function runProcurementOfficerReviewTests(): string[] {
             },
             reviewStartedAt: 9_000,
             shouldCaptureSnapshot: true,
-            submissionSequenceKey: "tenant-1:plan-1:5000",
+            submissionSequenceKey: "tenant-1:plan-1:submitted-at:5000",
         },
     );
     assert.deepEqual(
@@ -149,6 +189,7 @@ export function runProcurementOfficerReviewTests(): string[] {
             reviewerTenantUserId: "tenant-user-1",
             reviewerUserId: "user-1",
             snapshotAlreadyExists: true,
+            submissionSequence: 3,
             submittedAt: 5_000,
             tenantId: "tenant-1",
         }),
@@ -158,7 +199,7 @@ export function runProcurementOfficerReviewTests(): string[] {
             planPatch: {},
             reviewStartedAt: 8_500,
             shouldCaptureSnapshot: false,
-            submissionSequenceKey: "tenant-1:plan-1:5000",
+            submissionSequenceKey: "tenant-1:plan-1:sequence:3",
         },
     );
     completedTests.push(
@@ -169,12 +210,15 @@ export function runProcurementOfficerReviewTests(): string[] {
     assert.equal(derivePreviousFiscalYearKey("bad-value"), null);
 
     const selectedPreviousSnapshot = selectPreviousSubmissionBaseline({
+        currentSubmissionSequence: 3,
         currentSubmittedAt: 5_000,
         snapshots: [
             {
                 capturedAt: 5_100,
                 fiscalYear: "2026-2027",
+                lifecycleStatus: "active",
                 planId: "plan-1",
+                submissionSequence: 3,
                 submittedAt: 5_000,
                 summary: {
                     categorySummaries: [],
@@ -186,7 +230,9 @@ export function runProcurementOfficerReviewTests(): string[] {
             {
                 capturedAt: 4_200,
                 fiscalYear: "2025-2026",
+                lifecycleStatus: "active",
                 planId: "plan-1",
+                submissionSequence: 2,
                 submittedAt: 4_000,
                 summary: {
                     categorySummaries: [],
@@ -196,9 +242,25 @@ export function runProcurementOfficerReviewTests(): string[] {
                 workspaceState: null,
             },
             {
+                capturedAt: 4_300,
+                fiscalYear: "2025-2026",
+                lifecycleStatus: "withdrawn",
+                planId: "plan-1",
+                submissionSequence: 2,
+                submittedAt: 4_100,
+                summary: {
+                    categorySummaries: [],
+                    estimatedBudgetUsed: 710_000,
+                    itemCount: 8,
+                },
+                workspaceState: null,
+            },
+            {
                 capturedAt: 3_200,
                 fiscalYear: "2024-2025",
+                lifecycleStatus: "active",
                 planId: "plan-1",
+                submissionSequence: 1,
                 submittedAt: 3_000,
                 summary: {
                     categorySummaries: [],
@@ -210,8 +272,17 @@ export function runProcurementOfficerReviewTests(): string[] {
         ],
     });
     assert.equal(selectedPreviousSnapshot?.submittedAt, 4_000);
+    assert.equal(selectedPreviousSnapshot?.submissionSequence, 2);
     completedTests.push(
-        "procurement-officer review baseline selection skips the current immutable snapshot and picks the latest older submission for the same plan lifecycle",
+        "procurement-officer review baseline selection skips the current immutable snapshot, ignores withdrawn histories, and picks the latest older active submission for the same plan lifecycle",
+    );
+
+    assert.equal(shouldStartProcurementOfficerReviewTracking("submitted"), true);
+    assert.equal(shouldStartProcurementOfficerReviewTracking("approved"), false);
+    assert.equal(shouldStartProcurementOfficerReviewTracking("rejected"), false);
+    assert.equal(shouldStartProcurementOfficerReviewTracking("draft"), false);
+    completedTests.push(
+        "procurement-officer review tracking only auto-starts for actively submitted plans so closed review surfaces remain read-only",
     );
 
     assert.deepEqual(
@@ -322,7 +393,8 @@ export function runProcurementOfficerReviewTests(): string[] {
         "procurement-officer review block selection now resolves read-only Blockly category and item clicks into stable flag-candidate targets",
     );
 
-    const currentWorkspace = createBlocklyWorkspaceRecord({
+    const currentWorkspace = createPersistedBlocklyWorkspaceRecord(
+        createBlocklyWorkspaceRecord({
         workspaceJson: {
             blocks: {
                 blocks: [
@@ -382,8 +454,10 @@ export function runProcurementOfficerReviewTests(): string[] {
                 languageVersion: 0,
             },
         },
-    });
-    const previousWorkspace = createBlocklyWorkspaceRecord({
+        }),
+    );
+    const previousWorkspace = createPersistedBlocklyWorkspaceRecord(
+        createBlocklyWorkspaceRecord({
         workspaceJson: {
             blocks: {
                 blocks: [
@@ -443,7 +517,8 @@ export function runProcurementOfficerReviewTests(): string[] {
                 languageVersion: 0,
             },
         },
-    });
+        }),
+    );
     const comparison = buildProcurementOfficerReviewComparison({
         baseline: {
             capturedAt: 4_200,

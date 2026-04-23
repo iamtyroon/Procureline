@@ -24,10 +24,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  buildProcurementOfficerWorkspaceModalPath,
   formatProcurementFiscalYearLabel,
 } from "@/lib/procurement-officer/dashboard";
 import {
+  buildProcurementOfficerSubmissionModalPath,
   buildProcurementOfficerSubmissionReviewHref,
   buildProcurementOfficerSubmissionSearchParams,
   collectProcurementOfficerSubmissionNotifications,
@@ -184,17 +184,11 @@ export function ProcurementOfficerSubmissionsWorkspace({
   function replaceSearchParams(
     nextState: ProcurementOfficerSubmissionFilterInput,
   ): void {
-    const href = buildProcurementOfficerWorkspaceModalPath(
-      {
-        modal: "submissions",
-      },
-      {
-        dashboardSearchParams: searchParams,
-        submissionWorkspaceSearchParams: buildProcurementOfficerSubmissionSearchParams(
-          nextState,
-        ),
-      },
-    );
+    const href = buildProcurementOfficerSubmissionModalPath({
+      submissionWorkspaceSearchParams: buildProcurementOfficerSubmissionSearchParams(
+        nextState,
+      ),
+    });
 
     startTransition(() => router.replace(href));
   }
