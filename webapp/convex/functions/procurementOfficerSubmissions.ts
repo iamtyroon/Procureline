@@ -28,6 +28,8 @@ const submissionReviewTargetValidator = v.object({
       estimatedBudgetUsed: v.number(),
       fiscalYear: v.string(),
       itemCount: v.number(),
+      pendingRedraftRequestedAt: v.union(v.number(), v.null()),
+      pendingRedraftRequestId: v.union(v.string(), v.null()),
       planId: v.string(),
       rejectedAt: v.union(v.number(), v.null()),
       reviewHref: v.string(),
@@ -67,6 +69,10 @@ function buildSubmissionSourceRow(args: {
     submittedAt?: number | null;
     updatedAt: number;
   };
+  pendingRedraftRequest?: {
+    _id: Id<"planRedraftRequests">;
+    createdAt: number;
+  } | null;
 }): ProcurementOfficerSubmissionSourceRow | null {
   if (args.plan.status === "draft") {
     return null;
@@ -84,6 +90,10 @@ function buildSubmissionSourceRow(args: {
     estimatedBudgetUsed: args.plan.estimatedBudgetUsed,
     fiscalYear: args.plan.fiscalYear,
     itemCount: args.plan.itemCount,
+    pendingRedraftRequestedAt: args.pendingRedraftRequest?.createdAt ?? null,
+    pendingRedraftRequestId: args.pendingRedraftRequest
+      ? String(args.pendingRedraftRequest._id)
+      : null,
     planId: String(args.plan._id),
     rejectedAt: args.plan.rejectedAt ?? null,
     status: args.plan.status,
@@ -109,7 +119,7 @@ export const getProcurementOfficerSubmissionQueue = query({
     }
 
     const now = Date.now();
-    const [departments, plans] = await Promise.all([
+    const [departments, plans, pendingRedraftRequests] = await Promise.all([
       ctx.db
         .query("departments")
         .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
@@ -118,8 +128,13 @@ export const getProcurementOfficerSubmissionQueue = query({
         .query("plans")
         .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
         .collect(),
+      ctx.db
+        .query("planRedraftRequests")
+        .withIndex("by_tenantId_status", (q) =>
+          q.eq("tenantId", authContext.tenantId).eq("status", "pending"),
+        )
+        .collect(),
     ]);
-
     const selectedFiscalYear =
       args.selectedFiscalYear ??
       getProcurementFiscalYearForDate(now, {
@@ -129,6 +144,11 @@ export const getProcurementOfficerSubmissionQueue = query({
 
     const departmentMap = new Map(
       departments.map((department) => [String(department._id), department] as const),
+    );
+    const pendingRedraftRequestByPlanId = new Map(
+      pendingRedraftRequests.map(
+        (request) => [String(request.planId), request] as const,
+      ),
     );
 
     const queueSourceRows = plans
@@ -148,6 +168,7 @@ export const getProcurementOfficerSubmissionQueue = query({
             };
           })(),
           plan,
+          pendingRedraftRequest: pendingRedraftRequestByPlanId.get(String(plan._id)) ?? null,
         }),
       )
       .filter(
@@ -236,6 +257,12 @@ export const getProcurementOfficerSubmissionReviewTarget = query({
     }
 
     const department = await ctx.db.get(plan.departmentId);
+    const pendingRedraftRequest = await ctx.db
+      .query("planRedraftRequests")
+      .withIndex("by_planId_status", (q) =>
+        q.eq("planId", plan._id).eq("status", "pending"),
+      )
+      .first();
     const sourceRow = buildSubmissionSourceRow({
       department: department
         ? {
@@ -246,6 +273,7 @@ export const getProcurementOfficerSubmissionReviewTarget = query({
           }
         : null,
       plan,
+      pendingRedraftRequest,
     });
 
     if (!sourceRow) {

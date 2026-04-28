@@ -75,12 +75,22 @@ export function ProcurementOfficerPlanReviewSummaryModal({
   const approveReview = useMutation(
     api.functions.procurementOfficerPlanReview.approveProcurementOfficerPlanReview,
   );
+  const approveRedraft = useMutation(
+    api.functions.planRedrafts.approveProcurementOfficerPlanRedraftRequest,
+  );
+  const denyRedraft = useMutation(
+    api.functions.planRedrafts.denyProcurementOfficerPlanRedraftRequest,
+  );
   const startedPlanIdRef = useRef<string | null>(null);
   const [isSendBackOpen, setIsSendBackOpen] = useState(false);
   const [sendBackComment, setSendBackComment] = useState("");
   const [sendBackBudgetValue, setSendBackBudgetValue] = useState("");
   const [isRejecting, setIsRejecting] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const [redraftDecisionNote, setRedraftDecisionNote] = useState("");
+  const [redraftDecision, setRedraftDecision] = useState<
+    "approve" | "deny" | null
+  >(null);
 
   useEffect(() => {
     if (!open) {
@@ -90,6 +100,8 @@ export function ProcurementOfficerPlanReviewSummaryModal({
       setSendBackBudgetValue("");
       setIsRejecting(false);
       setIsApproving(false);
+      setRedraftDecisionNote("");
+      setRedraftDecision(null);
       return;
     }
 
@@ -138,6 +150,7 @@ export function ProcurementOfficerPlanReviewSummaryModal({
 
   const canTakeReviewAction =
     reviewWorkspace?.workspace?.plan.status === "submitted";
+  const pendingRedraftRequest = reviewWorkspace?.workspace?.redraftRequest;
   const currentBudgetLabel = reviewWorkspace?.workspace?.department
     .budgetAllocation
     ? formatCurrency(reviewWorkspace.workspace.department.budgetAllocation)
@@ -209,6 +222,42 @@ export function ProcurementOfficerPlanReviewSummaryModal({
       );
     } finally {
       setIsRejecting(false);
+    }
+  }
+
+  async function handleRedraftDecision(
+    decision: "approve" | "deny",
+  ): Promise<void> {
+    if (!pendingRedraftRequest || redraftDecision) {
+      return;
+    }
+
+    setRedraftDecision(decision);
+    const decisionNote = redraftDecisionNote.trim();
+    try {
+      if (decision === "approve") {
+        await approveRedraft({
+          decisionNote: decisionNote.length > 0 ? decisionNote : undefined,
+          requestId: pendingRedraftRequest.id,
+        });
+        toast.success("Plan rolled back to draft for redraft.");
+        onClose();
+      } else {
+        await denyRedraft({
+          decisionNote: decisionNote.length > 0 ? decisionNote : undefined,
+          requestId: pendingRedraftRequest.id,
+        });
+        toast.success("Redraft request denied.");
+        setRedraftDecisionNote("");
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "The redraft request could not be updated.",
+      );
+    } finally {
+      setRedraftDecision(null);
     }
   }
 
@@ -289,6 +338,77 @@ export function ProcurementOfficerPlanReviewSummaryModal({
               {renderState.reason ? (
                 <div className="rounded-2xl border border-amber-300/80 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-900">
                   {renderState.reason}
+                </div>
+              ) : null}
+
+              {pendingRedraftRequest ? (
+                <div className="rounded-2xl border border-amber-300/80 bg-amber-50/80 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-amber-950">
+                        Redraft request
+                      </div>
+                      <div className="mt-1 text-xs text-amber-900">
+                        Requested {formatTimestamp(pendingRedraftRequest.requestedAt)}
+                      </div>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className="border-amber-400 bg-amber-100 text-amber-950"
+                    >
+                      Action needed
+                    </Badge>
+                  </div>
+                  <div className="mt-3 rounded-xl border border-amber-200 bg-background/85 px-3 py-3 text-sm leading-6 text-foreground">
+                    {pendingRedraftRequest.reason}
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    <div className="text-sm font-medium text-amber-950">
+                      Decision note
+                    </div>
+                    <Textarea
+                      onChange={(event) =>
+                        setRedraftDecisionNote(event.target.value)
+                      }
+                      placeholder="Optional note for the department"
+                      rows={3}
+                      value={redraftDecisionNote}
+                    />
+                  </div>
+                  <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <Button
+                      disabled={redraftDecision !== null}
+                      onClick={() => void handleRedraftDecision("deny")}
+                      type="button"
+                      variant="outline"
+                    >
+                      {redraftDecision === "deny" ? (
+                        <>
+                          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                          Denying...
+                        </>
+                      ) : (
+                        "Deny redraft"
+                      )}
+                    </Button>
+                    <Button
+                      disabled={
+                        redraftDecision !== null ||
+                        reviewWorkspace.workspace.plan.status !== "approved"
+                      }
+                      onClick={() => void handleRedraftDecision("approve")}
+                      type="button"
+                    >
+                      {redraftDecision === "approve" ? (
+                        <>
+                          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                          Approving...
+                        </>
+                      ) : (
+                        "Approve redraft"
+                      )}
+                    </Button>
+                  </div>
                 </div>
               ) : null}
 

@@ -18,6 +18,8 @@ function runProcurementOfficerSubmissionTests() {
             estimatedBudgetUsed: 1_250_000,
             fiscalYear: "2026-2027",
             itemCount: 12,
+            pendingRedraftRequestedAt: null,
+            pendingRedraftRequestId: null,
             planId: "plan-1",
             rejectedAt: null,
             status: "submitted",
@@ -32,6 +34,8 @@ function runProcurementOfficerSubmissionTests() {
             estimatedBudgetUsed: 250_000,
             fiscalYear: "2026-2027",
             itemCount: 4,
+            pendingRedraftRequestedAt: Date.UTC(2026, 3, 11, 8, 0, 0),
+            pendingRedraftRequestId: "redraft-1",
             planId: "plan-2",
             rejectedAt: null,
             status: "approved",
@@ -46,6 +50,8 @@ function runProcurementOfficerSubmissionTests() {
             estimatedBudgetUsed: 500_000,
             fiscalYear: "2026-2027",
             itemCount: 7,
+            pendingRedraftRequestedAt: null,
+            pendingRedraftRequestId: null,
             planId: "plan-3",
             rejectedAt: Date.UTC(2026, 3, 10, 7, 0, 0),
             status: "rejected",
@@ -61,6 +67,7 @@ function runProcurementOfficerSubmissionTests() {
     strict_1.default.equal(shapedRows[0]?.statusLabel, "Submitted");
     strict_1.default.equal(shapedRows[1]?.sortSubmittedAt, sourceRows[1]?.updatedAt);
     strict_1.default.equal(shapedRows[1]?.totalAmountLabel, "KES 250,000.00");
+    strict_1.default.equal(shapedRows[1]?.pendingRedraftRequestId, "redraft-1");
     strict_1.default.equal(shapedRows[0]?.reviewHref, "/po?modal=review&planId=plan-1");
     strict_1.default.equal(shapedRows[0]?.urgencyLabel, "10d waiting");
     completedTests.push("procurement-officer submission rows stay truthful about live statuses, fallback timestamps, KES totals, and reserved review handoff targets");
@@ -173,7 +180,7 @@ function runProcurementOfficerSubmissionTests() {
     strict_1.default.equal((0, submissions_1.buildProcurementOfficerSubmissionModalPath)({
         submissionWorkspaceSearchParams: new URLSearchParams(`${dashboard_search_1.PROCUREMENT_OFFICER_DASHBOARD_QUERY_KEYS.fiscalYear}=2025-2026&poSubmissionsStatus=submitted&itemSearch=laptop`),
     }), "/po?poFiscalYear=2025-2026&poSubmissionsStatus=submitted");
-    completedTests.push("procurement-officer submission deep links now open review as a dashboard modal while keeping submission params namespaced and legacy queue links pointed back to the dashboard shell");
+    completedTests.push("procurement-officer submission deep links open review as a dashboard modal while queue links preserve dashboard and submission filters");
     return completedTests;
 }
 exports.runProcurementOfficerSubmissionTests = runProcurementOfficerSubmissionTests;

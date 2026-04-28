@@ -114,14 +114,14 @@ function resolveProcurementOfficerWorkspaceNavigation(href) {
                 modalState: { modal: "requests" },
             };
         case "/po/submissions":
-            return {
-                href: (() => {
-                    const dashboardSearchParams = (0, dashboard_search_1.extractProcurementOfficerDashboardSearchParams)(targetUrl.searchParams);
-                    const query = dashboardSearchParams.toString();
-                    return query.length > 0 ? `/po?${query}` : "/po";
-                })(),
-                type: "route",
-            };
+            {
+                const dashboardSearchParams = (0, dashboard_search_1.extractProcurementOfficerDashboardSearchParams)(targetUrl.searchParams);
+                const query = dashboardSearchParams.toString();
+                return {
+                    href: query.length > 0 ? `/po?${query}` : "/po",
+                    type: "route",
+                };
+            }
         case "/po/review": {
             const planId = targetUrl.searchParams.get("planId")?.trim() ?? "";
             if (planId.length === 0) {

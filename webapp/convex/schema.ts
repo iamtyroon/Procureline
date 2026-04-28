@@ -40,6 +40,13 @@ const catalogRequestOriginValidator = v.union(
   v.literal("item_handoff"),
 );
 
+const planRedraftRequestStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("approved"),
+  v.literal("denied"),
+  v.literal("cancelled"),
+);
+
 export default defineSchema({
   ...authTables,
 
@@ -509,11 +516,44 @@ export default defineSchema({
     reviewStartedByUserId: v.optional(v.id("users")),
     approvedAt: v.optional(v.number()),
     rejectedAt: v.optional(v.number()),
+    lastApprovedAt: v.optional(v.number()),
+    lastApprovedSnapshotId: v.optional(v.id("planSubmissionSnapshots")),
+    redraftApprovedAt: v.optional(v.number()),
+    redraftApprovedByTenantUserId: v.optional(v.id("tenantUsers")),
+    redraftCycle: v.optional(v.number()),
+    redraftReason: v.optional(v.string()),
+    redraftRequestedAt: v.optional(v.number()),
   })
     .index("by_tenantId", ["tenantId"])
     .index("by_departmentId", ["departmentId"])
     .index("by_departmentId_fiscalYear", ["departmentId", "fiscalYear"])
     .index("by_tenantId_status", ["tenantId", "status"]),
+
+  planRedraftRequests: defineTable({
+    tenantId: v.id("tenants"),
+    departmentId: v.id("departments"),
+    planId: v.id("plans"),
+    fiscalYear: v.string(),
+    requestorTenantUserId: v.id("tenantUsers"),
+    requestorUserId: v.id("users"),
+    reason: v.string(),
+    status: planRedraftRequestStatusValidator,
+    decisionNote: v.optional(v.string()),
+    decidedAt: v.optional(v.number()),
+    decidedByTenantUserId: v.optional(v.id("tenantUsers")),
+    decidedByUserId: v.optional(v.id("users")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    cancelledAt: v.optional(v.number()),
+  })
+    .index("by_planId_status", ["planId", "status", "updatedAt"])
+    .index("by_tenantId_status", ["tenantId", "status", "updatedAt"])
+    .index("by_departmentId_status", ["departmentId", "status", "updatedAt"])
+    .index("by_tenantId_departmentId_fiscalYear", [
+      "tenantId",
+      "departmentId",
+      "fiscalYear",
+    ]),
 
   planSubmissionSnapshots: defineTable({
     tenantId: v.id("tenants"),

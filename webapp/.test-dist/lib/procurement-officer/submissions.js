@@ -190,7 +190,8 @@ function buildProcurementOfficerSubmissionModalPath(args) {
     whitelisted.forEach((value, key) => {
         searchParams.append(key, value);
     });
-    return `/po?${searchParams.toString()}`;
+    const query = searchParams.toString();
+    return query.length > 0 ? `/po?${query}` : "/po";
 }
 exports.buildProcurementOfficerSubmissionModalPath = buildProcurementOfficerSubmissionModalPath;
 function buildProcurementOfficerSubmissionReviewHref(args) {

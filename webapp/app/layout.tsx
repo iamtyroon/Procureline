@@ -33,7 +33,7 @@ export default function RootLayout({
                         </ThemeProvider>
                     </ConvexClientProvider>
                 </ConvexAuthNextjsServerProvider>
-                <Toaster richColors position="top-right" />
+                <Toaster duration={5000} position="bottom-left" visibleToasts={3} />
             </body>
         </html>
     );

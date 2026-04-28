@@ -40,13 +40,29 @@ const alertVariants = (0, class_variance_authority_1.cva)("relative w-full round
         variant: "default",
     },
 });
-const Alert = React.forwardRef(({ children, className, closeLabel = "Dismiss alert", dismissKey, dismissible = false, onDismiss, variant, ...props }, ref) => {
+const Alert = React.forwardRef(({ children, autoDismissMs, className, closeLabel = "Dismiss alert", dismissKey, dismissible = false, onDismiss, variant, ...props }, ref) => {
     const [isDismissed, setIsDismissed] = React.useState(false);
+    const onDismissRef = React.useRef(onDismiss);
+    React.useEffect(() => {
+        onDismissRef.current = onDismiss;
+    }, [onDismiss]);
     React.useEffect(() => {
         if (dismissible) {
             setIsDismissed(false);
         }
     }, [dismissKey, dismissible]);
+    React.useEffect(() => {
+        if (!dismissible || !autoDismissMs || autoDismissMs <= 0) {
+            return;
+        }
+        const timeoutId = window.setTimeout(() => {
+            setIsDismissed(true);
+            onDismissRef.current?.();
+        }, autoDismissMs);
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
+    }, [autoDismissMs, dismissKey, dismissible]);
     if (dismissible && isDismissed) {
         return null;
     }
@@ -60,6 +76,6 @@ Alert.displayName = "Alert";
 const AlertTitle = React.forwardRef(({ className, ...props }, ref) => ((0, jsx_runtime_1.jsx)("h5", { ref: ref, className: (0, utils_1.cn)("mb-1 font-medium leading-none tracking-tight", className), ...props })));
 exports.AlertTitle = AlertTitle;
 AlertTitle.displayName = "AlertTitle";
-const AlertDescription = React.forwardRef(({ className, ...props }, ref) => ((0, jsx_runtime_1.jsx)("div", { ref: ref, className: (0, utils_1.cn)("text-sm [&_p]:leading-relaxed", className), ...props })));
+const AlertDescription = React.forwardRef(({ className, ...props }, ref) => ((0, jsx_runtime_1.jsx)("div", { ref: ref, "data-alert-description": true, className: (0, utils_1.cn)("text-sm [&_p]:leading-relaxed", className), ...props })));
 exports.AlertDescription = AlertDescription;
 AlertDescription.displayName = "AlertDescription";

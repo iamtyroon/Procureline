@@ -23,6 +23,7 @@ const alertVariants = cva(
 interface AlertProps
   extends React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof alertVariants> {
+  autoDismissMs?: number
   closeLabel?: string
   dismissKey?: string
   dismissible?: boolean
@@ -36,6 +37,7 @@ const Alert = React.forwardRef<
   (
     {
       children,
+      autoDismissMs,
       className,
       closeLabel = "Dismiss alert",
       dismissKey,
@@ -47,12 +49,32 @@ const Alert = React.forwardRef<
     ref
   ) => {
     const [isDismissed, setIsDismissed] = React.useState(false)
+    const onDismissRef = React.useRef(onDismiss)
+
+    React.useEffect(() => {
+      onDismissRef.current = onDismiss
+    }, [onDismiss])
 
     React.useEffect(() => {
       if (dismissible) {
         setIsDismissed(false)
       }
     }, [dismissKey, dismissible])
+
+    React.useEffect(() => {
+      if (!dismissible || !autoDismissMs || autoDismissMs <= 0) {
+        return
+      }
+
+      const timeoutId = window.setTimeout(() => {
+        setIsDismissed(true)
+        onDismissRef.current?.()
+      }, autoDismissMs)
+
+      return () => {
+        window.clearTimeout(timeoutId)
+      }
+    }, [autoDismissMs, dismissKey, dismissible])
 
     if (dismissible && isDismissed) {
       return null
@@ -107,6 +129,7 @@ const AlertDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
+    data-alert-description
     className={cn("text-sm [&_p]:leading-relaxed", className)}
     {...props}
   />

@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useMemo, useRef } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -24,11 +24,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  PROCUREMENT_OFFICER_DASHBOARD_QUERY_KEYS,
+} from "@/lib/procurement-officer/dashboard-search";
+import {
   formatProcurementFiscalYearLabel,
 } from "@/lib/procurement-officer/dashboard";
 import {
   buildProcurementOfficerSubmissionModalPath,
-  buildProcurementOfficerSubmissionReviewHref,
   buildProcurementOfficerSubmissionSearchParams,
   collectProcurementOfficerSubmissionNotifications,
   deriveProcurementOfficerSubmissionEmptyState,
@@ -43,6 +45,7 @@ import {
   type ProcurementOfficerSubmissionStatus,
 } from "@/lib/procurement-officer/submissions";
 import { cn } from "@/lib/utils";
+import { ProcurementOfficerPlanReviewSummaryModal } from "./ProcurementOfficerPlanReviewSummaryModal";
 
 function getSubmissionNoticeCopy(notice: string | null): string | null {
   if (notice === "review-target-unavailable") {
@@ -70,10 +73,15 @@ export function ProcurementOfficerSubmissionsWorkspace({
 }): JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const effectiveFiscalYear =
+    selectedFiscalYear ??
+    searchParams.get(PROCUREMENT_OFFICER_DASHBOARD_QUERY_KEYS.fiscalYear) ??
+    undefined;
   const queueData = useQuery(
     api.functions.procurementOfficerSubmissions.getProcurementOfficerSubmissionQueue,
-    selectedFiscalYear ? { selectedFiscalYear } : {},
+    effectiveFiscalYear ? { selectedFiscalYear: effectiveFiscalYear } : {},
   );
+  const [reviewPlanId, setReviewPlanId] = useState<string | null>(null);
   const hasHydratedQueueRef = useRef(false);
   const knownPlanIdsRef = useRef<Set<string>>(new Set());
   const previousVisiblePlanIdsRef = useRef<Set<string>>(new Set());
@@ -253,6 +261,8 @@ export function ProcurementOfficerSubmissionsWorkspace({
               Live plan states for{" "}
               {selectedFiscalYear
                 ? formatProcurementFiscalYearLabel(selectedFiscalYear)
+                : effectiveFiscalYear
+                  ? formatProcurementFiscalYearLabel(effectiveFiscalYear)
                 : queueData.meta.selectedFiscalYearLabel}
               . Draft plans stay excluded.
             </div>
@@ -455,15 +465,25 @@ export function ProcurementOfficerSubmissionsWorkspace({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "border-border/70 text-xs",
-                          getSubmissionBadgeClassName(row.status),
-                        )}
-                      >
-                        {row.statusLabel}
-                      </Badge>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "border-border/70 text-xs",
+                            getSubmissionBadgeClassName(row.status),
+                          )}
+                        >
+                          {row.statusLabel}
+                        </Badge>
+                        {row.pendingRedraftRequestId ? (
+                          <Badge
+                            variant="outline"
+                            className="border-amber-300/70 bg-amber-50 text-amber-900"
+                          >
+                            Action needed
+                          </Badge>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {row.itemCount}
@@ -475,16 +495,11 @@ export function ProcurementOfficerSubmissionsWorkspace({
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() =>
-                          router.push(
-                            buildProcurementOfficerSubmissionReviewHref({
-                              planId: row.planId,
-                              returnToSearchParams: searchParams,
-                            }),
-                          )
-                        }
+                        onClick={() => setReviewPlanId(row.planId)}
                       >
-                        Open review
+                        {row.pendingRedraftRequestId
+                          ? "Review request"
+                          : "Open review"}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -494,6 +509,11 @@ export function ProcurementOfficerSubmissionsWorkspace({
           </div>
         )}
       </div>
+      <ProcurementOfficerPlanReviewSummaryModal
+        onClose={() => setReviewPlanId(null)}
+        open={reviewPlanId !== null}
+        planId={reviewPlanId}
+      />
     </div>
   );
 }

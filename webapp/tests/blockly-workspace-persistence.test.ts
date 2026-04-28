@@ -247,6 +247,38 @@ export function runBlocklyWorkspacePersistenceTests(): string[] {
     );
     completedTests.push("server-side draft preparation rejects stale queued revisions before they can overwrite a newer saved plan");
 
+    const emptyDraftPersistence = prepareDepartmentUserWorkspaceDraftPersistence({
+        accessMode: "editable",
+        categories: [
+            {
+                id: "cat-it",
+                name: "ICT Equipment",
+            },
+        ],
+        categoryDocs: [
+            {
+                _id: "cat-it" as never,
+                name: "ICT Equipment",
+            },
+        ],
+        currentUserId: "du-1",
+        existingSelectedCategoryIds: [],
+        items: [],
+        planStatus: "draft",
+        persistedWorkspaceState: null,
+        totalBudget: 250_000,
+        workspaceState: clearedRecord,
+    });
+    assert.equal(emptyDraftPersistence.ok, true);
+    if (emptyDraftPersistence.ok) {
+        assert.equal(emptyDraftPersistence.patch.itemCount, 0);
+        assert.equal(emptyDraftPersistence.patch.categorySummaries.length, 0);
+        assert.equal(emptyDraftPersistence.patch.estimatedBudgetUsed, 0);
+    }
+    completedTests.push(
+        "server-side draft preparation now treats an empty Blockly canvas as a valid empty draft instead of a malformed workspace",
+    );
+
     assert.equal(
         shouldWarnDepartmentUserBeforeLeave({
             hasUnsyncedRisk: true,

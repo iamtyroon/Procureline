@@ -57,6 +57,8 @@ export interface ProcurementOfficerSubmissionSourceRow {
   estimatedBudgetUsed: number;
   fiscalYear: string;
   itemCount: number;
+  pendingRedraftRequestedAt: number | null;
+  pendingRedraftRequestId: string | null;
   planId: string;
   rejectedAt: number | null;
   status: ProcurementOfficerSubmissionStatus;
@@ -375,7 +377,8 @@ export function buildProcurementOfficerSubmissionModalPath(args?: {
     searchParams.append(key, value);
   });
 
-  return `/po?${searchParams.toString()}`;
+  const query = searchParams.toString();
+  return query.length > 0 ? `/po?${query}` : "/po";
 }
 
 export function buildProcurementOfficerSubmissionReviewHref(args: {

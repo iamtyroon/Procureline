@@ -9,9 +9,9 @@ const Toaster = ({ ...props }) => {
     const { theme = "system" } = (0, next_themes_1.useTheme)();
     return ((0, jsx_runtime_1.jsx)(sonner_1.Toaster, { closeButton: true, theme: theme, className: "toaster group", toastOptions: {
             classNames: {
-                toast: "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
-                closeButton: "group-[.toast]:border-border group-[.toast]:bg-background group-[.toast]:text-muted-foreground group-[.toast]:hover:text-foreground",
-                description: "group-[.toast]:text-muted-foreground",
+                toast: "group toast group-[.toaster]:rounded-lg group-[.toaster]:border group-[.toaster]:border-primary/30 group-[.toaster]:bg-popover group-[.toaster]:text-popover-foreground group-[.toaster]:shadow-xl group-[.toaster]:shadow-black/20",
+                closeButton: "group-[.toast]:border-border/80 group-[.toast]:bg-popover group-[.toast]:text-foreground group-[.toast]:hover:bg-muted group-[.toast]:hover:text-foreground",
+                description: "group-[.toast]:text-foreground/80",
                 actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
                 cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
             },

@@ -234,6 +234,13 @@ function buildDepartmentUserDashboardSnapshot(args) {
                 itemCount: currentPlan?.itemCount ?? 0,
                 primaryActionHref: currentPlanAction.href,
                 primaryActionLabel: currentPlanAction.label,
+                redraftRequest: {
+                    canRequest: currentPlanStatus === "Approved" &&
+                        currentPlan?.pendingRedraftRequest == null,
+                    pendingRequestId: currentPlan?.pendingRedraftRequest?.id ?? null,
+                    pendingReason: currentPlan?.pendingRedraftRequest?.reason ?? null,
+                    requestedAt: currentPlan?.pendingRedraftRequest?.requestedAt ?? null,
+                },
                 state: currentPlan === null ? "empty" : "available",
                 statusLabel: currentPlanStatus,
                 submissionReference: currentPlan?.submissionReference ?? null,
@@ -344,6 +351,12 @@ function createBlockedSnapshot(args) {
                 itemCount: 0,
                 primaryActionHref: "/du",
                 primaryActionLabel: "Start Your Plan",
+                redraftRequest: {
+                    canRequest: false,
+                    pendingRequestId: null,
+                    pendingReason: null,
+                    requestedAt: null,
+                },
                 state: "unavailable",
                 statusLabel: "No Plan",
                 submissionReference: null,

@@ -103,6 +103,7 @@ async function main(): Promise<void> {
     const { runProcurementOfficerReviewTests } = await import(
         "./procurement-officer-review.test.js"
     );
+    const { runPlanRedraftTests } = await import("./plan-redrafts.test.js");
     const { runProcurementOfficerItemTests } = await import(
         "./procurement-officer-items.test.js"
     );
@@ -156,6 +157,7 @@ async function main(): Promise<void> {
         ...runProcurementOfficerSubmissionTests(),
         ...runProcurementOfficerRequestTests(),
         ...runProcurementOfficerReviewTests(),
+        ...runPlanRedraftTests(),
         ...(await runProcurementOfficerInvitationTests()),
         ...runPublicAuthEntryTests(),
         ...runProxyRouteTests(),

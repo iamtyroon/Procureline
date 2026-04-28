@@ -1,6 +1,6 @@
 # Story 6.4: Plan Review Interface
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

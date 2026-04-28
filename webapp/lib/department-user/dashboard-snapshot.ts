@@ -82,6 +82,11 @@ export interface DepartmentUserDashboardPlanRecord {
     status: "approved" | "draft" | "rejected" | "submitted";
     submissionReference?: string | null;
     submittedAt?: number | null;
+    pendingRedraftRequest?: {
+        id: string;
+        reason: string;
+        requestedAt: number;
+    } | null;
     updatedAt: number;
 }
 
@@ -197,6 +202,12 @@ export interface DepartmentUserDashboardSnapshot {
             itemCount: number;
             primaryActionHref: string;
             primaryActionLabel: string;
+            redraftRequest: {
+                canRequest: boolean;
+                pendingRequestId: string | null;
+                pendingReason: string | null;
+                requestedAt: number | null;
+            };
             state: DepartmentUserDashboardState;
             statusLabel: DepartmentUserPlanStatus;
             submissionReference: string | null;
@@ -506,6 +517,14 @@ export function buildDepartmentUserDashboardSnapshot(
                 itemCount: currentPlan?.itemCount ?? 0,
                 primaryActionHref: currentPlanAction.href,
                 primaryActionLabel: currentPlanAction.label,
+                redraftRequest: {
+                    canRequest:
+                        currentPlanStatus === "Approved" &&
+                        currentPlan?.pendingRedraftRequest == null,
+                    pendingRequestId: currentPlan?.pendingRedraftRequest?.id ?? null,
+                    pendingReason: currentPlan?.pendingRedraftRequest?.reason ?? null,
+                    requestedAt: currentPlan?.pendingRedraftRequest?.requestedAt ?? null,
+                },
                 state: currentPlan === null ? "empty" : "available",
                 statusLabel: currentPlanStatus,
                 submissionReference: currentPlan?.submissionReference ?? null,
@@ -627,6 +646,12 @@ function createBlockedSnapshot(args: {
                 itemCount: 0,
                 primaryActionHref: "/du",
                 primaryActionLabel: "Start Your Plan",
+                redraftRequest: {
+                    canRequest: false,
+                    pendingRequestId: null,
+                    pendingReason: null,
+                    requestedAt: null,
+                },
                 state: "unavailable",
                 statusLabel: "No Plan",
                 submissionReference: null,

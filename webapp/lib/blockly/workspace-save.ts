@@ -3,6 +3,7 @@ import {
     createPersistedBlocklyWorkspaceRecord,
     isBlocklyWorkspaceRecord,
     normalizeBlocklyWorkspaceRecord,
+    parseBlocklyWorkspaceJson,
     serializeBlocklyWorkspace,
     type BlocklyWorkspaceRecord,
 } from "./blockly-serialization";
@@ -10,6 +11,7 @@ import type {
     DepartmentUserWorkspaceSummary,
 } from "./du-workspace-calculations";
 import {
+    calculateDepartmentUserWorkspaceSummary,
     calculateDepartmentUserWorkspaceSummaryFromWorkspaceRecord,
 } from "./du-workspace-calculations";
 import {
@@ -199,7 +201,21 @@ export function deriveDepartmentUserWorkspaceDraftPersistenceSummary(args: {
     });
 
     if (!workspaceSummary) {
-        return null;
+        if (!isEmptyBlocklyWorkspaceRecord(args.workspaceState)) {
+            return null;
+        }
+
+        const emptyWorkspaceSummary = calculateDepartmentUserWorkspaceSummary({
+            categories: [],
+            totalBudget: args.totalBudget,
+        });
+
+        return {
+            categorySummaries: [],
+            estimatedBudgetUsed: 0,
+            itemCount: 0,
+            workspaceSummary: emptyWorkspaceSummary,
+        };
     }
 
     return {
@@ -227,6 +243,20 @@ export function deriveDepartmentUserWorkspaceDraftPersistenceSummary(args: {
         itemCount: workspaceSummary.totalItemCount,
         workspaceSummary,
     };
+}
+
+function isEmptyBlocklyWorkspaceRecord(
+    workspaceState: BlocklyWorkspaceRecord,
+): boolean {
+    const workspaceJson = parseBlocklyWorkspaceJson(workspaceState.workspaceJson);
+    const blocks =
+        workspaceJson &&
+        typeof workspaceJson.blocks === "object" &&
+        workspaceJson.blocks !== null
+            ? (workspaceJson.blocks as { blocks?: unknown }).blocks
+            : null;
+
+    return Array.isArray(blocks) && blocks.length === 0;
 }
 
 export function buildDepartmentUserWorkspaceDraftPersistencePatch(args: {

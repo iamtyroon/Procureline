@@ -180,6 +180,12 @@ const dashboardSnapshotValidator = v.object({
             itemCount: v.number(),
             primaryActionHref: v.string(),
             primaryActionLabel: v.string(),
+            redraftRequest: v.object({
+                canRequest: v.boolean(),
+                pendingRequestId: v.union(v.string(), v.null()),
+                pendingReason: v.union(v.string(), v.null()),
+                requestedAt: v.union(v.number(), v.null()),
+            }),
             state: dashboardStateValidator,
             statusLabel: planStatusValidator,
             submissionReference: v.union(v.string(), v.null()),
@@ -314,7 +320,7 @@ export const getDepartmentUserDashboardSnapshot = query({
             timestamp: department.submissionEndsAt as number,
         }).key;
 
-        const [categories, items, plans, procurementOfficerTenantUser, submissionDeadline] = await Promise.all([
+        const [categories, items, plans, redraftRequests, procurementOfficerTenantUser, submissionDeadline] = await Promise.all([
             ctx.db
                 .query("procurementCategories")
                 .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
@@ -326,6 +332,12 @@ export const getDepartmentUserDashboardSnapshot = query({
             ctx.db
                 .query("plans")
                 .withIndex("by_departmentId", (q) => q.eq("departmentId", department._id))
+                .collect(),
+            ctx.db
+                .query("planRedraftRequests")
+                .withIndex("by_departmentId_status", (q) =>
+                    q.eq("departmentId", department._id).eq("status", "pending"),
+                )
                 .collect(),
             ctx.db.get(department.procurementOfficerTenantUserId),
             ctx.db
@@ -364,6 +376,9 @@ export const getDepartmentUserDashboardSnapshot = query({
         });
         const announcements = [budgetAnnouncement, deadlineAnnouncement].filter(
             (item): item is NonNullable<typeof item> => Boolean(item),
+        );
+        const pendingRedraftRequestByPlanId = new Map(
+            redraftRequests.map((request) => [String(request.planId), request] as const),
         );
 
         return buildDepartmentUserDashboardSnapshot({
@@ -418,6 +433,16 @@ export const getDepartmentUserDashboardSnapshot = query({
                 status: plan.status,
                 submissionReference: plan.submissionReference ?? null,
                 submittedAt: plan.submittedAt ?? null,
+                pendingRedraftRequest: (() => {
+                    const request = pendingRedraftRequestByPlanId.get(String(plan._id));
+                    return request
+                        ? {
+                              id: String(request._id),
+                              reason: request.reason,
+                              requestedAt: request.createdAt,
+                          }
+                        : null;
+                })(),
                 updatedAt: plan.updatedAt,
             })),
             procurementOfficer: procurementOfficer

@@ -345,6 +345,35 @@ export function BlocklyWorkspace(props: {
                 blocklyRef.current = Blockly;
                 workspaceRef.current = workspace;
 
+                const syncFlyoutScrollbarVisibility = () => {
+                    if (!hostRef.current) {
+                        return;
+                    }
+
+                    const hasVisibleFlyout = Array.from(
+                        hostRef.current.querySelectorAll(".blocklyFlyout"),
+                    ).some((flyout) => {
+                        const rect = flyout.getBoundingClientRect();
+                        return (
+                            window.getComputedStyle(flyout).display !== "none" &&
+                            rect.width > 0 &&
+                            rect.height > 0
+                        );
+                    });
+
+                    for (const scrollbar of Array.from(
+                        hostRef.current.querySelectorAll<SVGElement>(
+                            ".blocklyFlyoutScrollbar",
+                        ),
+                    )) {
+                        if (hasVisibleFlyout) {
+                            scrollbar.style.removeProperty("display");
+                        } else {
+                            scrollbar.style.setProperty("display", "none", "important");
+                        }
+                    }
+                };
+
                 const scheduleWorkspaceLayoutRefresh = () => {
                     if (layoutRefreshTimerRef.current !== null) {
                         window.clearTimeout(layoutRefreshTimerRef.current);
@@ -360,6 +389,7 @@ export function BlocklyWorkspace(props: {
                                 };
                             }
                         ).scrollbar?.resize?.();
+                        syncFlyoutScrollbarVisibility();
                     };
 
                     window.requestAnimationFrame(refresh);
@@ -374,6 +404,7 @@ export function BlocklyWorkspace(props: {
                     event.stopPropagation();
                 };
                 const protectedWheelTargets = [
+                    blocklyRoot.querySelector(".blocklyToolbox"),
                     blocklyRoot.querySelector(".blocklyToolboxDiv"),
                     blocklyRoot.querySelector(".blocklyFlyout"),
                     blocklyRoot.querySelector(".blocklyFlyoutScrollbar"),
@@ -390,9 +421,29 @@ export function BlocklyWorkspace(props: {
                     target.addEventListener("click", scheduleWorkspaceLayoutRefresh);
                 }
 
+                const closeToolboxFlyout = () => {
+                    if (isDisposed) {
+                        return;
+                    }
+
+                    const toolbox = workspace.getToolbox();
+                    toolbox?.clearSelection();
+                    toolbox?.getFlyout()?.hide();
+                    workspace.getFlyout()?.hide();
+                    scheduleWorkspaceLayoutRefresh();
+                };
+
+                const scheduleToolboxFlyoutClose = () => {
+                    window.requestAnimationFrame(() => {
+                        closeToolboxFlyout();
+                        window.setTimeout(closeToolboxFlyout, 120);
+                    });
+                };
+
                 const handleWorkspaceChange = (
                     event: {
                         blockId?: string;
+                        isStart?: boolean;
                         newElementId?: string;
                         oldJson?: Record<string, unknown>;
                         run?: (forward: boolean) => void;
@@ -412,6 +463,14 @@ export function BlocklyWorkspace(props: {
                         onSelectedBlockChangeRef.current?.(nextSelectedBlock ?? null);
                         emitHistoryState(workspace);
                         return;
+                    }
+
+                    if (
+                        props.editorMode === "edit" &&
+                        (event.type === "create" ||
+                            (event.type === "drag" && event.isStart === false))
+                    ) {
+                        scheduleToolboxFlyoutClose();
                     }
 
                     const eventResolution = resolveDepartmentUserWorkspaceEvent({

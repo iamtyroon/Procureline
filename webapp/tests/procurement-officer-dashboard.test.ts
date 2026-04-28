@@ -409,7 +409,7 @@ export function runProcurementOfficerDashboardTests(): string[] {
     },
   );
   completedTests.push(
-    "procurement-officer workspace routing keeps categories and items as real routes, sends legacy submissions URLs back to the dashboard, and resolves review links to the summary modal",
+    "procurement-officer workspace routing keeps categories and items as real routes, retires the submissions route back to the dashboard, and resolves review links to the summary modal",
   );
 
   const poRoutes = [
@@ -420,7 +420,6 @@ export function runProcurementOfficerDashboardTests(): string[] {
     "/po/access-codes",
     "/po/deadlines",
     "/po/requests",
-    "/po/submissions",
     "/po/review",
     "/po/consolidation",
   ];

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import {
     AlertTriangle,
     ArrowRight,
@@ -21,8 +21,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import {
     deriveLaunchpadInteractivity,
     sanitizeCategorySelection,
@@ -32,6 +41,7 @@ import {
 import { formatDeadlineCountdown } from "@/lib/procurement-officer/deadlines";
 import type { DepartmentUserDashboardSnapshot } from "@/lib/department-user/dashboard-snapshot";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export function DepartmentUserDashboard(): JSX.Element {
     const router = useRouter();
@@ -39,9 +49,15 @@ export function DepartmentUserDashboard(): JSX.Element {
         api.functions.departmentUserDashboard.getDepartmentUserDashboardSnapshot,
         {},
     );
+    const requestRedraft = useMutation(
+        api.functions.planRedrafts.requestDepartmentUserPlanRedraft,
+    );
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
     const [isBudgetOpen, setIsBudgetOpen] = useState(false);
     const [countdownNow, setCountdownNow] = useState(() => Date.now());
+    const [redraftPlanId, setRedraftPlanId] = useState<string | null>(null);
+    const [redraftReason, setRedraftReason] = useState("");
+    const [isRedraftSubmitting, setIsRedraftSubmitting] = useState(false);
 
     useEffect(() => {
         if (!snapshot) {
@@ -118,6 +134,31 @@ export function DepartmentUserDashboard(): JSX.Element {
         router.push(dashboardSnapshot.launchpad.primaryAction.href);
     }
 
+    async function handleSubmitRedraftRequest(): Promise<void> {
+        if (!redraftPlanId || isRedraftSubmitting) {
+            return;
+        }
+
+        setIsRedraftSubmitting(true);
+        try {
+            await requestRedraft({
+                planId: redraftPlanId,
+                reason: redraftReason,
+            });
+            toast.success("Redraft request sent to your Procurement Officer.");
+            setRedraftPlanId(null);
+            setRedraftReason("");
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "The redraft request could not be sent.",
+            );
+        } finally {
+            setIsRedraftSubmitting(false);
+        }
+    }
+
     return (
         <div className="min-h-[calc(100vh-4rem)] bg-background">
             <div className="px-4 py-8 sm:px-6 lg:hidden">
@@ -163,7 +204,19 @@ export function DepartmentUserDashboard(): JSX.Element {
                             isBudgetOpen={isBudgetOpen}
                             setIsBudgetOpen={setIsBudgetOpen}
                         />
-                        <PlanStatCard plan={dashboardSnapshot.quickStats.plan} />
+                        <PlanStatCard
+                            plan={dashboardSnapshot.quickStats.plan}
+                            onRequestRedraft={() => {
+                                const approvedRow = dashboardSnapshot.plans.rows.find(
+                                    (row) =>
+                                        row.isCurrentFiscalYear &&
+                                        row.statusLabel === "Approved",
+                                );
+                                if (approvedRow) {
+                                    setRedraftPlanId(approvedRow.id);
+                                }
+                            }}
+                        />
                         <DeadlineCard countdownNow={countdownNow} deadline={dashboardSnapshot.quickStats.deadline} />
                     </div>
 
@@ -213,6 +266,49 @@ export function DepartmentUserDashboard(): JSX.Element {
                     </div>
                 </div>
             </div>
+            <Dialog
+                open={redraftPlanId !== null}
+                onOpenChange={(open) => {
+                    if (!open && !isRedraftSubmitting) {
+                        setRedraftPlanId(null);
+                        setRedraftReason("");
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Request plan redraft</DialogTitle>
+                        <DialogDescription>
+                            Send a request to your Procurement Officer to reopen this approved plan for editing.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Textarea
+                        value={redraftReason}
+                        onChange={(event) => setRedraftReason(event.target.value)}
+                        placeholder="Explain what needs to change in the approved plan."
+                    />
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={isRedraftSubmitting}
+                            onClick={() => {
+                                setRedraftPlanId(null);
+                                setRedraftReason("");
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            disabled={isRedraftSubmitting || redraftReason.trim().length < 8}
+                            onClick={() => void handleSubmitRedraftRequest()}
+                        >
+                            {isRedraftSubmitting ? "Sending..." : "Send request"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
@@ -281,7 +377,13 @@ function BudgetCard({
     );
 }
 
-function PlanStatCard({ plan }: { plan: DepartmentUserDashboardSnapshot["quickStats"]["plan"] }) {
+function PlanStatCard({
+    onRequestRedraft,
+    plan,
+}: {
+    onRequestRedraft: () => void;
+    plan: DepartmentUserDashboardSnapshot["quickStats"]["plan"];
+}) {
     return (
         <Card className="rounded-[26px] border-border/70 shadow-sm">
             <CardHeader className="space-y-3 pb-4">
@@ -304,12 +406,27 @@ function PlanStatCard({ plan }: { plan: DepartmentUserDashboardSnapshot["quickSt
                         Submission reference: <span className="font-semibold">{plan.submissionReference}</span>
                     </div>
                 ) : null}
+                {plan.redraftRequest.pendingRequestId ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm leading-6 text-amber-900">
+                        Redraft request pending PO approval.
+                    </div>
+                ) : null}
                 {plan.statusLabel !== "No Plan" ? (
                     <Button asChild className="w-full rounded-2xl">
                         <Link href={plan.primaryActionHref}>
                             {plan.primaryActionLabel}
                             <ArrowRight className="ml-2 h-4 w-4" />
                         </Link>
+                    </Button>
+                ) : null}
+                {plan.redraftRequest.canRequest ? (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full rounded-2xl"
+                        onClick={onRequestRedraft}
+                    >
+                        Request redraft
                     </Button>
                 ) : null}
             </CardContent>

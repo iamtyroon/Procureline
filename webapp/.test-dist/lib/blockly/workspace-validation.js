@@ -109,6 +109,19 @@ function evaluateDepartmentUserWorkspaceValidation(args) {
             const itemName = item.itemName.trim().length > 0
                 ? item.itemName
                 : item.itemDescription;
+            const itemFixTarget = blockId
+                ? {
+                    id: blockId,
+                    label: itemName,
+                    type: "workspace_block",
+                }
+                : category.categoryId.trim().length > 0
+                    ? {
+                        id: category.categoryId,
+                        label: category.categoryName,
+                        type: "workspace_category",
+                    }
+                    : null;
             if (normalizedItemId.length > 0) {
                 const duplicateKey = `${category.categoryId}::${normalizedItemId}`;
                 if (seenCategoryItemKeys.has(duplicateKey)) {
@@ -116,7 +129,9 @@ function evaluateDepartmentUserWorkspaceValidation(args) {
                         blockId,
                         blocksSubmission: true,
                         categoryId: category.categoryId,
+                        categoryName: category.categoryName,
                         code: "duplicate_item",
+                        fixTarget: itemFixTarget,
                         itemId: normalizedItemId,
                         itemName,
                         message: items_1.PROCUREMENT_ITEM_WORKSPACE_DUPLICATE_MESSAGE,
@@ -132,7 +147,9 @@ function evaluateDepartmentUserWorkspaceValidation(args) {
                     blockId,
                     blocksSubmission: true,
                     categoryId: category.categoryId,
+                    categoryName: category.categoryName,
                     code: "inactive_item",
+                    fixTarget: itemFixTarget,
                     itemId: normalizedItemId || null,
                     itemName,
                     message: items_1.PROCUREMENT_ITEM_WORKSPACE_UNAVAILABLE_MESSAGE,
@@ -153,7 +170,9 @@ function evaluateDepartmentUserWorkspaceValidation(args) {
                     blockId,
                     blocksSubmission: false,
                     categoryId: category.categoryId,
+                    categoryName: category.categoryName,
                     code: mapQuantityMessageToIssueCode(quantityResult.message),
+                    fixTarget: itemFixTarget,
                     itemId: normalizedItemId || null,
                     itemName,
                     message: quantityResult.message,
@@ -176,7 +195,9 @@ function evaluateDepartmentUserWorkspaceValidation(args) {
                     blockId,
                     blocksSubmission: false,
                     categoryId: category.categoryId,
+                    categoryName: category.categoryName,
                     code: mapQuantityMessageToIssueCode(transientMessage),
+                    fixTarget: itemFixTarget,
                     itemId: normalizedItemId || null,
                     itemName,
                     message: transientMessage,
@@ -199,13 +220,37 @@ function evaluateDepartmentUserWorkspaceValidation(args) {
                         blockId,
                         blocksSubmission: false,
                         categoryId: category.categoryId,
+                        categoryName: category.categoryName,
                         code: "minimum_quantity_reference",
+                        fixTarget: itemFixTarget,
                         itemId: normalizedItemId || null,
                         itemName,
                         message: (0, items_1.formatProcurementItemMinimumQuantityMessage)(minQuantity),
                         severity: "warning",
                     });
                 }
+            }
+            const totalQuantity = QUANTITY_KEYS.reduce((sum, quantityKey) => {
+                const quantityValue = normalizeDepartmentUserQuantityValue({
+                    maxQuantity: item.maxQuantity ?? null,
+                    unitOfMeasurement: item.unitOfMeasurement ?? null,
+                    value: item.quantities[quantityKey],
+                }).normalizedValue;
+                return sum + quantityValue;
+            }, 0);
+            if (totalQuantity <= 0) {
+                appendIssue(issues, {
+                    blockId,
+                    blocksSubmission: true,
+                    categoryId: category.categoryId,
+                    categoryName: category.categoryName,
+                    code: "zero_quantity",
+                    fixTarget: itemFixTarget,
+                    itemId: normalizedItemId || null,
+                    itemName,
+                    message: `${itemName} has zero quantity. Enter quantity or remove item.`,
+                    severity: "error",
+                });
             }
         }
     }

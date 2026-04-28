@@ -1761,12 +1761,14 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                     Submitted Plans
                   </span>
                 </div>
-                {submissionPanel ? (
-                  <StateBadge
-                    state={submissionPanel.state}
-                    label={submissionPanel.statusLabel}
-                  />
-                ) : null}
+                <div className="flex items-center gap-2">
+                  {submissionPanel ? (
+                    <StateBadge
+                      state={submissionPanel.state}
+                      label={submissionPanel.statusLabel}
+                    />
+                  ) : null}
+                </div>
               </div>
               <div className="p-5">
                 <ProcurementOfficerSubmittedPlansPanel

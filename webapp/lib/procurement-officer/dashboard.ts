@@ -244,16 +244,16 @@ export function resolveProcurementOfficerWorkspaceNavigation(
         modalState: { modal: "requests" },
       };
     case "/po/submissions":
-      return {
-        href: (() => {
-          const dashboardSearchParams = extractProcurementOfficerDashboardSearchParams(
-            targetUrl.searchParams,
-          );
-          const query = dashboardSearchParams.toString();
-          return query.length > 0 ? `/po?${query}` : "/po";
-        })(),
-        type: "route",
-      };
+      {
+        const dashboardSearchParams = extractProcurementOfficerDashboardSearchParams(
+          targetUrl.searchParams,
+        );
+        const query = dashboardSearchParams.toString();
+        return {
+          href: query.length > 0 ? `/po?${query}` : "/po",
+          type: "route",
+        };
+      }
     case "/po/review": {
       const planId = targetUrl.searchParams.get("planId")?.trim() ?? "";
       if (planId.length === 0) {

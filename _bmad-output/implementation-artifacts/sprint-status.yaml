@@ -93,9 +93,9 @@ development_status:
   4-10-item-category-request-processing: done
 
   6-3-po-submission-queue: done
-  6-4-plan-review-interface: review
+  6-4-plan-review-interface: done
   6-7-submission-status-tracking: backlog
-  6-2-pre-submission-validation: backlog
+  6-2-pre-submission-validation: done
   6-1-plan-submission-flow: done
   6-5-plan-approval-rejection: backlog
   6-6-du-revision-flow: backlog

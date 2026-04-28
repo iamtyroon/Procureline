@@ -291,7 +291,7 @@ function runProcurementOfficerDashboardTests() {
         href: "/po/items?poFiscalYear=2025-2026&itemSearch=laptop&itemCategory=cat-it&foo=bar&itemCompliance=agpo",
         type: "route",
     });
-    completedTests.push("procurement-officer workspace routing keeps categories and items as real routes, sends legacy submissions URLs back to the dashboard, and resolves review links to the summary modal");
+    completedTests.push("procurement-officer workspace routing keeps categories and items as real routes, retires the submissions route back to the dashboard, and resolves review links to the summary modal");
     const poRoutes = [
         "/po",
         "/po/departments",
@@ -300,7 +300,6 @@ function runProcurementOfficerDashboardTests() {
         "/po/access-codes",
         "/po/deadlines",
         "/po/requests",
-        "/po/submissions",
         "/po/review",
         "/po/consolidation",
     ];

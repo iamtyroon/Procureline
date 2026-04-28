@@ -35,6 +35,7 @@ import type * as functions_departments from "../functions/departments.js";
 import type * as functions_devEmail from "../functions/devEmail.js";
 import type * as functions_externalServices from "../functions/externalServices.js";
 import type * as functions_items from "../functions/items.js";
+import type * as functions_planRedrafts from "../functions/planRedrafts.js";
 import type * as functions_plans from "../functions/plans.js";
 import type * as functions_platformAdminAuth from "../functions/platformAdminAuth.js";
 import type * as functions_platformAdminDashboard from "../functions/platformAdminDashboard.js";
@@ -90,6 +91,7 @@ declare const fullApi: ApiFromModules<{
   "functions/devEmail": typeof functions_devEmail;
   "functions/externalServices": typeof functions_externalServices;
   "functions/items": typeof functions_items;
+  "functions/planRedrafts": typeof functions_planRedrafts;
   "functions/plans": typeof functions_plans;
   "functions/platformAdminAuth": typeof functions_platformAdminAuth;
   "functions/platformAdminDashboard": typeof functions_platformAdminDashboard;

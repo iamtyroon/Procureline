@@ -6,7 +6,10 @@ import {
     createBlocklyWorkspaceRecord,
     normalizeBlocklyWorkspaceRecord,
 } from "../../lib/blockly/blockly-serialization";
-import { getDepartmentUserPlanSubmitState } from "../../lib/blockly/plan-submission";
+import {
+    getDepartmentUserPlanSubmitState,
+    shouldReplayDepartmentUserSubmittedPlan,
+} from "../../lib/blockly/plan-submission";
 import { normalizeCategoryIcon } from "../../lib/procurement-officer/categories";
 import {
     prepareDepartmentUserWorkspaceDraftPersistence,
@@ -32,6 +35,11 @@ import {
     resolveLatestActivePlanSubmissionSnapshot,
     shouldCaptureLegacyWithdrawnPlanSubmissionSnapshot,
 } from "../../lib/plans/submission";
+import {
+    evaluateSubmissionDeadlineIssue,
+    resolveEffectiveSubmissionWindow,
+    summarizePendingCatalogRequestBlockers,
+} from "../../lib/plans/pre-submission-validation";
 import { requireTenantRole } from "./_roleGuard";
 import { appendAuditLogBestEffort, appendAuditLogRequired } from "./_audit";
 
@@ -380,6 +388,16 @@ function buildBlockedSubmissionError(message: string): never {
     });
 }
 
+function getPrimaryBlockedSubmissionMessage(args: {
+    fallback: string;
+    issues: readonly { blocksSubmission: boolean; message: string }[];
+}): string {
+    return (
+        args.issues.find((issue) => issue.blocksSubmission)?.message ??
+        args.fallback
+    );
+}
+
 function createBlockedContext(args: {
     accessMode?: "editable" | "read_only_grace" | null;
     currentUserId: string;
@@ -544,7 +562,6 @@ export const ensureDepartmentUserDraftPlan = mutation({
         if (!base.department) {
             unexpectedAccessError();
         }
-
         const catalog = await loadTenantCatalog(ctx, base.authContext.tenantId);
         const categoryDocs = await ctx.db
             .query("procurementCategories")
@@ -795,6 +812,7 @@ export const submitDepartmentUserPlan = mutation({
         if (!base.department) {
             unexpectedAccessError();
         }
+        const department = base.department;
 
         const normalizedPlanId = ctx.db.normalizeId("plans", args.planId);
         if (!normalizedPlanId) {
@@ -818,11 +836,26 @@ export const submitDepartmentUserPlan = mutation({
         ]);
         const plan = await ctx.db.get(normalizedPlanId);
 
-        if (!plan || plan.tenantId !== base.authContext.tenantId || plan.departmentId !== base.department._id) {
+        if (!plan || plan.tenantId !== base.authContext.tenantId || plan.departmentId !== department._id) {
             throw new ConvexError({
                 code: "PLAN_NOT_FOUND",
                 message: "Plan not found for this department.",
             });
+        }
+
+        if (shouldReplayDepartmentUserSubmittedPlan({
+            status: plan.status,
+            submittedAt: plan.submittedAt ?? null,
+            submissionReference: plan.submissionReference ?? null,
+        })) {
+            return {
+                canWithdraw: typeof plan.reviewStartedAt !== "number",
+                emailErrorMessage: plan.submissionEmailErrorMessage ?? null,
+                emailStatus: plan.submissionEmailStatus ?? null,
+                status: "submitted" as const,
+                submissionReference: plan.submissionReference!,
+                submittedAt: plan.submittedAt!,
+            };
         }
 
         if (!canDepartmentUserEditWorkspace({
@@ -834,7 +867,7 @@ export const submitDepartmentUserPlan = mutation({
                 buildDepartmentUserPlanAuditEntry({
                     action: "submit",
                     actorUserId: base.authContext.userId,
-                    departmentId: base.department._id,
+                    departmentId: department._id,
                     event: AUDIT_EVENT_NAMES.planSubmissionBlocked,
                     metadata: {
                         planStatus: plan.status,
@@ -850,24 +883,13 @@ export const submitDepartmentUserPlan = mutation({
             );
         }
 
-        if (plan.status === "submitted" && plan.submittedAt && plan.submissionReference) {
-            return {
-                canWithdraw: typeof plan.reviewStartedAt !== "number",
-                emailErrorMessage: plan.submissionEmailErrorMessage ?? null,
-                emailStatus: plan.submissionEmailStatus ?? null,
-                status: "submitted" as const,
-                submissionReference: plan.submissionReference,
-                submittedAt: plan.submittedAt,
-            };
-        }
-
         if (plan.status !== "draft") {
             await appendAuditLogRequired(
                 ctx,
                 buildDepartmentUserPlanAuditEntry({
                     action: "submit",
                     actorUserId: base.authContext.userId,
-                    departmentId: base.department._id,
+                    departmentId: department._id,
                     event: AUDIT_EVENT_NAMES.planSubmissionBlocked,
                     metadata: {
                         planStatus: plan.status,
@@ -891,10 +913,95 @@ export const submitDepartmentUserPlan = mutation({
                 name: category.name,
             })),
             items: catalog.items,
-            totalBudget: base.department.budgetAllocation ?? null,
+            totalBudget: department.budgetAllocation ?? null,
             workspaceState: normalizedWorkspaceState,
         });
         const workspaceSummary = submissionDraftSummary?.workspaceSummary ?? null;
+        const [categoryRequests, itemRequests, sharedDeadlines] = await Promise.all([
+            ctx.db
+                .query("categoryRequests")
+                .withIndex("by_planId", (q) => q.eq("planId", plan._id))
+                .collect(),
+            ctx.db
+                .query("itemRequests")
+                .withIndex("by_planId", (q) => q.eq("planId", plan._id))
+                .collect(),
+            ctx.db
+                .query("submissionDeadlines")
+                .withIndex("by_tenantId_fiscalYearKey", (q) =>
+                    q
+                        .eq("tenantId", base.authContext.tenantId)
+                        .eq("fiscalYearKey", plan.fiscalYear),
+                )
+                .collect(),
+        ]);
+        const pendingCategoryRequests = categoryRequests.filter(
+            (request) =>
+                request.tenantId === base.authContext.tenantId &&
+                request.departmentId === department._id &&
+                request.fiscalYear === plan.fiscalYear &&
+                request.status === "pending",
+        );
+        const pendingItemRequests = itemRequests.filter(
+            (request) =>
+                request.tenantId === base.authContext.tenantId &&
+                request.departmentId === department._id &&
+                request.fiscalYear === plan.fiscalYear &&
+                request.status === "pending",
+        );
+        const pendingLinkedCategoryIds = new Set(
+            pendingItemRequests
+                .map((request) => request.linkedCategoryRequestId ?? null)
+                .filter((requestId): requestId is Id<"categoryRequests"> =>
+                    Boolean(requestId),
+                )
+                .map((requestId) => String(requestId)),
+        );
+        const countedPendingCategoryRequestIds = new Set(
+            pendingCategoryRequests.map((request) => String(request._id)),
+        );
+        const pendingLinkedCategoryHandoffCount = Array.from(
+            pendingLinkedCategoryIds,
+        ).filter((requestId) => !countedPendingCategoryRequestIds.has(requestId)).length;
+        const pendingRequestValidation = summarizePendingCatalogRequestBlockers({
+            pendingCategoryRequestCount: pendingCategoryRequests.length,
+            pendingItemRequestCount: pendingItemRequests.length,
+            pendingLinkedCategoryHandoffCount,
+        });
+        const newestSharedDeadline =
+            sharedDeadlines
+                .filter((deadline) => deadline.tenantId === base.authContext.tenantId)
+                .sort(
+                    (left, right) =>
+                        right.deadlineVersion - left.deadlineVersion ||
+                        right.updatedAt - left.updatedAt,
+                )[0] ?? null;
+        const deadlineIssue = evaluateSubmissionDeadlineIssue({
+            now: Date.now(),
+            window: resolveEffectiveSubmissionWindow({
+                departmentSubmissionEndsAt: department.submissionEndsAt ?? null,
+                departmentSubmissionStartsAt:
+                    department.submissionStartsAt ?? null,
+                sharedDeadline: newestSharedDeadline
+                    ? {
+                          deadlineVersion: newestSharedDeadline.deadlineVersion,
+                          submissionEndsAt: newestSharedDeadline.submissionEndsAt,
+                          submissionStartsAt: newestSharedDeadline.submissionStartsAt,
+                          timeZone: newestSharedDeadline.timeZone,
+                          updatedAt: newestSharedDeadline.updatedAt,
+                      }
+                    : null,
+            }),
+        });
+        const supplementalIssues = [
+            pendingRequestValidation.issue,
+            deadlineIssue,
+        ].filter(
+            (issue): issue is NonNullable<typeof issue> => Boolean(issue),
+        );
+        const supplementalBlockerMessages = supplementalIssues.map(
+            (issue) => issue.message,
+        );
         const submitState = getDepartmentUserPlanSubmitState({
             budgetState:
                 workspaceSummary?.budgetState ?? {
@@ -918,21 +1025,37 @@ export const submitDepartmentUserPlan = mutation({
             hasUnsyncedChanges: false,
             mode: "edit",
             saveState: "saved",
+            supplementalBlockerMessages,
             totalItemCount:
                 submissionDraftSummary?.itemCount ?? workspaceSummary?.totalItemCount ?? plan.itemCount,
             validationState: workspaceSummary?.validationState ?? null,
         });
 
         if (submitState.disabled) {
+            const issueCodes = [
+                ...(workspaceSummary?.validationState.issues
+                    .filter((issue) => issue.blocksSubmission)
+                    .map((issue) => issue.code) ?? []),
+                ...supplementalIssues.map((issue) => issue.code),
+            ];
+            const primaryMessage = getPrimaryBlockedSubmissionMessage({
+                fallback: submitState.reason,
+                issues: [
+                    ...(workspaceSummary?.validationState.issues ?? []),
+                    ...supplementalIssues,
+                ],
+            });
             await appendAuditLogRequired(
                 ctx,
                 buildDepartmentUserPlanAuditEntry({
                     action: "submit",
                     actorUserId: base.authContext.userId,
-                    departmentId: base.department._id,
+                    departmentId: department._id,
                     event: AUDIT_EVENT_NAMES.planSubmissionBlocked,
                     metadata: {
+                        issueCodes,
                         planStatus: plan.status,
+                        primaryMessage,
                         reason: submitState.reason,
                     },
                     outcome: AUDIT_OUTCOMES.blockedStateTransition,
@@ -951,7 +1074,7 @@ export const submitDepartmentUserPlan = mutation({
                 buildDepartmentUserPlanAuditEntry({
                     action: "submit",
                     actorUserId: base.authContext.userId,
-                    departmentId: base.department._id,
+                    departmentId: department._id,
                     event: AUDIT_EVENT_NAMES.planSubmissionBlocked,
                     metadata: {
                         planStatus: plan.status,
@@ -1014,7 +1137,7 @@ export const submitDepartmentUserPlan = mutation({
         );
         const now = Date.now();
         const submissionReference = formatPlanSubmissionReference({
-            departmentCode: base.department.code,
+            departmentCode: department.code,
             fiscalYear: plan.fiscalYear,
             submissionSequence: nextSubmissionSequence,
         });
@@ -1026,8 +1149,8 @@ export const submitDepartmentUserPlan = mutation({
         });
 
         await ctx.db.patch(plan._id, {
-            departmentCodeSnapshot: base.department.code,
-            departmentNameSnapshot: base.department.name,
+            departmentCodeSnapshot: department.code,
+            departmentNameSnapshot: department.name,
             status: "submitted",
             categorySummaries: persistedCategorySummaries,
             estimatedBudgetUsed: submissionPersistence.estimatedBudgetUsed,
@@ -1051,9 +1174,9 @@ export const submitDepartmentUserPlan = mutation({
                 categoryName: summary.categoryName,
                 itemCount: summary.itemCount,
             })),
-            departmentCodeSnapshot: base.department.code,
+            departmentCodeSnapshot: department.code,
             departmentId: plan.departmentId,
-            departmentNameSnapshot: base.department.name,
+            departmentNameSnapshot: department.name,
             estimatedBudgetUsed: submissionPersistence.estimatedBudgetUsed,
             fiscalYear: plan.fiscalYear,
             itemCount: submissionPersistence.itemCount,
@@ -1075,7 +1198,7 @@ export const submitDepartmentUserPlan = mutation({
             buildDepartmentUserPlanAuditEntry({
                 action: "submit",
                 actorUserId: base.authContext.userId,
-                departmentId: base.department._id,
+                departmentId: department._id,
                 event: AUDIT_EVENT_NAMES.planSubmitted,
                 metadata: {
                     itemCount: submissionPersistence.itemCount,
@@ -1112,7 +1235,7 @@ export const submitDepartmentUserPlan = mutation({
                     subject: `Plan submitted: ${submissionReference}`,
                     template: "plan-submission-confirmation",
                     templateProps: {
-                        departmentName: base.department.name,
+                        departmentName: department.name,
                         fiscalYear: plan.fiscalYear,
                         submissionReference,
                         submittedAt: now,
@@ -1140,7 +1263,7 @@ export const submitDepartmentUserPlan = mutation({
                 buildDepartmentUserPlanAuditEntry({
                     action: "submit",
                     actorUserId: base.authContext.userId,
-                    departmentId: base.department._id,
+                    departmentId: department._id,
                     event:
                         emailStatus === "queued"
                             ? AUDIT_EVENT_NAMES.planSubmissionEmailQueued

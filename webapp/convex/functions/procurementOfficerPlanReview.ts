@@ -223,7 +223,14 @@ export const getProcurementOfficerPlanReviewWorkspace = query({
         }
         const reviewPlan = plan;
 
-        const [catalog, department, comments, planSnapshots, departmentPlans] = await Promise.all([
+        const [
+            catalog,
+            department,
+            comments,
+            planSnapshots,
+            departmentPlans,
+            pendingRedraftRequest,
+        ] = await Promise.all([
             loadTenantCatalog(ctx, authContext.tenantId),
             ctx.db.get(reviewPlan.departmentId),
             ctx.db
@@ -238,6 +245,12 @@ export const getProcurementOfficerPlanReviewWorkspace = query({
                 .query("plans")
                 .withIndex("by_departmentId", (q) => q.eq("departmentId", reviewPlan.departmentId))
                 .collect(),
+            ctx.db
+                .query("planRedraftRequests")
+                .withIndex("by_planId_status", (q) =>
+                    q.eq("planId", reviewPlan._id).eq("status", "pending"),
+                )
+                .first(),
         ]);
         const previousFiscalYear = derivePreviousFiscalYearKey(reviewPlan.fiscalYear);
         const priorFiscalYearSnapshots =
@@ -346,6 +359,14 @@ export const getProcurementOfficerPlanReviewWorkspace = query({
                     totalAmountLabel: formatDepartmentBudget(reviewPlan.estimatedBudgetUsed),
                     workspaceState: planLike.workspaceState,
                 },
+                redraftRequest: pendingRedraftRequest
+                    ? {
+                          id: String(pendingRedraftRequest._id),
+                          reason: pendingRedraftRequest.reason,
+                          requestedAt: pendingRedraftRequest.createdAt,
+                          status: pendingRedraftRequest.status,
+                      }
+                    : null,
             },
         };
     },
@@ -714,7 +735,7 @@ export const rejectProcurementOfficerPlanReview = mutation({
         return {
             departmentBudgetChanged,
             rejectedAt,
-            status: "rejected",
+            status: "rejected" as const,
         };
     },
 });
@@ -783,8 +804,13 @@ export const approveProcurementOfficerPlanReview = mutation({
         const approvedAt = Date.now();
         await ctx.db.patch(plan._id, {
             approvedAt,
+            lastApprovedAt: approvedAt,
             rejectedAt: undefined,
             rejectionComment: undefined,
+            redraftApprovedAt: undefined,
+            redraftApprovedByTenantUserId: undefined,
+            redraftReason: undefined,
+            redraftRequestedAt: undefined,
             status: "approved",
             updatedAt: approvedAt,
         });
@@ -803,7 +829,7 @@ export const approveProcurementOfficerPlanReview = mutation({
 
         return {
             approvedAt,
-            status: "approved",
+            status: "approved" as const,
         };
     },
 });

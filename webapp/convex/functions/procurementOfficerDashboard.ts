@@ -55,6 +55,21 @@ export const getProcurementOfficerDashboardSnapshot = query({
                 .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
                 .collect(),
         ]);
+        const redraftBaselineSnapshots = await Promise.all(
+            plans
+                .filter(
+                    (plan) =>
+                        plan.status === "draft" && plan.lastApprovedSnapshotId !== undefined,
+                )
+                .map((plan) => ctx.db.get(plan.lastApprovedSnapshotId as NonNullable<typeof plan.lastApprovedSnapshotId>)),
+        );
+        const redraftBaselineSnapshotByPlanId = new Map(
+            redraftBaselineSnapshots
+                .filter((snapshot): snapshot is NonNullable<typeof snapshot> =>
+                    Boolean(snapshot),
+                )
+                .map((snapshot) => [String(snapshot.planId), snapshot] as const),
+        );
 
         return buildProcurementOfficerDashboardSnapshot({
             accessCodes: accessCodes.map((accessCode) => ({
@@ -84,18 +99,22 @@ export const getProcurementOfficerDashboardSnapshot = query({
             activeItemCount: procurementItems.filter((item) => item.isActive).length,
             plans: plans
                 .filter(
-                    (
-                        plan,
-                    ): plan is typeof plan & {
-                        status: ProcurementOfficerSubmissionStatus;
-                    } => plan.status !== "draft",
+                    (plan) =>
+                        plan.status !== "draft" || plan.lastApprovedSnapshotId !== undefined,
                 )
                 .map((plan) => ({
                     departmentId: String(plan.departmentId),
-                    estimatedBudgetUsed: plan.estimatedBudgetUsed,
+                    estimatedBudgetUsed:
+                        redraftBaselineSnapshotByPlanId.get(String(plan._id))
+                            ?.estimatedBudgetUsed ?? plan.estimatedBudgetUsed,
                     fiscalYear: plan.fiscalYear,
-                    itemCount: plan.itemCount,
-                    status: plan.status,
+                    itemCount:
+                        redraftBaselineSnapshotByPlanId.get(String(plan._id))?.itemCount ??
+                        plan.itemCount,
+                    status:
+                        plan.status === "draft" && plan.lastApprovedSnapshotId !== undefined
+                            ? "approved"
+                            : (plan.status as ProcurementOfficerSubmissionStatus),
                 })),
             requestSummary: resolveProcurementCatalogRequestSummary({
                 categoryRequests: categoryRequests.map((request) => ({

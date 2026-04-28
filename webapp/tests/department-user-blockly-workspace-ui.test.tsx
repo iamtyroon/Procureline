@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CatalogRequestInbox } from "../src/components/blockly/CatalogRequestInbox";
 import { BlocklyToolboxRail } from "../src/components/blockly/BlocklyToolboxRail";
@@ -158,6 +160,16 @@ export function runDepartmentUserBlocklyWorkspaceUiTests(): string[] {
     assert.doesNotMatch(readOnlyInboxMarkup, />Cancel</);
     assert.match(readOnlyInboxMarkup, /Expired: Submission window ended before review/i);
     completedTests.push("catalog request inbox keeps historical DU request outcomes visible in read-only mode without implying pending write access");
+
+    const blocklyEditorSource = fs.readFileSync(
+        path.join(process.cwd(), "src", "components", "blockly", "BlocklyEditor.tsx"),
+        "utf8",
+    );
+    assert.match(blocklyEditorSource, /fixTarget\.type === "deadline_summary"/);
+    assert.match(blocklyEditorSource, /fixTarget\.type === "workspace_category"/);
+    assert.match(blocklyEditorSource, /data-du-deadline-summary/);
+    assert.match(blocklyEditorSource, /data-du-category-summary/);
+    completedTests.push("submit-review fix targets now include deadline and category anchors instead of falling through to stale-target messaging");
 
     return completedTests;
 }

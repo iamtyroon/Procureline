@@ -224,5 +224,36 @@ export function runBlocklyWorkspaceValidationTests(): string[] {
     );
     completedTests.push("workspace validation blocks submit for duplicate, inactive, and over-budget states without false cross-category collisions");
 
+    const zeroQuantityState = evaluateDepartmentUserWorkspaceValidation({
+        categories: [
+            {
+                categoryId: "cat-services",
+                categoryName: "Services",
+                items: [
+                    {
+                        blockId: "block-training",
+                        categoryId: "cat-services",
+                        isActive: true,
+                        itemDescription: "Training",
+                        itemId: "item-training",
+                        itemName: "Training",
+                        quantities: { q1: 0, q2: 0, q3: 0, q4: 0 },
+                        unitOfMeasurement: "each",
+                    },
+                ],
+            },
+        ],
+    });
+    assert.equal(zeroQuantityState.hasBlockingIssues, true);
+    assert.equal(
+        zeroQuantityState.submitBlockedReasons[0],
+        "Training has zero quantity. Enter quantity or remove item.",
+    );
+    assert.equal(zeroQuantityState.issues[0]?.code, "zero_quantity");
+    assert.equal(zeroQuantityState.issues[0]?.fixTarget?.type, "workspace_block");
+    completedTests.push(
+        "workspace validation blocks zero-total items and preserves a usable fix target for itemized submit review",
+    );
+
     return completedTests;
 }

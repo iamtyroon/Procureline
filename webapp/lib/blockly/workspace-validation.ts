@@ -51,13 +51,20 @@ export interface DepartmentUserWorkspaceValidationIssue {
     blockId: string | null;
     blocksSubmission: boolean;
     categoryId: string;
+    categoryName?: string;
     code:
         | "duplicate_item"
         | "inactive_item"
         | "invalid_quantity"
         | "maximum_quantity"
         | "minimum_quantity_reference"
-        | "whole_number_required";
+        | "whole_number_required"
+        | "zero_quantity";
+    fixTarget?: {
+        id: string;
+        label: string;
+        type: "workspace_block" | "workspace_category";
+    } | null;
     itemId: string | null;
     itemName: string;
     message: string;
@@ -238,6 +245,19 @@ export function evaluateDepartmentUserWorkspaceValidation(args: {
             const itemName = item.itemName.trim().length > 0
                 ? item.itemName
                 : item.itemDescription;
+            const itemFixTarget = blockId
+                ? {
+                      id: blockId,
+                      label: itemName,
+                      type: "workspace_block" as const,
+                  }
+                : category.categoryId.trim().length > 0
+                  ? {
+                        id: category.categoryId,
+                        label: category.categoryName,
+                        type: "workspace_category" as const,
+                    }
+                  : null;
 
             if (normalizedItemId.length > 0) {
                 const duplicateKey = `${category.categoryId}::${normalizedItemId}`;
@@ -246,7 +266,9 @@ export function evaluateDepartmentUserWorkspaceValidation(args: {
                         blockId,
                         blocksSubmission: true,
                         categoryId: category.categoryId,
+                        categoryName: category.categoryName,
                         code: "duplicate_item",
+                        fixTarget: itemFixTarget,
                         itemId: normalizedItemId,
                         itemName,
                         message: PROCUREMENT_ITEM_WORKSPACE_DUPLICATE_MESSAGE,
@@ -262,7 +284,9 @@ export function evaluateDepartmentUserWorkspaceValidation(args: {
                     blockId,
                     blocksSubmission: true,
                     categoryId: category.categoryId,
+                    categoryName: category.categoryName,
                     code: "inactive_item",
+                    fixTarget: itemFixTarget,
                     itemId: normalizedItemId || null,
                     itemName,
                     message: PROCUREMENT_ITEM_WORKSPACE_UNAVAILABLE_MESSAGE,
@@ -287,7 +311,9 @@ export function evaluateDepartmentUserWorkspaceValidation(args: {
                     blockId,
                     blocksSubmission: false,
                     categoryId: category.categoryId,
+                    categoryName: category.categoryName,
                     code: mapQuantityMessageToIssueCode(quantityResult.message),
+                    fixTarget: itemFixTarget,
                     itemId: normalizedItemId || null,
                     itemName,
                     message: quantityResult.message,
@@ -317,7 +343,9 @@ export function evaluateDepartmentUserWorkspaceValidation(args: {
                     blockId,
                     blocksSubmission: false,
                     categoryId: category.categoryId,
+                    categoryName: category.categoryName,
                     code: mapQuantityMessageToIssueCode(transientMessage),
+                    fixTarget: itemFixTarget,
                     itemId: normalizedItemId || null,
                     itemName,
                     message: transientMessage,
@@ -339,16 +367,42 @@ export function evaluateDepartmentUserWorkspaceValidation(args: {
 
                 if (hasBelowMinimumNonZeroQuantity) {
                     appendIssue(issues, {
-                        blockId,
-                        blocksSubmission: false,
-                        categoryId: category.categoryId,
-                        code: "minimum_quantity_reference",
-                        itemId: normalizedItemId || null,
+                    blockId,
+                    blocksSubmission: false,
+                    categoryId: category.categoryId,
+                    categoryName: category.categoryName,
+                    code: "minimum_quantity_reference",
+                    fixTarget: itemFixTarget,
+                    itemId: normalizedItemId || null,
                         itemName,
                         message: formatProcurementItemMinimumQuantityMessage(minQuantity),
                         severity: "warning",
                     });
                 }
+            }
+
+            const totalQuantity = QUANTITY_KEYS.reduce((sum, quantityKey) => {
+                const quantityValue = normalizeDepartmentUserQuantityValue({
+                    maxQuantity: item.maxQuantity ?? null,
+                    unitOfMeasurement: item.unitOfMeasurement ?? null,
+                    value: item.quantities[quantityKey],
+                }).normalizedValue;
+                return sum + quantityValue;
+            }, 0);
+
+            if (totalQuantity <= 0) {
+                appendIssue(issues, {
+                    blockId,
+                    blocksSubmission: true,
+                    categoryId: category.categoryId,
+                    categoryName: category.categoryName,
+                    code: "zero_quantity",
+                    fixTarget: itemFixTarget,
+                    itemId: normalizedItemId || null,
+                    itemName,
+                    message: `${itemName} has zero quantity. Enter quantity or remove item.`,
+                    severity: "error",
+                });
             }
         }
     }

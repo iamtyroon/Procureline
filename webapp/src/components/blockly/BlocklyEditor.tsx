@@ -44,6 +44,8 @@ import {
     buildDepartmentUserPlanSubmissionReviewSummary,
     canDepartmentUserOpenPlanSubmissionReview,
     getDepartmentUserPlanSubmitState,
+    type DepartmentUserPlanSubmissionFixTarget,
+    type DepartmentUserPlanSubmissionIssue,
 } from "@/lib/blockly/plan-submission";
 import { buildDepartmentUserWorkspaceDraftSaveInput } from "@/lib/blockly/workspace-save";
 import {
@@ -1317,6 +1319,67 @@ export function BlocklyEditor(props: {
         setIsSubmitReviewOpen(true);
     }
 
+    function handleValidationFixTarget(
+        fixTarget: DepartmentUserPlanSubmissionFixTarget | null | undefined,
+    ): void {
+        function scrollAndHighlight(target: Element | null): boolean {
+            if (!target) {
+                return false;
+            }
+
+            target.scrollIntoView({ behavior: "smooth", block: "center" });
+            target.classList.add("ring-4", "ring-amber-300");
+            window.setTimeout(() => {
+                target.classList.remove("ring-4", "ring-amber-300");
+            }, 1800);
+            return true;
+        }
+
+        if (!fixTarget) {
+            toast("Target no longer available; refresh validation.");
+            return;
+        }
+
+        if (fixTarget.type === "pending_requests") {
+            setCatalogRequestDialogTab("item");
+            setEditingCatalogRequestId(null);
+            setIsCatalogRequestDialogOpen(true);
+            return;
+        }
+
+        if (fixTarget.type === "budget_summary") {
+            if (scrollAndHighlight(document.querySelector("[data-du-budget-summary]"))) {
+                return;
+            }
+        }
+
+        if (fixTarget.type === "deadline_summary") {
+            if (scrollAndHighlight(document.querySelector("[data-du-deadline-summary]"))) {
+                return;
+            }
+        }
+
+        if (fixTarget.type === "workspace_block" || fixTarget.type === "workspace_category") {
+            const workspaceBlockTarget = document.querySelector(
+                `[data-block-id="${CSS.escape(fixTarget.id)}"]`,
+            );
+            if (scrollAndHighlight(workspaceBlockTarget)) {
+                return;
+            }
+
+            if (fixTarget.type === "workspace_category") {
+                const categorySummaryTarget = document.querySelector(
+                    `[data-du-category-summary="${CSS.escape(fixTarget.id)}"]`,
+                );
+                if (scrollAndHighlight(categorySummaryTarget)) {
+                    return;
+                }
+            }
+        }
+
+        toast("Target no longer available; refresh validation.");
+    }
+
     async function handleConfirmSubmit(): Promise<void> {
         if (isSubmitPending) {
             return;
@@ -1538,15 +1601,46 @@ export function BlocklyEditor(props: {
         setIsExitDialogOpen(true);
     }
 
+    const pendingCatalogRequestIssue = useMemo<DepartmentUserPlanSubmissionIssue | null>(() => {
+        const pendingCount = catalogRequestData?.summary.totalPendingCount ?? 0;
+        if (pendingCount <= 0) {
+            return null;
+        }
+
+        return {
+            blocksSubmission: true,
+            code: "pending_catalog_requests",
+            fixTarget: {
+                id: "catalog-requests",
+                label: "Catalog requests",
+                type: "pending_requests",
+            },
+            message: `You have ${pendingCount} pending requests. Cancel or wait for PO decision.`,
+            severity: "error",
+        };
+    }, [catalogRequestData?.summary.totalPendingCount]);
+    const supplementalSubmissionIssues = useMemo(
+        () => (pendingCatalogRequestIssue ? [pendingCatalogRequestIssue] : []),
+        [pendingCatalogRequestIssue],
+    );
     const submissionReviewSummary = useMemo(
-        () => buildDepartmentUserPlanSubmissionReviewSummary(workspaceSummary),
-        [workspaceSummary],
+        () =>
+            buildDepartmentUserPlanSubmissionReviewSummary(workspaceSummary, {
+                supplementalBlockerMessages: supplementalSubmissionIssues.map(
+                    (issue) => issue.message,
+                ),
+                supplementalIssues: supplementalSubmissionIssues,
+            }),
+        [supplementalSubmissionIssues, workspaceSummary],
     );
     const submitState = getDepartmentUserPlanSubmitState({
         budgetState,
         hasUnsyncedChanges: hasUnsyncedRisk,
         mode: props.mode,
         saveState,
+        supplementalBlockerMessages: supplementalSubmissionIssues.map(
+            (issue) => issue.message,
+        ),
         totalItemCount: submissionReviewSummary.itemCount,
         validationState: workspaceSummary?.validationState ?? null,
     });
@@ -1588,11 +1682,19 @@ export function BlocklyEditor(props: {
                                 Fiscal year {props.fiscalYear}
                             </span>
                             <h1 className={styles.workspacePrototypeTitle}>{workspaceTitle}</h1>
-                            <p className={styles.workspacePrototypeSubtitle}>{workspaceSubtitle}</p>
+                            <p
+                                className={styles.workspacePrototypeSubtitle}
+                                data-du-deadline-summary
+                            >
+                                {workspaceSubtitle}
+                            </p>
                         </div>
 
                         <div className={styles.workspacePrototypeStats}>
-                            <div className={styles.prototypeBudgetMeter}>
+                            <div
+                                className={styles.prototypeBudgetMeter}
+                                data-du-budget-summary
+                            >
                                 <div className={styles.prototypeBudgetLabel}>
                                     Department budget
                                 </div>
@@ -1806,6 +1908,11 @@ export function BlocklyEditor(props: {
                     {isSubmitReviewOpen ? (
                         <Alert
                             className="rounded-2xl border-emerald-300 bg-emerald-50 text-emerald-950 shadow-lg"
+                            data-workspace-notice={
+                                submissionReviewSummary.issues.length > 0
+                                    ? "warning"
+                                    : "success"
+                            }
                             dismissible
                             dismissKey={`submit-review-${submissionReviewSummary.itemCount}-${submissionReviewSummary.estimatedBudgetUsed}-${submissionReviewSummary.categories.length}-${submissionReviewSummary.blockerMessages.join("|")}`}
                             onDismiss={() => {
@@ -1853,6 +1960,7 @@ export function BlocklyEditor(props: {
                                                 <div
                                                     key={category.categoryId}
                                                     className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-white/80 px-4 py-3"
+                                                    data-du-category-summary={category.categoryId}
                                                 >
                                                     <div>
                                                         <div className="font-medium">{category.categoryName}</div>
@@ -1875,7 +1983,35 @@ export function BlocklyEditor(props: {
                                     )}
                                 </div>
 
-                                {submissionReviewSummary.blockerMessages.length > 0 ? (
+                                {submissionReviewSummary.issues.length > 0 ? (
+                                    <div className="space-y-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                                        <div className="font-semibold">
+                                            Validation issues
+                                        </div>
+                                        <div className="space-y-2">
+                                            {submissionReviewSummary.issues.map((issue) => (
+                                                <div
+                                                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/70 px-3 py-2"
+                                                    key={`${issue.code}-${issue.itemId ?? issue.itemName ?? issue.message}`}
+                                                >
+                                                    <span>{issue.message}</span>
+                                                    {issue.fixTarget ? (
+                                                        <Button
+                                                            onClick={() => {
+                                                                handleValidationFixTarget(issue.fixTarget);
+                                                            }}
+                                                            size="sm"
+                                                            type="button"
+                                                            variant="outline"
+                                                        >
+                                                            Fix
+                                                        </Button>
+                                                    ) : null}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : submissionReviewSummary.blockerMessages.length > 0 ? (
                                     <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                                         {submissionReviewSummary.blockerMessages.join(" ")}
                                     </div>
@@ -1887,7 +2023,12 @@ export function BlocklyEditor(props: {
 
                                 <div className="flex flex-wrap gap-2">
                                     <Button
-                                        disabled={isSubmitPending}
+                                        disabled={
+                                            isSubmitPending ||
+                                            submissionReviewSummary.issues.some(
+                                                (issue) => issue.blocksSubmission,
+                                            )
+                                        }
                                         onClick={() => {
                                             void handleConfirmSubmit();
                                         }}
@@ -1913,6 +2054,7 @@ export function BlocklyEditor(props: {
                     {recoverySnapshot ? (
                         <Alert
                             className="rounded-2xl border-emerald-300 bg-emerald-50 text-emerald-900 shadow-lg"
+                            data-workspace-notice="warning"
                             dismissible
                             dismissKey={getDepartmentUserWorkspaceRecoveryMessage()}
                         >
@@ -1946,6 +2088,7 @@ export function BlocklyEditor(props: {
                     {blockedSyncMessage ? (
                         <Alert
                             className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900 shadow-lg"
+                            data-workspace-notice="warning"
                             dismissible
                             dismissKey={blockedSyncMessage}
                         >
@@ -1957,6 +2100,7 @@ export function BlocklyEditor(props: {
                     {storageWarning ? (
                         <Alert
                             className="rounded-2xl border-border/70 bg-muted/95 shadow-lg"
+                            data-workspace-notice="warning"
                             dismissible
                             dismissKey={storageWarning}
                         >
@@ -1967,7 +2111,9 @@ export function BlocklyEditor(props: {
 
                     {props.planMeta.submissionReference ? (
                         <Alert
+                            autoDismissMs={5000}
                             className="rounded-2xl border-emerald-300 bg-emerald-50 text-emerald-950 shadow-lg"
+                            data-workspace-notice="success"
                             dismissible
                             dismissKey={`${props.planMeta.status}-${props.planMeta.submissionReference}-${submittedAtLabel ?? "unknown"}`}
                         >
@@ -1993,6 +2139,7 @@ export function BlocklyEditor(props: {
                     {props.planMeta.submissionEmailStatus === "failed" ? (
                         <Alert
                             className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900 shadow-lg"
+                            data-workspace-notice="warning"
                             dismissible
                             dismissKey={
                                 props.planMeta.submissionEmailErrorMessage?.trim() ||
@@ -2010,6 +2157,7 @@ export function BlocklyEditor(props: {
                     {props.mode === "view" ? (
                         <Alert
                             className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900 shadow-lg"
+                            data-workspace-notice="info"
                             dismissible
                             dismissKey="read-only-planning-surface"
                         >
@@ -2023,6 +2171,7 @@ export function BlocklyEditor(props: {
                     {props.unavailableCategories.length > 0 ? (
                         <Alert
                             className="rounded-2xl border-border/70 bg-muted/95 shadow-lg"
+                            data-workspace-notice="warning"
                             dismissible
                             dismissKey={props.unavailableCategories
                                 .map((category) => `${category.name}:${category.reason}`)
@@ -2040,6 +2189,7 @@ export function BlocklyEditor(props: {
                     {canOpenSubmitReview && submitState.disabled ? (
                         <Alert
                             className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900 shadow-lg"
+                            data-workspace-notice="warning"
                             dismissible
                             dismissKey={submitState.reason}
                         >
@@ -2051,6 +2201,7 @@ export function BlocklyEditor(props: {
                     {(workspaceSummary?.validationState.submitBlockedReasons.length ?? 0) > 0 ? (
                         <Alert
                             className="rounded-2xl border-amber-300 bg-amber-50 text-amber-900 shadow-lg"
+                            data-workspace-notice="error"
                             dismissible
                             dismissKey={
                                 workspaceSummary?.validationState.submitBlockedReasons.join("|") ??
@@ -2067,6 +2218,7 @@ export function BlocklyEditor(props: {
                     {workspaceSummary?.validationState.validationUnavailableReason ? (
                         <Alert
                             className="rounded-2xl border-border/70 bg-muted/95 shadow-lg"
+                            data-workspace-notice="warning"
                             dismissible
                             dismissKey={
                                 workspaceSummary.validationState.validationUnavailableReason

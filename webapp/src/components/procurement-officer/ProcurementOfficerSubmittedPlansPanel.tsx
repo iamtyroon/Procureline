@@ -89,9 +89,13 @@ export function ProcurementOfficerSubmittedPlansPanel({
               <TableRow key={row.planId}>
                 <TableCell>
                   <div className="space-y-1">
-                    <div className="text-sm font-semibold text-foreground">
+                    <button
+                      className="text-left text-sm font-semibold text-foreground underline-offset-4 hover:underline"
+                      onClick={() => onOpenReview(row.planId)}
+                      type="button"
+                    >
                       {row.departmentName}
-                    </div>
+                    </button>
                     <div className="text-xs text-muted-foreground">
                       {row.departmentCode ? `Vote: ${row.departmentCode}` : "Vote: --"}
                     </div>
@@ -107,15 +111,25 @@ export function ProcurementOfficerSubmittedPlansPanel({
                   {row.totalAmountLabel}
                 </TableCell>
                 <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "rounded-md border px-2 py-1 text-xs font-semibold uppercase tracking-[0.04em]",
-                      getStatusBadgeClassName(row.status),
-                    )}
-                  >
-                    {getStatusBadgeCopy(row.status)}
-                  </Badge>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "rounded-md border px-2 py-1 text-xs font-semibold uppercase tracking-[0.04em]",
+                        getStatusBadgeClassName(row.status),
+                      )}
+                    >
+                      {getStatusBadgeCopy(row.status)}
+                    </Badge>
+                    {row.pendingRedraftRequestId ? (
+                      <Badge
+                        variant="outline"
+                        className="rounded-md border-amber-300/80 bg-amber-50 px-2 py-1 text-xs font-semibold uppercase tracking-[0.04em] text-amber-900"
+                      >
+                        Action needed
+                      </Badge>
+                    ) : null}
+                  </div>
                 </TableCell>
                 <TableCell className="text-right">
                   <Button

@@ -25,6 +25,8 @@ export function runProcurementOfficerSubmissionTests(): string[] {
       estimatedBudgetUsed: 1_250_000,
       fiscalYear: "2026-2027",
       itemCount: 12,
+      pendingRedraftRequestedAt: null,
+      pendingRedraftRequestId: null,
       planId: "plan-1",
       rejectedAt: null,
       status: "submitted" as const,
@@ -39,6 +41,8 @@ export function runProcurementOfficerSubmissionTests(): string[] {
       estimatedBudgetUsed: 250_000,
       fiscalYear: "2026-2027",
       itemCount: 4,
+      pendingRedraftRequestedAt: Date.UTC(2026, 3, 11, 8, 0, 0),
+      pendingRedraftRequestId: "redraft-1",
       planId: "plan-2",
       rejectedAt: null,
       status: "approved" as const,
@@ -53,6 +57,8 @@ export function runProcurementOfficerSubmissionTests(): string[] {
       estimatedBudgetUsed: 500_000,
       fiscalYear: "2026-2027",
       itemCount: 7,
+      pendingRedraftRequestedAt: null,
+      pendingRedraftRequestId: null,
       planId: "plan-3",
       rejectedAt: Date.UTC(2026, 3, 10, 7, 0, 0),
       status: "rejected" as const,
@@ -72,6 +78,7 @@ export function runProcurementOfficerSubmissionTests(): string[] {
   assert.equal(shapedRows[0]?.statusLabel, "Submitted");
   assert.equal(shapedRows[1]?.sortSubmittedAt, sourceRows[1]?.updatedAt);
   assert.equal(shapedRows[1]?.totalAmountLabel, "KES 250,000.00");
+  assert.equal(shapedRows[1]?.pendingRedraftRequestId, "redraft-1");
   assert.equal(
     shapedRows[0]?.reviewHref,
     "/po?modal=review&planId=plan-1",
@@ -256,7 +263,7 @@ export function runProcurementOfficerSubmissionTests(): string[] {
     "/po?poFiscalYear=2025-2026&poSubmissionsStatus=submitted",
   );
   completedTests.push(
-    "procurement-officer submission deep links now open review as a dashboard modal while keeping submission params namespaced and legacy queue links pointed back to the dashboard shell",
+    "procurement-officer submission deep links open review as a dashboard modal while queue links preserve dashboard and submission filters",
   );
 
   return completedTests;

@@ -82,7 +82,19 @@ function deriveDepartmentUserWorkspaceDraftPersistenceSummary(args) {
         workspaceState: args.workspaceState,
     });
     if (!workspaceSummary) {
-        return null;
+        if (!isEmptyBlocklyWorkspaceRecord(args.workspaceState)) {
+            return null;
+        }
+        const emptyWorkspaceSummary = (0, du_workspace_calculations_1.calculateDepartmentUserWorkspaceSummary)({
+            categories: [],
+            totalBudget: args.totalBudget,
+        });
+        return {
+            categorySummaries: [],
+            estimatedBudgetUsed: 0,
+            itemCount: 0,
+            workspaceSummary: emptyWorkspaceSummary,
+        };
     }
     return {
         categorySummaries: workspaceSummary.categories.flatMap((category) => {
@@ -109,6 +121,15 @@ function deriveDepartmentUserWorkspaceDraftPersistenceSummary(args) {
     };
 }
 exports.deriveDepartmentUserWorkspaceDraftPersistenceSummary = deriveDepartmentUserWorkspaceDraftPersistenceSummary;
+function isEmptyBlocklyWorkspaceRecord(workspaceState) {
+    const workspaceJson = (0, blockly_serialization_1.parseBlocklyWorkspaceJson)(workspaceState.workspaceJson);
+    const blocks = workspaceJson &&
+        typeof workspaceJson.blocks === "object" &&
+        workspaceJson.blocks !== null
+        ? workspaceJson.blocks.blocks
+        : null;
+    return Array.isArray(blocks) && blocks.length === 0;
+}
 function buildDepartmentUserWorkspaceDraftPersistencePatch(args) {
     const workspaceState = buildPersistedDepartmentUserWorkspaceState({
         currentUserId: args.currentUserId,

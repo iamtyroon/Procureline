@@ -1,10 +1,16 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getDepartmentUserPlanSubmitState = exports.buildDepartmentUserPlanSubmissionReviewSummary = exports.canDepartmentUserOpenPlanSubmissionReview = void 0;
+exports.getDepartmentUserPlanSubmitState = exports.buildDepartmentUserPlanSubmissionReviewSummary = exports.shouldReplayDepartmentUserSubmittedPlan = exports.canDepartmentUserOpenPlanSubmissionReview = void 0;
 function canDepartmentUserOpenPlanSubmissionReview(status) {
     return status === "draft";
 }
 exports.canDepartmentUserOpenPlanSubmissionReview = canDepartmentUserOpenPlanSubmissionReview;
+function shouldReplayDepartmentUserSubmittedPlan(args) {
+    return (args.status === "submitted" &&
+        typeof args.submittedAt === "number" &&
+        Boolean(args.submissionReference?.trim()));
+}
+exports.shouldReplayDepartmentUserSubmittedPlan = shouldReplayDepartmentUserSubmittedPlan;
 function normalizeSubmissionBlockerMessages(args) {
     const blockers = [
         ...(args.totalItemCount <= 0
@@ -14,12 +20,98 @@ function normalizeSubmissionBlockerMessages(args) {
         ...(args.validationState?.validationUnavailableReason
             ? [args.validationState.validationUnavailableReason]
             : []),
+        ...(args.supplementalBlockerMessages ?? []),
     ];
     return Array.from(new Set(blockers.map((message) => message.trim()).filter((message) => message.length > 0)));
 }
-function buildDepartmentUserPlanSubmissionReviewSummary(summary) {
+function dedupeSubmissionIssues(issues) {
+    const issueMap = new Map();
+    for (const issue of issues) {
+        const key = [
+            issue.code,
+            issue.itemId ?? issue.itemName ?? "",
+            issue.categoryId ?? "",
+            issue.message,
+        ].join("::");
+        if (!issueMap.has(key)) {
+            issueMap.set(key, issue);
+        }
+    }
+    return Array.from(issueMap.values());
+}
+function buildSubmissionIssues(args) {
+    const validationState = args.summary?.validationState ?? null;
+    const totalItemCount = args.summary?.totalItemCount ?? 0;
+    const issues = [
+        ...(totalItemCount <= 0
+            ? [
+                {
+                    blocksSubmission: true,
+                    code: "empty_plan",
+                    fixTarget: {
+                        id: "workspace-summary",
+                        label: "Workspace summary",
+                        type: "workspace_summary",
+                    },
+                    message: "Plan must have at least 1 item",
+                    severity: "error",
+                },
+            ]
+            : []),
+        ...(validationState?.issues.map((issue) => ({
+            blocksSubmission: issue.blocksSubmission,
+            categoryId: issue.categoryId,
+            categoryName: issue.categoryName ?? null,
+            code: issue.code,
+            fixTarget: issue.fixTarget ?? null,
+            itemId: issue.itemId,
+            itemName: issue.itemName,
+            message: issue.message,
+            severity: issue.severity,
+        })) ?? []),
+        ...(validationState?.validationUnavailableReason
+            ? [
+                {
+                    blocksSubmission: true,
+                    code: "validation_unavailable",
+                    fixTarget: {
+                        id: "workspace-summary",
+                        label: "Workspace summary",
+                        type: "workspace_summary",
+                    },
+                    message: validationState.validationUnavailableReason,
+                    severity: "error",
+                },
+            ]
+            : []),
+        ...(args.summary?.budgetState.canSubmitByBudget === false
+            ? [
+                {
+                    blocksSubmission: true,
+                    code: "budget_blocked",
+                    fixTarget: {
+                        id: "budget-meter",
+                        label: "Budget summary",
+                        type: "budget_summary",
+                    },
+                    message: args.summary.budgetState.bannerText ??
+                        "Budget allocation is unavailable, so submission must remain blocked.",
+                    severity: "error",
+                },
+            ]
+            : []),
+        ...(args.supplementalIssues ?? []),
+    ];
+    return dedupeSubmissionIssues(issues);
+}
+function buildDepartmentUserPlanSubmissionReviewSummary(summary, options) {
+    const issues = buildSubmissionIssues({
+        supplementalIssues: options?.supplementalIssues ?? null,
+        summary,
+    });
     return {
         blockerMessages: normalizeSubmissionBlockerMessages({
+            supplementalBlockerMessages: options?.supplementalBlockerMessages ?? null,
             totalItemCount: summary?.totalItemCount ?? 0,
             validationState: summary?.validationState ?? null,
         }),
@@ -30,7 +122,17 @@ function buildDepartmentUserPlanSubmissionReviewSummary(summary) {
             itemCount: category.itemCount,
         })) ?? [],
         estimatedBudgetUsed: summary?.departmentTotal ?? 0,
+        issues,
         itemCount: summary?.totalItemCount ?? 0,
+        validationSummary: {
+            budgetStatus: summary?.budgetState.statusLabel ?? "Budget unavailable",
+            pendingRequestStatus: options?.supplementalIssues?.some((issue) => issue.code === "pending_catalog_requests") ?? false
+                ? "Pending catalog requests require PO decision"
+                : "No pending catalog requests",
+            validationStatus: issues.some((issue) => issue.blocksSubmission)
+                ? "blocked"
+                : "passed",
+        },
     };
 }
 exports.buildDepartmentUserPlanSubmissionReviewSummary = buildDepartmentUserPlanSubmissionReviewSummary;
@@ -79,6 +181,7 @@ function getDepartmentUserPlanSubmitState(args) {
         };
     }
     const blockerMessages = normalizeSubmissionBlockerMessages({
+        supplementalBlockerMessages: args.supplementalBlockerMessages ?? null,
         totalItemCount: args.totalItemCount,
         validationState: args.validationState ?? null,
     });

@@ -7,6 +7,7 @@ import {
     buildDepartmentUserPlanSubmissionReviewSummary,
     canDepartmentUserOpenPlanSubmissionReview,
     getDepartmentUserPlanSubmitState,
+    shouldReplayDepartmentUserSubmittedPlan,
 } from "../lib/blockly/plan-submission";
 import { createUnavailableProcurementComplianceSnapshot } from "../lib/procurement/compliance";
 import {
@@ -19,6 +20,11 @@ import {
     selectPreviousActivePlanSubmissionSnapshot,
     shouldCaptureLegacyWithdrawnPlanSubmissionSnapshot,
 } from "../lib/plans/submission";
+import {
+    evaluateSubmissionDeadlineIssue,
+    resolveEffectiveSubmissionWindow,
+    summarizePendingCatalogRequestBlockers,
+} from "../lib/plans/pre-submission-validation";
 
 function createWorkspaceSummary(): DepartmentUserWorkspaceSummary {
     const budgetState = mapDepartmentUserBudgetMeterState({
@@ -83,7 +89,13 @@ export function runDepartmentUserPlanSubmissionTests(): string[] {
             },
         ],
         estimatedBudgetUsed: 650_000,
+        issues: [],
         itemCount: 3,
+        validationSummary: {
+            budgetStatus: "Within budget",
+            pendingRequestStatus: "No pending catalog requests",
+            validationStatus: "passed",
+        },
     });
     assert.deepEqual(
         buildDepartmentUserPlanSubmissionReviewSummary({
@@ -103,6 +115,62 @@ export function runDepartmentUserPlanSubmissionTests(): string[] {
     );
     completedTests.push(
         "department-user submission review summaries surface item totals, category spend, and canonical blocker messaging without trusting the editor shell",
+    );
+
+    const zeroQuantitySummary = createWorkspaceSummary();
+    zeroQuantitySummary.validationState = {
+        hasBlockingIssues: true,
+        itemIssuesByBlockId: {
+            "block-laptop": [
+                {
+                    blockId: "block-laptop",
+                    blocksSubmission: true,
+                    categoryId: "cat-it",
+                    categoryName: "ICT Equipment",
+                    code: "zero_quantity",
+                    fixTarget: {
+                        id: "block-laptop",
+                        label: "Laptop",
+                        type: "workspace_block",
+                    },
+                    itemId: "item-laptop",
+                    itemName: "Laptop",
+                    message: "Laptop has zero quantity. Enter quantity or remove item.",
+                    severity: "error",
+                },
+            ],
+        },
+        issues: [
+            {
+                blockId: "block-laptop",
+                blocksSubmission: true,
+                categoryId: "cat-it",
+                categoryName: "ICT Equipment",
+                code: "zero_quantity",
+                fixTarget: {
+                    id: "block-laptop",
+                    label: "Laptop",
+                    type: "workspace_block",
+                },
+                itemId: "item-laptop",
+                itemName: "Laptop",
+                message: "Laptop has zero quantity. Enter quantity or remove item.",
+                severity: "error",
+            },
+        ],
+        submitBlockedReasons: [
+            "Laptop has zero quantity. Enter quantity or remove item.",
+        ],
+        validationUnavailableReason: null,
+    };
+    const zeroQuantityReview =
+        buildDepartmentUserPlanSubmissionReviewSummary(zeroQuantitySummary);
+    assert.equal(zeroQuantityReview.issues.length, 1);
+    assert.equal(zeroQuantityReview.issues[0]?.code, "zero_quantity");
+    assert.equal(zeroQuantityReview.issues[0]?.fixTarget?.type, "workspace_block");
+    assert.equal(zeroQuantityReview.validationSummary.validationStatus, "blocked");
+    completedTests.push(
+        "department-user submission review summaries preserve itemized zero-quantity blockers with workspace fix targets",
     );
 
     assert.deepEqual(
@@ -189,8 +257,89 @@ export function runDepartmentUserPlanSubmissionTests(): string[] {
     assert.equal(canDepartmentUserOpenPlanSubmissionReview("rejected"), false);
     assert.equal(canDepartmentUserOpenPlanSubmissionReview("submitted"), false);
     assert.equal(canDepartmentUserOpenPlanSubmissionReview("approved"), false);
+    assert.equal(
+        shouldReplayDepartmentUserSubmittedPlan({
+            status: "submitted",
+            submittedAt: 1_775_000_000_000,
+            submissionReference: "CS-2627-001",
+        }),
+        true,
+    );
+    assert.equal(
+        shouldReplayDepartmentUserSubmittedPlan({
+            status: "submitted",
+            submittedAt: null,
+            submissionReference: "CS-2627-001",
+        }),
+        false,
+    );
+    assert.equal(
+        shouldReplayDepartmentUserSubmittedPlan({
+            status: "draft",
+            submittedAt: 1_775_000_000_000,
+            submissionReference: "CS-2627-001",
+        }),
+        false,
+    );
     completedTests.push(
-        "department-user submit affordances only open the confirmation flow for true draft plans so rejected and closed states do not surface backend-rejected actions",
+        "department-user submit affordances only open the confirmation flow for true draft plans while submitted retry detection stays available before draft-only blockers",
+    );
+
+    const pendingSummary = summarizePendingCatalogRequestBlockers({
+        pendingCategoryRequestCount: 1,
+        pendingItemRequestCount: 2,
+        pendingLinkedCategoryHandoffCount: 1,
+    });
+    assert.equal(
+        pendingSummary.message,
+        "You have 4 pending requests. Cancel or wait for PO decision.",
+    );
+    assert.equal(pendingSummary.issue?.fixTarget?.type, "pending_requests");
+    const linkedAlreadyCountedSummary = summarizePendingCatalogRequestBlockers({
+        pendingCategoryRequestCount: 1,
+        pendingItemRequestCount: 2,
+        pendingLinkedCategoryHandoffCount: 0,
+    });
+    assert.equal(
+        linkedAlreadyCountedSummary.message,
+        "You have 3 pending requests. Cancel or wait for PO decision.",
+    );
+    assert.equal(
+        summarizePendingCatalogRequestBlockers({
+            pendingCategoryRequestCount: 0,
+            pendingItemRequestCount: 0,
+        }).issue,
+        null,
+    );
+    completedTests.push(
+        "pending catalog request validation counts current-plan item, category, and linked category handoff blockers without inventing another request store",
+    );
+
+    const sharedWindow = resolveEffectiveSubmissionWindow({
+        departmentSubmissionEndsAt: 20_000,
+        departmentSubmissionStartsAt: 10_000,
+        sharedDeadline: {
+            deadlineVersion: 2,
+            submissionEndsAt: 40_000,
+            submissionStartsAt: 30_000,
+            timeZone: "Africa/Nairobi",
+            updatedAt: 9_000,
+        },
+    });
+    assert.equal(sharedWindow.source, "shared");
+    assert.equal(evaluateSubmissionDeadlineIssue({ now: 29_999, window: sharedWindow })?.message, "Submission window has not opened yet.");
+    assert.equal(evaluateSubmissionDeadlineIssue({ now: 30_000, window: sharedWindow }), null);
+    assert.equal(evaluateSubmissionDeadlineIssue({ now: 40_000, window: sharedWindow })?.message, "Submission deadline has passed. Contact your PO.");
+    assert.equal(
+        resolveEffectiveSubmissionWindow({
+            departmentSubmissionEndsAt: 20_000,
+            departmentSubmissionStartsAt: 10_000,
+            sharedDeadline: null,
+        }).source,
+        "department",
+    );
+    completedTests.push(
+        "submission deadline validation prefers shared canonical windows and blocks before-open plus exact-close boundary submissions",
     );
 
     assert.equal(

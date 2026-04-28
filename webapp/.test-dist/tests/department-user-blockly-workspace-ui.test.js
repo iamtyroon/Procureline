@@ -6,6 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.runDepartmentUserBlocklyWorkspaceUiTests = void 0;
 const jsx_runtime_1 = require("react/jsx-runtime");
 const strict_1 = __importDefault(require("node:assert/strict"));
+const node_fs_1 = __importDefault(require("node:fs"));
+const node_path_1 = __importDefault(require("node:path"));
 const server_1 = require("react-dom/server");
 const CatalogRequestInbox_1 = require("../src/components/blockly/CatalogRequestInbox");
 const BlocklyToolboxRail_1 = require("../src/components/blockly/BlocklyToolboxRail");
@@ -128,6 +130,12 @@ function runDepartmentUserBlocklyWorkspaceUiTests() {
     strict_1.default.doesNotMatch(readOnlyInboxMarkup, />Cancel</);
     strict_1.default.match(readOnlyInboxMarkup, /Expired: Submission window ended before review/i);
     completedTests.push("catalog request inbox keeps historical DU request outcomes visible in read-only mode without implying pending write access");
+    const blocklyEditorSource = node_fs_1.default.readFileSync(node_path_1.default.join(process.cwd(), "src", "components", "blockly", "BlocklyEditor.tsx"), "utf8");
+    strict_1.default.match(blocklyEditorSource, /fixTarget\.type === "deadline_summary"/);
+    strict_1.default.match(blocklyEditorSource, /fixTarget\.type === "workspace_category"/);
+    strict_1.default.match(blocklyEditorSource, /data-du-deadline-summary/);
+    strict_1.default.match(blocklyEditorSource, /data-du-category-summary/);
+    completedTests.push("submit-review fix targets now include deadline and category anchors instead of falling through to stale-target messaging");
     return completedTests;
 }
 exports.runDepartmentUserBlocklyWorkspaceUiTests = runDepartmentUserBlocklyWorkspaceUiTests;
