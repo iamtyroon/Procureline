@@ -5,13 +5,17 @@ import { useMutation, useQuery } from "convex/react";
 import {
     AlertTriangle,
     ArrowRight,
+    CheckCircle2,
     ChevronDown,
     CircleHelp,
     ClipboardList,
     Clock3,
+    Eye,
     Layers3,
     Megaphone,
+    RefreshCcw,
     Trophy,
+    XCircle,
 } from "lucide-react";
 import { startTransition, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -52,12 +56,16 @@ export function DepartmentUserDashboard(): JSX.Element {
     const requestRedraft = useMutation(
         api.functions.planRedrafts.requestDepartmentUserPlanRedraft,
     );
+    const withdrawSubmission = useMutation(
+        api.functions.plans.withdrawDepartmentUserPlanSubmission,
+    );
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
     const [isBudgetOpen, setIsBudgetOpen] = useState(false);
     const [countdownNow, setCountdownNow] = useState(() => Date.now());
     const [redraftPlanId, setRedraftPlanId] = useState<string | null>(null);
     const [redraftReason, setRedraftReason] = useState("");
     const [isRedraftSubmitting, setIsRedraftSubmitting] = useState(false);
+    const [isWithdrawSubmitting, setIsWithdrawSubmitting] = useState(false);
 
     useEffect(() => {
         if (!snapshot) {
@@ -159,6 +167,29 @@ export function DepartmentUserDashboard(): JSX.Element {
         }
     }
 
+    async function handleWithdrawSubmission(): Promise<void> {
+        const currentRow = dashboardSnapshot.plans.rows.find((row) => row.isCurrentFiscalYear);
+        if (!currentRow || isWithdrawSubmitting || !dashboardSnapshot.quickStats.plan.canWithdraw) {
+            return;
+        }
+
+        setIsWithdrawSubmitting(true);
+        try {
+            await withdrawSubmission({
+                planId: currentRow.id,
+            });
+            toast.success("Submission withdrawn. This draft is editable again.");
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "The submission could not be withdrawn right now.",
+            );
+        } finally {
+            setIsWithdrawSubmitting(false);
+        }
+    }
+
     return (
         <div className="min-h-[calc(100vh-4rem)] bg-background">
             <div className="px-4 py-8 sm:px-6 lg:hidden">
@@ -205,6 +236,8 @@ export function DepartmentUserDashboard(): JSX.Element {
                             setIsBudgetOpen={setIsBudgetOpen}
                         />
                         <PlanStatCard
+                            isWithdrawing={isWithdrawSubmitting}
+                            onWithdrawSubmission={() => void handleWithdrawSubmission()}
                             plan={dashboardSnapshot.quickStats.plan}
                             onRequestRedraft={() => {
                                 const approvedRow = dashboardSnapshot.plans.rows.find(
@@ -377,11 +410,15 @@ function BudgetCard({
     );
 }
 
-function PlanStatCard({
+export function PlanStatCard({
+    isWithdrawing,
     onRequestRedraft,
+    onWithdrawSubmission,
     plan,
 }: {
+    isWithdrawing: boolean;
     onRequestRedraft: () => void;
+    onWithdrawSubmission: () => void;
     plan: DepartmentUserDashboardSnapshot["quickStats"]["plan"];
 }) {
     return (
@@ -401,14 +438,69 @@ function PlanStatCard({
                 <div className="rounded-2xl border border-border/60 bg-muted/30 px-4 py-4 text-sm text-muted-foreground">
                     {plan.helperText}
                 </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                    {plan.statusDateLabel ? (
+                        <div className="rounded-2xl border border-border/60 bg-background px-4 py-3 text-sm">
+                            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                                Latest update
+                            </div>
+                            <div className="mt-1 font-medium text-foreground">
+                                {plan.statusDateLabel}
+                            </div>
+                        </div>
+                    ) : null}
+                    {plan.reviewerLabel || plan.reviewerState === "unavailable" ? (
+                        <div className="rounded-2xl border border-border/60 bg-background px-4 py-3 text-sm">
+                            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                                Reviewer
+                            </div>
+                            <div className="mt-1 font-medium text-foreground">
+                                {plan.reviewerLabel ?? "Procurement Officer review in progress"}
+                            </div>
+                        </div>
+                    ) : null}
+                </div>
                 {plan.submissionReference ? (
                     <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-900">
                         Submission reference: <span className="font-semibold">{plan.submissionReference}</span>
                     </div>
                 ) : null}
+                {plan.historySummary ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm leading-6 text-amber-900">
+                        {plan.historySummary}
+                    </div>
+                ) : null}
                 {plan.redraftRequest.pendingRequestId ? (
                     <div className="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm leading-6 text-amber-900">
                         Redraft request pending PO approval.
+                    </div>
+                ) : null}
+                {plan.timeline.length > 0 ? (
+                    <div className="rounded-2xl border border-border/60 bg-background px-4 py-4">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                            <div className="text-sm font-semibold text-foreground">Status history</div>
+                            <Badge variant="outline" className="rounded-full">
+                                {plan.timeline.length} events
+                            </Badge>
+                        </div>
+                        <div className="space-y-3">
+                            {plan.timeline.map((item) => (
+                                <div key={item.id} className="flex gap-3">
+                                    <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />
+                                    <div className="min-w-0">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span className="font-medium text-foreground">{item.title}</span>
+                                            <span className="text-xs text-muted-foreground">
+                                                {item.timestampLabel}
+                                            </span>
+                                        </div>
+                                        <div className="text-sm leading-6 text-muted-foreground">
+                                            {item.description}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 ) : null}
                 {plan.statusLabel !== "No Plan" ? (
@@ -417,6 +509,17 @@ function PlanStatCard({
                             {plan.primaryActionLabel}
                             <ArrowRight className="ml-2 h-4 w-4" />
                         </Link>
+                    </Button>
+                ) : null}
+                {plan.canWithdraw ? (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full rounded-2xl"
+                        disabled={isWithdrawing}
+                        onClick={onWithdrawSubmission}
+                    >
+                        {isWithdrawing ? "Withdrawing..." : "Withdraw submission"}
                     </Button>
                 ) : null}
                 {plan.redraftRequest.canRequest ? (
@@ -565,6 +668,23 @@ function ThemedDeadlineRing({
     );
 }
 
+function StatusIcon({ statusLabel }: { statusLabel: string }) {
+    if (statusLabel === "Approved") {
+        return <CheckCircle2 className="h-3.5 w-3.5" />;
+    }
+    if (statusLabel === "Rejected") {
+        return <XCircle className="h-3.5 w-3.5" />;
+    }
+    if (statusLabel === "Under Review") {
+        return <Eye className="h-3.5 w-3.5" />;
+    }
+    if (statusLabel === "Submitted") {
+        return <RefreshCcw className="h-3.5 w-3.5" />;
+    }
+
+    return <Clock3 className="h-3.5 w-3.5" />;
+}
+
 function LaunchpadCard({
     categories,
     canSelectCategories,
@@ -708,7 +828,7 @@ function LaunchpadCard({
     );
 }
 
-function PlansCard({
+export function PlansCard({
     emptyMessage,
     rows,
     title,
@@ -720,6 +840,10 @@ function PlansCard({
         id: string;
         itemCountLabel: string;
         rejectionComment: string | null;
+        reviewerLabel: string | null;
+        statusDateLabel: string | null;
+        statusDetail: string;
+        statusHistorySummary: string | null;
         statusLabel: string;
         submissionReference: string | null;
         viewHref: string;
@@ -766,16 +890,37 @@ function PlansCard({
                                         <td className="py-4 font-medium text-foreground">{row.fiscalYear}</td>
                                         <td className="py-4">
                                             <Badge variant="outline" className="rounded-full">
-                                                {row.statusLabel}
+                                                <span className="inline-flex items-center gap-2">
+                                                    <StatusIcon statusLabel={row.statusLabel} />
+                                                    {row.statusLabel}
+                                                </span>
                                             </Badge>
                                             {row.submissionReference ? (
                                                 <div className="mt-2 text-xs font-medium text-emerald-700">
                                                     Ref: {row.submissionReference}
                                                 </div>
                                             ) : null}
+                                            {row.statusDateLabel ? (
+                                                <div className="mt-2 text-xs text-muted-foreground">
+                                                    {row.statusDateLabel}
+                                                </div>
+                                            ) : null}
+                                            {row.reviewerLabel ? (
+                                                <div className="mt-2 text-xs text-muted-foreground">
+                                                    Reviewer: {row.reviewerLabel}
+                                                </div>
+                                            ) : null}
+                                            <div className="mt-2 max-w-[260px] text-xs leading-5 text-muted-foreground">
+                                                {row.statusDetail}
+                                            </div>
                                             {row.rejectionComment ? (
                                                 <div className="mt-2 max-w-[220px] text-xs leading-5 text-muted-foreground">
                                                     {row.rejectionComment}
+                                                </div>
+                                            ) : null}
+                                            {row.statusHistorySummary ? (
+                                                <div className="mt-2 max-w-[220px] text-xs leading-5 text-amber-700">
+                                                    {row.statusHistorySummary}
                                                 </div>
                                             ) : null}
                                         </td>

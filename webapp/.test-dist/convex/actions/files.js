@@ -1,10 +1,14 @@
 "use node";
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createPdf = exports.importWorkbook = exports.queueExcelExport = exports.createExcelExport = void 0;
-const server_1 = require("../_generated/server");
+exports.exportCatalogItems = exports.createPdf = exports.importWorkbook = exports.queueExcelExport = exports.createExcelExport = void 0;
 const values_1 = require("convex/values");
+const api_1 = require("../_generated/api");
+const server_1 = require("../_generated/server");
 const _helpers_1 = require("./_helpers");
+const audit_1 = require("../../lib/security/audit");
+const catalog_filters_1 = require("../../lib/procurement-officer/catalog-filters");
+const items_1 = require("../../lib/procurement-officer/items");
 exports.createExcelExport = (0, server_1.action)({
     args: {
         idempotencyKey: values_1.v.optional(values_1.v.string()),
@@ -66,3 +70,121 @@ exports.createPdf = (0, server_1.action)({
         });
     },
 });
+exports.exportCatalogItems = (0, server_1.action)({
+    args: {
+        categoryIds: values_1.v.array(values_1.v.string()),
+        complianceFlags: values_1.v.array(values_1.v.string()),
+        maxPrice: values_1.v.optional(values_1.v.number()),
+        minPrice: values_1.v.optional(values_1.v.number()),
+        searchText: values_1.v.string(),
+    },
+    returns: values_1.v.any(),
+    handler: async (ctx, args) => {
+        const actor = await (0, _helpers_1.getServiceActorContext)(ctx);
+        const firstPage = (await ctx.runQuery(api_1.api.functions.items.browseItemsCatalog, {
+            ...args,
+            page: 1,
+            pageSize: 1,
+        }));
+        const exportGuard = (0, catalog_filters_1.getProcurementCatalogExportGuardState)({
+            filteredCount: firstPage.meta.filteredCount,
+            tier: firstPage.meta.tier,
+        });
+        if (exportGuard.kind !== "allowed") {
+            await appendCatalogExportAudit(ctx, actor, {
+                filteredCount: firstPage.meta.filteredCount,
+                filters: firstPage.meta.normalizedFilters,
+                outcome: audit_1.AUDIT_OUTCOMES.failed,
+                summary: exportGuard.description,
+                tier: firstPage.meta.tier,
+            });
+            throw new values_1.ConvexError({
+                code: exportGuard.kind === "empty" ? "VALIDATION_FAILED" : "QUOTA_EXCEEDED",
+                message: exportGuard.description,
+            });
+        }
+        const exportSnapshot = (await ctx.runQuery(api_1.api.functions.items.browseItemsCatalog, {
+            categoryIds: firstPage.meta.normalizedFilters.categoryIds,
+            complianceFlags: firstPage.meta.normalizedFilters.complianceFlags,
+            maxPrice: firstPage.meta.normalizedFilters.maxPrice ?? undefined,
+            minPrice: firstPage.meta.normalizedFilters.minPrice ?? undefined,
+            page: 1,
+            pageSize: firstPage.meta.filteredCount,
+            searchText: firstPage.meta.normalizedFilters.searchText,
+        }));
+        const finalGuard = (0, catalog_filters_1.getProcurementCatalogExportGuardState)({
+            filteredCount: exportSnapshot.meta.filteredCount,
+            tier: exportSnapshot.meta.tier,
+        });
+        if (finalGuard.kind !== "allowed") {
+            await appendCatalogExportAudit(ctx, actor, {
+                filteredCount: exportSnapshot.meta.filteredCount,
+                filters: exportSnapshot.meta.normalizedFilters,
+                outcome: audit_1.AUDIT_OUTCOMES.failed,
+                summary: finalGuard.description,
+                tier: exportSnapshot.meta.tier,
+            });
+            throw new values_1.ConvexError({
+                code: finalGuard.kind === "empty" ? "VALIDATION_FAILED" : "QUOTA_EXCEEDED",
+                message: finalGuard.description,
+            });
+        }
+        try {
+            const workbook = await (0, _helpers_1.callNestService)(ctx, {
+                actor,
+                body: {
+                    reportName: "Catalog Export",
+                    rows: (0, items_1.buildProcurementCatalogExportRows)(exportSnapshot.rows),
+                },
+                path: "/api/services/files/exports/excel",
+            });
+            await appendCatalogExportAudit(ctx, actor, {
+                filteredCount: exportSnapshot.meta.filteredCount,
+                filters: exportSnapshot.meta.normalizedFilters,
+                outcome: audit_1.AUDIT_OUTCOMES.allowed,
+                summary: `Exported ${exportSnapshot.meta.filteredCount} catalog rows.`,
+                tier: exportSnapshot.meta.tier,
+            });
+            return {
+                ...workbook,
+                filteredCount: exportSnapshot.meta.filteredCount,
+            };
+        }
+        catch (error) {
+            await appendCatalogExportAudit(ctx, actor, {
+                filteredCount: exportSnapshot.meta.filteredCount,
+                filters: exportSnapshot.meta.normalizedFilters,
+                outcome: audit_1.AUDIT_OUTCOMES.failed,
+                summary: error instanceof Error && error.message.trim().length > 0
+                    ? error.message.trim()
+                    : "Catalog export failed.",
+                tier: exportSnapshot.meta.tier,
+            });
+            throw error;
+        }
+    },
+});
+async function appendCatalogExportAudit(ctx, actor, args) {
+    await ctx.runMutation(api_1.internal.functions.auditLogs.appendAuditLogFromAction, {
+        action: "export",
+        actorRole: actor.role,
+        actorState: (0, audit_1.createAuthenticatedAuditActor)({
+            role: actor.role,
+            userId: actor.userId,
+        }).state,
+        actorUserId: actor.userId,
+        entityType: "catalog",
+        event: audit_1.AUDIT_EVENT_NAMES.catalogExported,
+        metadata: {
+            filters: args.filters,
+            rowCount: args.filteredCount,
+            summary: args.summary,
+            tier: args.tier,
+        },
+        outcome: args.outcome,
+        sourceTenantId: actor.tenantId,
+        tableName: "procurementItems",
+        targetTenantId: actor.tenantId,
+        timestamp: Date.now(),
+    });
+}

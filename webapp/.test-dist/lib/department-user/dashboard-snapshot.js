@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildDepartmentUserDashboardSnapshot = void 0;
 const dashboard_1 = require("./dashboard");
+const status_tracking_1 = require("./status-tracking");
 function buildDepartmentUserDashboardSnapshot(args) {
     const fallbackFiscalYear = (0, dashboard_1.getDepartmentUserFiscalYearForDate)(args.now, {
         fiscalYearStartMonth: args.fiscalYearStartMonth,
@@ -30,9 +31,15 @@ function buildDepartmentUserDashboardSnapshot(args) {
         submissionStartsAt: args.department.submissionStartsAt,
         timeZone: args.department.submissionTimeZone ?? "Africa/Nairobi",
     });
-    const canonicalPlans = selectCanonicalPlans(args.plans);
+    const statusTimeZone = args.department.submissionTimeZone ?? args.tenantTimeZone ?? "Africa/Nairobi";
+    const canonicalPlans = (0, status_tracking_1.selectCanonicalPlans)(args.plans);
     const currentPlan = canonicalPlans.find((plan) => plan.fiscalYear === fiscalYearKey) ?? null;
-    const currentPlanStatus = (0, dashboard_1.normalizeDepartmentUserPlanStatus)(currentPlan?.status);
+    const currentPlanStatusDetails = (0, status_tracking_1.deriveDepartmentUserStatusDetails)({
+        fiscalYearKey,
+        plan: currentPlan,
+        timeZone: statusTimeZone,
+    });
+    const currentPlanStatus = currentPlanStatusDetails.statusLabel;
     const currentPlanHref = currentPlan
         ? `/du/plans/${currentPlan.id}?mode=${currentPlanStatus === "Draft" || currentPlanStatus === "Rejected"
             ? "edit"
@@ -109,6 +116,7 @@ function buildDepartmentUserDashboardSnapshot(args) {
             : null,
         fiscalYearKey,
         plan,
+        timeZone: statusTimeZone,
     }));
     return {
         announcements: {
@@ -222,15 +230,9 @@ function buildDepartmentUserDashboardSnapshot(args) {
             },
             deadline,
             plan: {
-                helperText: currentPlan === null
-                    ? "No Plan"
-                    : currentPlanStatus === "Submitted"
-                        ? currentPlan.submissionReference
-                            ? `Awaiting review as ${currentPlan.submissionReference}`
-                            : `Awaiting review for ${fiscalYearKey}`
-                        : currentPlanStatus === "Approved"
-                            ? "Approved and closed for department edits"
-                            : `${currentPlanStatus} for ${fiscalYearKey}`,
+                canWithdraw: currentPlanStatusDetails.canWithdraw,
+                helperText: currentPlanStatusDetails.helperText,
+                historySummary: currentPlanStatusDetails.historySummary,
                 itemCount: currentPlan?.itemCount ?? 0,
                 primaryActionHref: currentPlanAction.href,
                 primaryActionLabel: currentPlanAction.label,
@@ -241,9 +243,22 @@ function buildDepartmentUserDashboardSnapshot(args) {
                     pendingReason: currentPlan?.pendingRedraftRequest?.reason ?? null,
                     requestedAt: currentPlan?.pendingRedraftRequest?.requestedAt ?? null,
                 },
+                reviewerLabel: currentPlanStatusDetails.reviewerLabel,
+                reviewerState: currentPlanStatusDetails.reviewerState === "available"
+                    ? "available"
+                    : currentPlanStatusDetails.reviewerState === "unavailable"
+                        ? "unavailable"
+                        : null,
                 state: currentPlan === null ? "empty" : "available",
+                statusDateLabel: currentPlanStatusDetails.statusDateLabel,
                 statusLabel: currentPlanStatus,
-                submissionReference: currentPlan?.submissionReference ?? null,
+                submissionReference: currentPlanStatusDetails.submissionReference,
+                timeline: currentPlanStatusDetails.timeline.map((item) => ({
+                    description: item.description,
+                    id: item.id,
+                    timestampLabel: item.timestampLabel,
+                    title: item.title,
+                })),
             },
         },
         rejectionNotice: currentPlanStatus === "Rejected" && currentPlan?.rejectionComment
@@ -347,7 +362,9 @@ function createBlockedSnapshot(args) {
                 timeZone: "Africa/Nairobi",
             },
             plan: {
+                canWithdraw: false,
                 helperText: "No Plan",
+                historySummary: null,
                 itemCount: 0,
                 primaryActionHref: "/du",
                 primaryActionLabel: "Start Your Plan",
@@ -357,16 +374,25 @@ function createBlockedSnapshot(args) {
                     pendingReason: null,
                     requestedAt: null,
                 },
+                reviewerLabel: null,
+                reviewerState: null,
                 state: "unavailable",
+                statusDateLabel: null,
                 statusLabel: "No Plan",
                 submissionReference: null,
+                timeline: [],
             },
         },
         rejectionNotice: null,
     };
 }
 function createPlanRow(args) {
-    const statusLabel = (0, dashboard_1.normalizeDepartmentUserPlanStatus)(args.plan.status);
+    const statusDetails = (0, status_tracking_1.deriveDepartmentUserStatusDetails)({
+        fiscalYearKey: args.fiscalYearKey,
+        plan: args.plan,
+        timeZone: args.timeZone,
+    });
+    const statusLabel = statusDetails.statusLabel;
     const editMode = statusLabel === "Draft" || statusLabel === "Rejected" ? "edit" : "view";
     const planHref = `/du/plans/${args.plan.id}?mode=${editMode}`;
     return {
@@ -382,24 +408,12 @@ function createPlanRow(args) {
         itemCount: args.plan.itemCount,
         itemCountLabel: (0, dashboard_1.formatDepartmentUserCount)(args.plan.itemCount, "item"),
         rejectionComment: args.plan.rejectionComment ?? null,
+        reviewerLabel: statusDetails.reviewerLabel,
+        statusDateLabel: statusDetails.statusDateLabel,
+        statusDetail: statusDetails.helperText,
+        statusHistorySummary: statusDetails.historySummary,
         statusLabel,
-        submissionReference: args.plan.submissionReference ?? null,
+        submissionReference: statusDetails.submissionReference,
         viewHref: `/du/plans/${args.plan.id}?mode=view`,
     };
-}
-function selectCanonicalPlans(plans) {
-    const latestPlanByFiscalYear = new Map();
-    for (const plan of plans) {
-        const existingPlan = latestPlanByFiscalYear.get(plan.fiscalYear);
-        if (!existingPlan) {
-            latestPlanByFiscalYear.set(plan.fiscalYear, plan);
-            continue;
-        }
-        const existingTimestamp = Math.max(existingPlan.updatedAt, existingPlan.createdAt);
-        const candidateTimestamp = Math.max(plan.updatedAt, plan.createdAt);
-        if (candidateTimestamp >= existingTimestamp) {
-            latestPlanByFiscalYear.set(plan.fiscalYear, plan);
-        }
-    }
-    return Array.from(latestPlanByFiscalYear.values());
 }

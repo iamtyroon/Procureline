@@ -25,6 +25,8 @@ async function main() {
     const { runEmailTransportTests } = await import("./email-transport.test.js");
     const { runProcurementOfficerDepartmentTests } = await import("./procurement-officer-departments.test.js");
     const { runDepartmentUserDashboardTests } = await import("./department-user-dashboard.test.js");
+    const { runDepartmentUserStatusTrackingTests } = await import("./department-user-status-tracking.test.js");
+    const { runDepartmentUserDashboardUiTests } = await import("./department-user-dashboard-ui.test.js");
     const { runDepartmentUserBlocklyWorkspaceTests } = await import("./department-user-blockly-workspace.test.js");
     const { runDepartmentUserBlocklyWorkspaceUiTests } = await import("./department-user-blockly-workspace-ui.test.js");
     const { runDepartmentUserPlanSubmissionTests } = await import("./department-user-plan-submission.test.js");
@@ -67,6 +69,8 @@ async function main() {
         ...runProcurementOfficerAccessCodeTests(),
         ...runProcurementOfficerDeadlineTests(),
         ...runDepartmentUserDashboardTests(),
+        ...runDepartmentUserStatusTrackingTests(),
+        ...runDepartmentUserDashboardUiTests(),
         ...(await runDepartmentUserBlocklyWorkspaceTests()),
         ...runDepartmentUserBlocklyWorkspaceUiTests(),
         ...runDepartmentUserPlanSubmissionTests(),

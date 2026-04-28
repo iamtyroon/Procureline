@@ -1,35 +1,39 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.saveDepartmentUserWorkspaceDraft = exports.getDepartmentUserPlanWorkspace = exports.ensureDepartmentUserDraftPlan = exports.getDepartmentUserNewPlanWorkspaceContext = exports.persistDepartmentUserWorkspaceDraft = void 0;
+exports.withdrawDepartmentUserPlanSubmission = exports.submitDepartmentUserPlan = exports.saveDepartmentUserWorkspaceDraft = exports.getDepartmentUserPlanWorkspace = exports.ensureDepartmentUserDraftPlan = exports.getDepartmentUserNewPlanWorkspaceContext = exports.loadTenantCatalog = exports.mapDepartmentDepartmentRecord = exports.planWorkspaceContextValidator = exports.workspaceDepartmentValidator = exports.workspaceCategoryValidator = exports.workspaceItemValidator = exports.workspaceCategorySummaryValidator = exports.workspaceRecordValidator = void 0;
 const values_1 = require("convex/values");
 const server_1 = require("../_generated/server");
 const blockly_serialization_1 = require("../../lib/blockly/blockly-serialization");
+const plan_submission_1 = require("../../lib/blockly/plan-submission");
 const categories_1 = require("../../lib/procurement-officer/categories");
 const workspace_save_1 = require("../../lib/blockly/workspace-save");
-const workspace_catalog_identity_1 = require("../../lib/blockly/workspace-catalog-identity");
 const du_plan_routes_1 = require("../../lib/blockly/du-plan-routes");
 const du_toolbox_1 = require("../../lib/blockly/du-toolbox");
+const audit_1 = require("../../lib/security/audit");
+const submission_1 = require("../../lib/plans/submission");
+const pre_submission_validation_1 = require("../../lib/plans/pre-submission-validation");
 const _roleGuard_1 = require("./_roleGuard");
+const _audit_1 = require("./_audit");
 const departmentUserWorkspaceStateValidator = values_1.v.union(values_1.v.literal("blocked"), values_1.v.literal("not_found"), values_1.v.literal("ready"), values_1.v.literal("redirect"));
-const workspaceRecordValidator = values_1.v.object({
+exports.workspaceRecordValidator = values_1.v.object({
     editorMetadata: values_1.v.object({
         lastSavedAt: values_1.v.number(),
         lastSavedByUserId: values_1.v.string(),
         recoveredAt: values_1.v.union(values_1.v.number(), values_1.v.null()),
         revision: values_1.v.number(),
-        saveSource: values_1.v.union(values_1.v.literal("workspace_seed"), values_1.v.literal("workspace_sync")),
+        saveSource: values_1.v.union(values_1.v.literal("workspace_clear"), values_1.v.literal("workspace_recovery"), values_1.v.literal("workspace_seed"), values_1.v.literal("workspace_sync")),
     }),
     format: values_1.v.literal("blockly_json"),
     schemaVersion: values_1.v.number(),
     workspaceJson: values_1.v.any(),
 });
-const workspaceCategorySummaryValidator = values_1.v.object({
+exports.workspaceCategorySummaryValidator = values_1.v.object({
     amount: values_1.v.number(),
     categoryId: values_1.v.string(),
     categoryName: values_1.v.string(),
     itemCount: values_1.v.number(),
 });
-const workspaceItemValidator = values_1.v.object({
+exports.workspaceItemValidator = values_1.v.object({
     categoryId: values_1.v.string(),
     complianceFlags: values_1.v.optional(values_1.v.array(values_1.v.string())),
     description: values_1.v.union(values_1.v.string(), values_1.v.null()),
@@ -45,7 +49,7 @@ const workspaceItemValidator = values_1.v.object({
     unitOfMeasurement: values_1.v.union(values_1.v.string(), values_1.v.null()),
     unitPrice: values_1.v.union(values_1.v.number(), values_1.v.null()),
 });
-const workspaceCategoryValidator = values_1.v.object({
+exports.workspaceCategoryValidator = values_1.v.object({
     color: values_1.v.union(values_1.v.string(), values_1.v.null()),
     id: values_1.v.string(),
     icon: values_1.v.union(values_1.v.string(), values_1.v.null()),
@@ -53,19 +57,20 @@ const workspaceCategoryValidator = values_1.v.object({
     name: values_1.v.string(),
     sortOrder: values_1.v.number(),
 });
-const workspaceDepartmentValidator = values_1.v.object({
+exports.workspaceDepartmentValidator = values_1.v.object({
     budgetAllocation: values_1.v.union(values_1.v.number(), values_1.v.null()),
     code: values_1.v.string(),
     id: values_1.v.string(),
     name: values_1.v.string(),
     voteNumber: values_1.v.string(),
 });
-const planWorkspaceContextValidator = values_1.v.object({
+const planSubmissionEmailStatusValidator = values_1.v.union(values_1.v.literal("failed"), values_1.v.literal("queued"));
+exports.planWorkspaceContextValidator = values_1.v.object({
     catalog: values_1.v.object({
-        categories: values_1.v.array(workspaceCategoryValidator),
-        items: values_1.v.array(workspaceItemValidator),
+        categories: values_1.v.array(exports.workspaceCategoryValidator),
+        items: values_1.v.array(exports.workspaceItemValidator),
     }),
-    department: workspaceDepartmentValidator,
+    department: exports.workspaceDepartmentValidator,
     meta: values_1.v.object({
         accessMode: values_1.v.union(values_1.v.literal("editable"), values_1.v.literal("read_only_grace"), values_1.v.null()),
         actor: values_1.v.union(values_1.v.literal("department_user"), values_1.v.literal("procurement_officer")),
@@ -86,13 +91,19 @@ const planWorkspaceContextValidator = values_1.v.object({
         })),
     }),
     plan: values_1.v.union(values_1.v.object({
-        categorySummaries: values_1.v.array(workspaceCategorySummaryValidator),
+        canWithdraw: values_1.v.boolean(),
+        categorySummaries: values_1.v.array(exports.workspaceCategorySummaryValidator),
         estimatedBudgetUsed: values_1.v.number(),
         id: values_1.v.string(),
         itemCount: values_1.v.number(),
+        reviewStartedAt: values_1.v.union(values_1.v.number(), values_1.v.null()),
         selectedCategoryIds: values_1.v.array(values_1.v.string()),
+        submissionEmailErrorMessage: values_1.v.union(values_1.v.string(), values_1.v.null()),
+        submissionEmailStatus: values_1.v.union(planSubmissionEmailStatusValidator, values_1.v.null()),
+        submissionReference: values_1.v.union(values_1.v.string(), values_1.v.null()),
+        submittedAt: values_1.v.union(values_1.v.number(), values_1.v.null()),
         status: values_1.v.union(values_1.v.literal("approved"), values_1.v.literal("draft"), values_1.v.literal("rejected"), values_1.v.literal("submitted")),
-        workspaceState: workspaceRecordValidator,
+        workspaceState: exports.workspaceRecordValidator,
     }), values_1.v.null()),
     redirectHref: values_1.v.union(values_1.v.string(), values_1.v.null()),
     statusMessage: values_1.v.union(values_1.v.string(), values_1.v.null()),
@@ -100,6 +111,17 @@ const planWorkspaceContextValidator = values_1.v.object({
 const createPlanResultValidator = values_1.v.object({
     planId: values_1.v.string(),
     redirectedToExistingPlan: values_1.v.boolean(),
+});
+const submitDepartmentUserPlanResultValidator = values_1.v.object({
+    canWithdraw: values_1.v.boolean(),
+    emailErrorMessage: values_1.v.union(values_1.v.string(), values_1.v.null()),
+    emailStatus: values_1.v.union(planSubmissionEmailStatusValidator, values_1.v.null()),
+    status: values_1.v.literal("submitted"),
+    submissionReference: values_1.v.string(),
+    submittedAt: values_1.v.number(),
+});
+const withdrawDepartmentUserPlanResultValidator = values_1.v.object({
+    status: values_1.v.literal("draft"),
 });
 function unexpectedAccessError() {
     throw new values_1.ConvexError({
@@ -113,9 +135,10 @@ function mapDepartmentDepartmentRecord(department) {
         code: department.code,
         id: String(department._id),
         name: department.name,
-        voteNumber: department.code,
+        voteNumber: department.voteNumber ?? department.code,
     };
 }
+exports.mapDepartmentDepartmentRecord = mapDepartmentDepartmentRecord;
 async function loadDepartmentUserPlanBase(ctx) {
     const authContext = await (0, _roleGuard_1.requireTenantRole)(ctx, ["department_user"]);
     const tenantUser = await ctx.db
@@ -188,6 +211,7 @@ async function loadTenantCatalog(ctx, tenantId) {
         })),
     };
 }
+exports.loadTenantCatalog = loadTenantCatalog;
 async function loadCanonicalDepartmentPlans(ctx, departmentId) {
     const plans = await ctx.db
         .query("plans")
@@ -195,73 +219,53 @@ async function loadCanonicalDepartmentPlans(ctx, departmentId) {
         .collect();
     return plans.sort((left, right) => right.updatedAt - left.updatedAt);
 }
-async function persistDepartmentUserWorkspaceDraft(args) {
-    if (!(0, du_plan_routes_1.canDepartmentUserEditWorkspace)({
-        accessMode: args.accessMode,
-        status: args.plan.status,
-    })) {
-        throw new values_1.ConvexError({
-            code: "UNAUTHORIZED",
-            message: (0, du_plan_routes_1.getDepartmentUserWorkspaceEditBlockedMessage)({
-                accessMode: args.accessMode,
-                status: args.plan.status,
-            }),
-        });
+async function loadDepartmentUserTenantUser(ctx, args) {
+    const tenantUser = await ctx.db
+        .query("tenantUsers")
+        .withIndex("by_userId_tenantId", (q) => q.eq("userId", args.userId).eq("tenantId", args.tenantId))
+        .first();
+    if (!tenantUser || tenantUser.role !== "department_user" || !tenantUser.isActive) {
+        unexpectedAccessError();
     }
-    const categoryDocIdsByString = new Map(args.categoryDocs.map((category) => [String(category._id), category._id]));
-    const savedAt = Date.now();
-    const persistencePatch = (0, workspace_save_1.buildDepartmentUserWorkspaceDraftPersistencePatch)({
-        categories: args.catalog.categories,
-        currentUserId: args.currentUserId,
-        existingSelectedCategoryIds: args.plan.selectedCategoryIds.map((categoryId) => String(categoryId)),
-        items: args.catalog.items,
-        savedAt,
-        totalBudget: args.departmentBudgetAllocation ?? null,
-        workspaceState: args.workspaceState,
-    });
-    if (!persistencePatch) {
-        throw new values_1.ConvexError({
-            code: "VALIDATION_FAILED",
-            message: "Workspace state is malformed and could not be recalculated safely.",
-        });
-    }
-    const categorySummaries = persistencePatch.categorySummaries
-        .map((summary) => {
-        const resolvedCategory = (0, workspace_catalog_identity_1.resolveDepartmentUserCategoryCatalogIdentity)({
-            categories: args.catalog.categories,
-            categoryId: summary.categoryId,
-            categoryName: summary.categoryName,
-        });
-        const resolvedCategoryId = resolvedCategory
-            ? categoryDocIdsByString.get(resolvedCategory.id) ?? null
-            : null;
-        if (!resolvedCategoryId || !resolvedCategory) {
-            return null;
-        }
-        return {
-            amount: summary.amount,
-            categoryId: resolvedCategoryId,
-            categoryName: resolvedCategory.name,
-            itemCount: summary.itemCount,
-        };
-    })
-        .filter((summary) => Boolean(summary));
-    const selectedCategoryIds = persistencePatch.selectedCategoryIds
-        .map((categoryId) => {
-        return categoryDocIdsByString.get(categoryId) ?? null;
-    })
-        .filter((value) => value !== null);
-    await args.db.patch(args.plan._id, {
-        categorySummaries,
-        estimatedBudgetUsed: Math.max(0, persistencePatch.estimatedBudgetUsed),
-        itemCount: Math.max(0, persistencePatch.itemCount),
-        selectedCategoryIds,
-        workspaceState: persistencePatch.workspaceState,
-        updatedAt: savedAt,
-    });
-    return { savedAt };
+    return tenantUser;
 }
-exports.persistDepartmentUserWorkspaceDraft = persistDepartmentUserWorkspaceDraft;
+function toNormalizedWorkspaceRecord(plan, userId) {
+    return (0, blockly_serialization_1.normalizeBlocklyWorkspaceRecord)(plan.workspaceState, {
+        lastSavedAt: plan.updatedAt,
+        lastSavedByUserId: String(userId),
+    });
+}
+function buildDepartmentUserPlanAuditEntry(args) {
+    return {
+        action: args.action,
+        actor: (0, audit_1.createAuthenticatedAuditActor)({
+            role: "department_user",
+            userId: String(args.actorUserId),
+        }),
+        entityType: "plan",
+        event: args.event,
+        metadata: {
+            departmentId: String(args.departmentId),
+            ...args.metadata,
+        },
+        outcome: args.outcome,
+        recordId: String(args.planId),
+        sourceTenantId: String(args.tenantId),
+        tableName: "plans",
+        targetTenantId: String(args.tenantId),
+        timestamp: Date.now(),
+    };
+}
+function buildBlockedSubmissionError(message) {
+    throw new values_1.ConvexError({
+        code: "VALIDATION_FAILED",
+        message,
+    });
+}
+function getPrimaryBlockedSubmissionMessage(args) {
+    return (args.issues.find((issue) => issue.blocksSubmission)?.message ??
+        args.fallback);
+}
 function createBlockedContext(args) {
     return {
         catalog: {
@@ -300,7 +304,7 @@ exports.getDepartmentUserNewPlanWorkspaceContext = (0, server_1.query)({
         categoryIds: values_1.v.array(values_1.v.string()),
         fiscalYear: values_1.v.string(),
     },
-    returns: planWorkspaceContextValidator,
+    returns: exports.planWorkspaceContextValidator,
     handler: async (ctx, args) => {
         const base = await loadDepartmentUserPlanBase(ctx);
         if (!base.department) {
@@ -465,7 +469,7 @@ exports.getDepartmentUserPlanWorkspace = (0, server_1.query)({
         planId: values_1.v.string(),
         requestedMode: values_1.v.optional(values_1.v.union(values_1.v.literal("edit"), values_1.v.literal("view"))),
     },
-    returns: planWorkspaceContextValidator,
+    returns: exports.planWorkspaceContextValidator,
     handler: async (ctx, args) => {
         const base = await loadDepartmentUserPlanBase(ctx);
         if (!base.department) {
@@ -537,6 +541,8 @@ exports.getDepartmentUserPlanWorkspace = (0, server_1.query)({
                 unavailableCategories: sanitizedSelection.unavailableCategories,
             },
             plan: {
+                canWithdraw: plan.status === "submitted" &&
+                    typeof plan.reviewStartedAt !== "number",
                 categorySummaries: plan.categorySummaries.map((summary) => ({
                     amount: summary.amount,
                     categoryId: String(summary.categoryId),
@@ -546,12 +552,14 @@ exports.getDepartmentUserPlanWorkspace = (0, server_1.query)({
                 estimatedBudgetUsed: plan.estimatedBudgetUsed,
                 id: String(plan._id),
                 itemCount: plan.itemCount,
+                reviewStartedAt: plan.reviewStartedAt ?? null,
                 selectedCategoryIds: sanitizedSelection.sanitizedCategoryIds,
+                submissionEmailErrorMessage: plan.submissionEmailErrorMessage ?? null,
+                submissionEmailStatus: plan.submissionEmailStatus ?? null,
+                submissionReference: plan.submissionReference ?? null,
+                submittedAt: plan.submittedAt ?? null,
                 status: plan.status,
-                workspaceState: (0, blockly_serialization_1.normalizeBlocklyWorkspaceRecord)(plan.workspaceState, {
-                    lastSavedAt: plan.updatedAt,
-                    lastSavedByUserId: String(base.authContext.userId),
-                }),
+                workspaceState: toNormalizedWorkspaceRecord(plan, base.authContext.userId),
             },
             redirectHref: null,
             statusMessage: null,
@@ -560,12 +568,12 @@ exports.getDepartmentUserPlanWorkspace = (0, server_1.query)({
 });
 exports.saveDepartmentUserWorkspaceDraft = (0, server_1.mutation)({
     args: {
-        categorySummaries: values_1.v.array(workspaceCategorySummaryValidator),
+        categorySummaries: values_1.v.array(exports.workspaceCategorySummaryValidator),
         estimatedBudgetUsed: values_1.v.number(),
         itemCount: values_1.v.number(),
         planId: values_1.v.string(),
         selectedCategoryIds: values_1.v.array(values_1.v.string()),
-        workspaceState: workspaceRecordValidator,
+        workspaceState: exports.workspaceRecordValidator,
     },
     returns: values_1.v.object({
         savedAt: values_1.v.number(),
@@ -590,15 +598,579 @@ exports.saveDepartmentUserWorkspaceDraft = (0, server_1.mutation)({
                 message: "Plan not found for this department.",
             });
         }
-        return await persistDepartmentUserWorkspaceDraft({
+        const persistenceResult = (0, workspace_save_1.prepareDepartmentUserWorkspaceDraftPersistence)({
             accessMode: base.authContext.departmentAccessMode,
-            catalog,
+            categories: catalog.categories,
             categoryDocs,
             currentUserId: String(base.authContext.userId),
-            db: ctx.db,
-            departmentBudgetAllocation: base.department.budgetAllocation ?? null,
-            plan,
+            existingSelectedCategoryIds: plan.selectedCategoryIds,
+            items: catalog.items,
+            planStatus: plan.status,
+            persistedWorkspaceState: (0, blockly_serialization_1.normalizeBlocklyWorkspaceRecord)(plan.workspaceState, {
+                lastSavedAt: plan.updatedAt,
+                lastSavedByUserId: String(base.authContext.userId),
+            }),
+            totalBudget: base.department.budgetAllocation ?? null,
             workspaceState: args.workspaceState,
         });
+        if (!persistenceResult.ok) {
+            throw new values_1.ConvexError({
+                code: persistenceResult.code,
+                message: persistenceResult.message,
+            });
+        }
+        await ctx.db.patch(plan._id, persistenceResult.patch);
+        return { savedAt: persistenceResult.patch.updatedAt };
+    },
+});
+exports.submitDepartmentUserPlan = (0, server_1.mutation)({
+    args: {
+        planId: values_1.v.string(),
+    },
+    returns: submitDepartmentUserPlanResultValidator,
+    handler: async (ctx, args) => {
+        const base = await loadDepartmentUserPlanBase(ctx);
+        if (!base.department) {
+            unexpectedAccessError();
+        }
+        const department = base.department;
+        const normalizedPlanId = ctx.db.normalizeId("plans", args.planId);
+        if (!normalizedPlanId) {
+            throw new values_1.ConvexError({
+                code: "PLAN_NOT_FOUND",
+                message: "Plan not found for this department.",
+            });
+        }
+        const [tenantUser, authUser, catalog, planSnapshots] = await Promise.all([
+            loadDepartmentUserTenantUser(ctx, {
+                tenantId: base.authContext.tenantId,
+                userId: base.authContext.userId,
+            }),
+            ctx.db.get(base.authContext.userId),
+            loadTenantCatalog(ctx, base.authContext.tenantId),
+            ctx.db
+                .query("planSubmissionSnapshots")
+                .withIndex("by_planId_submittedAt", (q) => q.eq("planId", normalizedPlanId))
+                .collect(),
+        ]);
+        const plan = await ctx.db.get(normalizedPlanId);
+        if (!plan || plan.tenantId !== base.authContext.tenantId || plan.departmentId !== department._id) {
+            throw new values_1.ConvexError({
+                code: "PLAN_NOT_FOUND",
+                message: "Plan not found for this department.",
+            });
+        }
+        if ((0, plan_submission_1.shouldReplayDepartmentUserSubmittedPlan)({
+            status: plan.status,
+            submittedAt: plan.submittedAt ?? null,
+            submissionReference: plan.submissionReference ?? null,
+        })) {
+            return {
+                canWithdraw: typeof plan.reviewStartedAt !== "number",
+                emailErrorMessage: plan.submissionEmailErrorMessage ?? null,
+                emailStatus: plan.submissionEmailStatus ?? null,
+                status: "submitted",
+                submissionReference: plan.submissionReference,
+                submittedAt: plan.submittedAt,
+            };
+        }
+        if (!(0, du_plan_routes_1.canDepartmentUserEditWorkspace)({
+            accessMode: base.authContext.departmentAccessMode,
+            status: plan.status,
+        })) {
+            await (0, _audit_1.appendAuditLogRequired)(ctx, buildDepartmentUserPlanAuditEntry({
+                action: "submit",
+                actorUserId: base.authContext.userId,
+                departmentId: department._id,
+                event: audit_1.AUDIT_EVENT_NAMES.planSubmissionBlocked,
+                metadata: {
+                    planStatus: plan.status,
+                    reason: "plan_not_editable",
+                },
+                outcome: audit_1.AUDIT_OUTCOMES.blockedStateTransition,
+                planId: plan._id,
+                tenantId: base.authContext.tenantId,
+            }));
+            buildBlockedSubmissionError("This plan is no longer editable from the current Department User session.");
+        }
+        if (plan.status !== "draft") {
+            await (0, _audit_1.appendAuditLogRequired)(ctx, buildDepartmentUserPlanAuditEntry({
+                action: "submit",
+                actorUserId: base.authContext.userId,
+                departmentId: department._id,
+                event: audit_1.AUDIT_EVENT_NAMES.planSubmissionBlocked,
+                metadata: {
+                    planStatus: plan.status,
+                    reason: "illegal_plan_status",
+                },
+                outcome: audit_1.AUDIT_OUTCOMES.blockedStateTransition,
+                planId: plan._id,
+                tenantId: base.authContext.tenantId,
+            }));
+            buildBlockedSubmissionError("Only draft plans can be submitted to Procurement.");
+        }
+        const normalizedWorkspaceState = toNormalizedWorkspaceRecord(plan, base.authContext.userId);
+        const submissionDraftSummary = (0, workspace_save_1.deriveDepartmentUserWorkspaceDraftPersistenceSummary)({
+            categories: catalog.categories.map((category) => ({
+                id: category.id,
+                name: category.name,
+            })),
+            items: catalog.items,
+            totalBudget: department.budgetAllocation ?? null,
+            workspaceState: normalizedWorkspaceState,
+        });
+        const workspaceSummary = submissionDraftSummary?.workspaceSummary ?? null;
+        const [categoryRequests, itemRequests, sharedDeadlines] = await Promise.all([
+            ctx.db
+                .query("categoryRequests")
+                .withIndex("by_planId", (q) => q.eq("planId", plan._id))
+                .collect(),
+            ctx.db
+                .query("itemRequests")
+                .withIndex("by_planId", (q) => q.eq("planId", plan._id))
+                .collect(),
+            ctx.db
+                .query("submissionDeadlines")
+                .withIndex("by_tenantId_fiscalYearKey", (q) => q
+                .eq("tenantId", base.authContext.tenantId)
+                .eq("fiscalYearKey", plan.fiscalYear))
+                .collect(),
+        ]);
+        const pendingCategoryRequests = categoryRequests.filter((request) => request.tenantId === base.authContext.tenantId &&
+            request.departmentId === department._id &&
+            request.fiscalYear === plan.fiscalYear &&
+            request.status === "pending");
+        const pendingItemRequests = itemRequests.filter((request) => request.tenantId === base.authContext.tenantId &&
+            request.departmentId === department._id &&
+            request.fiscalYear === plan.fiscalYear &&
+            request.status === "pending");
+        const pendingLinkedCategoryIds = new Set(pendingItemRequests
+            .map((request) => request.linkedCategoryRequestId ?? null)
+            .filter((requestId) => Boolean(requestId))
+            .map((requestId) => String(requestId)));
+        const countedPendingCategoryRequestIds = new Set(pendingCategoryRequests.map((request) => String(request._id)));
+        const pendingLinkedCategoryHandoffCount = Array.from(pendingLinkedCategoryIds).filter((requestId) => !countedPendingCategoryRequestIds.has(requestId)).length;
+        const pendingRequestValidation = (0, pre_submission_validation_1.summarizePendingCatalogRequestBlockers)({
+            pendingCategoryRequestCount: pendingCategoryRequests.length,
+            pendingItemRequestCount: pendingItemRequests.length,
+            pendingLinkedCategoryHandoffCount,
+        });
+        const newestSharedDeadline = sharedDeadlines
+            .filter((deadline) => deadline.tenantId === base.authContext.tenantId)
+            .sort((left, right) => right.deadlineVersion - left.deadlineVersion ||
+            right.updatedAt - left.updatedAt)[0] ?? null;
+        const deadlineIssue = (0, pre_submission_validation_1.evaluateSubmissionDeadlineIssue)({
+            now: Date.now(),
+            window: (0, pre_submission_validation_1.resolveEffectiveSubmissionWindow)({
+                departmentSubmissionEndsAt: department.submissionEndsAt ?? null,
+                departmentSubmissionStartsAt: department.submissionStartsAt ?? null,
+                sharedDeadline: newestSharedDeadline
+                    ? {
+                        deadlineVersion: newestSharedDeadline.deadlineVersion,
+                        submissionEndsAt: newestSharedDeadline.submissionEndsAt,
+                        submissionStartsAt: newestSharedDeadline.submissionStartsAt,
+                        timeZone: newestSharedDeadline.timeZone,
+                        updatedAt: newestSharedDeadline.updatedAt,
+                    }
+                    : null,
+            }),
+        });
+        const supplementalIssues = [
+            pendingRequestValidation.issue,
+            deadlineIssue,
+        ].filter((issue) => Boolean(issue));
+        const supplementalBlockerMessages = supplementalIssues.map((issue) => issue.message);
+        const submitState = (0, plan_submission_1.getDepartmentUserPlanSubmitState)({
+            budgetState: workspaceSummary?.budgetState ?? {
+                advisoryText: "Budget allocation is unavailable. Planning totals remain visible, but submission must stay blocked until a usable budget is assigned.",
+                announcementText: "Department budget allocation is unavailable. Submission remains blocked until a budget is assigned.",
+                bannerText: null,
+                canSubmitByBudget: false,
+                overBudgetAmount: 0,
+                remainingBudget: null,
+                state: "unallocated",
+                statusLabel: "Budget not allocated",
+                totalBudget: null,
+                usageLabel: "Unallocated",
+                usedAmount: submissionDraftSummary?.estimatedBudgetUsed ??
+                    plan.estimatedBudgetUsed,
+                usedPercent: null,
+            },
+            hasUnsyncedChanges: false,
+            mode: "edit",
+            saveState: "saved",
+            supplementalBlockerMessages,
+            totalItemCount: submissionDraftSummary?.itemCount ?? workspaceSummary?.totalItemCount ?? plan.itemCount,
+            validationState: workspaceSummary?.validationState ?? null,
+        });
+        if (submitState.disabled) {
+            const issueCodes = [
+                ...(workspaceSummary?.validationState.issues
+                    .filter((issue) => issue.blocksSubmission)
+                    .map((issue) => issue.code) ?? []),
+                ...supplementalIssues.map((issue) => issue.code),
+            ];
+            const primaryMessage = getPrimaryBlockedSubmissionMessage({
+                fallback: submitState.reason,
+                issues: [
+                    ...(workspaceSummary?.validationState.issues ?? []),
+                    ...supplementalIssues,
+                ],
+            });
+            await (0, _audit_1.appendAuditLogRequired)(ctx, buildDepartmentUserPlanAuditEntry({
+                action: "submit",
+                actorUserId: base.authContext.userId,
+                departmentId: department._id,
+                event: audit_1.AUDIT_EVENT_NAMES.planSubmissionBlocked,
+                metadata: {
+                    issueCodes,
+                    planStatus: plan.status,
+                    primaryMessage,
+                    reason: submitState.reason,
+                },
+                outcome: audit_1.AUDIT_OUTCOMES.blockedStateTransition,
+                planId: plan._id,
+                tenantId: base.authContext.tenantId,
+            }));
+            buildBlockedSubmissionError(submitState.reason);
+        }
+        if (!submissionDraftSummary) {
+            const reason = "Workspace state is malformed and could not be recalculated safely for submission.";
+            await (0, _audit_1.appendAuditLogRequired)(ctx, buildDepartmentUserPlanAuditEntry({
+                action: "submit",
+                actorUserId: base.authContext.userId,
+                departmentId: department._id,
+                event: audit_1.AUDIT_EVENT_NAMES.planSubmissionBlocked,
+                metadata: {
+                    planStatus: plan.status,
+                    reason,
+                },
+                outcome: audit_1.AUDIT_OUTCOMES.blockedStateTransition,
+                planId: plan._id,
+                tenantId: base.authContext.tenantId,
+            }));
+            buildBlockedSubmissionError(reason);
+        }
+        const submissionPersistence = (0, submission_1.buildPlanSubmissionPersistenceRecord)({
+            categorySummaries: submissionDraftSummary.categorySummaries,
+            estimatedBudgetUsed: submissionDraftSummary.estimatedBudgetUsed,
+            existingSelectedCategoryIds: plan.selectedCategoryIds.map((categoryId) => String(categoryId)),
+            itemCount: submissionDraftSummary.itemCount,
+        });
+        const persistedCategorySummaries = submissionPersistence.categorySummaries
+            .map((summary) => {
+            const categoryId = ctx.db.normalizeId("procurementCategories", summary.categoryId);
+            if (!categoryId) {
+                return null;
+            }
+            return {
+                amount: summary.amount,
+                categoryId,
+                categoryName: summary.categoryName,
+                itemCount: summary.itemCount,
+            };
+        })
+            .filter((summary) => Boolean(summary));
+        const persistedSelectedCategoryIds = submissionPersistence.selectedCategoryIds
+            .map((categoryId) => ctx.db.normalizeId("procurementCategories", categoryId))
+            .filter((categoryId) => categoryId !== null);
+        const nextSubmissionSequence = (0, submission_1.getNextPlanSubmissionSequence)(planSnapshots.map((snapshot) => ({
+            submissionSequence: snapshot.submissionSequence ?? null,
+        })));
+        const now = Date.now();
+        const submissionReference = (0, submission_1.formatPlanSubmissionReference)({
+            departmentCode: department.code,
+            fiscalYear: plan.fiscalYear,
+            submissionSequence: nextSubmissionSequence,
+        });
+        const submissionSequenceKey = (0, submission_1.buildPlanSubmissionSequenceKey)({
+            planId: String(plan._id),
+            submissionSequence: nextSubmissionSequence,
+            submittedAt: now,
+            tenantId: String(base.authContext.tenantId),
+        });
+        await ctx.db.patch(plan._id, {
+            departmentCodeSnapshot: department.code,
+            departmentNameSnapshot: department.name,
+            status: "submitted",
+            categorySummaries: persistedCategorySummaries,
+            estimatedBudgetUsed: submissionPersistence.estimatedBudgetUsed,
+            itemCount: submissionPersistence.itemCount,
+            selectedCategoryIds: persistedSelectedCategoryIds,
+            submissionEmailErrorMessage: undefined,
+            submissionEmailStatus: undefined,
+            submissionReference,
+            submissionSequence: nextSubmissionSequence,
+            submittedAt: now,
+            updatedAt: now,
+        });
+        await ctx.db.insert("planSubmissionSnapshots", {
+            capturedAt: now,
+            capturedByTenantUserId: tenantUser._id,
+            capturedByUserId: base.authContext.userId,
+            categorySummaries: submissionPersistence.categorySummaries.map((summary) => ({
+                amount: summary.amount,
+                categoryId: summary.categoryId,
+                categoryName: summary.categoryName,
+                itemCount: summary.itemCount,
+            })),
+            departmentCodeSnapshot: department.code,
+            departmentId: plan.departmentId,
+            departmentNameSnapshot: department.name,
+            estimatedBudgetUsed: submissionPersistence.estimatedBudgetUsed,
+            fiscalYear: plan.fiscalYear,
+            itemCount: submissionPersistence.itemCount,
+            lifecycleStatus: "active",
+            planId: plan._id,
+            selectedCategoryIds: submissionPersistence.selectedCategoryIds,
+            submissionReference,
+            submissionSequence: nextSubmissionSequence,
+            submissionSequenceKey,
+            submittedAt: now,
+            tenantId: plan.tenantId,
+            workspaceState: (0, blockly_serialization_1.createPersistedBlocklyWorkspaceRecord)(normalizedWorkspaceState),
+        });
+        await (0, _audit_1.appendAuditLogRequired)(ctx, buildDepartmentUserPlanAuditEntry({
+            action: "submit",
+            actorUserId: base.authContext.userId,
+            departmentId: department._id,
+            event: audit_1.AUDIT_EVENT_NAMES.planSubmitted,
+            metadata: {
+                itemCount: submissionPersistence.itemCount,
+                estimatedBudgetUsed: submissionPersistence.estimatedBudgetUsed,
+                submissionReference,
+                submissionSequence: nextSubmissionSequence,
+                submittedAt: now,
+            },
+            outcome: audit_1.AUDIT_OUTCOMES.allowed,
+            planId: plan._id,
+            tenantId: base.authContext.tenantId,
+        }));
+        let emailStatus = null;
+        let emailErrorMessage = null;
+        const recipientEmail = authUser && typeof authUser.email === "string" && authUser.email.trim().length > 0
+            ? authUser.email.trim()
+            : null;
+        if (!recipientEmail) {
+            emailStatus = "failed";
+            emailErrorMessage =
+                "The confirmation email could not be queued because no Department User email address is available on this account.";
+        }
+        else {
+            try {
+                await ctx.scheduler.runAfter(0, "actions/email:queueTransactionalEmail", {
+                    idempotencyKey: (0, submission_1.buildPlanSubmissionEmailIdempotencyKey)({
+                        planId: String(plan._id),
+                        submissionSequence: nextSubmissionSequence,
+                    }),
+                    subject: `Plan submitted: ${submissionReference}`,
+                    template: "plan-submission-confirmation",
+                    templateProps: {
+                        departmentName: department.name,
+                        fiscalYear: plan.fiscalYear,
+                        submissionReference,
+                        submittedAt: now,
+                    },
+                    to: recipientEmail,
+                });
+                emailStatus = "queued";
+            }
+            catch (error) {
+                emailStatus = "failed";
+                emailErrorMessage =
+                    error instanceof Error
+                        ? error.message
+                        : "The confirmation email could not be queued right now.";
+            }
+        }
+        if (emailStatus) {
+            await ctx.db.patch(plan._id, {
+                submissionEmailErrorMessage: emailErrorMessage ?? undefined,
+                submissionEmailStatus: emailStatus,
+            });
+            await (0, _audit_1.appendAuditLogBestEffort)(ctx, buildDepartmentUserPlanAuditEntry({
+                action: "submit",
+                actorUserId: base.authContext.userId,
+                departmentId: department._id,
+                event: emailStatus === "queued"
+                    ? audit_1.AUDIT_EVENT_NAMES.planSubmissionEmailQueued
+                    : audit_1.AUDIT_EVENT_NAMES.planSubmissionEmailFailed,
+                metadata: {
+                    emailErrorMessage,
+                    recipientEmail,
+                    submissionReference,
+                    submissionSequence: nextSubmissionSequence,
+                },
+                outcome: emailStatus === "queued"
+                    ? audit_1.AUDIT_OUTCOMES.queued
+                    : audit_1.AUDIT_OUTCOMES.failed,
+                planId: plan._id,
+                tenantId: base.authContext.tenantId,
+            }));
+        }
+        return {
+            canWithdraw: true,
+            emailErrorMessage,
+            emailStatus,
+            status: "submitted",
+            submissionReference,
+            submittedAt: now,
+        };
+    },
+});
+exports.withdrawDepartmentUserPlanSubmission = (0, server_1.mutation)({
+    args: {
+        planId: values_1.v.string(),
+    },
+    returns: withdrawDepartmentUserPlanResultValidator,
+    handler: async (ctx, args) => {
+        const base = await loadDepartmentUserPlanBase(ctx);
+        if (!base.department) {
+            unexpectedAccessError();
+        }
+        const normalizedPlanId = ctx.db.normalizeId("plans", args.planId);
+        if (!normalizedPlanId) {
+            throw new values_1.ConvexError({
+                code: "PLAN_NOT_FOUND",
+                message: "Plan not found for this department.",
+            });
+        }
+        const [tenantUser, plan, planSnapshots] = await Promise.all([
+            loadDepartmentUserTenantUser(ctx, {
+                tenantId: base.authContext.tenantId,
+                userId: base.authContext.userId,
+            }),
+            ctx.db.get(normalizedPlanId),
+            ctx.db
+                .query("planSubmissionSnapshots")
+                .withIndex("by_planId_submittedAt", (q) => q.eq("planId", normalizedPlanId))
+                .collect(),
+        ]);
+        if (!plan || plan.tenantId !== base.authContext.tenantId || plan.departmentId !== base.department._id) {
+            throw new values_1.ConvexError({
+                code: "PLAN_NOT_FOUND",
+                message: "Plan not found for this department.",
+            });
+        }
+        if (plan.status !== "submitted") {
+            await (0, _audit_1.appendAuditLogRequired)(ctx, buildDepartmentUserPlanAuditEntry({
+                action: "withdraw",
+                actorUserId: base.authContext.userId,
+                departmentId: base.department._id,
+                event: audit_1.AUDIT_EVENT_NAMES.planWithdrawalBlocked,
+                metadata: {
+                    planStatus: plan.status,
+                    reason: "illegal_plan_status",
+                },
+                outcome: audit_1.AUDIT_OUTCOMES.blockedStateTransition,
+                planId: plan._id,
+                tenantId: base.authContext.tenantId,
+            }));
+            throw new values_1.ConvexError({
+                code: "VALIDATION_FAILED",
+                message: "Only submitted plans can be withdrawn back to draft.",
+            });
+        }
+        if (typeof plan.reviewStartedAt === "number") {
+            await (0, _audit_1.appendAuditLogRequired)(ctx, buildDepartmentUserPlanAuditEntry({
+                action: "withdraw",
+                actorUserId: base.authContext.userId,
+                departmentId: base.department._id,
+                event: audit_1.AUDIT_EVENT_NAMES.planWithdrawalBlocked,
+                metadata: {
+                    reason: "review_already_started",
+                    reviewStartedAt: plan.reviewStartedAt,
+                    submissionReference: plan.submissionReference ?? null,
+                },
+                outcome: audit_1.AUDIT_OUTCOMES.blockedStateTransition,
+                planId: plan._id,
+                tenantId: base.authContext.tenantId,
+            }));
+            throw new values_1.ConvexError({
+                code: "VALIDATION_FAILED",
+                message: "This submission can no longer be withdrawn because Procurement review has already started.",
+            });
+        }
+        const activeSnapshot = (0, submission_1.resolveLatestActivePlanSubmissionSnapshot)(planSnapshots.map((snapshot) => ({
+            ...snapshot,
+            lifecycleStatus: (0, submission_1.normalizePlanSubmissionLifecycleStatus)(snapshot.lifecycleStatus ?? null),
+        })));
+        const now = Date.now();
+        if (activeSnapshot) {
+            await ctx.db.patch(activeSnapshot._id, {
+                lifecycleStatus: "withdrawn",
+                withdrawnAt: now,
+                withdrawnByTenantUserId: tenantUser._id,
+                withdrawnByUserId: base.authContext.userId,
+            });
+        }
+        else if ((0, submission_1.shouldCaptureLegacyWithdrawnPlanSubmissionSnapshot)({
+            activeSnapshotExists: false,
+            planStatus: plan.status,
+            submissionReference: plan.submissionReference ?? null,
+            submittedAt: plan.submittedAt ?? null,
+        })) {
+            await ctx.db.insert("planSubmissionSnapshots", {
+                capturedAt: now,
+                capturedByTenantUserId: tenantUser._id,
+                capturedByUserId: base.authContext.userId,
+                categorySummaries: plan.categorySummaries.map((summary) => ({
+                    amount: summary.amount,
+                    categoryId: String(summary.categoryId),
+                    categoryName: summary.categoryName,
+                    itemCount: summary.itemCount,
+                })),
+                departmentCodeSnapshot: plan.departmentCodeSnapshot ?? base.department.code,
+                departmentId: plan.departmentId,
+                departmentNameSnapshot: plan.departmentNameSnapshot ?? base.department.name,
+                estimatedBudgetUsed: plan.estimatedBudgetUsed,
+                fiscalYear: plan.fiscalYear,
+                itemCount: plan.itemCount,
+                lifecycleStatus: "withdrawn",
+                planId: plan._id,
+                selectedCategoryIds: plan.selectedCategoryIds.map((categoryId) => String(categoryId)),
+                submissionReference: plan.submissionReference ?? undefined,
+                submissionSequence: plan.submissionSequence ?? undefined,
+                submissionSequenceKey: (0, submission_1.buildPlanSubmissionSequenceKey)({
+                    planId: String(plan._id),
+                    submissionSequence: plan.submissionSequence ?? null,
+                    submittedAt: plan.submittedAt ?? null,
+                    tenantId: String(base.authContext.tenantId),
+                }),
+                submittedAt: plan.submittedAt ?? null,
+                tenantId: plan.tenantId,
+                withdrawnAt: now,
+                withdrawnByTenantUserId: tenantUser._id,
+                withdrawnByUserId: base.authContext.userId,
+                workspaceState: (0, blockly_serialization_1.createPersistedBlocklyWorkspaceRecord)(toNormalizedWorkspaceRecord(plan, base.authContext.userId)),
+            });
+        }
+        await ctx.db.patch(plan._id, {
+            departmentCodeSnapshot: undefined,
+            departmentNameSnapshot: undefined,
+            status: "draft",
+            submissionEmailErrorMessage: undefined,
+            submissionEmailStatus: undefined,
+            submissionReference: undefined,
+            submissionSequence: undefined,
+            submittedAt: undefined,
+            updatedAt: now,
+        });
+        await (0, _audit_1.appendAuditLogRequired)(ctx, buildDepartmentUserPlanAuditEntry({
+            action: "withdraw",
+            actorUserId: base.authContext.userId,
+            departmentId: base.department._id,
+            event: audit_1.AUDIT_EVENT_NAMES.planWithdrawn,
+            metadata: {
+                submissionReference: plan.submissionReference ?? null,
+                withdrawnAt: now,
+            },
+            outcome: audit_1.AUDIT_OUTCOMES.allowed,
+            planId: plan._id,
+            tenantId: base.authContext.tenantId,
+        }));
+        return {
+            status: "draft",
+        };
     },
 });

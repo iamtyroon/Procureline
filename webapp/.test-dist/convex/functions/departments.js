@@ -87,6 +87,7 @@ exports.getDepartmentsWorkspace = (0, server_1.query)({
                     planStatuses: plans
                         .filter((plan) => plan.departmentId === department._id)
                         .map((plan) => plan.status),
+                    voteNumber: department.voteNumber ?? department.code,
                 };
             }),
             now,
@@ -123,6 +124,7 @@ exports.getDepartmentsWorkspace = (0, server_1.query)({
                 submissionWindowState: hasConfiguredSubmissionWindow(activeDepartments.find((department) => String(department._id) === row.id) ?? null)
                     ? "configured"
                     : "setup_required",
+                voteNumber: row.voteNumber,
             })),
         };
     },
@@ -132,6 +134,7 @@ exports.createDepartment = (0, server_1.mutation)({
         budgetAllocation: values_1.v.number(),
         code: values_1.v.string(),
         name: values_1.v.string(),
+        voteNumber: values_1.v.string(),
     },
     handler: async (ctx, args) => {
         const { authContext, tenant, tenantUser } = await loadDepartmentMutationContext(ctx);
@@ -139,6 +142,7 @@ exports.createDepartment = (0, server_1.mutation)({
         await assertDepartmentUnique(ctx, {
             normalizedCode: parsed.normalizedCode,
             normalizedName: parsed.normalizedName,
+            normalizedVoteNumber: parsed.normalizedVoteNumber,
             tenantId: authContext.tenantId,
         });
         await assertDepartmentTierCapacity(ctx, {
@@ -154,9 +158,11 @@ exports.createDepartment = (0, server_1.mutation)({
             name: parsed.name,
             normalizedCode: parsed.normalizedCode,
             normalizedName: parsed.normalizedName,
+            normalizedVoteNumber: parsed.normalizedVoteNumber,
             procurementOfficerTenantUserId: tenantUser._id,
             tenantId: authContext.tenantId,
             updatedAt: now,
+            voteNumber: parsed.voteNumber,
         });
         await (0, _audit_1.appendAuditLogRequired)(ctx, buildDepartmentAuditEntry({
             action: "create",
@@ -167,6 +173,7 @@ exports.createDepartment = (0, server_1.mutation)({
                 budgetAllocation: parsed.budgetAllocation,
                 departmentCode: parsed.code,
                 departmentName: parsed.name,
+                voteNumber: parsed.voteNumber,
                 summary: `Created department ${parsed.name}.`,
             },
             tenantId: authContext.tenantId,
@@ -182,6 +189,7 @@ exports.updateDepartment = (0, server_1.mutation)({
         code: values_1.v.string(),
         departmentId: departmentIdValidator,
         name: values_1.v.string(),
+        voteNumber: values_1.v.string(),
     },
     handler: async (ctx, args) => {
         const { authContext, tenantUser } = await loadDepartmentMutationContext(ctx);
@@ -190,17 +198,11 @@ exports.updateDepartment = (0, server_1.mutation)({
             tenantId: authContext.tenantId,
         });
         const parsed = parseDepartmentInput(args);
-        if (parsed.normalizedCode !== department.normalizedCode) {
-            throw new values_1.ConvexError({
-                code: "VALIDATION_FAILED",
-                field: "code",
-                message: departments_1.DEPARTMENT_CODE_MANAGED_IN_ACCESS_CODES_MESSAGE,
-            });
-        }
         await assertDepartmentUnique(ctx, {
             excludeDepartmentId: args.departmentId,
             normalizedCode: parsed.normalizedCode,
             normalizedName: parsed.normalizedName,
+            normalizedVoteNumber: parsed.normalizedVoteNumber,
             tenantId: authContext.tenantId,
         });
         const budgetChanged = department.budgetAllocation !== parsed.budgetAllocation;
@@ -215,7 +217,9 @@ exports.updateDepartment = (0, server_1.mutation)({
             name: parsed.name,
             normalizedCode: parsed.normalizedCode,
             normalizedName: parsed.normalizedName,
+            normalizedVoteNumber: parsed.normalizedVoteNumber,
             updatedAt: now,
+            voteNumber: parsed.voteNumber,
         });
         const auditEntries = [
             buildDepartmentAuditEntry({
@@ -227,6 +231,7 @@ exports.updateDepartment = (0, server_1.mutation)({
                     budgetAllocation: parsed.budgetAllocation,
                     departmentCode: parsed.code,
                     departmentName: parsed.name,
+                    voteNumber: parsed.voteNumber,
                     summary: `Updated department ${parsed.name}.`,
                 },
                 tenantId: authContext.tenantId,
@@ -435,7 +440,7 @@ function parseDepartmentInput(args) {
     return result.data;
 }
 async function assertDepartmentUnique(ctx, args) {
-    const [codeMatches, nameMatches] = await Promise.all([
+    const [codeMatches, nameMatches, tenantDepartments] = await Promise.all([
         ctx.db
             .query("departments")
             .withIndex("by_tenantId_normalizedCode", (q) => q.eq("tenantId", args.tenantId).eq("normalizedCode", args.normalizedCode))
@@ -443,6 +448,10 @@ async function assertDepartmentUnique(ctx, args) {
         ctx.db
             .query("departments")
             .withIndex("by_tenantId_normalizedName", (q) => q.eq("tenantId", args.tenantId).eq("normalizedName", args.normalizedName))
+            .collect(),
+        ctx.db
+            .query("departments")
+            .withIndex("by_tenantId", (q) => q.eq("tenantId", args.tenantId))
             .collect(),
     ]);
     const hasCodeConflict = codeMatches.some((department) => isActiveDepartment(department) &&
@@ -463,6 +472,16 @@ async function assertDepartmentUnique(ctx, args) {
             code: "ALREADY_EXISTS",
             field: "name",
             message: departments_1.DEPARTMENT_NAME_EXISTS_MESSAGE,
+        });
+    }
+    const hasVoteNumberConflict = tenantDepartments.some((department) => isActiveDepartment(department) &&
+        (args.excludeDepartmentId ? department._id !== args.excludeDepartmentId : true) &&
+        getComparableNormalizedVoteNumber(department) === args.normalizedVoteNumber);
+    if (hasVoteNumberConflict) {
+        throw new values_1.ConvexError({
+            code: "ALREADY_EXISTS",
+            field: "voteNumber",
+            message: departments_1.DEPARTMENT_VOTE_NUMBER_EXISTS_MESSAGE,
         });
     }
 }
@@ -565,4 +584,8 @@ function getComparableNormalizedCode(department) {
 }
 function getComparableNormalizedName(department) {
     return department.normalizedName;
+}
+function getComparableNormalizedVoteNumber(department) {
+    return department.normalizedVoteNumber ??
+        (0, departments_1.normalizeDepartmentVoteNumber)(department.voteNumber ?? department.code);
 }

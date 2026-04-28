@@ -7,12 +7,16 @@ import {
     formatDepartmentUserCount,
     formatDepartmentUserCurrency,
     getDepartmentUserFiscalYearForDate,
-    normalizeDepartmentUserPlanStatus,
     sanitizeCategorySelection,
     type DepartmentUserDashboardState,
     type DepartmentUserPlanAction,
     type DepartmentUserPlanStatus,
 } from "./dashboard";
+import {
+    deriveDepartmentUserStatusDetails,
+    selectCanonicalPlans,
+    type DepartmentUserPlanSubmissionSnapshotRecord,
+} from "./status-tracking";
 
 export interface DepartmentUserDashboardAuthRecord {
     departmentAccessMode?: DepartmentUserAccessMode | null;
@@ -71,16 +75,25 @@ export interface DepartmentUserDashboardCategorySummary {
 }
 
 export interface DepartmentUserDashboardPlanRecord {
+    approvedAt?: number | null;
     categorySummaries: readonly DepartmentUserDashboardCategorySummary[];
     createdAt: number;
     estimatedBudgetUsed: number;
     fiscalYear: string;
     id: string;
     itemCount: number;
+    lastApprovedAt?: number | null;
     rejectionComment?: string | null;
+    rejectedAt?: number | null;
+    reviewStartedAt?: number | null;
+    reviewer?: {
+        label: string | null;
+        state: "available" | "unavailable";
+    } | null;
     selectedCategoryIds: readonly string[];
     status: "approved" | "draft" | "rejected" | "submitted";
     submissionReference?: string | null;
+    submissionSnapshots?: readonly DepartmentUserPlanSubmissionSnapshotRecord[];
     submittedAt?: number | null;
     pendingRedraftRequest?: {
         id: string;
@@ -170,6 +183,10 @@ export interface DepartmentUserDashboardSnapshot {
             itemCount: number;
             itemCountLabel: string;
             rejectionComment: string | null;
+            reviewerLabel: string | null;
+            statusDateLabel: string | null;
+            statusDetail: string;
+            statusHistorySummary: string | null;
             statusLabel: DepartmentUserPlanStatus;
             submissionReference: string | null;
             viewHref: string;
@@ -198,7 +215,9 @@ export interface DepartmentUserDashboardSnapshot {
         };
         deadline: ReturnType<typeof deriveDeadlinePresentation>;
         plan: {
+            canWithdraw: boolean;
             helperText: string;
+            historySummary: string | null;
             itemCount: number;
             primaryActionHref: string;
             primaryActionLabel: string;
@@ -208,9 +227,18 @@ export interface DepartmentUserDashboardSnapshot {
                 pendingReason: string | null;
                 requestedAt: number | null;
             };
+            reviewerLabel: string | null;
+            reviewerState: DepartmentUserDashboardState | null;
             state: DepartmentUserDashboardState;
+            statusDateLabel: string | null;
             statusLabel: DepartmentUserPlanStatus;
             submissionReference: string | null;
+            timeline: Array<{
+                description: string;
+                id: string;
+                timestampLabel: string;
+                title: string;
+            }>;
         };
     };
     rejectionNotice: null | {
@@ -272,10 +300,17 @@ export function buildDepartmentUserDashboardSnapshot(
         submissionStartsAt: args.department.submissionStartsAt,
         timeZone: args.department.submissionTimeZone ?? "Africa/Nairobi",
     });
+    const statusTimeZone =
+        args.department.submissionTimeZone ?? args.tenantTimeZone ?? "Africa/Nairobi";
     const canonicalPlans = selectCanonicalPlans(args.plans);
     const currentPlan =
         canonicalPlans.find((plan) => plan.fiscalYear === fiscalYearKey) ?? null;
-    const currentPlanStatus = normalizeDepartmentUserPlanStatus(currentPlan?.status);
+    const currentPlanStatusDetails = deriveDepartmentUserStatusDetails({
+        fiscalYearKey,
+        plan: currentPlan,
+        timeZone: statusTimeZone,
+    });
+    const currentPlanStatus = currentPlanStatusDetails.statusLabel;
     const currentPlanHref = currentPlan
         ? `/du/plans/${currentPlan.id}?mode=${
               currentPlanStatus === "Draft" || currentPlanStatus === "Rejected"
@@ -381,6 +416,7 @@ export function buildDepartmentUserDashboardSnapshot(
                     : null,
             fiscalYearKey,
             plan,
+            timeZone: statusTimeZone,
         }));
 
     return {
@@ -504,16 +540,10 @@ export function buildDepartmentUserDashboardSnapshot(
             },
             deadline,
             plan: {
+                canWithdraw: currentPlanStatusDetails.canWithdraw,
                 helperText:
-                    currentPlan === null
-                        ? "No Plan"
-                        : currentPlanStatus === "Submitted"
-                          ? currentPlan.submissionReference
-                            ? `Awaiting review as ${currentPlan.submissionReference}`
-                            : `Awaiting review for ${fiscalYearKey}`
-                          : currentPlanStatus === "Approved"
-                            ? "Approved and closed for department edits"
-                        : `${currentPlanStatus} for ${fiscalYearKey}`,
+                    currentPlanStatusDetails.helperText,
+                historySummary: currentPlanStatusDetails.historySummary,
                 itemCount: currentPlan?.itemCount ?? 0,
                 primaryActionHref: currentPlanAction.href,
                 primaryActionLabel: currentPlanAction.label,
@@ -525,9 +555,23 @@ export function buildDepartmentUserDashboardSnapshot(
                     pendingReason: currentPlan?.pendingRedraftRequest?.reason ?? null,
                     requestedAt: currentPlan?.pendingRedraftRequest?.requestedAt ?? null,
                 },
+                reviewerLabel: currentPlanStatusDetails.reviewerLabel,
+                reviewerState:
+                    currentPlanStatusDetails.reviewerState === "available"
+                        ? "available"
+                        : currentPlanStatusDetails.reviewerState === "unavailable"
+                          ? "unavailable"
+                          : null,
                 state: currentPlan === null ? "empty" : "available",
+                statusDateLabel: currentPlanStatusDetails.statusDateLabel,
                 statusLabel: currentPlanStatus,
-                submissionReference: currentPlan?.submissionReference ?? null,
+                submissionReference: currentPlanStatusDetails.submissionReference,
+                timeline: currentPlanStatusDetails.timeline.map((item) => ({
+                    description: item.description,
+                    id: item.id,
+                    timestampLabel: item.timestampLabel,
+                    title: item.title,
+                })),
             },
         },
         rejectionNotice:
@@ -642,7 +686,9 @@ function createBlockedSnapshot(args: {
                 timeZone: "Africa/Nairobi",
             },
             plan: {
+                canWithdraw: false,
                 helperText: "No Plan",
+                historySummary: null,
                 itemCount: 0,
                 primaryActionHref: "/du",
                 primaryActionLabel: "Start Your Plan",
@@ -652,9 +698,13 @@ function createBlockedSnapshot(args: {
                     pendingReason: null,
                     requestedAt: null,
                 },
+                reviewerLabel: null,
+                reviewerState: null,
                 state: "unavailable",
+                statusDateLabel: null,
                 statusLabel: "No Plan",
                 submissionReference: null,
+                timeline: [],
             },
         },
         rejectionNotice: null,
@@ -665,8 +715,14 @@ function createPlanRow(args: {
     accessMode?: DepartmentUserAccessMode | null;
     fiscalYearKey: string;
     plan: DepartmentUserDashboardPlanRecord;
+    timeZone: string;
 }) {
-    const statusLabel = normalizeDepartmentUserPlanStatus(args.plan.status);
+    const statusDetails = deriveDepartmentUserStatusDetails({
+        fiscalYearKey: args.fiscalYearKey,
+        plan: args.plan,
+        timeZone: args.timeZone,
+    });
+    const statusLabel = statusDetails.statusLabel;
     const editMode =
         statusLabel === "Draft" || statusLabel === "Rejected" ? "edit" : "view";
     const planHref = `/du/plans/${args.plan.id}?mode=${editMode}`;
@@ -684,28 +740,12 @@ function createPlanRow(args: {
         itemCount: args.plan.itemCount,
         itemCountLabel: formatDepartmentUserCount(args.plan.itemCount, "item"),
         rejectionComment: args.plan.rejectionComment ?? null,
+        reviewerLabel: statusDetails.reviewerLabel,
+        statusDateLabel: statusDetails.statusDateLabel,
+        statusDetail: statusDetails.helperText,
+        statusHistorySummary: statusDetails.historySummary,
         statusLabel,
-        submissionReference: args.plan.submissionReference ?? null,
+        submissionReference: statusDetails.submissionReference,
         viewHref: `/du/plans/${args.plan.id}?mode=view`,
     };
-}
-
-function selectCanonicalPlans(plans: readonly DepartmentUserDashboardPlanRecord[]) {
-    const latestPlanByFiscalYear = new Map<string, DepartmentUserDashboardPlanRecord>();
-
-    for (const plan of plans) {
-        const existingPlan = latestPlanByFiscalYear.get(plan.fiscalYear);
-        if (!existingPlan) {
-            latestPlanByFiscalYear.set(plan.fiscalYear, plan);
-            continue;
-        }
-
-        const existingTimestamp = Math.max(existingPlan.updatedAt, existingPlan.createdAt);
-        const candidateTimestamp = Math.max(plan.updatedAt, plan.createdAt);
-        if (candidateTimestamp >= existingTimestamp) {
-            latestPlanByFiscalYear.set(plan.fiscalYear, plan);
-        }
-    }
-
-    return Array.from(latestPlanByFiscalYear.values());
 }

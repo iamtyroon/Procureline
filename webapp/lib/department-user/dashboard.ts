@@ -21,7 +21,8 @@ export type DepartmentUserPlanStatus =
     | "Draft"
     | "No Plan"
     | "Rejected"
-    | "Submitted";
+    | "Submitted"
+    | "Under Review";
 
 export interface DepartmentUserFiscalYear {
     endYear: number;

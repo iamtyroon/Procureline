@@ -11,6 +11,7 @@ import {
     getFiscalYearForTimestampInTimeZone,
     resolveDeadlineTimeZone,
 } from "../../lib/procurement-officer/deadlines";
+import { selectCanonicalPlans } from "../../lib/department-user/status-tracking";
 
 const dashboardStateValidator = v.union(
     v.literal("available"),
@@ -40,6 +41,7 @@ const planStatusValidator = v.union(
     v.literal("No Plan"),
     v.literal("Rejected"),
     v.literal("Submitted"),
+    v.literal("Under Review"),
 );
 
 const dashboardSnapshotValidator = v.object({
@@ -131,6 +133,10 @@ const dashboardSnapshotValidator = v.object({
                 itemCount: v.number(),
                 itemCountLabel: v.string(),
                 rejectionComment: v.union(v.string(), v.null()),
+                reviewerLabel: v.union(v.string(), v.null()),
+                statusDateLabel: v.union(v.string(), v.null()),
+                statusDetail: v.string(),
+                statusHistorySummary: v.union(v.string(), v.null()),
                 statusLabel: planStatusValidator,
                 submissionReference: v.union(v.string(), v.null()),
                 viewHref: v.string(),
@@ -176,7 +182,9 @@ const dashboardSnapshotValidator = v.object({
             timeZone: v.string(),
         }),
         plan: v.object({
+            canWithdraw: v.boolean(),
             helperText: v.string(),
+            historySummary: v.union(v.string(), v.null()),
             itemCount: v.number(),
             primaryActionHref: v.string(),
             primaryActionLabel: v.string(),
@@ -186,9 +194,20 @@ const dashboardSnapshotValidator = v.object({
                 pendingReason: v.union(v.string(), v.null()),
                 requestedAt: v.union(v.number(), v.null()),
             }),
+            reviewerLabel: v.union(v.string(), v.null()),
+            reviewerState: v.union(dashboardStateValidator, v.null()),
             state: dashboardStateValidator,
+            statusDateLabel: v.union(v.string(), v.null()),
             statusLabel: planStatusValidator,
             submissionReference: v.union(v.string(), v.null()),
+            timeline: v.array(
+                v.object({
+                    description: v.string(),
+                    id: v.string(),
+                    timestampLabel: v.string(),
+                    title: v.string(),
+                }),
+            ),
         }),
     }),
     rejectionNotice: v.union(
@@ -350,6 +369,98 @@ export const getDepartmentUserDashboardSnapshot = query({
                 )
                 .first(),
         ]);
+        const canonicalPlanIds = new Set(
+            selectCanonicalPlans(
+                plans.map((plan) => ({
+                    createdAt: plan.createdAt,
+                    fiscalYear: plan.fiscalYear,
+                    id: String(plan._id),
+                    itemCount: plan.itemCount,
+                    approvedAt: plan.approvedAt ?? null,
+                    lastApprovedAt: plan.lastApprovedAt ?? null,
+                    rejectedAt: plan.rejectedAt ?? null,
+                    reviewStartedAt: plan.reviewStartedAt ?? null,
+                    status: plan.status,
+                    submittedAt: plan.submittedAt ?? null,
+                    updatedAt: plan.updatedAt,
+                })),
+            ).map((plan) => plan.id),
+        );
+        const canonicalPlans = plans.filter((plan) =>
+            canonicalPlanIds.has(String(plan._id)),
+        );
+        const planSnapshotEntries = await Promise.all(
+            canonicalPlans.map(async (plan) => [
+                String(plan._id),
+                await ctx.db
+                    .query("planSubmissionSnapshots")
+                    .withIndex("by_planId_submittedAt", (q) => q.eq("planId", plan._id))
+                    .collect(),
+            ] as const),
+        );
+        const planSnapshotsByPlanId = new Map(planSnapshotEntries);
+        const reviewerRecordIds = new Set<string>();
+        for (const plan of canonicalPlans) {
+            if (plan.reviewStartedByUserId && plan.reviewStartedByTenantUserId) {
+                reviewerRecordIds.add(String(plan.reviewStartedByUserId));
+                reviewerRecordIds.add(String(plan.reviewStartedByTenantUserId));
+            }
+        }
+        const reviewerRecordEntries = await Promise.all(
+            Array.from(reviewerRecordIds).map(async (recordId) => {
+                const userId = ctx.db.normalizeId("users", recordId);
+                if (userId) {
+                    return [recordId, await ctx.db.get(userId)] as const;
+                }
+
+                const tenantUserId = ctx.db.normalizeId("tenantUsers", recordId);
+                return tenantUserId
+                    ? ([recordId, await ctx.db.get(tenantUserId)] as const)
+                    : ([recordId, null] as const);
+            }),
+        );
+        const reviewerRecordsById = new Map<string, unknown>(reviewerRecordEntries);
+        const reviewerEntries = await Promise.all(
+            canonicalPlans.map(async (plan) => {
+                if (!plan.reviewStartedByUserId || !plan.reviewStartedByTenantUserId) {
+                    return [String(plan._id), null] as const;
+                }
+
+                const reviewerUser = reviewerRecordsById.get(
+                    String(plan.reviewStartedByUserId),
+                );
+                const reviewerTenantUser = readRecord(
+                    reviewerRecordsById.get(String(plan.reviewStartedByTenantUserId)),
+                );
+                const isTenantScopedReviewer =
+                    Boolean(reviewerTenantUser) &&
+                    reviewerTenantUser.tenantId === authContext.tenantId &&
+                    reviewerTenantUser.userId === plan.reviewStartedByUserId &&
+                    reviewerTenantUser.role === "procurement_officer" &&
+                    reviewerTenantUser.isActive === true;
+
+                if (!isTenantScopedReviewer) {
+                    return [
+                        String(plan._id),
+                        {
+                            label: null,
+                            state: "unavailable" as const,
+                        } satisfies DashboardReviewerSummary,
+                    ] as const;
+                }
+
+                return [
+                    String(plan._id),
+                    {
+                        label: readAuthUserSummary(reviewerUser, "Procurement Officer").name,
+                        state: "available" as const,
+                    } satisfies DashboardReviewerSummary,
+                ] as const;
+            }),
+        );
+        const reviewerByPlanId = new Map<string, DashboardReviewerSummary | null>(
+            reviewerEntries,
+        );
 
         const procurementOfficerUser =
             procurementOfficerTenantUser?.userId
@@ -426,13 +537,28 @@ export const getDepartmentUserDashboardSnapshot = query({
                 fiscalYear: plan.fiscalYear,
                 id: String(plan._id),
                 itemCount: plan.itemCount,
+                lastApprovedAt: plan.lastApprovedAt ?? null,
                 rejectionComment: plan.rejectionComment ?? null,
+                rejectedAt: plan.rejectedAt ?? null,
+                reviewStartedAt: plan.reviewStartedAt ?? null,
+                reviewer: reviewerByPlanId.get(String(plan._id)) ?? null,
                 selectedCategoryIds: plan.selectedCategoryIds.map((categoryId) =>
                     String(categoryId),
                 ),
                 status: plan.status,
                 submissionReference: plan.submissionReference ?? null,
+                submissionSnapshots: (
+                    planSnapshotsByPlanId.get(String(plan._id)) ?? []
+                ).map((snapshot) => ({
+                    capturedAt: snapshot.capturedAt,
+                    lifecycleStatus: snapshot.lifecycleStatus ?? null,
+                    submissionReference: snapshot.submissionReference ?? null,
+                    submissionSequence: snapshot.submissionSequence ?? null,
+                    submittedAt: snapshot.submittedAt ?? null,
+                    withdrawnAt: snapshot.withdrawnAt ?? null,
+                })),
                 submittedAt: plan.submittedAt ?? null,
+                approvedAt: plan.approvedAt ?? null,
                 pendingRedraftRequest: (() => {
                     const request = pendingRedraftRequestByPlanId.get(String(plan._id));
                     return request
@@ -492,3 +618,14 @@ function readAuthUserSummary(
         name,
     };
 }
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+    return value && typeof value === "object" && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : null;
+}
+
+type DashboardReviewerSummary = {
+    label: string | null;
+    state: "available" | "unavailable";
+};

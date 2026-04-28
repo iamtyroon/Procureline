@@ -12,9 +12,13 @@ const blocklyWorkspaceStateValidator = values_1.v.object({
         lastSavedByUserId: values_1.v.string(),
         recoveredAt: values_1.v.union(values_1.v.number(), values_1.v.null()),
         revision: values_1.v.number(),
-        saveSource: values_1.v.union(values_1.v.literal("workspace_seed"), values_1.v.literal("workspace_sync")),
+        saveSource: values_1.v.union(values_1.v.literal("workspace_clear"), values_1.v.literal("workspace_recovery"), values_1.v.literal("workspace_seed"), values_1.v.literal("workspace_sync")),
     }),
 });
+const catalogRequestStatusValidator = values_1.v.union(values_1.v.literal("pending"), values_1.v.literal("approved"), values_1.v.literal("denied"), values_1.v.literal("expired"), values_1.v.literal("cancelled"));
+const catalogRequestDecisionSourceValidator = values_1.v.union(values_1.v.literal("deadline"), values_1.v.literal("du"), values_1.v.literal("po"), values_1.v.literal("system"));
+const catalogRequestOriginValidator = values_1.v.union(values_1.v.literal("standalone"), values_1.v.literal("item_handoff"));
+const planRedraftRequestStatusValidator = values_1.v.union(values_1.v.literal("pending"), values_1.v.literal("approved"), values_1.v.literal("denied"), values_1.v.literal("cancelled"));
 exports.default = (0, server_1.defineSchema)({
     ...server_2.authTables,
     tenants: (0, server_1.defineTable)({
@@ -127,6 +131,8 @@ exports.default = (0, server_1.defineSchema)({
         normalizedName: values_1.v.string(),
         code: values_1.v.string(),
         normalizedCode: values_1.v.string(),
+        voteNumber: values_1.v.optional(values_1.v.string()),
+        normalizedVoteNumber: values_1.v.optional(values_1.v.string()),
         budgetAllocation: values_1.v.optional(values_1.v.number()),
         isActive: values_1.v.boolean(),
         submissionStartsAt: values_1.v.optional(values_1.v.number()),
@@ -143,7 +149,9 @@ exports.default = (0, server_1.defineSchema)({
         .index("by_tenantId_code", ["tenantId", "code"])
         .index("by_tenantId_normalizedCode", ["tenantId", "normalizedCode"])
         .index("by_tenantId_normalizedName", ["tenantId", "normalizedName"])
-        .index("by_procurementOfficerTenantUserId", ["procurementOfficerTenantUserId"]),
+        .index("by_procurementOfficerTenantUserId", [
+        "procurementOfficerTenantUserId",
+    ]),
     submissionDeadlines: (0, server_1.defineTable)({
         announcementIssuedAt: values_1.v.optional(values_1.v.number()),
         announcementMessage: values_1.v.optional(values_1.v.string()),
@@ -184,8 +192,15 @@ exports.default = (0, server_1.defineSchema)({
     })
         .index("by_jobId", ["jobId"])
         .index("by_idempotencyKey", ["idempotencyKey"])
-        .index("by_submissionDeadlineId_version", ["submissionDeadlineId", "deadlineVersion"])
-        .index("by_tenantId_fiscalYearKey", ["tenantId", "fiscalYearKey", "deadlineVersion"]),
+        .index("by_submissionDeadlineId_version", [
+        "submissionDeadlineId",
+        "deadlineVersion",
+    ])
+        .index("by_tenantId_fiscalYearKey", [
+        "tenantId",
+        "fiscalYearKey",
+        "deadlineVersion",
+    ]),
     procurementCategories: (0, server_1.defineTable)({
         tenantId: values_1.v.id("tenants"),
         name: values_1.v.string(),
@@ -208,6 +223,8 @@ exports.default = (0, server_1.defineSchema)({
     procurementItems: (0, server_1.defineTable)({
         tenantId: values_1.v.id("tenants"),
         categoryId: values_1.v.id("procurementCategories"),
+        categoryNameSnapshot: values_1.v.optional(values_1.v.string()),
+        catalogSearchText: values_1.v.optional(values_1.v.string()),
         name: values_1.v.string(),
         normalizedName: values_1.v.optional(values_1.v.string()),
         description: values_1.v.optional(values_1.v.string()),
@@ -232,7 +249,15 @@ exports.default = (0, server_1.defineSchema)({
         .index("by_categoryId", ["categoryId"])
         .index("by_tenantId_isActive", ["tenantId", "isActive"])
         .index("by_tenantId_categoryId", ["tenantId", "categoryId"])
-        .index("by_tenantId_categoryId_normalizedName", ["tenantId", "categoryId", "normalizedName"]),
+        .index("by_tenantId_categoryId_normalizedName", [
+        "tenantId",
+        "categoryId",
+        "normalizedName",
+    ])
+        .searchIndex("search_by_catalog", {
+        filterFields: ["tenantId"],
+        searchField: "catalogSearchText",
+    }),
     procurementItemPriceHistory: (0, server_1.defineTable)({
         tenantId: values_1.v.id("tenants"),
         itemId: values_1.v.id("procurementItems"),
@@ -243,6 +268,118 @@ exports.default = (0, server_1.defineSchema)({
     })
         .index("by_itemId_changedAt", ["itemId", "changedAt"])
         .index("by_tenantId_changedAt", ["tenantId", "changedAt"]),
+    categoryRequests: (0, server_1.defineTable)({
+        tenantId: values_1.v.id("tenants"),
+        departmentId: values_1.v.id("departments"),
+        planId: values_1.v.id("plans"),
+        fiscalYear: values_1.v.string(),
+        requestorTenantUserId: values_1.v.id("tenantUsers"),
+        requestorUserId: values_1.v.id("users"),
+        name: values_1.v.string(),
+        normalizedName: values_1.v.string(),
+        description: values_1.v.string(),
+        justification: values_1.v.string(),
+        requesterDuplicateKey: values_1.v.string(),
+        sharedGroupingKey: values_1.v.string(),
+        requestOrigin: catalogRequestOriginValidator,
+        status: catalogRequestStatusValidator,
+        revision: values_1.v.number(),
+        decisionReason: values_1.v.optional(values_1.v.string()),
+        decisionSource: values_1.v.optional(catalogRequestDecisionSourceValidator),
+        decisionSnapshot: values_1.v.optional(values_1.v.any()),
+        decisionNotificationDeliverAt: values_1.v.optional(values_1.v.number()),
+        decisionNotificationErrorCode: values_1.v.optional(values_1.v.string()),
+        decisionNotificationErrorMessage: values_1.v.optional(values_1.v.string()),
+        decisionNotificationIdempotencyKey: values_1.v.optional(values_1.v.string()),
+        decisionNotificationQueuedAt: values_1.v.optional(values_1.v.number()),
+        decisionNotificationStatus: values_1.v.optional(values_1.v.union(values_1.v.literal("cancelled"), values_1.v.literal("failed"), values_1.v.literal("queued"))),
+        denialUndoDeadlineAt: values_1.v.optional(values_1.v.number()),
+        reviewedAt: values_1.v.optional(values_1.v.number()),
+        reviewedByTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
+        linkedCatalogCategoryId: values_1.v.optional(values_1.v.id("procurementCategories")),
+        createdAt: values_1.v.number(),
+        updatedAt: values_1.v.number(),
+        cancelledAt: values_1.v.optional(values_1.v.number()),
+        submittedAt: values_1.v.number(),
+    })
+        .index("by_tenantId_status", ["tenantId", "status", "updatedAt"])
+        .index("by_tenantId_createdAt", ["tenantId", "createdAt"])
+        .index("by_tenantId_departmentId_createdAt", [
+        "tenantId",
+        "departmentId",
+        "createdAt",
+    ])
+        .index("by_departmentId_status", ["departmentId", "status", "updatedAt"])
+        .index("by_requestorTenantUserId_status", [
+        "requestorTenantUserId",
+        "status",
+        "updatedAt",
+    ])
+        .index("by_planId", ["planId", "updatedAt"])
+        .index("by_tenantId_requesterDuplicateKey", [
+        "tenantId",
+        "requesterDuplicateKey",
+    ])
+        .index("by_tenantId_sharedGroupingKey", ["tenantId", "sharedGroupingKey"]),
+    itemRequests: (0, server_1.defineTable)({
+        tenantId: values_1.v.id("tenants"),
+        departmentId: values_1.v.id("departments"),
+        planId: values_1.v.id("plans"),
+        fiscalYear: values_1.v.string(),
+        requestorTenantUserId: values_1.v.id("tenantUsers"),
+        requestorUserId: values_1.v.id("users"),
+        name: values_1.v.string(),
+        normalizedName: values_1.v.string(),
+        description: values_1.v.string(),
+        justification: values_1.v.string(),
+        estimatedUnitPrice: values_1.v.number(),
+        categoryId: values_1.v.optional(values_1.v.id("procurementCategories")),
+        categoryNameSnapshot: values_1.v.string(),
+        normalizedCategoryName: values_1.v.string(),
+        categoryReferenceKey: values_1.v.string(),
+        linkedCategoryRequestId: values_1.v.optional(values_1.v.id("categoryRequests")),
+        requesterDuplicateKey: values_1.v.string(),
+        sharedGroupingKey: values_1.v.string(),
+        status: catalogRequestStatusValidator,
+        revision: values_1.v.number(),
+        decisionReason: values_1.v.optional(values_1.v.string()),
+        decisionSource: values_1.v.optional(catalogRequestDecisionSourceValidator),
+        decisionSnapshot: values_1.v.optional(values_1.v.any()),
+        decisionNotificationDeliverAt: values_1.v.optional(values_1.v.number()),
+        decisionNotificationErrorCode: values_1.v.optional(values_1.v.string()),
+        decisionNotificationErrorMessage: values_1.v.optional(values_1.v.string()),
+        decisionNotificationIdempotencyKey: values_1.v.optional(values_1.v.string()),
+        decisionNotificationQueuedAt: values_1.v.optional(values_1.v.number()),
+        decisionNotificationStatus: values_1.v.optional(values_1.v.union(values_1.v.literal("cancelled"), values_1.v.literal("failed"), values_1.v.literal("queued"))),
+        denialUndoDeadlineAt: values_1.v.optional(values_1.v.number()),
+        reviewedAt: values_1.v.optional(values_1.v.number()),
+        reviewedByTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
+        linkedCatalogItemId: values_1.v.optional(values_1.v.id("procurementItems")),
+        createdAt: values_1.v.number(),
+        updatedAt: values_1.v.number(),
+        cancelledAt: values_1.v.optional(values_1.v.number()),
+        submittedAt: values_1.v.number(),
+    })
+        .index("by_tenantId_status", ["tenantId", "status", "updatedAt"])
+        .index("by_tenantId_createdAt", ["tenantId", "createdAt"])
+        .index("by_tenantId_departmentId_createdAt", [
+        "tenantId",
+        "departmentId",
+        "createdAt",
+    ])
+        .index("by_departmentId_status", ["departmentId", "status", "updatedAt"])
+        .index("by_requestorTenantUserId_status", [
+        "requestorTenantUserId",
+        "status",
+        "updatedAt",
+    ])
+        .index("by_planId", ["planId", "updatedAt"])
+        .index("by_tenantId_requesterDuplicateKey", [
+        "tenantId",
+        "requesterDuplicateKey",
+    ])
+        .index("by_tenantId_sharedGroupingKey", ["tenantId", "sharedGroupingKey"])
+        .index("by_linkedCategoryRequestId", ["linkedCategoryRequestId", "updatedAt"]),
     plans: (0, server_1.defineTable)({
         tenantId: values_1.v.id("tenants"),
         departmentId: values_1.v.id("departments"),
@@ -259,16 +396,105 @@ exports.default = (0, server_1.defineSchema)({
         })),
         workspaceState: values_1.v.optional(blocklyWorkspaceStateValidator),
         rejectionComment: values_1.v.optional(values_1.v.string()),
+        departmentCodeSnapshot: values_1.v.optional(values_1.v.string()),
+        departmentNameSnapshot: values_1.v.optional(values_1.v.string()),
+        submissionReference: values_1.v.optional(values_1.v.string()),
+        submissionSequence: values_1.v.optional(values_1.v.number()),
+        submissionEmailStatus: values_1.v.optional(values_1.v.union(values_1.v.literal("failed"), values_1.v.literal("queued"))),
+        submissionEmailErrorMessage: values_1.v.optional(values_1.v.string()),
         createdAt: values_1.v.number(),
         updatedAt: values_1.v.number(),
         submittedAt: values_1.v.optional(values_1.v.number()),
+        reviewStartedAt: values_1.v.optional(values_1.v.number()),
+        reviewStartedByTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
+        reviewStartedByUserId: values_1.v.optional(values_1.v.id("users")),
         approvedAt: values_1.v.optional(values_1.v.number()),
         rejectedAt: values_1.v.optional(values_1.v.number()),
+        lastApprovedAt: values_1.v.optional(values_1.v.number()),
+        lastApprovedSnapshotId: values_1.v.optional(values_1.v.id("planSubmissionSnapshots")),
+        redraftApprovedAt: values_1.v.optional(values_1.v.number()),
+        redraftApprovedByTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
+        redraftCycle: values_1.v.optional(values_1.v.number()),
+        redraftReason: values_1.v.optional(values_1.v.string()),
+        redraftRequestedAt: values_1.v.optional(values_1.v.number()),
     })
         .index("by_tenantId", ["tenantId"])
         .index("by_departmentId", ["departmentId"])
         .index("by_departmentId_fiscalYear", ["departmentId", "fiscalYear"])
         .index("by_tenantId_status", ["tenantId", "status"]),
+    planRedraftRequests: (0, server_1.defineTable)({
+        tenantId: values_1.v.id("tenants"),
+        departmentId: values_1.v.id("departments"),
+        planId: values_1.v.id("plans"),
+        fiscalYear: values_1.v.string(),
+        requestorTenantUserId: values_1.v.id("tenantUsers"),
+        requestorUserId: values_1.v.id("users"),
+        reason: values_1.v.string(),
+        status: planRedraftRequestStatusValidator,
+        decisionNote: values_1.v.optional(values_1.v.string()),
+        decidedAt: values_1.v.optional(values_1.v.number()),
+        decidedByTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
+        decidedByUserId: values_1.v.optional(values_1.v.id("users")),
+        createdAt: values_1.v.number(),
+        updatedAt: values_1.v.number(),
+        cancelledAt: values_1.v.optional(values_1.v.number()),
+    })
+        .index("by_planId_status", ["planId", "status", "updatedAt"])
+        .index("by_tenantId_status", ["tenantId", "status", "updatedAt"])
+        .index("by_departmentId_status", ["departmentId", "status", "updatedAt"])
+        .index("by_tenantId_departmentId_fiscalYear", [
+        "tenantId",
+        "departmentId",
+        "fiscalYear",
+    ]),
+    planSubmissionSnapshots: (0, server_1.defineTable)({
+        tenantId: values_1.v.id("tenants"),
+        planId: values_1.v.id("plans"),
+        departmentId: values_1.v.id("departments"),
+        fiscalYear: values_1.v.string(),
+        submissionSequenceKey: values_1.v.string(),
+        submissionSequence: values_1.v.optional(values_1.v.number()),
+        submissionReference: values_1.v.optional(values_1.v.string()),
+        lifecycleStatus: values_1.v.optional(values_1.v.union(values_1.v.literal("active"), values_1.v.literal("withdrawn"))),
+        submittedAt: values_1.v.union(values_1.v.number(), values_1.v.null()),
+        capturedAt: values_1.v.number(),
+        capturedByUserId: values_1.v.id("users"),
+        capturedByTenantUserId: values_1.v.id("tenantUsers"),
+        withdrawnAt: values_1.v.optional(values_1.v.number()),
+        withdrawnByUserId: values_1.v.optional(values_1.v.id("users")),
+        withdrawnByTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
+        departmentCodeSnapshot: values_1.v.optional(values_1.v.string()),
+        departmentNameSnapshot: values_1.v.optional(values_1.v.string()),
+        estimatedBudgetUsed: values_1.v.number(),
+        itemCount: values_1.v.number(),
+        selectedCategoryIds: values_1.v.array(values_1.v.string()),
+        categorySummaries: values_1.v.array(values_1.v.object({
+            amount: values_1.v.number(),
+            categoryId: values_1.v.string(),
+            categoryName: values_1.v.string(),
+            itemCount: values_1.v.number(),
+        })),
+        workspaceState: values_1.v.optional(blocklyWorkspaceStateValidator),
+    })
+        .index("by_submissionSequenceKey", ["submissionSequenceKey"])
+        .index("by_planId_submittedAt", ["planId", "submittedAt"])
+        .index("by_tenantId_departmentId_fiscalYear_capturedAt", [
+        "tenantId",
+        "departmentId",
+        "fiscalYear",
+        "capturedAt",
+    ]),
+    planReviewComments: (0, server_1.defineTable)({
+        tenantId: values_1.v.id("tenants"),
+        planId: values_1.v.id("plans"),
+        authorUserId: values_1.v.id("users"),
+        authorTenantUserId: values_1.v.id("tenantUsers"),
+        authorNameSnapshot: values_1.v.string(),
+        body: values_1.v.string(),
+        createdAt: values_1.v.number(),
+    })
+        .index("by_planId_createdAt", ["planId", "createdAt"])
+        .index("by_tenantId_planId_createdAt", ["tenantId", "planId", "createdAt"]),
     departmentAccessCodes: (0, server_1.defineTable)({
         tenantId: values_1.v.id("tenants"),
         departmentId: values_1.v.id("departments"),

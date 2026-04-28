@@ -15,7 +15,7 @@ const planActionValidator = values_1.v.object({
     kind: values_1.v.union(values_1.v.literal("create"), values_1.v.literal("edit"), values_1.v.literal("resume"), values_1.v.literal("view"), values_1.v.literal("view_rejection")),
     label: values_1.v.string(),
 });
-const planStatusValidator = values_1.v.union(values_1.v.literal("Approved"), values_1.v.literal("Draft"), values_1.v.literal("No Plan"), values_1.v.literal("Rejected"), values_1.v.literal("Submitted"));
+const planStatusValidator = values_1.v.union(values_1.v.literal("Approved"), values_1.v.literal("Draft"), values_1.v.literal("No Plan"), values_1.v.literal("Rejected"), values_1.v.literal("Submitted"), values_1.v.literal("Under Review"));
 const dashboardSnapshotValidator = values_1.v.object({
     announcements: values_1.v.object({
         emptyMessage: values_1.v.string(),
@@ -42,6 +42,8 @@ const dashboardSnapshotValidator = values_1.v.object({
     }),
     launchpad: values_1.v.object({
         categories: values_1.v.array(values_1.v.object({
+            disabled: values_1.v.boolean(),
+            disabledReason: values_1.v.union(values_1.v.string(), values_1.v.null()),
             id: values_1.v.string(),
             isSelected: values_1.v.boolean(),
             itemCount: values_1.v.number(),
@@ -94,7 +96,12 @@ const dashboardSnapshotValidator = values_1.v.object({
             itemCount: values_1.v.number(),
             itemCountLabel: values_1.v.string(),
             rejectionComment: values_1.v.union(values_1.v.string(), values_1.v.null()),
+            reviewerLabel: values_1.v.union(values_1.v.string(), values_1.v.null()),
+            statusDateLabel: values_1.v.union(values_1.v.string(), values_1.v.null()),
+            statusDetail: values_1.v.string(),
+            statusHistorySummary: values_1.v.union(values_1.v.string(), values_1.v.null()),
             statusLabel: planStatusValidator,
+            submissionReference: values_1.v.union(values_1.v.string(), values_1.v.null()),
             viewHref: values_1.v.string(),
         })),
         state: dashboardStateValidator,
@@ -135,12 +142,30 @@ const dashboardSnapshotValidator = values_1.v.object({
             timeZone: values_1.v.string(),
         }),
         plan: values_1.v.object({
+            canWithdraw: values_1.v.boolean(),
             helperText: values_1.v.string(),
+            historySummary: values_1.v.union(values_1.v.string(), values_1.v.null()),
             itemCount: values_1.v.number(),
             primaryActionHref: values_1.v.string(),
             primaryActionLabel: values_1.v.string(),
+            redraftRequest: values_1.v.object({
+                canRequest: values_1.v.boolean(),
+                pendingRequestId: values_1.v.union(values_1.v.string(), values_1.v.null()),
+                pendingReason: values_1.v.union(values_1.v.string(), values_1.v.null()),
+                requestedAt: values_1.v.union(values_1.v.number(), values_1.v.null()),
+            }),
+            reviewerLabel: values_1.v.union(values_1.v.string(), values_1.v.null()),
+            reviewerState: values_1.v.union(dashboardStateValidator, values_1.v.null()),
             state: dashboardStateValidator,
+            statusDateLabel: values_1.v.union(values_1.v.string(), values_1.v.null()),
             statusLabel: planStatusValidator,
+            submissionReference: values_1.v.union(values_1.v.string(), values_1.v.null()),
+            timeline: values_1.v.array(values_1.v.object({
+                description: values_1.v.string(),
+                id: values_1.v.string(),
+                timestampLabel: values_1.v.string(),
+                title: values_1.v.string(),
+            })),
         }),
     }),
     rejectionNotice: values_1.v.union(values_1.v.object({
@@ -256,7 +281,7 @@ exports.getDepartmentUserDashboardSnapshot = (0, server_1.query)({
             timeZone: deadlineTimeZone,
             timestamp: department.submissionEndsAt,
         }).key;
-        const [categories, items, plans, procurementOfficerTenantUser, submissionDeadline] = await Promise.all([
+        const [categories, items, plans, redraftRequests, procurementOfficerTenantUser, submissionDeadline] = await Promise.all([
             ctx.db
                 .query("procurementCategories")
                 .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
@@ -269,12 +294,55 @@ exports.getDepartmentUserDashboardSnapshot = (0, server_1.query)({
                 .query("plans")
                 .withIndex("by_departmentId", (q) => q.eq("departmentId", department._id))
                 .collect(),
+            ctx.db
+                .query("planRedraftRequests")
+                .withIndex("by_departmentId_status", (q) => q.eq("departmentId", department._id).eq("status", "pending"))
+                .collect(),
             ctx.db.get(department.procurementOfficerTenantUserId),
             ctx.db
                 .query("submissionDeadlines")
                 .withIndex("by_tenantId_fiscalYearKey", (q) => q.eq("tenantId", authContext.tenantId).eq("fiscalYearKey", deadlineFiscalYearKey))
                 .first(),
         ]);
+        const planSnapshotEntries = await Promise.all(plans.map(async (plan) => [
+            String(plan._id),
+            await ctx.db
+                .query("planSubmissionSnapshots")
+                .withIndex("by_planId_submittedAt", (q) => q.eq("planId", plan._id))
+                .collect(),
+        ]));
+        const planSnapshotsByPlanId = new Map(planSnapshotEntries);
+        const reviewerEntries = await Promise.all(plans.map(async (plan) => {
+            if (!plan.reviewStartedByUserId || !plan.reviewStartedByTenantUserId) {
+                return [String(plan._id), null];
+            }
+            const [reviewerUser, reviewerTenantUser] = await Promise.all([
+                ctx.db.get(plan.reviewStartedByUserId),
+                ctx.db.get(plan.reviewStartedByTenantUserId),
+            ]);
+            const isTenantScopedReviewer = Boolean(reviewerTenantUser) &&
+                reviewerTenantUser?.tenantId === authContext.tenantId &&
+                reviewerTenantUser?.userId === plan.reviewStartedByUserId &&
+                reviewerTenantUser?.role === "procurement_officer" &&
+                reviewerTenantUser?.isActive;
+            if (!isTenantScopedReviewer) {
+                return [
+                    String(plan._id),
+                    {
+                        label: null,
+                        state: "unavailable",
+                    },
+                ];
+            }
+            return [
+                String(plan._id),
+                {
+                    label: readAuthUserSummary(reviewerUser, "Procurement Officer").name,
+                    state: "available",
+                },
+            ];
+        }));
+        const reviewerByPlanId = new Map(reviewerEntries);
         const procurementOfficerUser = procurementOfficerTenantUser?.userId
             ? await ctx.db.get(procurementOfficerTenantUser.userId)
             : null;
@@ -297,6 +365,7 @@ exports.getDepartmentUserDashboardSnapshot = (0, server_1.query)({
             lastAuthenticatedAt: profile.lastAuthenticatedAt ?? null,
         });
         const announcements = [budgetAnnouncement, deadlineAnnouncement].filter((item) => Boolean(item));
+        const pendingRedraftRequestByPlanId = new Map(redraftRequests.map((request) => [String(request.planId), request]));
         return (0, dashboard_snapshot_1.buildDepartmentUserDashboardSnapshot)({
             announcements,
             auth: {
@@ -305,9 +374,13 @@ exports.getDepartmentUserDashboardSnapshot = (0, server_1.query)({
                 tenantId: String(authContext.tenantId),
             },
             categories: categories.map((category) => ({
+                archivedAt: category.archivedAt ?? null,
+                color: category.color ?? null,
                 id: String(category._id),
+                icon: category.icon ?? null,
                 isActive: category.isActive,
                 name: category.name,
+                sortOrder: category.sortOrder,
             })),
             currentUser,
             department: {
@@ -338,9 +411,34 @@ exports.getDepartmentUserDashboardSnapshot = (0, server_1.query)({
                 fiscalYear: plan.fiscalYear,
                 id: String(plan._id),
                 itemCount: plan.itemCount,
+                lastApprovedAt: plan.lastApprovedAt ?? null,
                 rejectionComment: plan.rejectionComment ?? null,
+                rejectedAt: plan.rejectedAt ?? null,
+                reviewStartedAt: plan.reviewStartedAt ?? null,
+                reviewer: reviewerByPlanId.get(String(plan._id)) ?? null,
                 selectedCategoryIds: plan.selectedCategoryIds.map((categoryId) => String(categoryId)),
                 status: plan.status,
+                submissionReference: plan.submissionReference ?? null,
+                submissionSnapshots: (planSnapshotsByPlanId.get(String(plan._id)) ?? []).map((snapshot) => ({
+                    capturedAt: snapshot.capturedAt,
+                    lifecycleStatus: snapshot.lifecycleStatus ?? null,
+                    submissionReference: snapshot.submissionReference ?? null,
+                    submissionSequence: snapshot.submissionSequence ?? null,
+                    submittedAt: snapshot.submittedAt ?? null,
+                    withdrawnAt: snapshot.withdrawnAt ?? null,
+                })),
+                submittedAt: plan.submittedAt ?? null,
+                approvedAt: plan.approvedAt ?? null,
+                pendingRedraftRequest: (() => {
+                    const request = pendingRedraftRequestByPlanId.get(String(plan._id));
+                    return request
+                        ? {
+                            id: String(request._id),
+                            reason: request.reason,
+                            requestedAt: request.createdAt,
+                        }
+                        : null;
+                })(),
                 updatedAt: plan.updatedAt,
             })),
             procurementOfficer: procurementOfficer
