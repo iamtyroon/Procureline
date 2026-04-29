@@ -228,28 +228,49 @@ function buildDepartmentUserTimeline(args) {
             title: "Under Review",
         }));
     }
-    const approvedAt = args.plan.approvedAt ?? args.plan.lastApprovedAt ?? null;
-    if (typeof approvedAt === "number") {
-        items.push(createTimelineItem({
-            description: "Plan approved for this fiscal year.",
-            id: `${args.plan.id}:approved`,
-            timeZone: args.timeZone,
-            timestamp: approvedAt,
-            title: "Approved",
-        }));
+    const reviewDecisions = args.plan.reviewDecisions?.filter((decision) => decision.lifecycleStatus !== "undone") ?? [];
+    if (reviewDecisions.length > 0) {
+        for (const decision of reviewDecisions) {
+            items.push(createTimelineItem({
+                description: decision.comment.trim() ||
+                    (decision.decisionType === "approved"
+                        ? "Plan approved for this fiscal year."
+                        : "Revision feedback recorded."),
+                id: `${args.plan.id}:decision:${decision.id}`,
+                timeZone: args.timeZone,
+                timestamp: decision.decidedAt,
+                title: decision.decisionType === "revision_requested"
+                    ? "Revision Requested"
+                    : decision.decisionType === "rejected"
+                        ? "Rejected"
+                        : "Approved",
+            }));
+        }
     }
-    if (typeof args.plan.rejectedAt === "number") {
-        items.push(createTimelineItem({
-            description: args.plan.latestDecision?.comment.trim() ||
-                args.plan.rejectionComment?.trim() ||
-                "Revision requested by Procurement Officer.",
-            id: `${args.plan.id}:rejected`,
-            timeZone: args.timeZone,
-            timestamp: args.plan.rejectedAt,
-            title: args.plan.latestDecision?.decisionType === "revision_requested"
-                ? "Revision Requested"
-                : "Rejected",
-        }));
+    else {
+        const approvedAt = args.plan.approvedAt ?? args.plan.lastApprovedAt ?? null;
+        if (typeof approvedAt === "number") {
+            items.push(createTimelineItem({
+                description: "Plan approved for this fiscal year.",
+                id: `${args.plan.id}:approved`,
+                timeZone: args.timeZone,
+                timestamp: approvedAt,
+                title: "Approved",
+            }));
+        }
+        if (typeof args.plan.rejectedAt === "number") {
+            items.push(createTimelineItem({
+                description: args.plan.latestDecision?.comment.trim() ||
+                    args.plan.rejectionComment?.trim() ||
+                    "Revision requested by Procurement Officer.",
+                id: `${args.plan.id}:rejected`,
+                timeZone: args.timeZone,
+                timestamp: args.plan.rejectedAt,
+                title: args.plan.latestDecision?.decisionType === "revision_requested"
+                    ? "Revision Requested"
+                    : "Rejected",
+            }));
+        }
     }
     return items
         .filter((item, index, collection) => item.timestamp !== null &&
@@ -301,18 +322,28 @@ function buildDepartmentUserStatusHelperText(args) {
             ].join(" ");
         case "rejected":
             return [
-                "Revision requested.",
+                "Rejected.",
                 args.rejectionComment?.trim()
                     ? args.rejectionComment.trim()
                     : "Decision comments unavailable.",
-            ].join(" ");
+                typeof args.latestDecision?.effectiveRevisionDeadlineAt === "number"
+                    ? `Effective revision deadline ${(0, deadlines_1.formatDeadlineDateTime)(args.latestDecision.effectiveRevisionDeadlineAt, args.timeZone)}.`
+                    : null,
+            ]
+                .filter((part) => Boolean(part))
+                .join(" ");
         case "revision_requested":
             return [
                 "Revision requested.",
                 args.latestDecision?.comment.trim() || args.rejectionComment?.trim()
                     ? args.latestDecision?.comment.trim() ?? args.rejectionComment?.trim() ?? ""
                     : "Decision comments unavailable.",
-            ].join(" ");
+                typeof args.latestDecision?.effectiveRevisionDeadlineAt === "number"
+                    ? `Effective revision deadline ${(0, deadlines_1.formatDeadlineDateTime)(args.latestDecision.effectiveRevisionDeadlineAt, args.timeZone)}.`
+                    : null,
+            ]
+                .filter((part) => Boolean(part))
+                .join(" ");
         case "draft":
             return `Draft plan for ${args.fiscalYearKey}.`;
         default:

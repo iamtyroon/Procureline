@@ -212,7 +212,7 @@ function getReviewableSelectionIds(plan) {
         const currentCategoryId = typeof block.fields?.CATEGORY_ID === "string" &&
             block.fields.CATEGORY_ID.trim().length > 0
             ? block.fields.CATEGORY_ID.trim()
-            : currentEntry?.categoryId ?? null;
+            : currentEntry.categoryId ?? null;
         if (block.type === "item_block") {
             const fields = block.fields ?? {};
             const itemId = typeof fields.ITEM_ID === "string" && fields.ITEM_ID.trim().length > 0

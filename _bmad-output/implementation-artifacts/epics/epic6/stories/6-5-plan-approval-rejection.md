@@ -1,6 +1,6 @@
 # Story 6.5: Plan Approval & Rejection
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -277,11 +277,12 @@ so that departments know their status and how to fix issues.
 ### Change Log
 
 - 2026-04-28: Implemented Story 6.5 canonical plan review decisions, approval undo, shared PO decision UI, DU revision-request status derivation, and deterministic decision-helper tests.
+- 2026-04-29: Fixed review findings, restored DU revision-request editability, completed decision notification payload/idempotency coverage, and marked story done.
 
 ### Story Completion Status
 
 - Story ID: `6.5`
 - Story Key: `6-5-plan-approval-rejection`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic6/stories/6-5-plan-approval-rejection.md`
-- Status: `review`
-- Completion Note: `Implemented canonical plan approval, rejection, revision request, undo approval, notification intent, shared PO decision UI, and decision-helper tests.`
+- Status: `done`
+- Completion Note: `Implemented canonical plan approval, rejection, revision request, undo approval, notification intent, shared PO decision UI, deterministic review-decision coverage, and post-review fixes.`

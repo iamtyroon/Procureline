@@ -193,12 +193,14 @@ function DepartmentUserExistingPlanWorkspace(): JSX.Element {
                 planMeta={{
                     canWithdraw: workspaceContext.plan.canWithdraw,
                     reviewStartedAt: workspaceContext.plan.reviewStartedAt,
+                    revisionContext: workspaceContext.plan.revisionContext,
                     status: workspaceContext.plan.status,
                     submissionEmailErrorMessage:
                         workspaceContext.plan.submissionEmailErrorMessage,
                     submissionEmailStatus: workspaceContext.plan.submissionEmailStatus,
                     submissionReference: workspaceContext.plan.submissionReference,
                     submittedAt: workspaceContext.plan.submittedAt,
+                    timeZone: workspaceContext.meta.timeZone,
                 }}
                 persistedPlanSummary={{
                     categorySummaries: workspaceContext.plan.categorySummaries,

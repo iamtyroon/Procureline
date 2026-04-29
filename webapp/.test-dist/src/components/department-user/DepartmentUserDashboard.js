@@ -107,7 +107,7 @@ function DepartmentUserDashboard() {
                 planId: redraftPlanId,
                 reason: redraftReason,
             });
-            sonner_1.toast.success("Redraft request sent to your Procurement Officer.");
+            sonner_1.toast.success("Reopen request sent to your Procurement Officer for approval.");
             setRedraftPlanId(null);
             setRedraftReason("");
         }
@@ -152,7 +152,7 @@ function DepartmentUserDashboard() {
                         setRedraftPlanId(null);
                         setRedraftReason("");
                     }
-                }, children: (0, jsx_runtime_1.jsxs)(dialog_1.DialogContent, { className: "sm:max-w-lg", children: [(0, jsx_runtime_1.jsxs)(dialog_1.DialogHeader, { children: [(0, jsx_runtime_1.jsx)(dialog_1.DialogTitle, { children: "Request plan redraft" }), (0, jsx_runtime_1.jsx)(dialog_1.DialogDescription, { children: "Send a request to your Procurement Officer to reopen this approved plan for editing." })] }), (0, jsx_runtime_1.jsx)(textarea_1.Textarea, { value: redraftReason, onChange: (event) => setRedraftReason(event.target.value), placeholder: "Explain what needs to change in the approved plan." }), (0, jsx_runtime_1.jsxs)(dialog_1.DialogFooter, { children: [(0, jsx_runtime_1.jsx)(button_1.Button, { type: "button", variant: "outline", disabled: isRedraftSubmitting, onClick: () => {
+                }, children: (0, jsx_runtime_1.jsxs)(dialog_1.DialogContent, { className: "sm:max-w-lg", children: [(0, jsx_runtime_1.jsxs)(dialog_1.DialogHeader, { children: [(0, jsx_runtime_1.jsx)(dialog_1.DialogTitle, { children: "Request approved plan reopen" }), (0, jsx_runtime_1.jsx)(dialog_1.DialogDescription, { children: "Send a request to your Procurement Officer to approve reopening this plan for editing. This does not unlock the plan immediately." })] }), (0, jsx_runtime_1.jsx)(textarea_1.Textarea, { value: redraftReason, onChange: (event) => setRedraftReason(event.target.value), placeholder: "Explain what needs to change in the approved plan." }), (0, jsx_runtime_1.jsxs)(dialog_1.DialogFooter, { children: [(0, jsx_runtime_1.jsx)(button_1.Button, { type: "button", variant: "outline", disabled: isRedraftSubmitting, onClick: () => {
                                         setRedraftPlanId(null);
                                         setRedraftReason("");
                                     }, children: "Cancel" }), (0, jsx_runtime_1.jsx)(button_1.Button, { type: "button", disabled: isRedraftSubmitting || redraftReason.trim().length < 8, onClick: () => void handleSubmitRedraftRequest(), children: isRedraftSubmitting ? "Sending..." : "Send request" })] })] }) })] }));

@@ -11,6 +11,8 @@ export type DepartmentUserPlanSubmissionIssueCode =
     | "deadline_not_open"
     | "empty_plan"
     | "pending_catalog_requests"
+    | "revision_flagged_target"
+    | "revision_state_unavailable"
     | "validation_unavailable"
     | DepartmentUserWorkspaceValidationState["issues"][number]["code"];
 
@@ -67,7 +69,7 @@ export interface DepartmentUserPlanSubmitState {
 export function canDepartmentUserOpenPlanSubmissionReview(
     status: "approved" | "draft" | "rejected" | "submitted",
 ): boolean {
-    return status === "draft";
+    return status === "draft" || status === "rejected";
 }
 
 export function shouldReplayDepartmentUserSubmittedPlan(args: {

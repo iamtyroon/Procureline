@@ -135,6 +135,9 @@ function runDepartmentUserBlocklyWorkspaceUiTests() {
     strict_1.default.match(blocklyEditorSource, /fixTarget\.type === "workspace_category"/);
     strict_1.default.match(blocklyEditorSource, /data-du-deadline-summary/);
     strict_1.default.match(blocklyEditorSource, /data-du-category-summary/);
+    strict_1.default.match(blocklyEditorSource, /Effective revision deadline:/);
+    strict_1.default.match(blocklyEditorSource, /Jump to fix/);
+    strict_1.default.match(blocklyEditorSource, /data-du-revision-history/);
     completedTests.push("submit-review fix targets now include deadline and category anchors instead of falling through to stale-target messaging");
     return completedTests;
 }

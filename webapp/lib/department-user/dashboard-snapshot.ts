@@ -87,12 +87,22 @@ export interface DepartmentUserDashboardPlanRecord {
         comment: string;
         decidedAt: number;
         decisionType: "approved" | "rejected" | "revision_requested";
+        effectiveRevisionDeadlineAt?: number | null;
         revisionDeadlineAt?: number | null;
     } | null;
     lastApprovedAt?: number | null;
     rejectionComment?: string | null;
     rejectedAt?: number | null;
     reviewStartedAt?: number | null;
+    reviewDecisions?: readonly {
+        comment: string;
+        decidedAt: number;
+        decisionType: "approved" | "rejected" | "revision_requested";
+        effectiveRevisionDeadlineAt?: number | null;
+        id: string;
+        lifecycleStatus?: "active" | "superseded" | "undone" | null;
+        revisionDeadlineAt?: number | null;
+    }[];
     reviewer?: {
         label: string | null;
         state: "available" | "unavailable";
@@ -318,13 +328,19 @@ export function buildDepartmentUserDashboardSnapshot(
         timeZone: statusTimeZone,
     });
     const currentPlanStatus = currentPlanStatusDetails.statusLabel;
+    const currentPlanRevisionExpired =
+        typeof currentPlan?.latestDecision?.effectiveRevisionDeadlineAt === "number" &&
+        args.now > currentPlan.latestDecision.effectiveRevisionDeadlineAt;
     const currentPlanHref = currentPlan
         ? `/du/plans/${currentPlan.id}?mode=${
-              isDepartmentUserEditablePlanStatus(currentPlanStatus) ? "edit" : "view"
+              isDepartmentUserEditablePlanStatus(currentPlanStatus) &&
+              !currentPlanRevisionExpired
+                  ? "edit"
+                  : "view"
           }`
         : "/du/plans/new";
     const currentPlanAction = derivePlanAction({
-        accessMode: args.auth.departmentAccessMode,
+        accessMode: currentPlanRevisionExpired ? null : args.auth.departmentAccessMode,
         hasCanonicalPlan: currentPlan !== null,
         planHref: currentPlanHref,
         status: currentPlanStatus,
@@ -420,6 +436,7 @@ export function buildDepartmentUserDashboardSnapshot(
                     ? args.auth.departmentAccessMode
                     : null,
             fiscalYearKey,
+            now: args.now,
             plan,
             timeZone: statusTimeZone,
         }));
@@ -557,9 +574,9 @@ export function buildDepartmentUserDashboardSnapshot(
                         currentPlanStatus === "Approved" &&
                         currentPlan?.pendingRedraftRequest == null,
                     pendingRequestId: currentPlan?.pendingRedraftRequest?.id ?? null,
-                    pendingReason: currentPlan?.pendingRedraftRequest?.reason ?? null,
-                    requestedAt: currentPlan?.pendingRedraftRequest?.requestedAt ?? null,
-                },
+            pendingReason: currentPlan?.pendingRedraftRequest?.reason ?? null,
+            requestedAt: currentPlan?.pendingRedraftRequest?.requestedAt ?? null,
+        },
                 reviewerLabel: currentPlanStatusDetails.reviewerLabel,
                 reviewerState:
                     currentPlanStatusDetails.reviewerState === "available"
@@ -724,6 +741,7 @@ function createBlockedSnapshot(args: {
 function createPlanRow(args: {
     accessMode?: DepartmentUserAccessMode | null;
     fiscalYearKey: string;
+    now?: number;
     plan: DepartmentUserDashboardPlanRecord;
     timeZone: string;
 }) {
@@ -733,12 +751,19 @@ function createPlanRow(args: {
         timeZone: args.timeZone,
     });
     const statusLabel = statusDetails.statusLabel;
-    const editMode = isDepartmentUserEditablePlanStatus(statusLabel) ? "edit" : "view";
+    const revisionExpired =
+        typeof args.plan.latestDecision?.effectiveRevisionDeadlineAt === "number" &&
+        typeof args.now === "number" &&
+        args.now > args.plan.latestDecision.effectiveRevisionDeadlineAt;
+    const editMode =
+        isDepartmentUserEditablePlanStatus(statusLabel) && !revisionExpired
+            ? "edit"
+            : "view";
     const planHref = `/du/plans/${args.plan.id}?mode=${editMode}`;
 
     return {
         action: derivePlanAction({
-            accessMode: args.accessMode,
+            accessMode: revisionExpired ? null : args.accessMode,
             hasCanonicalPlan: true,
             planHref,
             status: statusLabel,

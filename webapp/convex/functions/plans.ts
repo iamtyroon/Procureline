@@ -10,6 +10,10 @@ import {
     getDepartmentUserPlanSubmitState,
     shouldReplayDepartmentUserSubmittedPlan,
 } from "../../lib/blockly/plan-submission";
+import {
+    buildDepartmentUserRevisionHistory,
+    mapDepartmentUserFlaggedTargetsToIssues,
+} from "../../lib/department-user/revision-feedback";
 import { normalizeCategoryIcon } from "../../lib/procurement-officer/categories";
 import {
     prepareDepartmentUserWorkspaceDraftPersistence,
@@ -40,6 +44,10 @@ import {
     resolveEffectiveSubmissionWindow,
     summarizePendingCatalogRequestBlockers,
 } from "../../lib/plans/pre-submission-validation";
+import {
+    deriveDepartmentUserEffectiveRevisionDeadline,
+    hasDepartmentUserRevisionDeadlineExpired,
+} from "../../lib/plans/revision-deadline";
 import { requireTenantRole } from "./_roleGuard";
 import { appendAuditLogBestEffort, appendAuditLogRequired } from "./_audit";
 
@@ -116,6 +124,50 @@ const planSubmissionEmailStatusValidator = v.union(
     v.literal("queued"),
 );
 
+const revisionFlaggedTargetValidator = v.object({
+    categoryId: v.string(),
+    id: v.string(),
+    itemId: v.union(v.string(), v.null()),
+    label: v.string(),
+    type: v.union(v.literal("category"), v.literal("item")),
+});
+
+const revisionDecisionValidator = v.object({
+    comment: v.string(),
+    decidedAt: v.number(),
+    decisionType: v.union(
+        v.literal("approved"),
+        v.literal("rejected"),
+        v.literal("revision_requested"),
+    ),
+    effectiveRevisionDeadlineAt: v.union(v.number(), v.null()),
+    flaggedTargets: v.array(revisionFlaggedTargetValidator),
+    id: v.string(),
+    lifecycleStatus: v.union(
+        v.literal("active"),
+        v.literal("superseded"),
+        v.literal("undone"),
+        v.null(),
+    ),
+    revisionDeadlineAt: v.union(v.number(), v.null()),
+    submissionReference: v.union(v.string(), v.null()),
+});
+
+const revisionHistoryEntryValidator = v.object({
+    detail: v.string(),
+    id: v.string(),
+    kind: v.union(
+        v.literal("approved"),
+        v.literal("rejected"),
+        v.literal("revision_requested"),
+        v.literal("submitted"),
+        v.literal("withdrawn"),
+    ),
+    timestamp: v.union(v.number(), v.null()),
+    timestampLabel: v.string(),
+    title: v.string(),
+});
+
 export const planWorkspaceContextValidator = v.object({
     catalog: v.object({
         categories: v.array(workspaceCategoryValidator),
@@ -138,6 +190,7 @@ export const planWorkspaceContextValidator = v.object({
         selectedCategoryIds: v.array(v.string()),
         state: departmentUserWorkspaceStateValidator,
         subtitle: v.string(),
+        timeZone: v.string(),
         title: v.string(),
         unavailableCategories: v.array(
             v.object({
@@ -155,6 +208,16 @@ export const planWorkspaceContextValidator = v.object({
             id: v.string(),
             itemCount: v.number(),
             reviewStartedAt: v.union(v.number(), v.null()),
+            revisionContext: v.union(
+                v.object({
+                    activeDecision: v.union(revisionDecisionValidator, v.null()),
+                    effectiveDeadlineExpired: v.boolean(),
+                    history: v.array(revisionHistoryEntryValidator),
+                    inconsistentStateMessage: v.union(v.string(), v.null()),
+                    reviewDecisions: v.array(revisionDecisionValidator),
+                }),
+                v.null(),
+            ),
             selectedCategoryIds: v.array(v.string()),
             submissionEmailErrorMessage: v.union(v.string(), v.null()),
             submissionEmailStatus: v.union(planSubmissionEmailStatusValidator, v.null()),
@@ -309,6 +372,220 @@ async function loadCanonicalDepartmentPlans(
     return plans.sort((left, right) => right.updatedAt - left.updatedAt);
 }
 
+async function loadNewestSharedSubmissionDeadline(
+    ctx: DataCtx,
+    args: {
+        fiscalYear: string;
+        tenantId: Id<"tenants">;
+    },
+) {
+    const sharedDeadlines = await ctx.db
+        .query("submissionDeadlines")
+        .withIndex("by_tenantId_fiscalYearKey", (q) =>
+            q.eq("tenantId", args.tenantId).eq("fiscalYearKey", args.fiscalYear),
+        )
+        .collect();
+
+    return (
+        sharedDeadlines.sort(
+            (left, right) =>
+                right.deadlineVersion - left.deadlineVersion ||
+                right.updatedAt - left.updatedAt,
+        )[0] ?? null
+    );
+}
+
+function buildDepartmentUserRevisionAuditEntry(args: {
+    actorUserId: Id<"users">;
+    departmentId: Id<"departments">;
+    metadata?: Record<string, unknown>;
+    outcome: typeof AUDIT_OUTCOMES.blockedStateTransition;
+    planId: Id<"plans">;
+    tenantId: Id<"tenants">;
+}) {
+    return {
+        action: "read_revision_context",
+        actor: createAuthenticatedAuditActor({
+            role: "department_user",
+            userId: String(args.actorUserId),
+        }),
+        entityType: "plan",
+        event: AUDIT_EVENT_NAMES.planRevisionContextBlocked,
+        metadata: {
+            departmentId: String(args.departmentId),
+            ...args.metadata,
+        },
+        outcome: args.outcome,
+        recordId: String(args.planId),
+        sourceTenantId: String(args.tenantId),
+        tableName: "plans",
+        targetTenantId: String(args.tenantId),
+        timestamp: Date.now(),
+    } as const;
+}
+
+function mapDepartmentUserRevisionDecision(args: {
+    decision: Doc<"planReviewDecisions">;
+    submissionReference: string | null;
+    submissionDeadlineAt: number | null;
+}) {
+    const effectiveDeadline = deriveDepartmentUserEffectiveRevisionDeadline({
+        decisionType: args.decision.decisionType,
+        decidedAt: args.decision.decidedAt,
+        revisionDeadlineAt: args.decision.revisionDeadlineAt ?? null,
+        submissionDeadlineAt: args.submissionDeadlineAt,
+    });
+
+    return {
+        comment: args.decision.comment,
+        decidedAt: args.decision.decidedAt,
+        decisionType: args.decision.decisionType,
+        effectiveRevisionDeadlineAt: effectiveDeadline.effectiveDeadlineAt,
+        flaggedTargets: args.decision.flaggedTargets.map((target) => ({
+            categoryId: target.categoryId,
+            id: target.id,
+            itemId: target.itemId,
+            label: target.label,
+            type: target.type,
+        })),
+        id: String(args.decision._id),
+        lifecycleStatus: args.decision.lifecycleStatus ?? null,
+        revisionDeadlineAt: args.decision.revisionDeadlineAt ?? null,
+        submissionReference: args.submissionReference,
+    };
+}
+
+function resolveRevisionDecisionSubmissionReference(args: {
+    decision: Doc<"planReviewDecisions">;
+    planSnapshots: readonly Doc<"planSubmissionSnapshots">[];
+}): string | null {
+    const matchingSnapshot =
+        [...args.planSnapshots]
+            .filter((snapshot) => {
+                const snapshotTimestamp = snapshot.submittedAt ?? snapshot.capturedAt;
+                return snapshotTimestamp <= args.decision.decidedAt;
+            })
+            .sort((left, right) => {
+                const leftTimestamp = left.submittedAt ?? left.capturedAt;
+                const rightTimestamp = right.submittedAt ?? right.capturedAt;
+                if (leftTimestamp !== rightTimestamp) {
+                    return rightTimestamp - leftTimestamp;
+                }
+
+                return (
+                    (right.submissionSequence ?? Number.MIN_SAFE_INTEGER) -
+                    (left.submissionSequence ?? Number.MIN_SAFE_INTEGER)
+                );
+            })[0] ?? null;
+
+    return matchingSnapshot?.submissionReference ?? null;
+}
+
+async function loadDepartmentUserRevisionContext(
+    ctx: DataCtx,
+    args: {
+        actorUserId: Id<"users">;
+        departmentId: Id<"departments">;
+        plan: Doc<"plans">;
+        planSnapshots: Doc<"planSubmissionSnapshots">[];
+        submissionDeadlineAt: number | null;
+        tenantId: Id<"tenants">;
+        timeZone: string;
+    },
+) {
+    const decisions = await ctx.db
+        .query("planReviewDecisions")
+        .withIndex("by_planId_decidedAt", (q) => q.eq("planId", args.plan._id))
+        .collect();
+
+    const activeDecisions = decisions.filter(
+        (decision) => decision.lifecycleStatus === "active",
+    );
+    const reviewDecisions = decisions.map((decision) => {
+        return mapDepartmentUserRevisionDecision({
+            decision,
+            submissionDeadlineAt: args.submissionDeadlineAt,
+            submissionReference: resolveRevisionDecisionSubmissionReference({
+                decision,
+                planSnapshots: args.planSnapshots,
+            }),
+        });
+    });
+
+    const requiresAuthoritativeDecision = args.plan.status === "rejected";
+    const activeDuVisibleDecisions = activeDecisions.filter(
+        (decision) =>
+            decision.decisionType === "rejected" ||
+            decision.decisionType === "revision_requested",
+    );
+
+    let inconsistentStateMessage: string | null = null;
+    if (requiresAuthoritativeDecision && activeDuVisibleDecisions.length !== 1) {
+        inconsistentStateMessage =
+            activeDuVisibleDecisions.length === 0
+                ? "Revision feedback is temporarily unavailable because the active Procurement decision could not be confirmed."
+                : "Revision feedback is temporarily unavailable because multiple active Procurement decisions were found for this plan.";
+        await appendAuditLogBestEffort(
+            ctx,
+            buildDepartmentUserRevisionAuditEntry({
+                actorUserId: args.actorUserId,
+                departmentId: args.departmentId,
+                metadata: {
+                    activeDecisionCount: activeDuVisibleDecisions.length,
+                    planStatus: args.plan.status,
+                    reason:
+                        activeDuVisibleDecisions.length === 0
+                            ? "missing_active_revision_decision"
+                            : "multiple_active_revision_decisions",
+                },
+                outcome: AUDIT_OUTCOMES.blockedStateTransition,
+                planId: args.plan._id,
+                tenantId: args.tenantId,
+            }),
+        );
+    }
+
+    const activeDecision =
+        inconsistentStateMessage === null
+            ? activeDuVisibleDecisions
+                  .map((decision) =>
+                      mapDepartmentUserRevisionDecision({
+                          decision,
+                          submissionDeadlineAt: args.submissionDeadlineAt,
+                          submissionReference: resolveRevisionDecisionSubmissionReference({
+                              decision,
+                              planSnapshots: args.planSnapshots,
+                          }),
+                      }),
+                  )
+                  .sort((left, right) => right.decidedAt - left.decidedAt)[0] ?? null
+            : null;
+
+    return {
+        activeDecision,
+        effectiveDeadlineExpired: hasDepartmentUserRevisionDeadlineExpired({
+            deadlineAt: activeDecision?.effectiveRevisionDeadlineAt ?? null,
+            now: Date.now(),
+        }),
+        history: buildDepartmentUserRevisionHistory({
+            decisions: reviewDecisions,
+            snapshots: args.planSnapshots.map((snapshot) => ({
+                capturedAt: snapshot.capturedAt,
+                lifecycleStatus: snapshot.lifecycleStatus ?? null,
+                submissionReference: snapshot.submissionReference ?? null,
+                submissionSequence: snapshot.submissionSequence ?? null,
+                submittedAt: snapshot.submittedAt ?? null,
+                withdrawnAt: snapshot.withdrawnAt ?? null,
+            })),
+            timeZone: args.timeZone,
+        }),
+        inconsistentStateMessage,
+        reviewDecisions: reviewDecisions.sort(
+            (left, right) => right.decidedAt - left.decidedAt,
+        ),
+    };
+}
+
 async function loadDepartmentUserTenantUser(
     ctx: MutationCtx,
     args: {
@@ -428,6 +705,7 @@ function createBlockedContext(args: {
             selectedCategoryIds: [],
             state: "blocked" as const,
             subtitle: args.message,
+            timeZone: "Africa/Nairobi",
             title: "Planning workspace unavailable",
             unavailableCategories: [],
         },
@@ -516,6 +794,7 @@ export const getDepartmentUserNewPlanWorkspaceContext = query({
                     ),
                     state: "redirect" as const,
                     subtitle: "A current fiscal-year plan already exists. Opening the canonical workspace instead.",
+                    timeZone: "Africa/Nairobi",
                     title: "Redirecting to your existing plan",
                     unavailableCategories: sanitizedSelection.unavailableCategories,
                 },
@@ -541,6 +820,7 @@ export const getDepartmentUserNewPlanWorkspaceContext = query({
                 selectedCategoryIds: sanitizedSelection.sanitizedCategoryIds,
                 state: "ready" as const,
                 subtitle: "Preparing the Blockly workspace for your selected categories.",
+                timeZone: "Africa/Nairobi",
                 title: `${base.department.name} procurement plan`,
                 unavailableCategories: sanitizedSelection.unavailableCategories,
             },
@@ -666,6 +946,7 @@ export const getDepartmentUserPlanWorkspace = query({
                     state: "not_found" as const,
                     subtitle:
                         "This plan could not be opened. It may have been removed, belong to a different department, or fall outside supported planning states.",
+                    timeZone: "Africa/Nairobi",
                     title: "Plan not found",
                     unavailableCategories: [],
                 },
@@ -683,9 +964,60 @@ export const getDepartmentUserPlanWorkspace = query({
             ),
             preserveUnavailableRequestedCategories: true,
         });
+        const [tenant, planSnapshots, newestSharedDeadline] = await Promise.all([
+            ctx.db.get(base.authContext.tenantId),
+            ctx.db
+                .query("planSubmissionSnapshots")
+                .withIndex("by_planId_submittedAt", (q) => q.eq("planId", plan._id))
+                .collect(),
+            loadNewestSharedSubmissionDeadline(ctx, {
+                fiscalYear: plan.fiscalYear,
+                tenantId: base.authContext.tenantId,
+            }),
+        ]);
+        const revisionContext = await loadDepartmentUserRevisionContext(ctx, {
+            actorUserId: base.authContext.userId,
+            departmentId: base.department._id,
+            plan,
+            planSnapshots,
+            submissionDeadlineAt:
+                newestSharedDeadline?.submissionEndsAt ??
+                base.department.submissionEndsAt ??
+                null,
+            tenantId: base.authContext.tenantId,
+            timeZone: tenant?.timeZone ?? "Africa/Nairobi",
+        });
+        if (revisionContext.inconsistentStateMessage) {
+            return {
+                catalog,
+                department: mapDepartmentDepartmentRecord(base.department),
+                meta: {
+                    accessMode: base.authContext.departmentAccessMode ?? null,
+                    actor: "department_user" as const,
+                    actorLabel: "Department User",
+                    availableToolbarActions: ["exit"],
+                    currentUserId: String(base.authContext.userId),
+                    fiscalYear: plan.fiscalYear,
+                    mode: "view" as const,
+                    modeIndicatorLabel: null,
+                    selectedCategoryIds: sanitizedSelection.sanitizedCategoryIds,
+                    state: "blocked" as const,
+                    subtitle: revisionContext.inconsistentStateMessage,
+                    timeZone: tenant?.timeZone ?? "Africa/Nairobi",
+                    title: "Revision feedback unavailable",
+                    unavailableCategories: sanitizedSelection.unavailableCategories,
+                },
+                plan: null,
+                redirectHref: null,
+                statusMessage: revisionContext.inconsistentStateMessage,
+            };
+        }
         const mode = resolveDepartmentUserWorkspaceMode({
             accessMode: base.authContext.departmentAccessMode,
-            requestedMode: args.requestedMode ?? null,
+            requestedMode:
+                plan.status === "rejected" && revisionContext.effectiveDeadlineExpired
+                    ? "view"
+                    : (args.requestedMode ?? null),
             status: plan.status,
         });
 
@@ -704,9 +1036,15 @@ export const getDepartmentUserPlanWorkspace = query({
                 selectedCategoryIds: sanitizedSelection.sanitizedCategoryIds,
                 state: "ready" as const,
                 subtitle:
-                    mode === "edit"
+                    plan.status === "rejected" &&
+                    revisionContext.effectiveDeadlineExpired
+                        ? "This revision window has expired. Review the Procurement feedback here, then contact your Procurement Officer if further changes are needed."
+                        : plan.status === "rejected" && revisionContext.activeDecision
+                        ? "Procurement feedback is active on this plan. Review the flagged issues, update the Blockly draft, and resubmit before the effective revision deadline."
+                        : mode === "edit"
                         ? "Drag categories and items into the Blockly canvas to shape your quarterly procurement plan."
                         : "This plan is open in read-only mode because it is no longer editable from this department session.",
+                timeZone: tenant?.timeZone ?? "Africa/Nairobi",
                 title: `${base.department.name} procurement plan`,
                 unavailableCategories: sanitizedSelection.unavailableCategories,
             },
@@ -724,6 +1062,7 @@ export const getDepartmentUserPlanWorkspace = query({
                 id: String(plan._id),
                 itemCount: plan.itemCount,
                 reviewStartedAt: plan.reviewStartedAt ?? null,
+                revisionContext,
                 selectedCategoryIds: sanitizedSelection.sanitizedCategoryIds,
                 submissionEmailErrorMessage: plan.submissionEmailErrorMessage ?? null,
                 submissionEmailStatus: plan.submissionEmailStatus ?? null,
@@ -773,6 +1112,38 @@ export const saveDepartmentUserWorkspaceDraft = mutation({
             });
         }
 
+        if (plan.status === "rejected") {
+            const tenant = await ctx.db.get(base.authContext.tenantId);
+            const revisionContext = await loadDepartmentUserRevisionContext(ctx, {
+                actorUserId: base.authContext.userId,
+                departmentId: base.department._id,
+                plan,
+                planSnapshots: [],
+                submissionDeadlineAt:
+                    (
+                        await loadNewestSharedSubmissionDeadline(ctx, {
+                            fiscalYear: plan.fiscalYear,
+                            tenantId: base.authContext.tenantId,
+                        })
+                    )?.submissionEndsAt ??
+                    base.department.submissionEndsAt ??
+                    null,
+                tenantId: base.authContext.tenantId,
+                timeZone: tenant?.timeZone ?? "Africa/Nairobi",
+            });
+            if (
+                revisionContext.inconsistentStateMessage ||
+                revisionContext.effectiveDeadlineExpired
+            ) {
+                throw new ConvexError({
+                    code: "VALIDATION_FAILED",
+                    message:
+                        revisionContext.inconsistentStateMessage ??
+                        "This revision window has expired, so the plan can no longer be edited from the current Department User session.",
+                });
+            }
+        }
+
         const persistenceResult = prepareDepartmentUserWorkspaceDraftPersistence({
             accessMode: base.authContext.departmentAccessMode,
             categories: catalog.categories,
@@ -804,6 +1175,8 @@ export const saveDepartmentUserWorkspaceDraft = mutation({
 
 export const submitDepartmentUserPlan = mutation({
     args: {
+        expectedDecisionDecidedAt: v.optional(v.number()),
+        expectedDecisionId: v.optional(v.string()),
         planId: v.string(),
     },
     returns: submitDepartmentUserPlanResultValidator,
@@ -883,7 +1256,30 @@ export const submitDepartmentUserPlan = mutation({
             );
         }
 
-        if (plan.status !== "draft") {
+        const [newestSharedDeadline, tenant] = await Promise.all([
+            loadNewestSharedSubmissionDeadline(ctx, {
+                fiscalYear: plan.fiscalYear,
+                tenantId: base.authContext.tenantId,
+            }),
+            ctx.db.get(base.authContext.tenantId),
+        ]);
+        const revisionContext =
+            plan.status === "rejected"
+                ? await loadDepartmentUserRevisionContext(ctx, {
+                      actorUserId: base.authContext.userId,
+                      departmentId: department._id,
+                      plan,
+                      planSnapshots,
+                      submissionDeadlineAt:
+                          newestSharedDeadline?.submissionEndsAt ??
+                          department.submissionEndsAt ??
+                          null,
+                      tenantId: base.authContext.tenantId,
+                      timeZone: tenant?.timeZone ?? "Africa/Nairobi",
+                  })
+                : null;
+
+        if (plan.status !== "draft" && plan.status !== "rejected") {
             await appendAuditLogRequired(
                 ctx,
                 buildDepartmentUserPlanAuditEntry({
@@ -900,7 +1296,92 @@ export const submitDepartmentUserPlan = mutation({
                     tenantId: base.authContext.tenantId,
                 }),
             );
-            buildBlockedSubmissionError("Only draft plans can be submitted to Procurement.");
+            buildBlockedSubmissionError(
+                "Only draft plans or active revision plans can be submitted to Procurement.",
+            );
+        }
+
+        if (plan.status === "rejected") {
+            if (!revisionContext || revisionContext.inconsistentStateMessage) {
+                await appendAuditLogRequired(
+                    ctx,
+                    buildDepartmentUserPlanAuditEntry({
+                        action: "submit",
+                        actorUserId: base.authContext.userId,
+                        departmentId: department._id,
+                        event: AUDIT_EVENT_NAMES.planSubmissionBlocked,
+                        metadata: {
+                            planStatus: plan.status,
+                            reason: "revision_context_unavailable",
+                        },
+                        outcome: AUDIT_OUTCOMES.blockedStateTransition,
+                        planId: plan._id,
+                        tenantId: base.authContext.tenantId,
+                    }),
+                );
+                buildBlockedSubmissionError(
+                    revisionContext?.inconsistentStateMessage ??
+                        "Revision feedback is temporarily unavailable. Refresh the workspace before trying again.",
+                );
+            }
+
+            const activeDecision = revisionContext.activeDecision;
+            if (
+                !activeDecision ||
+                !args.expectedDecisionId ||
+                typeof args.expectedDecisionDecidedAt !== "number" ||
+                activeDecision.id !== args.expectedDecisionId ||
+                activeDecision.decidedAt !== args.expectedDecisionDecidedAt
+            ) {
+                await appendAuditLogRequired(
+                    ctx,
+                    buildDepartmentUserPlanAuditEntry({
+                        action: "submit",
+                        actorUserId: base.authContext.userId,
+                        departmentId: department._id,
+                        event: AUDIT_EVENT_NAMES.planSubmissionBlocked,
+                        metadata: {
+                            activeDecisionDecidedAt: activeDecision?.decidedAt ?? null,
+                            activeDecisionId: activeDecision?.id ?? null,
+                            expectedDecisionDecidedAt:
+                                args.expectedDecisionDecidedAt ?? null,
+                            expectedDecisionId: args.expectedDecisionId ?? null,
+                            planStatus: plan.status,
+                            reason: "stale_revision_decision",
+                        },
+                        outcome: AUDIT_OUTCOMES.blockedStateTransition,
+                        planId: plan._id,
+                        tenantId: base.authContext.tenantId,
+                    }),
+                );
+                buildBlockedSubmissionError(
+                    "Procurement feedback changed while you were editing. Refresh this plan before submitting again.",
+                );
+            }
+
+            if (revisionContext.effectiveDeadlineExpired) {
+                await appendAuditLogRequired(
+                    ctx,
+                    buildDepartmentUserPlanAuditEntry({
+                        action: "submit",
+                        actorUserId: base.authContext.userId,
+                        departmentId: department._id,
+                        event: AUDIT_EVENT_NAMES.planSubmissionBlocked,
+                        metadata: {
+                            effectiveRevisionDeadlineAt:
+                                activeDecision.effectiveRevisionDeadlineAt ?? null,
+                            planStatus: plan.status,
+                            reason: "revision_deadline_expired",
+                        },
+                        outcome: AUDIT_OUTCOMES.blockedStateTransition,
+                        planId: plan._id,
+                        tenantId: base.authContext.tenantId,
+                    }),
+                );
+                buildBlockedSubmissionError(
+                    "The revision deadline for this plan has expired. Contact your Procurement Officer for guidance.",
+                );
+            }
         }
 
         const normalizedWorkspaceState = toNormalizedWorkspaceRecord(
@@ -968,7 +1449,7 @@ export const submitDepartmentUserPlan = mutation({
             pendingItemRequestCount: pendingItemRequests.length,
             pendingLinkedCategoryHandoffCount,
         });
-        const newestSharedDeadline =
+        const resolvedSharedDeadline =
             sharedDeadlines
                 .filter((deadline) => deadline.tenantId === base.authContext.tenantId)
                 .sort(
@@ -982,20 +1463,28 @@ export const submitDepartmentUserPlan = mutation({
                 departmentSubmissionEndsAt: department.submissionEndsAt ?? null,
                 departmentSubmissionStartsAt:
                     department.submissionStartsAt ?? null,
-                sharedDeadline: newestSharedDeadline
+                sharedDeadline: resolvedSharedDeadline
                     ? {
-                          deadlineVersion: newestSharedDeadline.deadlineVersion,
-                          submissionEndsAt: newestSharedDeadline.submissionEndsAt,
-                          submissionStartsAt: newestSharedDeadline.submissionStartsAt,
-                          timeZone: newestSharedDeadline.timeZone,
-                          updatedAt: newestSharedDeadline.updatedAt,
+                          deadlineVersion: resolvedSharedDeadline.deadlineVersion,
+                          submissionEndsAt: resolvedSharedDeadline.submissionEndsAt,
+                          submissionStartsAt: resolvedSharedDeadline.submissionStartsAt,
+                          timeZone: resolvedSharedDeadline.timeZone,
+                          updatedAt: resolvedSharedDeadline.updatedAt,
                       }
                     : null,
             }),
         });
+        const revisionIssues =
+            revisionContext?.activeDecision
+                ? mapDepartmentUserFlaggedTargetsToIssues({
+                      flaggedTargets: revisionContext.activeDecision.flaggedTargets,
+                      workspaceSummary,
+                  })
+                : [];
         const supplementalIssues = [
             pendingRequestValidation.issue,
             deadlineIssue,
+            ...revisionIssues,
         ].filter(
             (issue): issue is NonNullable<typeof issue> => Boolean(issue),
         );
@@ -1149,20 +1638,39 @@ export const submitDepartmentUserPlan = mutation({
         });
 
         await ctx.db.patch(plan._id, {
+            approvedAt: undefined,
             departmentCodeSnapshot: department.code,
             departmentNameSnapshot: department.name,
-            status: "submitted",
             categorySummaries: persistedCategorySummaries,
             estimatedBudgetUsed: submissionPersistence.estimatedBudgetUsed,
             itemCount: submissionPersistence.itemCount,
+            rejectedAt: undefined,
+            rejectionComment: undefined,
+            reviewStartedAt: undefined,
+            reviewStartedByTenantUserId: undefined,
+            reviewStartedByUserId: undefined,
             selectedCategoryIds: persistedSelectedCategoryIds,
             submissionEmailErrorMessage: undefined,
             submissionEmailStatus: undefined,
             submissionReference,
             submissionSequence: nextSubmissionSequence,
+            status: "submitted",
             submittedAt: now,
             updatedAt: now,
         });
+
+        if (plan.status === "rejected" && revisionContext?.activeDecision) {
+            const activeDecisionId = ctx.db.normalizeId(
+                "planReviewDecisions",
+                revisionContext.activeDecision.id,
+            );
+            if (activeDecisionId) {
+                await ctx.db.patch(activeDecisionId, {
+                    lifecycleStatus: "superseded",
+                    supersededAt: now,
+                });
+            }
+        }
 
         await ctx.db.insert("planSubmissionSnapshots", {
             capturedAt: now,

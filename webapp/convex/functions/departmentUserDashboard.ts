@@ -12,6 +12,7 @@ import {
     getFiscalYearForTimestampInTimeZone,
     resolveDeadlineTimeZone,
 } from "../../lib/procurement-officer/deadlines";
+import { deriveDepartmentUserEffectiveRevisionDeadline } from "../../lib/plans/revision-deadline";
 import { selectCanonicalPlans } from "../../lib/department-user/status-tracking";
 
 const dashboardStateValidator = v.union(
@@ -401,19 +402,16 @@ export const getDepartmentUserDashboardSnapshot = query({
             ] as const),
         );
         const planSnapshotsByPlanId = new Map(planSnapshotEntries);
-        const activeDecisionEntries = await Promise.all(
+        const decisionEntries = await Promise.all(
             canonicalPlans.map(async (plan) => [
                 String(plan._id),
                 await ctx.db
                     .query("planReviewDecisions")
-                    .withIndex("by_planId_lifecycleStatus_decidedAt", (q) =>
-                        q.eq("planId", plan._id).eq("lifecycleStatus", "active"),
-                    )
-                    .order("desc")
-                    .first(),
+                    .withIndex("by_planId_decidedAt", (q) => q.eq("planId", plan._id))
+                    .collect(),
             ] as const),
         );
-        const activeDecisionByPlanId = new Map(activeDecisionEntries);
+        const decisionsByPlanId = new Map(decisionEntries);
         const reviewerRecordIds = new Set<string>();
         for (const plan of canonicalPlans) {
             if (plan.reviewStartedByUserId && plan.reviewStartedByTenantUserId) {
@@ -553,13 +551,31 @@ export const getDepartmentUserDashboardSnapshot = query({
                 id: String(plan._id),
                 itemCount: plan.itemCount,
                 latestDecision: (() => {
-                    const decision = activeDecisionByPlanId.get(String(plan._id));
-                    return decision
+                    const decisions =
+                        decisionsByPlanId.get(String(plan._id)) ?? [];
+                    const activeDecision =
+                        decisions
+                            .filter((decision) => decision.lifecycleStatus === "active")
+                            .sort((left, right) => right.decidedAt - left.decidedAt)[0] ??
+                        null;
+                    return activeDecision
                         ? {
-                              comment: decision.comment,
-                              decidedAt: decision.decidedAt,
-                              decisionType: decision.decisionType,
-                              revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
+                              comment: activeDecision.comment,
+                              decidedAt: activeDecision.decidedAt,
+                              decisionType: activeDecision.decisionType,
+                              effectiveRevisionDeadlineAt:
+                                  deriveDepartmentUserEffectiveRevisionDeadline({
+                                      decisionType: activeDecision.decisionType,
+                                      decidedAt: activeDecision.decidedAt,
+                                      revisionDeadlineAt:
+                                          activeDecision.revisionDeadlineAt ?? null,
+                                      submissionDeadlineAt:
+                                          submissionDeadline?.submissionEndsAt ??
+                                          department.submissionEndsAt ??
+                                          null,
+                                  }).effectiveDeadlineAt,
+                              revisionDeadlineAt:
+                                  activeDecision.revisionDeadlineAt ?? null,
                           }
                         : null;
                 })(),
@@ -567,6 +583,26 @@ export const getDepartmentUserDashboardSnapshot = query({
                 rejectionComment: plan.rejectionComment ?? null,
                 rejectedAt: plan.rejectedAt ?? null,
                 reviewStartedAt: plan.reviewStartedAt ?? null,
+                reviewDecisions: (
+                    decisionsByPlanId.get(String(plan._id)) ?? []
+                ).map((decision) => ({
+                    comment: decision.comment,
+                    decidedAt: decision.decidedAt,
+                    decisionType: decision.decisionType,
+                    effectiveRevisionDeadlineAt:
+                        deriveDepartmentUserEffectiveRevisionDeadline({
+                            decisionType: decision.decisionType,
+                            decidedAt: decision.decidedAt,
+                            revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
+                            submissionDeadlineAt:
+                                submissionDeadline?.submissionEndsAt ??
+                                department.submissionEndsAt ??
+                                null,
+                        }).effectiveDeadlineAt,
+                    id: String(decision._id),
+                    lifecycleStatus: decision.lifecycleStatus ?? null,
+                    revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
+                })),
                 reviewer: reviewerByPlanId.get(String(plan._id)) ?? null,
                 selectedCategoryIds: plan.selectedCategoryIds.map((categoryId: Doc<"plans">["selectedCategoryIds"][number]) =>
                     String(categoryId),

@@ -48,6 +48,7 @@ exports.AUDIT_EVENT_NAMES = {
     planRedraftDenied: "plan.redraft_denied",
     planRedraftRequested: "plan.redraft_requested",
     planRedraftRolledBack: "plan.redraft_rolled_back",
+    planRevisionContextBlocked: "plan.revision_context_blocked",
     planReviewApproved: "plan.review_approved",
     planReviewApprovalUndone: "plan.review_approval_undone",
     planReviewRejected: "plan.review_rejected",

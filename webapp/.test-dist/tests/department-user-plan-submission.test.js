@@ -204,7 +204,7 @@ function runDepartmentUserPlanSubmissionTests() {
     }).label, "Fix Validation Issues");
     completedTests.push("department-user submit gating stays truthful across read-only, unsynced, blocked-save, over-budget, and validation-blocked plan states");
     strict_1.default.equal((0, plan_submission_1.canDepartmentUserOpenPlanSubmissionReview)("draft"), true);
-    strict_1.default.equal((0, plan_submission_1.canDepartmentUserOpenPlanSubmissionReview)("rejected"), false);
+    strict_1.default.equal((0, plan_submission_1.canDepartmentUserOpenPlanSubmissionReview)("rejected"), true);
     strict_1.default.equal((0, plan_submission_1.canDepartmentUserOpenPlanSubmissionReview)("submitted"), false);
     strict_1.default.equal((0, plan_submission_1.canDepartmentUserOpenPlanSubmissionReview)("approved"), false);
     strict_1.default.equal((0, plan_submission_1.shouldReplayDepartmentUserSubmittedPlan)({
@@ -222,7 +222,7 @@ function runDepartmentUserPlanSubmissionTests() {
         submittedAt: 1_775_000_000_000,
         submissionReference: "CS-2627-001",
     }), false);
-    completedTests.push("department-user submit affordances only open the confirmation flow for true draft plans while submitted retry detection stays available before draft-only blockers");
+    completedTests.push("department-user submit affordances reopen the confirmation flow for active rejected revision plans while keeping submitted and approved plans read-only");
     const pendingSummary = (0, pre_submission_validation_1.summarizePendingCatalogRequestBlockers)({
         pendingCategoryRequestCount: 1,
         pendingItemRequestCount: 2,

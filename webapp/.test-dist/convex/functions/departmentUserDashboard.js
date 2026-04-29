@@ -8,6 +8,7 @@ const dashboard_1 = require("../../lib/department-user/dashboard");
 const dashboard_snapshot_1 = require("../../lib/department-user/dashboard-snapshot");
 const department_user_access_1 = require("../../lib/auth/department-user-access");
 const deadlines_1 = require("../../lib/procurement-officer/deadlines");
+const revision_deadline_1 = require("../../lib/plans/revision-deadline");
 const status_tracking_1 = require("../../lib/department-user/status-tracking");
 const dashboardStateValidator = values_1.v.union(values_1.v.literal("available"), values_1.v.literal("coming_soon"), values_1.v.literal("empty"), values_1.v.literal("read_only"), values_1.v.literal("setup_required"), values_1.v.literal("unavailable"));
 const planActionValidator = values_1.v.object({
@@ -327,15 +328,14 @@ exports.getDepartmentUserDashboardSnapshot = (0, server_1.query)({
                 .collect(),
         ]));
         const planSnapshotsByPlanId = new Map(planSnapshotEntries);
-        const activeDecisionEntries = await Promise.all(canonicalPlans.map(async (plan) => [
+        const decisionEntries = await Promise.all(canonicalPlans.map(async (plan) => [
             String(plan._id),
             await ctx.db
                 .query("planReviewDecisions")
-                .withIndex("by_planId_lifecycleStatus_decidedAt", (q) => q.eq("planId", plan._id).eq("lifecycleStatus", "active"))
-                .order("desc")
-                .first(),
+                .withIndex("by_planId_decidedAt", (q) => q.eq("planId", plan._id))
+                .collect(),
         ]));
-        const activeDecisionByPlanId = new Map(activeDecisionEntries);
+        const decisionsByPlanId = new Map(decisionEntries);
         const reviewerRecordIds = new Set();
         for (const plan of canonicalPlans) {
             if (plan.reviewStartedByUserId && plan.reviewStartedByTenantUserId) {
@@ -453,13 +453,25 @@ exports.getDepartmentUserDashboardSnapshot = (0, server_1.query)({
                 id: String(plan._id),
                 itemCount: plan.itemCount,
                 latestDecision: (() => {
-                    const decision = activeDecisionByPlanId.get(String(plan._id));
-                    return decision
+                    const decisions = decisionsByPlanId.get(String(plan._id)) ?? [];
+                    const activeDecision = decisions
+                        .filter((decision) => decision.lifecycleStatus === "active")
+                        .sort((left, right) => right.decidedAt - left.decidedAt)[0] ??
+                        null;
+                    return activeDecision
                         ? {
-                            comment: decision.comment,
-                            decidedAt: decision.decidedAt,
-                            decisionType: decision.decisionType,
-                            revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
+                            comment: activeDecision.comment,
+                            decidedAt: activeDecision.decidedAt,
+                            decisionType: activeDecision.decisionType,
+                            effectiveRevisionDeadlineAt: (0, revision_deadline_1.deriveDepartmentUserEffectiveRevisionDeadline)({
+                                decisionType: activeDecision.decisionType,
+                                decidedAt: activeDecision.decidedAt,
+                                revisionDeadlineAt: activeDecision.revisionDeadlineAt ?? null,
+                                submissionDeadlineAt: submissionDeadline?.submissionEndsAt ??
+                                    department.submissionEndsAt ??
+                                    null,
+                            }).effectiveDeadlineAt,
+                            revisionDeadlineAt: activeDecision.revisionDeadlineAt ?? null,
                         }
                         : null;
                 })(),
@@ -467,6 +479,22 @@ exports.getDepartmentUserDashboardSnapshot = (0, server_1.query)({
                 rejectionComment: plan.rejectionComment ?? null,
                 rejectedAt: plan.rejectedAt ?? null,
                 reviewStartedAt: plan.reviewStartedAt ?? null,
+                reviewDecisions: (decisionsByPlanId.get(String(plan._id)) ?? []).map((decision) => ({
+                    comment: decision.comment,
+                    decidedAt: decision.decidedAt,
+                    decisionType: decision.decisionType,
+                    effectiveRevisionDeadlineAt: (0, revision_deadline_1.deriveDepartmentUserEffectiveRevisionDeadline)({
+                        decisionType: decision.decisionType,
+                        decidedAt: decision.decidedAt,
+                        revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
+                        submissionDeadlineAt: submissionDeadline?.submissionEndsAt ??
+                            department.submissionEndsAt ??
+                            null,
+                    }).effectiveDeadlineAt,
+                    id: String(decision._id),
+                    lifecycleStatus: decision.lifecycleStatus ?? null,
+                    revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
+                })),
                 reviewer: reviewerByPlanId.get(String(plan._id)) ?? null,
                 selectedCategoryIds: plan.selectedCategoryIds.map((categoryId) => String(categoryId)),
                 status: plan.status,

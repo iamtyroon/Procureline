@@ -32,6 +32,18 @@ function runDepartmentUserStatusTrackingTests() {
         reviewStartedAt: Date.UTC(2026, 7, 12, 8, 0, 0),
         status: "submitted",
     }), "rejected");
+    strict_1.default.equal((0, status_tracking_1.deriveDepartmentUserDisplayStatus)({
+        approvedAt: null,
+        latestDecision: {
+            comment: "Adjust phasing.",
+            decidedAt: Date.UTC(2026, 7, 14, 11, 0, 0),
+            decisionType: "revision_requested",
+            effectiveRevisionDeadlineAt: Date.UTC(2026, 7, 16, 11, 0, 0),
+        },
+        rejectedAt: Date.UTC(2026, 7, 14, 11, 0, 0),
+        reviewStartedAt: Date.UTC(2026, 7, 12, 8, 0, 0),
+        status: "rejected",
+    }), "revision_requested");
     completedTests.push("department-user status tracking derives submitted, under-review, approved, and rejected views from canonical plan fields without inventing a new workflow enum");
     const underReviewDetails = (0, status_tracking_1.deriveDepartmentUserStatusDetails)({
         fiscalYearKey: "2026-2027",
@@ -172,6 +184,56 @@ function runDepartmentUserStatusTrackingTests() {
     });
     strict_1.default.equal(legacyRejectedDetails.historyState, "partial");
     completedTests.push("department-user status tracking keeps legacy approved and rejected plans marked as partial history when canonical intermediate workflow events are missing");
+    const revisionHistoryDetails = (0, status_tracking_1.deriveDepartmentUserStatusDetails)({
+        fiscalYearKey: "2026-2027",
+        plan: {
+            createdAt: Date.UTC(2026, 7, 1, 8, 0, 0),
+            fiscalYear: "2026-2027",
+            id: "plan-revision-history",
+            itemCount: 3,
+            latestDecision: {
+                comment: "Adjust delivery timing.",
+                decidedAt: Date.UTC(2026, 7, 14, 8, 0, 0),
+                decisionType: "revision_requested",
+                effectiveRevisionDeadlineAt: Date.UTC(2026, 7, 16, 8, 0, 0),
+            },
+            rejectedAt: Date.UTC(2026, 7, 14, 8, 0, 0),
+            reviewDecisions: [
+                {
+                    comment: "Adjust delivery timing.",
+                    decidedAt: Date.UTC(2026, 7, 14, 8, 0, 0),
+                    decisionType: "revision_requested",
+                    effectiveRevisionDeadlineAt: Date.UTC(2026, 7, 16, 8, 0, 0),
+                    id: "decision-1",
+                    lifecycleStatus: "active",
+                    revisionDeadlineAt: null,
+                },
+            ],
+            status: "rejected",
+            submissionSnapshots: [
+                {
+                    capturedAt: Date.UTC(2026, 7, 10, 10, 0, 0),
+                    lifecycleStatus: "active",
+                    submissionReference: "CS-2627-001",
+                    submissionSequence: 1,
+                    submittedAt: Date.UTC(2026, 7, 10, 8, 0, 0),
+                },
+                {
+                    capturedAt: Date.UTC(2026, 7, 16, 10, 0, 0),
+                    lifecycleStatus: "active",
+                    submissionReference: "CS-2627-002",
+                    submissionSequence: 2,
+                    submittedAt: Date.UTC(2026, 7, 16, 8, 0, 0),
+                },
+            ],
+            submittedAt: Date.UTC(2026, 7, 16, 8, 0, 0),
+            updatedAt: Date.UTC(2026, 7, 16, 8, 0, 0),
+        },
+        timeZone: "Africa/Nairobi",
+    });
+    strict_1.default.deepEqual(revisionHistoryDetails.timeline.map((item) => item.title), ["Draft Created", "Submitted", "Revision Requested", "Submitted"]);
+    strict_1.default.match(revisionHistoryDetails.helperText, /Effective revision deadline/i);
+    completedTests.push("department-user status tracking reuses review-decision history to show revision-requested cycles and surface the effective resubmission deadline in DU helper copy");
     const canonicalPlans = (0, status_tracking_1.selectCanonicalPlans)([
         {
             createdAt: Date.UTC(2026, 7, 1, 8, 0, 0),

@@ -169,7 +169,20 @@ export function runDepartmentUserBlocklyWorkspaceUiTests(): string[] {
     assert.match(blocklyEditorSource, /fixTarget\.type === "workspace_category"/);
     assert.match(blocklyEditorSource, /data-du-deadline-summary/);
     assert.match(blocklyEditorSource, /data-du-category-summary/);
+    assert.match(blocklyEditorSource, /Effective revision deadline:/);
+    assert.match(blocklyEditorSource, /Jump to fix/);
+    assert.match(blocklyEditorSource, /data-du-revision-history/);
+    assert.match(blocklyEditorSource, /props\.planMeta\.timeZone/);
     completedTests.push("submit-review fix targets now include deadline and category anchors instead of falling through to stale-target messaging");
+
+    const dashboardSource = fs.readFileSync(
+        path.join(process.cwd(), "src", "components", "department-user", "DepartmentUserDashboard.tsx"),
+        "utf8",
+    );
+    assert.match(dashboardSource, /Request approved plan reopen/);
+    assert.match(dashboardSource, /Request reopen approval/);
+    assert.doesNotMatch(dashboardSource, />\s*Request redraft\s*</);
+    completedTests.push("approved-plan reopen affordances now use explicit PO-approval reopen copy instead of the old redraft wording");
 
     return completedTests;
 }

@@ -74,6 +74,9 @@ async function main(): Promise<void> {
     const { runDepartmentUserPlanSubmissionTests } = await import(
         "./department-user-plan-submission.test.js"
     );
+    const { runDepartmentUserRevisionFlowTests } = await import(
+        "./department-user-revision-flow.test.js"
+    );
     const { runDepartmentUserAccessTests } = await import(
         "./department-user-access.test.js"
     );
@@ -158,6 +161,7 @@ async function main(): Promise<void> {
         ...(await runDepartmentUserBlocklyWorkspaceTests()),
         ...runDepartmentUserBlocklyWorkspaceUiTests(),
         ...runDepartmentUserPlanSubmissionTests(),
+        ...runDepartmentUserRevisionFlowTests(),
         ...(await runDepartmentUserAccessTests()),
         ...(await runDepartmentUserRequestContextTests()),
         ...runPasswordResetTests(),

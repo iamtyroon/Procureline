@@ -254,7 +254,7 @@ export function runDepartmentUserPlanSubmissionTests(): string[] {
     );
 
     assert.equal(canDepartmentUserOpenPlanSubmissionReview("draft"), true);
-    assert.equal(canDepartmentUserOpenPlanSubmissionReview("rejected"), false);
+    assert.equal(canDepartmentUserOpenPlanSubmissionReview("rejected"), true);
     assert.equal(canDepartmentUserOpenPlanSubmissionReview("submitted"), false);
     assert.equal(canDepartmentUserOpenPlanSubmissionReview("approved"), false);
     assert.equal(
@@ -282,7 +282,7 @@ export function runDepartmentUserPlanSubmissionTests(): string[] {
         false,
     );
     completedTests.push(
-        "department-user submit affordances only open the confirmation flow for true draft plans while submitted retry detection stays available before draft-only blockers",
+        "department-user submit affordances reopen the confirmation flow for active rejected revision plans while keeping submitted and approved plans read-only",
     );
 
     const pendingSummary = summarizePendingCatalogRequestBlockers({

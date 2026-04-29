@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getDepartmentUserPlanSubmitState = exports.buildDepartmentUserPlanSubmissionReviewSummary = exports.shouldReplayDepartmentUserSubmittedPlan = exports.canDepartmentUserOpenPlanSubmissionReview = void 0;
 function canDepartmentUserOpenPlanSubmissionReview(status) {
-    return status === "draft";
+    return status === "draft" || status === "rejected";
 }
 exports.canDepartmentUserOpenPlanSubmissionReview = canDepartmentUserOpenPlanSubmissionReview;
 function shouldReplayDepartmentUserSubmittedPlan(args) {

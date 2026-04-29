@@ -47,6 +47,8 @@ import {
     type DepartmentUserPlanSubmissionFixTarget,
     type DepartmentUserPlanSubmissionIssue,
 } from "@/lib/blockly/plan-submission";
+import { mapDepartmentUserFlaggedTargetsToIssues } from "@/lib/department-user/revision-feedback";
+import { formatDeadlineDateTime } from "@/lib/procurement-officer/deadlines";
 import { buildDepartmentUserWorkspaceDraftSaveInput } from "@/lib/blockly/workspace-save";
 import {
     collectDepartmentUserWorkspaceSourceUsage,
@@ -193,11 +195,63 @@ export function BlocklyEditor(props: {
     planMeta: {
         canWithdraw: boolean;
         reviewStartedAt: number | null;
+        revisionContext: {
+            activeDecision: null | {
+                comment: string;
+                decidedAt: number;
+                decisionType: "approved" | "rejected" | "revision_requested";
+                effectiveRevisionDeadlineAt: number | null;
+                flaggedTargets: Array<{
+                    categoryId: string;
+                    id: string;
+                    itemId: string | null;
+                    label: string;
+                    type: "category" | "item";
+                }>;
+                id: string;
+                lifecycleStatus: "active" | "superseded" | "undone" | null;
+                revisionDeadlineAt: number | null;
+                submissionReference: string | null;
+            };
+            effectiveDeadlineExpired: boolean;
+            history: Array<{
+                detail: string;
+                id: string;
+                kind:
+                    | "approved"
+                    | "rejected"
+                    | "revision_requested"
+                    | "submitted"
+                    | "withdrawn";
+                timestamp: number | null;
+                timestampLabel: string;
+                title: string;
+            }>;
+            inconsistentStateMessage: string | null;
+            reviewDecisions: Array<{
+                comment: string;
+                decidedAt: number;
+                decisionType: "approved" | "rejected" | "revision_requested";
+                effectiveRevisionDeadlineAt: number | null;
+                flaggedTargets: Array<{
+                    categoryId: string;
+                    id: string;
+                    itemId: string | null;
+                    label: string;
+                    type: "category" | "item";
+                }>;
+                id: string;
+                lifecycleStatus: "active" | "superseded" | "undone" | null;
+                revisionDeadlineAt: number | null;
+                submissionReference: string | null;
+            }>;
+        } | null;
         status: "approved" | "draft" | "rejected" | "submitted";
         submissionEmailErrorMessage: string | null;
         submissionEmailStatus: "failed" | "queued" | null;
         submissionReference: string | null;
         submittedAt: number | null;
+        timeZone: string;
     };
     persistedPlanSummary: DepartmentUserPersistedPlanSummary;
     selectedCategoryIds: string[];
@@ -1388,6 +1442,16 @@ export function BlocklyEditor(props: {
         setIsSubmitPending(true);
         try {
             const result = await submitDepartmentUserPlan({
+                expectedDecisionDecidedAt:
+                    props.planMeta.status === "rejected"
+                        ? props.planMeta.revisionContext?.activeDecision?.decidedAt ??
+                          undefined
+                        : undefined,
+                expectedDecisionId:
+                    props.planMeta.status === "rejected"
+                        ? props.planMeta.revisionContext?.activeDecision?.id ??
+                          undefined
+                        : undefined,
                 planId: props.planId,
             });
             setIsSubmitReviewOpen(false);
@@ -1619,9 +1683,23 @@ export function BlocklyEditor(props: {
             severity: "error",
         };
     }, [catalogRequestData?.summary.totalPendingCount]);
+    const revisionIssues = useMemo(
+        () =>
+            props.planMeta.revisionContext?.activeDecision
+                ? mapDepartmentUserFlaggedTargetsToIssues({
+                      flaggedTargets:
+                          props.planMeta.revisionContext.activeDecision.flaggedTargets,
+                      workspaceSummary,
+                  })
+                : [],
+        [props.planMeta.revisionContext?.activeDecision, workspaceSummary],
+    );
     const supplementalSubmissionIssues = useMemo(
-        () => (pendingCatalogRequestIssue ? [pendingCatalogRequestIssue] : []),
-        [pendingCatalogRequestIssue],
+        () => [
+            ...(pendingCatalogRequestIssue ? [pendingCatalogRequestIssue] : []),
+            ...revisionIssues,
+        ],
+        [pendingCatalogRequestIssue, revisionIssues],
     );
     const submissionReviewSummary = useMemo(
         () =>
@@ -1664,6 +1742,24 @@ export function BlocklyEditor(props: {
     const submittedAtLabel = props.planMeta.submittedAt
         ? formatSubmittedAtLabel(props.planMeta.submittedAt)
         : null;
+    const activeRevisionDecision = props.planMeta.revisionContext?.activeDecision ?? null;
+    const activeRevisionDecisionLabel =
+        activeRevisionDecision?.decisionType === "revision_requested"
+            ? "Revision Requested"
+            : activeRevisionDecision?.decisionType === "rejected"
+              ? "Rejected"
+              : null;
+    const activeRevisionDecisionAtLabel =
+        typeof activeRevisionDecision?.decidedAt === "number"
+            ? formatSubmittedAtLabel(activeRevisionDecision.decidedAt)
+            : null;
+    const activeRevisionDeadlineLabel =
+        typeof activeRevisionDecision?.effectiveRevisionDeadlineAt === "number"
+            ? formatDeadlineDateTime(
+                  activeRevisionDecision.effectiveRevisionDeadlineAt,
+                  props.planMeta.timeZone,
+              )
+            : null;
 
     return (
         <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
@@ -2106,6 +2202,119 @@ export function BlocklyEditor(props: {
                         >
                             <AlertTitle>Local recovery warning</AlertTitle>
                             <AlertDescription>{storageWarning}</AlertDescription>
+                        </Alert>
+                    ) : null}
+
+                    {activeRevisionDecision ? (
+                        <Alert
+                            className="rounded-2xl border-amber-300 bg-amber-50 text-amber-950 shadow-lg"
+                            data-workspace-notice="revision-feedback"
+                            dismissible
+                            dismissKey={`revision-feedback:${activeRevisionDecision.id}`}
+                        >
+                            <AlertTitle>
+                                {activeRevisionDecisionLabel ?? "Revision feedback"}
+                            </AlertTitle>
+                            <AlertDescription className="space-y-3">
+                                <div className="grid gap-2 md:grid-cols-2">
+                                    <div>
+                                        <span className="font-medium">Decision:</span>{" "}
+                                        {activeRevisionDecisionLabel}
+                                    </div>
+                                    {activeRevisionDecisionAtLabel ? (
+                                        <div>
+                                            <span className="font-medium">Recorded:</span>{" "}
+                                            {activeRevisionDecisionAtLabel}
+                                        </div>
+                                    ) : null}
+                                    {activeRevisionDeadlineLabel ? (
+                                        <div>
+                                            <span className="font-medium">
+                                                Effective revision deadline:
+                                            </span>{" "}
+                                            {activeRevisionDeadlineLabel}
+                                        </div>
+                                    ) : null}
+                                    {activeRevisionDecision.submissionReference ? (
+                                        <div>
+                                            <span className="font-medium">
+                                                Submission reference:
+                                            </span>{" "}
+                                            {activeRevisionDecision.submissionReference}
+                                        </div>
+                                    ) : props.planMeta.submissionReference ? (
+                                        <div>
+                                            <span className="font-medium">
+                                                Submission reference:
+                                            </span>{" "}
+                                            {props.planMeta.submissionReference}
+                                        </div>
+                                    ) : null}
+                                </div>
+                                <div className="rounded-xl border border-amber-200 bg-white/80 px-4 py-3 text-sm">
+                                    {activeRevisionDecision.comment}
+                                </div>
+                                {props.planMeta.revisionContext?.effectiveDeadlineExpired ? (
+                                    <div className="text-sm font-medium text-red-700">
+                                        The effective revision deadline has passed. Resubmission stays blocked until Procurement provides a newer decision.
+                                    </div>
+                                ) : null}
+                                {activeRevisionDecision.flaggedTargets.length > 0 ? (
+                                    <div className="space-y-2">
+                                        <div className="font-medium">
+                                            Flagged targets to fix
+                                        </div>
+                                        <div className="grid gap-2">
+                                            {activeRevisionDecision.flaggedTargets.map((target) => {
+                                                const matchingIssue = revisionIssues.find(
+                                                    (issue) => issue.itemId === target.itemId && issue.categoryId === target.categoryId,
+                                                );
+                                                return (
+                                                    <div
+                                                        className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-white/80 px-3 py-2 text-sm"
+                                                        key={target.id}
+                                                    >
+                                                        <span>{matchingIssue?.message ?? target.label}</span>
+                                                        {matchingIssue?.fixTarget ? (
+                                                            <Button
+                                                                onClick={() => {
+                                                                    handleValidationFixTarget(
+                                                                        matchingIssue.fixTarget,
+                                                                    );
+                                                                }}
+                                                                size="sm"
+                                                                type="button"
+                                                                variant="outline"
+                                                            >
+                                                                Jump to fix
+                                                            </Button>
+                                                        ) : null}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ) : null}
+                                {props.planMeta.revisionContext?.history.length ? (
+                                    <div className="space-y-2" data-du-revision-history>
+                                        <div className="font-medium">Submission and review history</div>
+                                        <div className="grid gap-2">
+                                            {props.planMeta.revisionContext.history.map((entry) => (
+                                                <div
+                                                    className="rounded-xl border border-amber-200 bg-white/80 px-3 py-2 text-sm"
+                                                    key={entry.id}
+                                                >
+                                                    <div className="font-medium">{entry.title}</div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        {entry.timestampLabel}
+                                                    </div>
+                                                    <div>{entry.detail}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </AlertDescription>
                         </Alert>
                     ) : null}
 

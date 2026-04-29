@@ -153,7 +153,7 @@ export function DepartmentUserDashboard(): JSX.Element {
                 planId: redraftPlanId,
                 reason: redraftReason,
             });
-            toast.success("Redraft request sent to your Procurement Officer.");
+            toast.success("Reopen request sent to your Procurement Officer for approval.");
             setRedraftPlanId(null);
             setRedraftReason("");
         } catch (error) {
@@ -310,9 +310,9 @@ export function DepartmentUserDashboard(): JSX.Element {
             >
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>Request plan redraft</DialogTitle>
+                        <DialogTitle>Request approved plan reopen</DialogTitle>
                         <DialogDescription>
-                            Send a request to your Procurement Officer to reopen this approved plan for editing.
+                            Send a request to your Procurement Officer to approve reopening this plan for editing. This does not unlock the plan immediately.
                         </DialogDescription>
                     </DialogHeader>
                     <Textarea
@@ -529,7 +529,7 @@ export function PlanStatCard({
                         className="w-full rounded-2xl"
                         onClick={onRequestRedraft}
                     >
-                        Request redraft
+                        Request reopen approval
                     </Button>
                 ) : null}
             </CardContent>
