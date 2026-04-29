@@ -1,6 +1,6 @@
 # Story 6.5: Plan Approval & Rejection
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -29,58 +29,58 @@ so that departments know their status and how to fix issues.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Define the canonical review-decision data contract (AC: 1, 3, 5, 6, 7, 8, 9, 11, 13)
-  - [ ] Decide whether `plans.status` remains the compact workflow enum (`draft`, `submitted`, `rejected`, `approved`) with separate revision-decision records, or whether a new explicit status value is needed; avoid broad status migrations unless required.
-  - [ ] Add a tenant-scoped decision/revision store if needed, recommended as `planReviewDecisions` or `planRevisionRequests`, with plan, department, fiscal year, decision type, comment, flagged targets, deadline, actor, timestamps, notification intent fields, and audit-friendly metadata.
-  - [ ] Persist flagged targets as stable descriptors from Story 6.4 selection IDs, not as display text only.
-  - [ ] Preserve existing `planReviewComments` for internal notes, but do not treat internal comments as the sole DU-visible rejection/revision source.
-  - [ ] Keep all Convex schema fields indexed for the reads Story 6.6 and 6.7 will need: by `planId`, by `tenantId/departmentId/fiscalYear`, and by current unresolved decision status if applicable.
+- [x] Task 1: Define the canonical review-decision data contract (AC: 1, 3, 5, 6, 7, 8, 9, 11, 13)
+  - [x] Decide whether `plans.status` remains the compact workflow enum (`draft`, `submitted`, `rejected`, `approved`) with separate revision-decision records, or whether a new explicit status value is needed; avoid broad status migrations unless required.
+  - [x] Add a tenant-scoped decision/revision store if needed, recommended as `planReviewDecisions` or `planRevisionRequests`, with plan, department, fiscal year, decision type, comment, flagged targets, deadline, actor, timestamps, notification intent fields, and audit-friendly metadata.
+  - [x] Persist flagged targets as stable descriptors from Story 6.4 selection IDs, not as display text only.
+  - [x] Preserve existing `planReviewComments` for internal notes, but do not treat internal comments as the sole DU-visible rejection/revision source.
+  - [x] Keep all Convex schema fields indexed for the reads Story 6.6 and 6.7 will need: by `planId`, by `tenantId/departmentId/fiscalYear`, and by current unresolved decision status if applicable.
 
-- [ ] Task 2: Harden approve and reject mutations into a complete transition layer (AC: 1, 2, 5, 7, 8, 11, 13)
-  - [ ] Review `webapp/convex/functions/procurementOfficerPlanReview.ts` existing `approveProcurementOfficerPlanReview` and `rejectProcurementOfficerPlanReview` mutations for all blocked-state and tenant-safety cases.
-  - [ ] Extract pure transition helpers into `webapp/lib/procurement-officer/review-decision.ts` or extend `review.ts` if the module remains cohesive.
-  - [ ] Ensure approval only accepts `submitted` plans and clears incompatible rejection/redraft fields without deleting immutable snapshots or review-start metadata.
-  - [ ] Ensure rejection requires a normalized non-blank DU-visible comment and does not silently overload "rejection" for minor revision if a separate revision-request path is implemented.
-  - [ ] Validate optional budget adjustment behavior currently present in `rejectProcurementOfficerPlanReview`; keep it only if product intent is explicit, tenant-safe, audited, and reflected clearly in UI copy.
-  - [ ] Add mutation return payloads that give the UI truthful next state, timestamp, notification status, and any blocked reason.
+- [x] Task 2: Harden approve and reject mutations into a complete transition layer (AC: 1, 2, 5, 7, 8, 11, 13)
+  - [x] Review `webapp/convex/functions/procurementOfficerPlanReview.ts` existing `approveProcurementOfficerPlanReview` and `rejectProcurementOfficerPlanReview` mutations for all blocked-state and tenant-safety cases.
+  - [x] Extract pure transition helpers into `webapp/lib/procurement-officer/review-decision.ts` or extend `review.ts` if the module remains cohesive.
+  - [x] Ensure approval only accepts `submitted` plans and clears incompatible rejection/redraft fields without deleting immutable snapshots or review-start metadata.
+  - [x] Ensure rejection requires a normalized non-blank DU-visible comment and does not silently overload "rejection" for minor revision if a separate revision-request path is implemented.
+  - [x] Validate optional budget adjustment behavior currently present in `rejectProcurementOfficerPlanReview`; keep it only if product intent is explicit, tenant-safe, audited, and reflected clearly in UI copy.
+  - [x] Add mutation return payloads that give the UI truthful next state, timestamp, notification status, and any blocked reason.
 
-- [ ] Task 3: Implement undo approval with consolidation-safe guards (AC: 3, 4, 11, 14)
-  - [ ] Add a pure helper that computes approval undo eligibility from `approvedAt`, current time, plan status, and consolidation/finalization markers.
-  - [ ] If consolidation markers do not exist yet, add the smallest forward-compatible schema field or helper check that defaults to "not consolidated" without pretending consolidation has been implemented.
-  - [ ] Add a Convex mutation such as `undoProcurementOfficerPlanApproval` guarded by `requireTenantRole(ctx, ["procurement_officer"])`.
-  - [ ] Preserve `reviewStartedAt`, `reviewStartedBy*`, immutable snapshots, internal comments, and submission identity when returning to `submitted`.
-  - [ ] Append allowed and blocked audit entries for undo attempts where the plan exists in the current tenant.
+- [x] Task 3: Implement undo approval with consolidation-safe guards (AC: 3, 4, 11, 14)
+  - [x] Add a pure helper that computes approval undo eligibility from `approvedAt`, current time, plan status, and consolidation/finalization markers.
+  - [x] If consolidation markers do not exist yet, add the smallest forward-compatible schema field or helper check that defaults to "not consolidated" without pretending consolidation has been implemented.
+  - [x] Add a Convex mutation such as `undoProcurementOfficerPlanApproval` guarded by `requireTenantRole(ctx, ["procurement_officer"])`.
+  - [x] Preserve `reviewStartedAt`, `reviewStartedBy*`, immutable snapshots, internal comments, and submission identity when returning to `submitted`.
+  - [x] Append allowed and blocked audit entries for undo attempts where the plan exists in the current tenant.
 
-- [ ] Task 4: Complete DU-visible revision decision and flagged-target support (AC: 5, 6, 7, 8, 9)
-  - [ ] Build or extend a decision modal/panel that accepts decision type, required comment, optional revision deadline, and selected flagged targets from Story 6.4.
-  - [ ] Revalidate selected flagged targets against the current plan summary before mutation; stale targets must be blocked or removed with an explicit notice.
-  - [ ] Store revision deadline using tenant timezone-aware validation helpers from `webapp/lib/procurement-officer/deadlines.ts`.
-  - [ ] Make rejected/revision-requested plans expose enough query data for DU dashboard and Story 6.6: comment, flagged targets, deadline, reviewer identity if available, and decision timestamp.
-  - [ ] Keep the plan content itself unchanged during decision creation; Story 6.6 owns DU correction and resubmission.
+- [x] Task 4: Complete DU-visible revision decision and flagged-target support (AC: 5, 6, 7, 8, 9)
+  - [x] Build or extend a decision modal/panel that accepts decision type, required comment, optional revision deadline, and selected flagged targets from Story 6.4.
+  - [x] Revalidate selected flagged targets against the current plan summary before mutation; stale targets must be blocked or removed with an explicit notice.
+  - [x] Store revision deadline using tenant timezone-aware validation helpers from `webapp/lib/procurement-officer/deadlines.ts`.
+  - [x] Make rejected/revision-requested plans expose enough query data for DU dashboard and Story 6.6: comment, flagged targets, deadline, reviewer identity if available, and decision timestamp.
+  - [x] Keep the plan content itself unchanged during decision creation; Story 6.6 owns DU correction and resubmission.
 
-- [ ] Task 5: Wire notification intent creation without overclaiming email delivery (AC: 9, 10, 11)
-  - [ ] Reuse existing email/action conventions in `webapp/convex/actions/email.ts`, `devEmailMessages`, and catalog request notification patterns where practical.
-  - [ ] Create idempotency keys per plan decision so repeated retries cannot queue duplicate DU notifications.
-  - [ ] Persist notification status on the decision record or associated notification table.
-  - [ ] Include decision, comment, flagged targets, revision deadline, fiscal year, department, and next-step link in the notification payload.
-  - [ ] UI copy should distinguish "notification queued" from "email sent" unless delivery is actually confirmed.
+- [x] Task 5: Wire notification intent creation without overclaiming email delivery (AC: 9, 10, 11)
+  - [x] Reuse existing email/action conventions in `webapp/convex/actions/email.ts`, `devEmailMessages`, and catalog request notification patterns where practical.
+  - [x] Create idempotency keys per plan decision so repeated retries cannot queue duplicate DU notifications.
+  - [x] Persist notification status on the decision record or associated notification table.
+  - [x] Include decision, comment, flagged targets, revision deadline, fiscal year, department, and next-step link in the notification payload.
+  - [x] UI copy should distinguish "notification queued" from "email sent" unless delivery is actually confirmed.
 
-- [ ] Task 6: Consolidate the PO decision UI into one coherent path (AC: 1, 5, 7, 8, 9, 12)
-  - [ ] Inspect `webapp/src/components/procurement-officer/ProcurementOfficerPlanReviewSummaryModal.tsx`; it already calls approval/rejection mutations and redraft decisions.
-  - [ ] Decide whether decision actions belong in the full `/po/review` workspace, the summary modal, or both through a shared component; do not duplicate business rules.
-  - [ ] Rename user-facing copy if needed: "Approve & Send to Editor" is misleading if the actual outcome is consolidation eligibility or approved status.
-  - [ ] Disable decision actions while mutations are pending and after the plan leaves `submitted`.
-  - [ ] Surface revision-target count, comment requirement, deadline validation errors, and notification outcome in the UI.
-  - [ ] Preserve Story 6.3 queue return params and Story 6.4 read-only workspace behavior.
+- [x] Task 6: Consolidate the PO decision UI into one coherent path (AC: 1, 5, 7, 8, 9, 12)
+  - [x] Inspect `webapp/src/components/procurement-officer/ProcurementOfficerPlanReviewSummaryModal.tsx`; it already calls approval/rejection mutations and redraft decisions.
+  - [x] Decide whether decision actions belong in the full `/po/review` workspace, the summary modal, or both through a shared component; do not duplicate business rules.
+  - [x] Rename user-facing copy if needed: "Approve & Send to Editor" is misleading if the actual outcome is consolidation eligibility or approved status.
+  - [x] Disable decision actions while mutations are pending and after the plan leaves `submitted`.
+  - [x] Surface revision-target count, comment requirement, deadline validation errors, and notification outcome in the UI.
+  - [x] Preserve Story 6.3 queue return params and Story 6.4 read-only workspace behavior.
 
-- [ ] Task 7: Add deterministic tests and update the runner (AC: 2, 3, 4, 5, 6, 8, 9, 11, 14)
-  - [ ] Add pure tests for transition eligibility, undo approval window calculation, deadline validation, flagged-target normalization, decision idempotency keys, and notification payload shaping.
-  - [ ] Extend `webapp/tests/procurement-officer-review.test.ts` or add `webapp/tests/procurement-officer-review-decisions.test.ts`.
-  - [ ] Add tests that approval/rejection only accept `submitted` plans and reject malformed/cross-tenant/draft/closed targets.
-  - [ ] Add tests that rejection/revision comments are required and trimmed before persistence.
-  - [ ] Add tests that approval undo is blocked after 24 hours or after consolidation markers indicate the plan has been used downstream.
-  - [ ] Add tests that decision UI labels and disabled states do not expose conflicting approval/rejection flows.
-  - [ ] Register any new test suite in `webapp/tests/run-tests.ts`.
+- [x] Task 7: Add deterministic tests and update the runner (AC: 2, 3, 4, 5, 6, 8, 9, 11, 14)
+  - [x] Add pure tests for transition eligibility, undo approval window calculation, deadline validation, flagged-target normalization, decision idempotency keys, and notification payload shaping.
+  - [x] Extend `webapp/tests/procurement-officer-review.test.ts` or add `webapp/tests/procurement-officer-review-decisions.test.ts`.
+  - [x] Add tests that approval/rejection only accept `submitted` plans and reject malformed/cross-tenant/draft/closed targets.
+  - [x] Add tests that rejection/revision comments are required and trimmed before persistence.
+  - [x] Add tests that approval undo is blocked after 24 hours or after consolidation markers indicate the plan has been used downstream.
+  - [x] Add tests that decision UI labels and disabled states do not expose conflicting approval/rejection flows.
+  - [x] Register any new test suite in `webapp/tests/run-tests.ts`.
 
 ## Dev Notes
 
@@ -245,14 +245,43 @@ so that departments know their status and how to fix issues.
 
 ### Debug Log References
 
+- `cmd /c npx convex codegen --typecheck disable`
+- `cmd /c npm test` (fails on existing repo-wide Convex/Auth TypeScript baseline unrelated to Story 6.5)
+- `cmd /c npm run lint` (times out/fails behind the same repo-wide TypeScript baseline)
+- `cmd /c npx tsc -p tsconfig.tests.json --pretty false 2>&1 | findstr ...` (used to confirm no targeted TypeScript errors from the newly added PO decision panel and review decision test files)
+
 ### Completion Notes List
 
+- Added canonical `planReviewDecisions` storage, approval undo eligibility helpers, notification idempotency, and revision-request support without expanding `plans.status` beyond the existing compact enum.
+- Hardened PO approval/rejection/revision mutations with blocked-state auditing, active-decision supersession, revision deadline validation, flagged-target persistence, notification queuing, and undo approval handling.
+- Replaced divergent summary-modal/workspace review actions with a shared `ProcurementOfficerPlanDecisionPanel` and surfaced latest decision plus undo state in both PO review surfaces.
+- Extended DU status derivation to label revision requests distinctly and added deterministic helper coverage in `webapp/tests/procurement-officer-review-decisions.test.ts`.
+- Repo-wide `npm test` and `npm run lint` are currently blocked by unrelated existing TypeScript issues in Convex/Auth files outside this story’s change set.
+
 ### File List
+
+- `webapp/convex/schema.ts`
+- `webapp/convex/functions/procurementOfficerPlanReview.ts`
+- `webapp/convex/functions/departmentUserDashboard.ts`
+- `webapp/lib/procurement-officer/review-decision.ts`
+- `webapp/lib/security/audit.ts`
+- `webapp/lib/department-user/dashboard.ts`
+- `webapp/lib/department-user/dashboard-snapshot.ts`
+- `webapp/lib/department-user/status-tracking.ts`
+- `webapp/src/components/procurement-officer/ProcurementOfficerPlanDecisionPanel.tsx`
+- `webapp/src/components/procurement-officer/ProcurementOfficerPlanReviewSummaryModal.tsx`
+- `webapp/src/components/procurement-officer/ProcurementOfficerPlanReviewWorkspace.tsx`
+- `webapp/tests/procurement-officer-review-decisions.test.ts`
+- `webapp/tests/run-tests.ts`
+
+### Change Log
+
+- 2026-04-28: Implemented Story 6.5 canonical plan review decisions, approval undo, shared PO decision UI, DU revision-request status derivation, and deterministic decision-helper tests.
 
 ### Story Completion Status
 
 - Story ID: `6.5`
 - Story Key: `6-5-plan-approval-rejection`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic6/stories/6-5-plan-approval-rejection.md`
-- Status: `ready-for-dev`
-- Completion Note: `Ultimate context engine analysis completed - comprehensive developer guide created`
+- Status: `review`
+- Completion Note: `Implemented canonical plan approval, rejection, revision request, undo approval, notification intent, shared PO decision UI, and decision-helper tests.`

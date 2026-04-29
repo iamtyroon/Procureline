@@ -21,6 +21,7 @@ export type DepartmentUserPlanStatus =
     | "Draft"
     | "No Plan"
     | "Rejected"
+    | "Revision Requested"
     | "Submitted"
     | "Under Review";
 
@@ -149,11 +150,24 @@ export function normalizeDepartmentUserPlanStatus(
             return "Draft";
         case "rejected":
             return "Rejected";
+        case "revision requested":
+        case "revision_requested":
+            return "Revision Requested";
         case "submitted":
             return "Submitted";
         default:
             return "No Plan";
     }
+}
+
+export function isDepartmentUserEditablePlanStatus(
+    status: DepartmentUserPlanStatus,
+): boolean {
+    return (
+        status === "Draft" ||
+        status === "Rejected" ||
+        status === "Revision Requested"
+    );
 }
 
 export function derivePlanAction(args: {
@@ -186,6 +200,15 @@ export function derivePlanAction(args: {
             href: args.planHref,
             kind: args.accessMode === "editable" ? "edit" : "view_rejection",
             label: args.accessMode === "editable" ? "Edit Plan" : "View Rejection",
+        };
+    }
+
+    if (args.status === "Revision Requested") {
+        return {
+            disabled: false,
+            href: args.planHref,
+            kind: args.accessMode === "editable" ? "edit" : "view_rejection",
+            label: args.accessMode === "editable" ? "Edit Plan" : "View Revision Request",
         };
     }
 

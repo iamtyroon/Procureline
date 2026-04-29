@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.buildDepartmentDeadlineAnnouncement = exports.buildDepartmentBudgetChangeAnnouncement = exports.formatDepartmentUserCount = exports.formatDepartmentUserCurrency = exports.deriveLaunchpadInteractivity = exports.deriveLaunchpadState = exports.deriveDeadlinePresentation = exports.derivePlanAction = exports.normalizeDepartmentUserPlanStatus = exports.sanitizeCategorySelection = exports.selectAllCategories = exports.toggleCategorySelection = exports.createCategorySelectionState = exports.formatDepartmentUserFiscalYearLabel = exports.getDepartmentUserFiscalYearForDate = void 0;
+exports.buildDepartmentDeadlineAnnouncement = exports.buildDepartmentBudgetChangeAnnouncement = exports.formatDepartmentUserCount = exports.formatDepartmentUserCurrency = exports.deriveLaunchpadInteractivity = exports.deriveLaunchpadState = exports.deriveDeadlinePresentation = exports.derivePlanAction = exports.isDepartmentUserEditablePlanStatus = exports.normalizeDepartmentUserPlanStatus = exports.sanitizeCategorySelection = exports.selectAllCategories = exports.toggleCategorySelection = exports.createCategorySelectionState = exports.formatDepartmentUserFiscalYearLabel = exports.getDepartmentUserFiscalYearForDate = void 0;
 const department_user_access_1 = require("../auth/department-user-access");
 const deadlines_1 = require("../procurement-officer/deadlines");
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -58,6 +58,9 @@ function normalizeDepartmentUserPlanStatus(status) {
             return "Draft";
         case "rejected":
             return "Rejected";
+        case "revision requested":
+        case "revision_requested":
+            return "Revision Requested";
         case "submitted":
             return "Submitted";
         default:
@@ -65,6 +68,12 @@ function normalizeDepartmentUserPlanStatus(status) {
     }
 }
 exports.normalizeDepartmentUserPlanStatus = normalizeDepartmentUserPlanStatus;
+function isDepartmentUserEditablePlanStatus(status) {
+    return (status === "Draft" ||
+        status === "Rejected" ||
+        status === "Revision Requested");
+}
+exports.isDepartmentUserEditablePlanStatus = isDepartmentUserEditablePlanStatus;
 function derivePlanAction(args) {
     if (!args.hasCanonicalPlan || args.status === "No Plan") {
         return {
@@ -88,6 +97,14 @@ function derivePlanAction(args) {
             href: args.planHref,
             kind: args.accessMode === "editable" ? "edit" : "view_rejection",
             label: args.accessMode === "editable" ? "Edit Plan" : "View Rejection",
+        };
+    }
+    if (args.status === "Revision Requested") {
+        return {
+            disabled: false,
+            href: args.planHref,
+            kind: args.accessMode === "editable" ? "edit" : "view_rejection",
+            label: args.accessMode === "editable" ? "Edit Plan" : "View Revision Request",
         };
     }
     return {

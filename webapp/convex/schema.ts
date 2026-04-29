@@ -47,6 +47,31 @@ const planRedraftRequestStatusValidator = v.union(
   v.literal("cancelled"),
 );
 
+const planReviewDecisionTypeValidator = v.union(
+  v.literal("approved"),
+  v.literal("rejected"),
+  v.literal("revision_requested"),
+);
+
+const planReviewDecisionLifecycleStatusValidator = v.union(
+  v.literal("active"),
+  v.literal("superseded"),
+  v.literal("undone"),
+);
+
+const planReviewDecisionNotificationStatusValidator = v.union(
+  v.literal("failed"),
+  v.literal("queued"),
+);
+
+const planReviewFlaggedTargetValidator = v.object({
+  categoryId: v.string(),
+  id: v.string(),
+  itemId: v.union(v.string(), v.null()),
+  label: v.string(),
+  type: v.union(v.literal("category"), v.literal("item")),
+});
+
 export default defineSchema({
   ...authTables,
 
@@ -515,6 +540,7 @@ export default defineSchema({
     reviewStartedByTenantUserId: v.optional(v.id("tenantUsers")),
     reviewStartedByUserId: v.optional(v.id("users")),
     approvedAt: v.optional(v.number()),
+    consolidatedAt: v.optional(v.number()),
     rejectedAt: v.optional(v.number()),
     lastApprovedAt: v.optional(v.number()),
     lastApprovedSnapshotId: v.optional(v.id("planSubmissionSnapshots")),
@@ -528,6 +554,47 @@ export default defineSchema({
     .index("by_departmentId", ["departmentId"])
     .index("by_departmentId_fiscalYear", ["departmentId", "fiscalYear"])
     .index("by_tenantId_status", ["tenantId", "status"]),
+
+  planReviewDecisions: defineTable({
+    tenantId: v.id("tenants"),
+    departmentId: v.id("departments"),
+    planId: v.id("plans"),
+    fiscalYear: v.string(),
+    decisionType: planReviewDecisionTypeValidator,
+    lifecycleStatus: planReviewDecisionLifecycleStatusValidator,
+    comment: v.string(),
+    flaggedTargets: v.array(planReviewFlaggedTargetValidator),
+    revisionDeadlineAt: v.optional(v.union(v.number(), v.null())),
+    decidedAt: v.number(),
+    decidedByUserId: v.id("users"),
+    decidedByTenantUserId: v.id("tenantUsers"),
+    notificationIdempotencyKey: v.optional(v.string()),
+    notificationQueuedAt: v.optional(v.number()),
+    notificationStatus: v.optional(planReviewDecisionNotificationStatusValidator),
+    notificationErrorCode: v.optional(v.string()),
+    notificationErrorMessage: v.optional(v.string()),
+    undoneAt: v.optional(v.number()),
+    undoneByUserId: v.optional(v.id("users")),
+    undoneByTenantUserId: v.optional(v.id("tenantUsers")),
+    supersededAt: v.optional(v.number()),
+  })
+    .index("by_planId_decidedAt", ["planId", "decidedAt"])
+    .index("by_planId_lifecycleStatus_decidedAt", [
+      "planId",
+      "lifecycleStatus",
+      "decidedAt",
+    ])
+    .index("by_tenantId_departmentId_fiscalYear_decidedAt", [
+      "tenantId",
+      "departmentId",
+      "fiscalYear",
+      "decidedAt",
+    ])
+    .index("by_tenantId_lifecycleStatus_decidedAt", [
+      "tenantId",
+      "lifecycleStatus",
+      "decidedAt",
+    ]),
 
   planRedraftRequests: defineTable({
     tenantId: v.id("tenants"),

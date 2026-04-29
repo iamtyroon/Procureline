@@ -87,6 +87,7 @@ function deriveDepartmentUserStatusDetails(args) {
             displayStatus,
             fiscalYearKey: args.fiscalYearKey,
             itemCount: args.plan.itemCount,
+            latestDecision: args.plan.latestDecision ?? null,
             rejectionComment: args.plan.rejectionComment ?? null,
             reviewStartedAt: args.plan.reviewStartedAt ?? null,
             reviewer,
@@ -120,6 +121,10 @@ function deriveDepartmentUserDisplayStatus(plan) {
     if (plan.status === "approved" || typeof plan.approvedAt === "number") {
         return "approved";
     }
+    if (plan.status === "rejected" &&
+        plan.latestDecision?.decisionType === "revision_requested") {
+        return "revision_requested";
+    }
     if (plan.status === "rejected" || typeof plan.rejectedAt === "number") {
         return "rejected";
     }
@@ -129,10 +134,7 @@ function deriveDepartmentUserDisplayStatus(plan) {
     if (plan.status === "submitted") {
         return "submitted";
     }
-    if (plan.status === "draft") {
-        return "draft";
-    }
-    return "no_plan";
+    return "draft";
 }
 exports.deriveDepartmentUserDisplayStatus = deriveDepartmentUserDisplayStatus;
 function getDepartmentUserStatusLabel(status) {
@@ -143,6 +145,8 @@ function getDepartmentUserStatusLabel(status) {
             return "Draft";
         case "rejected":
             return "Rejected";
+        case "revision_requested":
+            return "Revision Requested";
         case "submitted":
             return "Submitted";
         case "under_review":
@@ -170,9 +174,14 @@ function buildDepartmentUserTimeline(args) {
         }),
     ];
     const sortedSnapshots = [...(args.plan.submissionSnapshots ?? [])].sort((left, right) => {
-        const leftRank = left.submissionSequence ?? left.submittedAt ?? left.capturedAt;
-        const rightRank = right.submissionSequence ?? right.submittedAt ?? right.capturedAt;
-        return leftRank - rightRank;
+        const leftTimestamp = left.submittedAt ?? left.capturedAt;
+        const rightTimestamp = right.submittedAt ?? right.capturedAt;
+        if (leftTimestamp !== rightTimestamp) {
+            return leftTimestamp - rightTimestamp;
+        }
+        const leftSequence = left.submissionSequence ?? Number.MAX_SAFE_INTEGER;
+        const rightSequence = right.submissionSequence ?? Number.MAX_SAFE_INTEGER;
+        return leftSequence - rightSequence;
     });
     for (const snapshot of sortedSnapshots) {
         if (typeof snapshot.submittedAt === "number") {
@@ -231,13 +240,15 @@ function buildDepartmentUserTimeline(args) {
     }
     if (typeof args.plan.rejectedAt === "number") {
         items.push(createTimelineItem({
-            description: args.plan.rejectionComment?.trim()
-                ? args.plan.rejectionComment.trim()
-                : "Revision requested by Procurement Officer.",
+            description: args.plan.latestDecision?.comment.trim() ||
+                args.plan.rejectionComment?.trim() ||
+                "Revision requested by Procurement Officer.",
             id: `${args.plan.id}:rejected`,
             timeZone: args.timeZone,
             timestamp: args.plan.rejectedAt,
-            title: "Rejected",
+            title: args.plan.latestDecision?.decisionType === "revision_requested"
+                ? "Revision Requested"
+                : "Rejected",
         }));
     }
     return items
@@ -295,6 +306,13 @@ function buildDepartmentUserStatusHelperText(args) {
                     ? args.rejectionComment.trim()
                     : "Decision comments unavailable.",
             ].join(" ");
+        case "revision_requested":
+            return [
+                "Revision requested.",
+                args.latestDecision?.comment.trim() || args.rejectionComment?.trim()
+                    ? args.latestDecision?.comment.trim() ?? args.rejectionComment?.trim() ?? ""
+                    : "Decision comments unavailable.",
+            ].join(" ");
         case "draft":
             return `Draft plan for ${args.fiscalYearKey}.`;
         default:
@@ -319,16 +337,32 @@ function buildStatusDateLabel(args) {
             return typeof args.rejectedAt === "number"
                 ? (0, deadlines_1.formatDeadlineDateTime)(args.rejectedAt, args.timeZone)
                 : "Decision date unavailable";
+        case "revision_requested":
+            return typeof args.rejectedAt === "number"
+                ? (0, deadlines_1.formatDeadlineDateTime)(args.rejectedAt, args.timeZone)
+                : "Decision date unavailable";
         default:
             return null;
     }
 }
 function shouldShowPartialHistoryNotice(args) {
-    if (args.displayStatus === "submitted" ||
-        args.displayStatus === "under_review" ||
-        args.displayStatus === "approved" ||
-        args.displayStatus === "rejected") {
-        return args.submittedAt === null;
+    switch (args.displayStatus) {
+        case "submitted":
+            return args.submittedAt === null;
+        case "under_review":
+            return (args.submittedAt === null ||
+                typeof args.plan.reviewStartedAt !== "number");
+        case "approved":
+            return (args.submittedAt === null ||
+                typeof args.plan.reviewStartedAt !== "number" ||
+                typeof (args.plan.approvedAt ?? args.plan.lastApprovedAt ?? null) !==
+                    "number");
+        case "rejected":
+        case "revision_requested":
+            return (args.submittedAt === null ||
+                typeof args.plan.reviewStartedAt !== "number" ||
+                typeof args.plan.rejectedAt !== "number");
+        default:
+            return false;
     }
-    return false;
 }

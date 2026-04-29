@@ -7,6 +7,7 @@ import {
     formatDepartmentUserCount,
     formatDepartmentUserCurrency,
     getDepartmentUserFiscalYearForDate,
+    isDepartmentUserEditablePlanStatus,
     sanitizeCategorySelection,
     type DepartmentUserDashboardState,
     type DepartmentUserPlanAction,
@@ -82,6 +83,12 @@ export interface DepartmentUserDashboardPlanRecord {
     fiscalYear: string;
     id: string;
     itemCount: number;
+    latestDecision?: {
+        comment: string;
+        decidedAt: number;
+        decisionType: "approved" | "rejected" | "revision_requested";
+        revisionDeadlineAt?: number | null;
+    } | null;
     lastApprovedAt?: number | null;
     rejectionComment?: string | null;
     rejectedAt?: number | null;
@@ -313,9 +320,7 @@ export function buildDepartmentUserDashboardSnapshot(
     const currentPlanStatus = currentPlanStatusDetails.statusLabel;
     const currentPlanHref = currentPlan
         ? `/du/plans/${currentPlan.id}?mode=${
-              currentPlanStatus === "Draft" || currentPlanStatus === "Rejected"
-                  ? "edit"
-                  : "view"
+              isDepartmentUserEditablePlanStatus(currentPlanStatus) ? "edit" : "view"
           }`
         : "/du/plans/new";
     const currentPlanAction = derivePlanAction({
@@ -575,11 +580,16 @@ export function buildDepartmentUserDashboardSnapshot(
             },
         },
         rejectionNotice:
-            currentPlanStatus === "Rejected" && currentPlan?.rejectionComment
+            (currentPlanStatus === "Rejected" ||
+                currentPlanStatus === "Revision Requested") &&
+            currentPlan?.rejectionComment
                 ? {
                       action: currentPlanAction,
                       message: currentPlan.rejectionComment,
-                      title: "Revision requested",
+                      title:
+                          currentPlanStatus === "Revision Requested"
+                              ? "Revision requested"
+                              : "Rejected",
                   }
                 : null,
     };
@@ -723,8 +733,7 @@ function createPlanRow(args: {
         timeZone: args.timeZone,
     });
     const statusLabel = statusDetails.statusLabel;
-    const editMode =
-        statusLabel === "Draft" || statusLabel === "Rejected" ? "edit" : "view";
+    const editMode = isDepartmentUserEditablePlanStatus(statusLabel) ? "edit" : "view";
     const planHref = `/du/plans/${args.plan.id}?mode=${editMode}`;
 
     return {

@@ -41,9 +41,7 @@ function buildDepartmentUserDashboardSnapshot(args) {
     });
     const currentPlanStatus = currentPlanStatusDetails.statusLabel;
     const currentPlanHref = currentPlan
-        ? `/du/plans/${currentPlan.id}?mode=${currentPlanStatus === "Draft" || currentPlanStatus === "Rejected"
-            ? "edit"
-            : "view"}`
+        ? `/du/plans/${currentPlan.id}?mode=${(0, dashboard_1.isDepartmentUserEditablePlanStatus)(currentPlanStatus) ? "edit" : "view"}`
         : "/du/plans/new";
     const currentPlanAction = (0, dashboard_1.derivePlanAction)({
         accessMode: args.auth.departmentAccessMode,
@@ -261,11 +259,15 @@ function buildDepartmentUserDashboardSnapshot(args) {
                 })),
             },
         },
-        rejectionNotice: currentPlanStatus === "Rejected" && currentPlan?.rejectionComment
+        rejectionNotice: (currentPlanStatus === "Rejected" ||
+            currentPlanStatus === "Revision Requested") &&
+            currentPlan?.rejectionComment
             ? {
                 action: currentPlanAction,
                 message: currentPlan.rejectionComment,
-                title: "Revision requested",
+                title: currentPlanStatus === "Revision Requested"
+                    ? "Revision requested"
+                    : "Rejected",
             }
             : null,
     };
@@ -393,7 +395,7 @@ function createPlanRow(args) {
         timeZone: args.timeZone,
     });
     const statusLabel = statusDetails.statusLabel;
-    const editMode = statusLabel === "Draft" || statusLabel === "Rejected" ? "edit" : "view";
+    const editMode = (0, dashboard_1.isDepartmentUserEditablePlanStatus)(statusLabel) ? "edit" : "view";
     const planHref = `/du/plans/${args.plan.id}?mode=${editMode}`;
     return {
         action: (0, dashboard_1.derivePlanAction)({

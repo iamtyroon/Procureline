@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { ProcurementOfficerPlanDecisionPanel } from "@/src/components/procurement-officer/ProcurementOfficerPlanDecisionPanel";
 import {
     BlocklyWorkspace,
     type BlocklyWorkspaceSelectedBlockLike,
@@ -229,6 +230,15 @@ export function ProcurementOfficerPlanReviewWorkspace(): JSX.Element {
 
         return nextLabels;
     }, [previousFiscalYearComparison, previousSubmissionComparison, renderState]);
+    const selectedTargets = useMemo(
+        () =>
+            selectedIds.map((selectionId) => ({
+                id: selectionId,
+                label: selectionLabels.get(selectionId) ?? selectionId,
+                type: selectionId.startsWith("category:") ? ("category" as const) : ("item" as const),
+            })),
+        [selectedIds, selectionLabels],
+    );
 
     const visibleSelectionIds = useMemo(() => {
         if (!renderState) {
@@ -597,16 +607,16 @@ export function ProcurementOfficerPlanReviewWorkspace(): JSX.Element {
                                         </Badge>
                                     </div>
                                     <CardTitle className="text-xl tracking-[-0.04em]">
-                                        Current selection
+                                        Review decisions
                                     </CardTitle>
                                     <CardDescription className="text-sm leading-7">
-                                        Use blocks, summary rows, and comparison deltas to collect flag candidates for later decision workflows.
+                                        Select categories or items, then approve, reject, or request revision from the same canonical decision flow.
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-3">
                                     {selectedIds.length === 0 ? (
                                         <div className="rounded-2xl border border-dashed border-border/70 bg-muted/15 px-4 py-5 text-sm text-muted-foreground">
-                                            No review targets selected yet.
+                                            No review targets selected yet. You can still approve or decide without specific flags.
                                         </div>
                                     ) : (
                                         selectedIds.map((selectionId) => (
@@ -621,6 +631,14 @@ export function ProcurementOfficerPlanReviewWorkspace(): JSX.Element {
                                             </button>
                                         ))
                                     )}
+                                    <Separator />
+                                    <ProcurementOfficerPlanDecisionPanel
+                                        canTakeReviewAction={workspace.plan.status === "submitted"}
+                                        latestDecision={workspace.meta.latestDecision}
+                                        planId={workspace.plan.id}
+                                        selectedTargets={selectedTargets}
+                                        undoApproval={workspace.plan.undoApproval}
+                                    />
                                 </CardContent>
                             </Card>
 

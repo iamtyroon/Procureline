@@ -8,6 +8,7 @@ const dashboard_1 = require("../../lib/department-user/dashboard");
 const dashboard_snapshot_1 = require("../../lib/department-user/dashboard-snapshot");
 const department_user_access_1 = require("../../lib/auth/department-user-access");
 const deadlines_1 = require("../../lib/procurement-officer/deadlines");
+const status_tracking_1 = require("../../lib/department-user/status-tracking");
 const dashboardStateValidator = values_1.v.union(values_1.v.literal("available"), values_1.v.literal("coming_soon"), values_1.v.literal("empty"), values_1.v.literal("read_only"), values_1.v.literal("setup_required"), values_1.v.literal("unavailable"));
 const planActionValidator = values_1.v.object({
     disabled: values_1.v.boolean(),
@@ -15,7 +16,7 @@ const planActionValidator = values_1.v.object({
     kind: values_1.v.union(values_1.v.literal("create"), values_1.v.literal("edit"), values_1.v.literal("resume"), values_1.v.literal("view"), values_1.v.literal("view_rejection")),
     label: values_1.v.string(),
 });
-const planStatusValidator = values_1.v.union(values_1.v.literal("Approved"), values_1.v.literal("Draft"), values_1.v.literal("No Plan"), values_1.v.literal("Rejected"), values_1.v.literal("Submitted"), values_1.v.literal("Under Review"));
+const planStatusValidator = values_1.v.union(values_1.v.literal("Approved"), values_1.v.literal("Draft"), values_1.v.literal("No Plan"), values_1.v.literal("Rejected"), values_1.v.literal("Revision Requested"), values_1.v.literal("Submitted"), values_1.v.literal("Under Review"));
 const dashboardSnapshotValidator = values_1.v.object({
     announcements: values_1.v.object({
         emptyMessage: values_1.v.string(),
@@ -304,7 +305,21 @@ exports.getDepartmentUserDashboardSnapshot = (0, server_1.query)({
                 .withIndex("by_tenantId_fiscalYearKey", (q) => q.eq("tenantId", authContext.tenantId).eq("fiscalYearKey", deadlineFiscalYearKey))
                 .first(),
         ]);
-        const planSnapshotEntries = await Promise.all(plans.map(async (plan) => [
+        const canonicalPlanIds = new Set((0, status_tracking_1.selectCanonicalPlans)(plans.map((plan) => ({
+            createdAt: plan.createdAt,
+            fiscalYear: plan.fiscalYear,
+            id: String(plan._id),
+            itemCount: plan.itemCount,
+            approvedAt: plan.approvedAt ?? null,
+            lastApprovedAt: plan.lastApprovedAt ?? null,
+            rejectedAt: plan.rejectedAt ?? null,
+            reviewStartedAt: plan.reviewStartedAt ?? null,
+            status: plan.status,
+            submittedAt: plan.submittedAt ?? null,
+            updatedAt: plan.updatedAt,
+        }))).map((plan) => plan.id));
+        const canonicalPlans = plans.filter((plan) => canonicalPlanIds.has(String(plan._id)));
+        const planSnapshotEntries = await Promise.all(canonicalPlans.map(async (plan) => [
             String(plan._id),
             await ctx.db
                 .query("planSubmissionSnapshots")
@@ -312,19 +327,45 @@ exports.getDepartmentUserDashboardSnapshot = (0, server_1.query)({
                 .collect(),
         ]));
         const planSnapshotsByPlanId = new Map(planSnapshotEntries);
-        const reviewerEntries = await Promise.all(plans.map(async (plan) => {
+        const activeDecisionEntries = await Promise.all(canonicalPlans.map(async (plan) => [
+            String(plan._id),
+            await ctx.db
+                .query("planReviewDecisions")
+                .withIndex("by_planId_lifecycleStatus_decidedAt", (q) => q.eq("planId", plan._id).eq("lifecycleStatus", "active"))
+                .order("desc")
+                .first(),
+        ]));
+        const activeDecisionByPlanId = new Map(activeDecisionEntries);
+        const reviewerRecordIds = new Set();
+        for (const plan of canonicalPlans) {
+            if (plan.reviewStartedByUserId && plan.reviewStartedByTenantUserId) {
+                reviewerRecordIds.add(String(plan.reviewStartedByUserId));
+                reviewerRecordIds.add(String(plan.reviewStartedByTenantUserId));
+            }
+        }
+        const reviewerRecordEntries = await Promise.all(Array.from(reviewerRecordIds).map(async (recordId) => {
+            const userId = ctx.db.normalizeId("users", recordId);
+            if (userId) {
+                return [recordId, await ctx.db.get(userId)];
+            }
+            const tenantUserId = ctx.db.normalizeId("tenantUsers", recordId);
+            return tenantUserId
+                ? [recordId, await ctx.db.get(tenantUserId)]
+                : [recordId, null];
+        }));
+        const reviewerRecordsById = new Map(reviewerRecordEntries);
+        const reviewerEntries = await Promise.all(canonicalPlans.map(async (plan) => {
             if (!plan.reviewStartedByUserId || !plan.reviewStartedByTenantUserId) {
                 return [String(plan._id), null];
             }
-            const [reviewerUser, reviewerTenantUser] = await Promise.all([
-                ctx.db.get(plan.reviewStartedByUserId),
-                ctx.db.get(plan.reviewStartedByTenantUserId),
-            ]);
-            const isTenantScopedReviewer = Boolean(reviewerTenantUser) &&
-                reviewerTenantUser?.tenantId === authContext.tenantId &&
-                reviewerTenantUser?.userId === plan.reviewStartedByUserId &&
-                reviewerTenantUser?.role === "procurement_officer" &&
-                reviewerTenantUser?.isActive;
+            const reviewerUser = reviewerRecordsById.get(String(plan.reviewStartedByUserId));
+            const reviewerTenantUser = readRecord(reviewerRecordsById.get(String(plan.reviewStartedByTenantUserId)));
+            const isTenantScopedReviewer = reviewerTenantUser
+                ? reviewerTenantUser.tenantId === authContext.tenantId &&
+                    reviewerTenantUser.userId === plan.reviewStartedByUserId &&
+                    reviewerTenantUser.role === "procurement_officer" &&
+                    reviewerTenantUser.isActive === true
+                : false;
             if (!isTenantScopedReviewer) {
                 return [
                     String(plan._id),
@@ -411,6 +452,17 @@ exports.getDepartmentUserDashboardSnapshot = (0, server_1.query)({
                 fiscalYear: plan.fiscalYear,
                 id: String(plan._id),
                 itemCount: plan.itemCount,
+                latestDecision: (() => {
+                    const decision = activeDecisionByPlanId.get(String(plan._id));
+                    return decision
+                        ? {
+                            comment: decision.comment,
+                            decidedAt: decision.decidedAt,
+                            decisionType: decision.decisionType,
+                            revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
+                        }
+                        : null;
+                })(),
                 lastApprovedAt: plan.lastApprovedAt ?? null,
                 rejectionComment: plan.rejectionComment ?? null,
                 rejectedAt: plan.rejectedAt ?? null,
@@ -479,4 +531,9 @@ function readAuthUserSummary(userDocument, fallbackName) {
             .toUpperCase(),
         name,
     };
+}
+function readRecord(value) {
+    return value && typeof value === "object" && !Array.isArray(value)
+        ? value
+        : null;
 }

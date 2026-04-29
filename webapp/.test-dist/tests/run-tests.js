@@ -43,6 +43,7 @@ async function main() {
     const { runProcurementOfficerSubmissionTests } = await import("./procurement-officer-submissions.test.js");
     const { runProcurementOfficerRequestTests } = await import("./procurement-officer-requests.test.js");
     const { runProcurementOfficerReviewTests } = await import("./procurement-officer-review.test.js");
+    const { runProcurementOfficerReviewDecisionTests } = await import("./procurement-officer-review-decisions.test.js");
     const { runPlanRedraftTests } = await import("./plan-redrafts.test.js");
     const { runProcurementOfficerItemTests } = await import("./procurement-officer-items.test.js");
     const { runProcurementOfficerInvitationTests } = await import("./procurement-officer-invitations.test.js");
@@ -84,6 +85,7 @@ async function main() {
         ...runProcurementOfficerSubmissionTests(),
         ...runProcurementOfficerRequestTests(),
         ...runProcurementOfficerReviewTests(),
+        ...runProcurementOfficerReviewDecisionTests(),
         ...runPlanRedraftTests(),
         ...(await runProcurementOfficerInvitationTests()),
         ...runPublicAuthEntryTests(),

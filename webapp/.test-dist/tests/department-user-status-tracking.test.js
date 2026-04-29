@@ -94,6 +94,38 @@ function runDepartmentUserStatusTrackingTests() {
     strict_1.default.equal(snapshotPrecedenceDetails.timeline[2]?.title, "Withdrawn");
     strict_1.default.equal(snapshotPrecedenceDetails.timeline[snapshotPrecedenceDetails.timeline.length - 1]?.timestampLabel, "10 Aug 2026, 11:00 GMT+3");
     completedTests.push("department-user status tracking prefers the active submission snapshot over mutable plan-level submission fields and preserves withdrawn plus resubmitted timeline history in order");
+    const mixedLegacyOrderingDetails = (0, status_tracking_1.deriveDepartmentUserStatusDetails)({
+        fiscalYearKey: "2026-2027",
+        plan: {
+            createdAt: Date.UTC(2026, 7, 1, 8, 0, 0),
+            fiscalYear: "2026-2027",
+            id: "plan-mixed",
+            itemCount: 4,
+            status: "submitted",
+            submissionSnapshots: [
+                {
+                    capturedAt: Date.UTC(2026, 7, 12, 10, 0, 0),
+                    lifecycleStatus: "active",
+                    submissionReference: "CS-2627-003",
+                    submissionSequence: 3,
+                    submittedAt: Date.UTC(2026, 7, 12, 8, 0, 0),
+                },
+                {
+                    capturedAt: Date.UTC(2026, 7, 5, 10, 0, 0),
+                    lifecycleStatus: "active",
+                    submissionReference: "LEGACY-1",
+                    submittedAt: Date.UTC(2026, 7, 5, 8, 0, 0),
+                },
+            ],
+            submittedAt: Date.UTC(2026, 7, 12, 8, 0, 0),
+            updatedAt: Date.UTC(2026, 7, 12, 8, 0, 0),
+        },
+        timeZone: "Africa/Nairobi",
+    });
+    strict_1.default.deepEqual(mixedLegacyOrderingDetails.timeline
+        .filter((item) => item.title === "Submitted")
+        .map((item) => item.description), ["Submitted as LEGACY-1.", "Submitted as CS-2627-003."]);
+    completedTests.push("department-user status tracking orders mixed legacy and sequenced submission snapshots by actual chronology instead of comparing sequence ordinals directly to timestamps");
     const legacyDetails = (0, status_tracking_1.deriveDepartmentUserStatusDetails)({
         fiscalYearKey: "2026-2027",
         plan: {
@@ -109,6 +141,37 @@ function runDepartmentUserStatusTrackingTests() {
     strict_1.default.equal(legacyDetails.historyState, "partial");
     strict_1.default.equal(legacyDetails.historySummary, "Some earlier status history is unavailable for this plan.");
     completedTests.push("department-user status tracking marks incomplete legacy submission history explicitly instead of inventing missing timestamps");
+    const legacyApprovedDetails = (0, status_tracking_1.deriveDepartmentUserStatusDetails)({
+        fiscalYearKey: "2026-2027",
+        plan: {
+            approvedAt: Date.UTC(2026, 7, 15, 8, 0, 0),
+            createdAt: Date.UTC(2026, 7, 1, 8, 0, 0),
+            fiscalYear: "2026-2027",
+            id: "plan-approved-legacy",
+            itemCount: 3,
+            status: "approved",
+            submittedAt: Date.UTC(2026, 7, 10, 8, 0, 0),
+            updatedAt: Date.UTC(2026, 7, 15, 8, 0, 0),
+        },
+        timeZone: "Africa/Nairobi",
+    });
+    strict_1.default.equal(legacyApprovedDetails.historyState, "partial");
+    const legacyRejectedDetails = (0, status_tracking_1.deriveDepartmentUserStatusDetails)({
+        fiscalYearKey: "2026-2027",
+        plan: {
+            createdAt: Date.UTC(2026, 7, 1, 8, 0, 0),
+            fiscalYear: "2026-2027",
+            id: "plan-rejected-legacy",
+            itemCount: 3,
+            rejectedAt: Date.UTC(2026, 7, 15, 8, 0, 0),
+            status: "rejected",
+            submittedAt: Date.UTC(2026, 7, 10, 8, 0, 0),
+            updatedAt: Date.UTC(2026, 7, 15, 8, 0, 0),
+        },
+        timeZone: "Africa/Nairobi",
+    });
+    strict_1.default.equal(legacyRejectedDetails.historyState, "partial");
+    completedTests.push("department-user status tracking keeps legacy approved and rejected plans marked as partial history when canonical intermediate workflow events are missing");
     const canonicalPlans = (0, status_tracking_1.selectCanonicalPlans)([
         {
             createdAt: Date.UTC(2026, 7, 1, 8, 0, 0),

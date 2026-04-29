@@ -19,6 +19,16 @@ const catalogRequestStatusValidator = values_1.v.union(values_1.v.literal("pendi
 const catalogRequestDecisionSourceValidator = values_1.v.union(values_1.v.literal("deadline"), values_1.v.literal("du"), values_1.v.literal("po"), values_1.v.literal("system"));
 const catalogRequestOriginValidator = values_1.v.union(values_1.v.literal("standalone"), values_1.v.literal("item_handoff"));
 const planRedraftRequestStatusValidator = values_1.v.union(values_1.v.literal("pending"), values_1.v.literal("approved"), values_1.v.literal("denied"), values_1.v.literal("cancelled"));
+const planReviewDecisionTypeValidator = values_1.v.union(values_1.v.literal("approved"), values_1.v.literal("rejected"), values_1.v.literal("revision_requested"));
+const planReviewDecisionLifecycleStatusValidator = values_1.v.union(values_1.v.literal("active"), values_1.v.literal("superseded"), values_1.v.literal("undone"));
+const planReviewDecisionNotificationStatusValidator = values_1.v.union(values_1.v.literal("failed"), values_1.v.literal("queued"));
+const planReviewFlaggedTargetValidator = values_1.v.object({
+    categoryId: values_1.v.string(),
+    id: values_1.v.string(),
+    itemId: values_1.v.union(values_1.v.string(), values_1.v.null()),
+    label: values_1.v.string(),
+    type: values_1.v.union(values_1.v.literal("category"), values_1.v.literal("item")),
+});
 exports.default = (0, server_1.defineSchema)({
     ...server_2.authTables,
     tenants: (0, server_1.defineTable)({
@@ -409,6 +419,7 @@ exports.default = (0, server_1.defineSchema)({
         reviewStartedByTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
         reviewStartedByUserId: values_1.v.optional(values_1.v.id("users")),
         approvedAt: values_1.v.optional(values_1.v.number()),
+        consolidatedAt: values_1.v.optional(values_1.v.number()),
         rejectedAt: values_1.v.optional(values_1.v.number()),
         lastApprovedAt: values_1.v.optional(values_1.v.number()),
         lastApprovedSnapshotId: values_1.v.optional(values_1.v.id("planSubmissionSnapshots")),
@@ -422,6 +433,46 @@ exports.default = (0, server_1.defineSchema)({
         .index("by_departmentId", ["departmentId"])
         .index("by_departmentId_fiscalYear", ["departmentId", "fiscalYear"])
         .index("by_tenantId_status", ["tenantId", "status"]),
+    planReviewDecisions: (0, server_1.defineTable)({
+        tenantId: values_1.v.id("tenants"),
+        departmentId: values_1.v.id("departments"),
+        planId: values_1.v.id("plans"),
+        fiscalYear: values_1.v.string(),
+        decisionType: planReviewDecisionTypeValidator,
+        lifecycleStatus: planReviewDecisionLifecycleStatusValidator,
+        comment: values_1.v.string(),
+        flaggedTargets: values_1.v.array(planReviewFlaggedTargetValidator),
+        revisionDeadlineAt: values_1.v.optional(values_1.v.union(values_1.v.number(), values_1.v.null())),
+        decidedAt: values_1.v.number(),
+        decidedByUserId: values_1.v.id("users"),
+        decidedByTenantUserId: values_1.v.id("tenantUsers"),
+        notificationIdempotencyKey: values_1.v.optional(values_1.v.string()),
+        notificationQueuedAt: values_1.v.optional(values_1.v.number()),
+        notificationStatus: values_1.v.optional(planReviewDecisionNotificationStatusValidator),
+        notificationErrorCode: values_1.v.optional(values_1.v.string()),
+        notificationErrorMessage: values_1.v.optional(values_1.v.string()),
+        undoneAt: values_1.v.optional(values_1.v.number()),
+        undoneByUserId: values_1.v.optional(values_1.v.id("users")),
+        undoneByTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
+        supersededAt: values_1.v.optional(values_1.v.number()),
+    })
+        .index("by_planId_decidedAt", ["planId", "decidedAt"])
+        .index("by_planId_lifecycleStatus_decidedAt", [
+        "planId",
+        "lifecycleStatus",
+        "decidedAt",
+    ])
+        .index("by_tenantId_departmentId_fiscalYear_decidedAt", [
+        "tenantId",
+        "departmentId",
+        "fiscalYear",
+        "decidedAt",
+    ])
+        .index("by_tenantId_lifecycleStatus_decidedAt", [
+        "tenantId",
+        "lifecycleStatus",
+        "decidedAt",
+    ]),
     planRedraftRequests: (0, server_1.defineTable)({
         tenantId: values_1.v.id("tenants"),
         departmentId: values_1.v.id("departments"),

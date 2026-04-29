@@ -10,6 +10,7 @@ export type DepartmentUserDisplayStatus =
     | "draft"
     | "no_plan"
     | "rejected"
+    | "revision_requested"
     | "submitted"
     | "under_review";
 
@@ -36,6 +37,12 @@ export interface DepartmentUserPlanSubmissionSnapshotRecord {
 }
 
 export interface DepartmentUserStatusTrackingPlanLike {
+    latestDecision?: {
+        comment: string;
+        decidedAt: number;
+        decisionType: "approved" | "rejected" | "revision_requested";
+        revisionDeadlineAt?: number | null;
+    } | null;
     approvedAt?: number | null;
     categorySummaries?: readonly {
         amount: number;
@@ -77,7 +84,14 @@ export interface DepartmentUserDerivedStatusDetails {
     reviewerLabel: string | null;
     reviewerState: "available" | "unavailable" | null;
     statusDateLabel: string | null;
-    statusLabel: "Approved" | "Draft" | "No Plan" | "Rejected" | "Submitted" | "Under Review";
+    statusLabel:
+        | "Approved"
+        | "Draft"
+        | "No Plan"
+        | "Rejected"
+        | "Revision Requested"
+        | "Submitted"
+        | "Under Review";
     submissionReference: string | null;
     timeline: DepartmentUserTimelineItem[];
 }
@@ -191,6 +205,7 @@ export function deriveDepartmentUserStatusDetails(args: {
             displayStatus,
             fiscalYearKey: args.fiscalYearKey,
             itemCount: args.plan.itemCount,
+            latestDecision: args.plan.latestDecision ?? null,
             rejectionComment: args.plan.rejectionComment ?? null,
             reviewStartedAt: args.plan.reviewStartedAt ?? null,
             reviewer,
@@ -224,11 +239,17 @@ export function deriveDepartmentUserStatusDetails(args: {
 export function deriveDepartmentUserDisplayStatus(
     plan: Pick<
         DepartmentUserStatusTrackingPlanLike,
-        "approvedAt" | "rejectedAt" | "reviewStartedAt" | "status"
+        "approvedAt" | "latestDecision" | "rejectedAt" | "reviewStartedAt" | "status"
     >,
 ): DepartmentUserDisplayStatus {
     if (plan.status === "approved" || typeof plan.approvedAt === "number") {
         return "approved";
+    }
+    if (
+        plan.status === "rejected" &&
+        plan.latestDecision?.decisionType === "revision_requested"
+    ) {
+        return "revision_requested";
     }
     if (plan.status === "rejected" || typeof plan.rejectedAt === "number") {
         return "rejected";
@@ -239,10 +260,7 @@ export function deriveDepartmentUserDisplayStatus(
     if (plan.status === "submitted") {
         return "submitted";
     }
-    if (plan.status === "draft") {
-        return "draft";
-    }
-    return "no_plan";
+    return "draft";
 }
 
 export function getDepartmentUserStatusLabel(
@@ -255,6 +273,8 @@ export function getDepartmentUserStatusLabel(
             return "Draft";
         case "rejected":
             return "Rejected";
+        case "revision_requested":
+            return "Revision Requested";
         case "submitted":
             return "Submitted";
         case "under_review":
@@ -381,13 +401,16 @@ function buildDepartmentUserTimeline(args: {
         items.push(
             createTimelineItem({
                 description:
-                    args.plan.rejectionComment?.trim()
-                        ? args.plan.rejectionComment.trim()
-                        : "Revision requested by Procurement Officer.",
+                    args.plan.latestDecision?.comment.trim() ||
+                    args.plan.rejectionComment?.trim() ||
+                    "Revision requested by Procurement Officer.",
                 id: `${args.plan.id}:rejected`,
                 timeZone: args.timeZone,
                 timestamp: args.plan.rejectedAt,
-                title: "Rejected",
+                title:
+                    args.plan.latestDecision?.decisionType === "revision_requested"
+                        ? "Revision Requested"
+                        : "Rejected",
             }),
         );
     }
@@ -425,6 +448,7 @@ function buildDepartmentUserStatusHelperText(args: {
     displayStatus: DepartmentUserDisplayStatus;
     fiscalYearKey: string;
     itemCount: number;
+    latestDecision: DepartmentUserStatusTrackingPlanLike["latestDecision"];
     rejectionComment: string | null;
     reviewStartedAt: number | null;
     reviewer: DepartmentUserReviewerSummary | null;
@@ -470,6 +494,13 @@ function buildDepartmentUserStatusHelperText(args: {
                     ? args.rejectionComment.trim()
                     : "Decision comments unavailable.",
             ].join(" ");
+        case "revision_requested":
+            return [
+                "Revision requested.",
+                args.latestDecision?.comment.trim() || args.rejectionComment?.trim()
+                    ? args.latestDecision?.comment.trim() ?? args.rejectionComment?.trim() ?? ""
+                    : "Decision comments unavailable.",
+            ].join(" ");
         case "draft":
             return `Draft plan for ${args.fiscalYearKey}.`;
         default:
@@ -502,6 +533,10 @@ function buildStatusDateLabel(args: {
             return typeof args.rejectedAt === "number"
                 ? formatDeadlineDateTime(args.rejectedAt, args.timeZone)
                 : "Decision date unavailable";
+        case "revision_requested":
+            return typeof args.rejectedAt === "number"
+                ? formatDeadlineDateTime(args.rejectedAt, args.timeZone)
+                : "Decision date unavailable";
         default:
             return null;
     }
@@ -528,6 +563,7 @@ function shouldShowPartialHistoryNotice(args: {
                     "number"
             );
         case "rejected":
+        case "revision_requested":
             return (
                 args.submittedAt === null ||
                 typeof args.plan.reviewStartedAt !== "number" ||

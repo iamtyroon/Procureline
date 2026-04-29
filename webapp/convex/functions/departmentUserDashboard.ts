@@ -1,4 +1,5 @@
 import { ConvexError, v } from "convex/values";
+import type { Doc } from "../_generated/dataModel";
 import { query } from "../_generated/server";
 import { requireTenantRole } from "./_roleGuard";
 import {
@@ -36,12 +37,13 @@ const planActionValidator = v.object({
 });
 
 const planStatusValidator = v.union(
-    v.literal("Approved"),
-    v.literal("Draft"),
-    v.literal("No Plan"),
-    v.literal("Rejected"),
-    v.literal("Submitted"),
-    v.literal("Under Review"),
+  v.literal("Approved"),
+  v.literal("Draft"),
+  v.literal("No Plan"),
+  v.literal("Rejected"),
+  v.literal("Revision Requested"),
+  v.literal("Submitted"),
+  v.literal("Under Review"),
 );
 
 const dashboardSnapshotValidator = v.object({
@@ -399,6 +401,19 @@ export const getDepartmentUserDashboardSnapshot = query({
             ] as const),
         );
         const planSnapshotsByPlanId = new Map(planSnapshotEntries);
+        const activeDecisionEntries = await Promise.all(
+            canonicalPlans.map(async (plan) => [
+                String(plan._id),
+                await ctx.db
+                    .query("planReviewDecisions")
+                    .withIndex("by_planId_lifecycleStatus_decidedAt", (q) =>
+                        q.eq("planId", plan._id).eq("lifecycleStatus", "active"),
+                    )
+                    .order("desc")
+                    .first(),
+            ] as const),
+        );
+        const activeDecisionByPlanId = new Map(activeDecisionEntries);
         const reviewerRecordIds = new Set<string>();
         for (const plan of canonicalPlans) {
             if (plan.reviewStartedByUserId && plan.reviewStartedByTenantUserId) {
@@ -432,12 +447,12 @@ export const getDepartmentUserDashboardSnapshot = query({
                 const reviewerTenantUser = readRecord(
                     reviewerRecordsById.get(String(plan.reviewStartedByTenantUserId)),
                 );
-                const isTenantScopedReviewer =
-                    Boolean(reviewerTenantUser) &&
-                    reviewerTenantUser.tenantId === authContext.tenantId &&
-                    reviewerTenantUser.userId === plan.reviewStartedByUserId &&
-                    reviewerTenantUser.role === "procurement_officer" &&
-                    reviewerTenantUser.isActive === true;
+                const isTenantScopedReviewer = reviewerTenantUser
+                    ? reviewerTenantUser.tenantId === authContext.tenantId &&
+                      reviewerTenantUser.userId === plan.reviewStartedByUserId &&
+                      reviewerTenantUser.role === "procurement_officer" &&
+                      reviewerTenantUser.isActive === true
+                    : false;
 
                 if (!isTenantScopedReviewer) {
                     return [
@@ -526,7 +541,7 @@ export const getDepartmentUserDashboardSnapshot = query({
             leaderboardEntries: [],
             now: Date.now(),
             plans: plans.map((plan) => ({
-                categorySummaries: plan.categorySummaries.map((summary) => ({
+                categorySummaries: plan.categorySummaries.map((summary: Doc<"plans">["categorySummaries"][number]) => ({
                     amount: summary.amount,
                     categoryId: String(summary.categoryId),
                     categoryName: summary.categoryName,
@@ -537,12 +552,23 @@ export const getDepartmentUserDashboardSnapshot = query({
                 fiscalYear: plan.fiscalYear,
                 id: String(plan._id),
                 itemCount: plan.itemCount,
+                latestDecision: (() => {
+                    const decision = activeDecisionByPlanId.get(String(plan._id));
+                    return decision
+                        ? {
+                              comment: decision.comment,
+                              decidedAt: decision.decidedAt,
+                              decisionType: decision.decisionType,
+                              revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
+                          }
+                        : null;
+                })(),
                 lastApprovedAt: plan.lastApprovedAt ?? null,
                 rejectionComment: plan.rejectionComment ?? null,
                 rejectedAt: plan.rejectedAt ?? null,
                 reviewStartedAt: plan.reviewStartedAt ?? null,
                 reviewer: reviewerByPlanId.get(String(plan._id)) ?? null,
-                selectedCategoryIds: plan.selectedCategoryIds.map((categoryId) =>
+                selectedCategoryIds: plan.selectedCategoryIds.map((categoryId: Doc<"plans">["selectedCategoryIds"][number]) =>
                     String(categoryId),
                 ),
                 status: plan.status,

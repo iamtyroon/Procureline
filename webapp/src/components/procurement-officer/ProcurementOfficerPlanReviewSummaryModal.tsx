@@ -14,7 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
   Table,
@@ -25,6 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { ProcurementOfficerPlanDecisionPanel } from "@/src/components/procurement-officer/ProcurementOfficerPlanDecisionPanel";
 import {
   resolveProcurementOfficerReviewRenderState,
   shouldStartProcurementOfficerReviewTracking,
@@ -69,12 +69,6 @@ export function ProcurementOfficerPlanReviewSummaryModal({
   const startReview = useMutation(
     api.functions.procurementOfficerPlanReview.startProcurementOfficerPlanReview,
   );
-  const rejectReview = useMutation(
-    api.functions.procurementOfficerPlanReview.rejectProcurementOfficerPlanReview,
-  );
-  const approveReview = useMutation(
-    api.functions.procurementOfficerPlanReview.approveProcurementOfficerPlanReview,
-  );
   const approveRedraft = useMutation(
     api.functions.planRedrafts.approveProcurementOfficerPlanRedraftRequest,
   );
@@ -82,11 +76,6 @@ export function ProcurementOfficerPlanReviewSummaryModal({
     api.functions.planRedrafts.denyProcurementOfficerPlanRedraftRequest,
   );
   const startedPlanIdRef = useRef<string | null>(null);
-  const [isSendBackOpen, setIsSendBackOpen] = useState(false);
-  const [sendBackComment, setSendBackComment] = useState("");
-  const [sendBackBudgetValue, setSendBackBudgetValue] = useState("");
-  const [isRejecting, setIsRejecting] = useState(false);
-  const [isApproving, setIsApproving] = useState(false);
   const [redraftDecisionNote, setRedraftDecisionNote] = useState("");
   const [redraftDecision, setRedraftDecision] = useState<
     "approve" | "deny" | null
@@ -95,11 +84,6 @@ export function ProcurementOfficerPlanReviewSummaryModal({
   useEffect(() => {
     if (!open) {
       startedPlanIdRef.current = null;
-      setIsSendBackOpen(false);
-      setSendBackComment("");
-      setSendBackBudgetValue("");
-      setIsRejecting(false);
-      setIsApproving(false);
       setRedraftDecisionNote("");
       setRedraftDecision(null);
       return;
@@ -151,79 +135,6 @@ export function ProcurementOfficerPlanReviewSummaryModal({
   const canTakeReviewAction =
     reviewWorkspace?.workspace?.plan.status === "submitted";
   const pendingRedraftRequest = reviewWorkspace?.workspace?.redraftRequest;
-  const currentBudgetLabel = reviewWorkspace?.workspace?.department
-    .budgetAllocation
-    ? formatCurrency(reviewWorkspace.workspace.department.budgetAllocation)
-    : "No active budget set";
-
-  async function handleApprove(): Promise<void> {
-    if (!planId || !canTakeReviewAction || isApproving) {
-      return;
-    }
-
-    setIsApproving(true);
-    try {
-      await approveReview({ planId });
-      toast.success("Plan approved and sent to editor.");
-      onClose();
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "The plan could not be approved.",
-      );
-    } finally {
-      setIsApproving(false);
-    }
-  }
-
-  async function handleSendBack(): Promise<void> {
-    if (!planId || !canTakeReviewAction || isRejecting) {
-      return;
-    }
-
-    const trimmedComment = sendBackComment.trim();
-    if (trimmedComment.length === 0) {
-      toast.error("Add a comment before sending the plan back.");
-      return;
-    }
-
-    const trimmedBudgetValue = sendBackBudgetValue.trim();
-    const parsedBudget =
-      trimmedBudgetValue.length === 0 ? null : Number(trimmedBudgetValue);
-
-    if (
-      trimmedBudgetValue.length > 0 &&
-      (!Number.isFinite(parsedBudget) || Number.isNaN(parsedBudget))
-    ) {
-      toast.error("Enter a valid department budget or leave it blank.");
-      return;
-    }
-
-    setIsRejecting(true);
-    try {
-      const result = await rejectReview({
-        body: trimmedComment,
-        nextDepartmentBudgetAllocation: parsedBudget,
-        planId,
-      });
-      toast.success(
-        result.departmentBudgetChanged
-          ? "Plan sent back with the updated department budget."
-          : "Plan sent back to the department.",
-      );
-      setIsSendBackOpen(false);
-      onClose();
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "The plan could not be sent back.",
-      );
-    } finally {
-      setIsRejecting(false);
-    }
-  }
 
   async function handleRedraftDecision(
     decision: "approve" | "deny",
@@ -509,107 +420,19 @@ export function ProcurementOfficerPlanReviewSummaryModal({
           )}
         </div>
 
-        {canTakeReviewAction ? (
-          <div className="flex flex-col-reverse gap-3 border-t border-border/70 bg-muted/20 px-6 py-4 sm:flex-row sm:justify-end">
-            <Button
-              onClick={() => setIsSendBackOpen(true)}
-              type="button"
-              variant="outline"
-            >
-              Comment & Send Back
-            </Button>
-            <Button
-              disabled={isApproving || isRejecting}
-              onClick={() => void handleApprove()}
-              type="button"
-            >
-              {isApproving ? (
-                <>
-                  <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                  Approving...
-                </>
-              ) : (
-                "Approve & Send to Editor"
-              )}
-            </Button>
+        {planId ? (
+          <div className="border-t border-border/70 bg-muted/20 px-6 py-4">
+            <ProcurementOfficerPlanDecisionPanel
+              canTakeReviewAction={Boolean(canTakeReviewAction)}
+              latestDecision={reviewWorkspace?.workspace?.meta?.latestDecision}
+              onDecisionComplete={onClose}
+              planId={planId}
+              selectedTargets={[]}
+              undoApproval={reviewWorkspace?.workspace?.plan?.undoApproval}
+            />
           </div>
         ) : null}
       </DialogContent>
-
-      <Dialog open={isSendBackOpen} onOpenChange={setIsSendBackOpen}>
-        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl border-border/70 sm:w-full">
-          <DialogHeader className="space-y-2 text-left">
-            <DialogTitle>Comment And Send Back</DialogTitle>
-            <DialogDescription className="leading-6">
-              Add the revision note for the department. You can also update the
-              department budget here if the review requires it.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-foreground">
-                Review comment
-              </div>
-              <Textarea
-                onChange={(event) => setSendBackComment(event.target.value)}
-                placeholder="Explain what needs to change before this plan can be resubmitted."
-                rows={5}
-                value={sendBackComment}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-medium text-foreground">
-                  Updated department budget
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Current: {currentBudgetLabel}
-                </div>
-              </div>
-              <Input
-                inputMode="decimal"
-                min="0"
-                onChange={(event) => setSendBackBudgetValue(event.target.value)}
-                placeholder="Leave blank to keep the current budget"
-                type="number"
-                value={sendBackBudgetValue}
-              />
-              <p className="text-xs leading-5 text-muted-foreground">
-                This is optional. If entered, the department budget is updated
-                before the plan is returned for revision.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <Button
-              disabled={isRejecting}
-              onClick={() => setIsSendBackOpen(false)}
-              type="button"
-              variant="outline"
-            >
-              Cancel
-            </Button>
-            <Button
-              disabled={isRejecting}
-              onClick={() => void handleSendBack()}
-              type="button"
-              variant="destructive"
-            >
-              {isRejecting ? (
-                <>
-                  <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                  Sending Back...
-                </>
-              ) : (
-                "Send Back"
-              )}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </Dialog>
   );
 }

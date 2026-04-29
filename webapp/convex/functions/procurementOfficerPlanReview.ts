@@ -1,5 +1,5 @@
 import { ConvexError, v } from "convex/values";
-import type { Doc } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "../_generated/server";
 import {
     createPersistedBlocklyWorkspaceRecord,
@@ -7,6 +7,16 @@ import {
 } from "../../lib/blockly/blockly-serialization";
 import { formatDepartmentBudget } from "../../lib/procurement-officer/departments";
 import { formatDeadlineDateTime, resolveDeadlineTimeZone } from "../../lib/procurement-officer/deadlines";
+import {
+    buildProcurementOfficerDecisionSummary,
+    buildProcurementOfficerDecisionNotificationIdempotencyKey,
+    getProcurementOfficerPlanDecisionStatusLabel,
+    getProcurementOfficerUndoApprovalEligibility,
+    normalizeProcurementOfficerDecisionComment,
+    normalizeProcurementOfficerFlaggedTargets,
+    validateProcurementOfficerRevisionDeadline,
+    type ProcurementOfficerPlanDecisionType,
+} from "../../lib/procurement-officer/review-decision";
 import {
     buildProcurementOfficerReviewSnapshotSequenceKey,
     derivePreviousFiscalYearKey,
@@ -68,9 +78,20 @@ function readAuthUserSummary(
 
 type DataCtx = MutationCtx | QueryCtx;
 
+const reviewDecisionTypeValidator = v.union(
+    v.literal("rejected"),
+    v.literal("revision_requested"),
+);
+
+const reviewFlaggedTargetInputValidator = v.object({
+    id: v.string(),
+    label: v.string(),
+    type: v.union(v.literal("category"), v.literal("item")),
+});
+
 function toPersistedPlanSummary(plan: Doc<"plans">) {
     return {
-        categorySummaries: plan.categorySummaries.map((summary) => ({
+        categorySummaries: plan.categorySummaries.map((summary: Doc<"plans">["categorySummaries"][number]) => ({
             amount: summary.amount,
             categoryId: String(summary.categoryId),
             categoryName: summary.categoryName,
@@ -176,6 +197,164 @@ function assertPlanIsPendingReview(plan: Doc<"plans">): void {
     }
 }
 
+function buildPlanReviewAuditEntry(args: {
+    action: "approve" | "reject" | "request_revision" | "undo_approval";
+    actorUserId: Id<"users">;
+    departmentId: Id<"departments">;
+    event:
+        | typeof AUDIT_EVENT_NAMES.planReviewApproved
+        | typeof AUDIT_EVENT_NAMES.planReviewApprovalUndone
+        | typeof AUDIT_EVENT_NAMES.planReviewRejected
+        | typeof AUDIT_EVENT_NAMES.planReviewRevisionRequested;
+    metadata: Record<string, unknown>;
+    outcome: typeof AUDIT_OUTCOMES.allowed | typeof AUDIT_OUTCOMES.blockedStateTransition;
+    planId: Id<"plans">;
+    tenantId: Id<"tenants">;
+}) {
+    return {
+        action: args.action,
+        actor: createAuthenticatedAuditActor({
+            role: "procurement_officer",
+            userId: String(args.actorUserId),
+        }),
+        entityType: "plan",
+        event: args.event,
+        metadata: {
+            departmentId: String(args.departmentId),
+            ...args.metadata,
+        },
+        outcome: args.outcome,
+        recordId: String(args.planId),
+        sourceTenantId: String(args.tenantId),
+        tableName: "plans",
+        targetTenantId: String(args.tenantId),
+        timestamp: Date.now(),
+    } as const;
+}
+
+async function getLatestActivePlanReviewDecision(
+    ctx: DataCtx,
+    planId: Id<"plans">,
+) {
+    return ctx.db
+        .query("planReviewDecisions")
+        .withIndex("by_planId_lifecycleStatus_decidedAt", (q) =>
+            q.eq("planId", planId).eq("lifecycleStatus", "active"),
+        )
+        .order("desc")
+        .first();
+}
+
+async function supersedeActivePlanReviewDecisions(
+    ctx: MutationCtx,
+    planId: Id<"plans">,
+    supersededAt: number,
+) {
+    const activeDecisions = await ctx.db
+        .query("planReviewDecisions")
+        .withIndex("by_planId_lifecycleStatus_decidedAt", (q) =>
+            q.eq("planId", planId).eq("lifecycleStatus", "active"),
+        )
+        .collect();
+
+    await Promise.all(
+        activeDecisions.map((decision) =>
+            ctx.db.patch(decision._id, {
+                lifecycleStatus: "superseded",
+                supersededAt,
+            }),
+        ),
+    );
+}
+
+function mapPlanReviewDecision(
+    decision: Doc<"planReviewDecisions"> | null,
+    timeZone: string,
+) {
+    if (!decision) {
+        return null;
+    }
+
+    return {
+        comment: decision.comment,
+        decidedAt: decision.decidedAt,
+        decidedAtLabel: formatDeadlineDateTime(decision.decidedAt, timeZone),
+        decisionType: decision.decisionType,
+        flaggedTargets: decision.flaggedTargets,
+        id: String(decision._id),
+        notificationErrorMessage: decision.notificationErrorMessage ?? null,
+        notificationQueuedAt: decision.notificationQueuedAt ?? null,
+        notificationStatus: decision.notificationStatus ?? null,
+        revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
+        revisionDeadlineLabel:
+            typeof decision.revisionDeadlineAt === "number"
+                ? formatDeadlineDateTime(decision.revisionDeadlineAt, timeZone)
+                : null,
+        statusLabel: getProcurementOfficerPlanDecisionStatusLabel(decision.decisionType),
+    };
+}
+
+function getReviewableSelectionIds(plan: Doc<"plans">): string[] {
+    const selectionIds = new Set<string>();
+
+    for (const category of plan.categorySummaries) {
+        const categoryId = String(category.categoryId);
+        selectionIds.add(`category:${categoryId}`);
+    }
+
+    const workspaceBlocks =
+        plan.workspaceState &&
+        typeof plan.workspaceState === "object" &&
+        "workspaceJson" in plan.workspaceState
+            ? (plan.workspaceState.workspaceJson.blocks?.blocks ?? [])
+            : [];
+
+    const stack: Array<{ block: any; categoryId: string | null }> = Array.isArray(workspaceBlocks)
+        ? workspaceBlocks.map((block) => ({ block, categoryId: null }))
+        : [];
+    while (stack.length > 0) {
+        const currentEntry = stack.pop();
+        const block = currentEntry?.block;
+        if (!block || typeof block !== "object") {
+            continue;
+        }
+
+        const currentCategoryId =
+            typeof block.fields?.CATEGORY_ID === "string" &&
+            block.fields.CATEGORY_ID.trim().length > 0
+                ? block.fields.CATEGORY_ID.trim()
+                : currentEntry.categoryId ?? null;
+
+        if (block.type === "item_block") {
+            const fields = block.fields ?? {};
+            const itemId =
+                typeof fields.ITEM_ID === "string" && fields.ITEM_ID.trim().length > 0
+                    ? fields.ITEM_ID.trim()
+                    : "";
+            if (itemId.length > 0 && currentCategoryId) {
+                selectionIds.add(`item:${currentCategoryId}:${itemId}`);
+            }
+        }
+
+        for (const value of Object.values(block.inputs ?? {})) {
+            if (value && typeof value === "object" && "block" in value) {
+                stack.push({
+                    block: (value as any).block,
+                    categoryId: currentCategoryId,
+                });
+            }
+        }
+        if (block.next?.block) {
+            stack.push({
+                block: block.next.block,
+                categoryId: currentCategoryId,
+            });
+        }
+    }
+
+    return [...selectionIds];
+}
+
 export const getProcurementOfficerPlanReviewWorkspace = query({
     args: {
         planId: v.string(),
@@ -230,6 +409,7 @@ export const getProcurementOfficerPlanReviewWorkspace = query({
             planSnapshots,
             departmentPlans,
             pendingRedraftRequest,
+            activeDecision,
         ] = await Promise.all([
             loadTenantCatalog(ctx, authContext.tenantId),
             ctx.db.get(reviewPlan.departmentId),
@@ -251,6 +431,7 @@ export const getProcurementOfficerPlanReviewWorkspace = query({
                     q.eq("planId", reviewPlan._id).eq("status", "pending"),
                 )
                 .first(),
+            getLatestActivePlanReviewDecision(ctx, reviewPlan._id),
         ]);
         const previousFiscalYear = derivePreviousFiscalYearKey(reviewPlan.fiscalYear);
         const priorFiscalYearSnapshots =
@@ -297,6 +478,19 @@ export const getProcurementOfficerPlanReviewWorkspace = query({
         const resolvedTimeZone = resolveDeadlineTimeZone({
             tenantTimeZone: tenant.timeZone,
         }).timeZone;
+        const latestDecision = mapPlanReviewDecision(activeDecision, resolvedTimeZone);
+        const undoApproval = getProcurementOfficerUndoApprovalEligibility({
+            approvedAt: reviewPlan.approvedAt ?? null,
+            consolidatedAt: reviewPlan.consolidatedAt ?? null,
+            now: Date.now(),
+            status: reviewPlan.status,
+        });
+        const planStatusLabel =
+            reviewPlan.status === "rejected" && activeDecision
+                ? getProcurementOfficerPlanDecisionStatusLabel(activeDecision.decisionType)
+                : getProcurementOfficerSubmissionStatusLabel(
+                      getReviewablePlanStatus(reviewPlan.status),
+                  );
 
         return {
             comments: comments.map((comment) => ({
@@ -331,6 +525,7 @@ export const getProcurementOfficerPlanReviewWorkspace = query({
                     currentUser,
                     currentUserId: String(authContext.userId),
                     fiscalYear: reviewPlan.fiscalYear,
+                    latestDecision,
                     reviewStartedAt: reviewPlan.reviewStartedAt ?? null,
                     reviewStartedBy: reviewStartedByUser,
                     reviewerTenantUserId: String(tenantUser._id),
@@ -348,15 +543,14 @@ export const getProcurementOfficerPlanReviewWorkspace = query({
                     estimatedBudgetUsed: reviewPlan.estimatedBudgetUsed,
                     id: String(reviewPlan._id),
                     itemCount: reviewPlan.itemCount,
-                    selectedCategoryIds: reviewPlan.selectedCategoryIds.map((categoryId) =>
+                    selectedCategoryIds: reviewPlan.selectedCategoryIds.map((categoryId: Doc<"plans">["selectedCategoryIds"][number]) =>
                         String(categoryId),
                     ),
                     status: reviewPlan.status,
-                    statusLabel: getProcurementOfficerSubmissionStatusLabel(
-                        getReviewablePlanStatus(reviewPlan.status),
-                    ),
+                    statusLabel: planStatusLabel,
                     submittedAt: reviewPlan.submittedAt ?? null,
                     totalAmountLabel: formatDepartmentBudget(reviewPlan.estimatedBudgetUsed),
+                    undoApproval,
                     workspaceState: planLike.workspaceState,
                 },
                 redraftRequest: pendingRedraftRequest
@@ -477,7 +671,7 @@ export const startProcurementOfficerPlanReview = mutation({
                 capturedAt: now,
                 capturedByTenantUserId: tenantUser._id,
                 capturedByUserId: authContext.userId,
-                categorySummaries: reviewPlan.categorySummaries.map((summary) => ({
+                categorySummaries: reviewPlan.categorySummaries.map((summary: Doc<"plans">["categorySummaries"][number]) => ({
                     amount: summary.amount,
                     categoryId: String(summary.categoryId),
                     categoryName: summary.categoryName,
@@ -493,7 +687,7 @@ export const startProcurementOfficerPlanReview = mutation({
                 itemCount: reviewPlan.itemCount,
                 lifecycleStatus: "active",
                 planId: reviewPlan._id,
-                selectedCategoryIds: reviewPlan.selectedCategoryIds.map((categoryId) =>
+                selectedCategoryIds: reviewPlan.selectedCategoryIds.map((categoryId: Doc<"plans">["selectedCategoryIds"][number]) =>
                     String(categoryId),
                 ),
                 submissionReference: reviewPlan.submissionReference ?? undefined,
@@ -592,16 +786,152 @@ export const addProcurementOfficerPlanReviewComment = mutation({
     },
 });
 
+async function resolveDepartmentUserNotificationEmail(
+    ctx: MutationCtx,
+    args: {
+        departmentId: Id<"departments">;
+        tenantId: Id<"tenants">;
+    },
+) {
+    const profiles = await ctx.db
+        .query("departmentUserProfiles")
+        .withIndex("by_tenantId", (q) => q.eq("tenantId", args.tenantId))
+        .collect();
+    const profile = profiles.find(
+        (candidate) =>
+            candidate.departmentId === args.departmentId && candidate.isActive,
+    );
+    if (!profile) {
+        return null;
+    }
+
+    const tenantUser = await ctx.db.get(profile.tenantUserId);
+    if (!tenantUser?.isActive || tenantUser.role !== "department_user") {
+        return null;
+    }
+
+    const authUser = await ctx.db.get(tenantUser.userId);
+    const email =
+        typeof authUser?.email === "string" ? authUser.email.trim().toLowerCase() : "";
+    return email.length > 0 ? email : null;
+}
+
+async function queuePlanReviewDecisionNotification(
+    ctx: MutationCtx,
+    args: {
+        comment: string;
+        decisionId: Id<"planReviewDecisions">;
+        decidedAt: number;
+        decisionType: ProcurementOfficerPlanDecisionType;
+        departmentName: string;
+        flaggedTargets: ReadonlyArray<{
+            categoryId: string;
+            id: string;
+            itemId: string | null;
+            label: string;
+            type: "category" | "item";
+        }>;
+        fiscalYear: string;
+        planId: Id<"plans">;
+        recipientEmail: string | null;
+        revisionDeadlineAt: number | null;
+        tenantId: Id<"tenants">;
+        tenantName: string;
+        timeZone: string;
+    },
+) {
+    if (!args.recipientEmail) {
+        await ctx.db.patch(args.decisionId, {
+            notificationErrorCode: "RECIPIENT_UNAVAILABLE",
+            notificationErrorMessage:
+                "Decision saved but no Department User email is available for notification.",
+            notificationStatus: "failed",
+        });
+        return {
+            idempotencyKey: null,
+            notificationStatus: "failed" as const,
+        };
+    }
+
+    const idempotencyKey = buildProcurementOfficerDecisionNotificationIdempotencyKey({
+        decisionId: String(args.decisionId),
+        decisionType: args.decisionType,
+        planId: String(args.planId),
+        recipientEmail: args.recipientEmail,
+        tenantId: String(args.tenantId),
+    });
+    const nextStepHref =
+        args.decisionType === "approved"
+            ? `/du/plans/${String(args.planId)}?mode=view`
+            : `/du/plans/${String(args.planId)}?mode=edit`;
+    const nextStepLabel =
+        args.decisionType === "approved"
+            ? "View approved plan"
+            : "Review comments and update the plan";
+    await ctx.scheduler.runAfter(0, "actions/email:queueTransactionalEmail" as any, {
+        idempotencyKey,
+        subject: `${args.tenantName} plan ${getProcurementOfficerPlanDecisionStatusLabel(args.decisionType).toLowerCase()}`,
+        template: "generic-notification",
+        templateProps: {
+            actionHref: nextStepHref,
+            comment: args.comment,
+            departmentName: args.departmentName,
+            fiscalYear: args.fiscalYear,
+            flaggedTargets: args.flaggedTargets.map((target) => ({
+                id: target.id,
+                label: target.label,
+                type: target.type,
+            })),
+            nextStepHref,
+            nextStepLabel,
+            planId: String(args.planId),
+            revisionDeadlineAt: args.revisionDeadlineAt,
+            revisionDeadlineLabel:
+                typeof args.revisionDeadlineAt === "number"
+                    ? formatDeadlineDateTime(args.revisionDeadlineAt, args.timeZone)
+                    : null,
+            summary: buildProcurementOfficerDecisionSummary(
+                {
+                    comment: args.comment,
+                    decidedAt: args.decidedAt,
+                    decisionType: args.decisionType,
+                    flaggedTargets: [...args.flaggedTargets],
+                    revisionDeadlineAt: args.revisionDeadlineAt,
+                },
+                args.timeZone,
+            ),
+            status: getProcurementOfficerPlanDecisionStatusLabel(args.decisionType),
+            tenantName: args.tenantName,
+        },
+        to: args.recipientEmail,
+    });
+    const queuedAt = Date.now();
+    await ctx.db.patch(args.decisionId, {
+        notificationIdempotencyKey: idempotencyKey,
+        notificationQueuedAt: queuedAt,
+        notificationStatus: "queued",
+    });
+    return {
+        idempotencyKey,
+        notificationStatus: "queued" as const,
+    };
+}
+
 export const rejectProcurementOfficerPlanReview = mutation({
     args: {
         body: v.string(),
+        decisionType: reviewDecisionTypeValidator,
+        flaggedTargets: v.optional(v.array(reviewFlaggedTargetInputValidator)),
         nextDepartmentBudgetAllocation: v.optional(v.union(v.number(), v.null())),
         planId: v.string(),
+        revisionDeadlineInput: v.optional(v.string()),
     },
     returns: v.object({
         departmentBudgetChanged: v.boolean(),
+        notificationStatus: v.union(v.literal("failed"), v.literal("queued")),
         rejectedAt: v.number(),
-        status: v.literal("rejected"),
+        status: v.union(v.literal("rejected"), v.literal("revision_requested")),
+        statusLabel: v.string(),
     }),
     handler: async (ctx, args) => {
         const authContext = await requireTenantRole(ctx, ["procurement_officer"]);
@@ -613,40 +943,55 @@ export const rejectProcurementOfficerPlanReview = mutation({
             });
         }
 
-        const [plan, tenantUser, authUser] = await Promise.all([
+        const [plan, tenantUser, authUser, tenant] = await Promise.all([
             ctx.db.get(normalizedPlanId),
             loadProcurementOfficerTenantUser(ctx, authContext),
             ctx.db.get(authContext.userId),
+            ctx.db.get(authContext.tenantId),
         ]);
-        const targetState = resolveProcurementOfficerReviewTargetState({
-            planExists: Boolean(plan),
-            planStatus: plan?.status ?? null,
-            requestPlanIdIsValid: true,
-            tenantMatches: plan?.tenantId === authContext.tenantId,
-        });
-        if (targetState.state === "redirect") {
-            throw new ConvexError({
-                code: "PLAN_NOT_FOUND",
-                message:
-                    targetState.message ?? PROCUREMENT_OFFICER_REVIEW_TARGET_UNAVAILABLE_MESSAGE,
-            });
-        }
-        if (!plan) {
+        if (!tenant || !plan || plan.tenantId !== authContext.tenantId) {
             throw new ConvexError({
                 code: "PLAN_NOT_FOUND",
                 message: PROCUREMENT_OFFICER_REVIEW_TARGET_UNAVAILABLE_MESSAGE,
             });
         }
+        if (plan.status !== "submitted") {
+            await appendAuditLogRequired(
+                ctx,
+                buildPlanReviewAuditEntry({
+                    action:
+                        args.decisionType === "revision_requested"
+                            ? "request_revision"
+                            : "reject",
+                    actorUserId: authContext.userId,
+                    departmentId: plan.departmentId,
+                    event:
+                        args.decisionType === "revision_requested"
+                            ? AUDIT_EVENT_NAMES.planReviewRevisionRequested
+                            : AUDIT_EVENT_NAMES.planReviewRejected,
+                    metadata: {
+                        attemptedDecisionType: args.decisionType,
+                        nextStatus: plan.status,
+                        previousStatus: plan.status,
+                        reason: "Only submitted plans can be rejected or sent back for revision.",
+                    },
+                    outcome: AUDIT_OUTCOMES.blockedStateTransition,
+                    planId: plan._id,
+                    tenantId: authContext.tenantId,
+                }),
+            );
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: "Only submitted plans can be rejected or sent back for revision.",
+            });
+        }
 
-        assertPlanIsPendingReview(plan);
-
-        const normalizedComment = normalizeProcurementOfficerReviewComment(args.body);
+        const normalizedComment = normalizeProcurementOfficerDecisionComment(args.body);
         if (!normalizedComment.ok || !normalizedComment.value) {
             throw new ConvexError({
                 code: "VALIDATION_FAILED",
                 message:
-                    normalizedComment.message ??
-                    "Internal comments cannot be blank.",
+                    normalizedComment.message ?? "Decision comments cannot be blank.",
             });
         }
 
@@ -677,6 +1022,32 @@ export const rejectProcurementOfficerPlanReview = mutation({
         }
 
         const rejectedAt = Date.now();
+        const revisionDeadline = validateProcurementOfficerRevisionDeadline({
+            input: args.revisionDeadlineInput ?? null,
+            now: rejectedAt,
+            timeZone: resolveDeadlineTimeZone({
+                tenantTimeZone: tenant.timeZone,
+            }).timeZone,
+        });
+        if (!revisionDeadline.ok) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: revisionDeadline.message ?? "Enter a valid revision deadline.",
+            });
+        }
+
+        const flaggedTargets = normalizeProcurementOfficerFlaggedTargets({
+            descriptors: args.flaggedTargets ?? [],
+            validSelectionIds: getReviewableSelectionIds(plan),
+        });
+        if (flaggedTargets.invalidIds.length > 0) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: "One or more selected revision targets are stale. Refresh the review view and select them again.",
+            });
+        }
+
+        await supersedeActivePlanReviewDecisions(ctx, plan._id, rejectedAt);
         await ctx.db.patch(plan._id, {
             approvedAt: undefined,
             rejectedAt,
@@ -692,6 +1063,20 @@ export const rejectProcurementOfficerPlanReview = mutation({
             body: normalizedComment.value,
             createdAt: rejectedAt,
             planId: plan._id,
+            tenantId: authContext.tenantId,
+        });
+        const decisionId = await ctx.db.insert("planReviewDecisions", {
+            comment: normalizedComment.value,
+            decidedAt: rejectedAt,
+            decidedByTenantUserId: tenantUser._id,
+            decidedByUserId: authContext.userId,
+            decisionType: args.decisionType,
+            departmentId: plan.departmentId,
+            fiscalYear: plan.fiscalYear,
+            flaggedTargets: flaggedTargets.targets,
+            lifecycleStatus: "active",
+            planId: plan._id,
+            revisionDeadlineAt: revisionDeadline.value ?? null,
             tenantId: authContext.tenantId,
         });
 
@@ -732,10 +1117,60 @@ export const rejectProcurementOfficerPlanReview = mutation({
             });
         }
 
+        await appendAuditLogRequired(
+            ctx,
+            buildPlanReviewAuditEntry({
+                action:
+                    args.decisionType === "revision_requested"
+                        ? "request_revision"
+                        : "reject",
+                actorUserId: authContext.userId,
+                departmentId: plan.departmentId,
+                event:
+                    args.decisionType === "revision_requested"
+                        ? AUDIT_EVENT_NAMES.planReviewRevisionRequested
+                        : AUDIT_EVENT_NAMES.planReviewRejected,
+                metadata: {
+                    comment: normalizedComment.value,
+                    decisionId: String(decisionId),
+                    flaggedTargetCount: flaggedTargets.targets.length,
+                    nextStatus: "rejected",
+                    previousStatus: "submitted",
+                    revisionDeadlineAt: revisionDeadline.value ?? null,
+                },
+                outcome: AUDIT_OUTCOMES.allowed,
+                planId: plan._id,
+                tenantId: authContext.tenantId,
+            }),
+        );
+
+        const notification = await queuePlanReviewDecisionNotification(ctx, {
+            comment: normalizedComment.value,
+            decisionId,
+            decidedAt: rejectedAt,
+            decisionType: args.decisionType,
+            departmentName: department?.name ?? plan.departmentNameSnapshot ?? "Department",
+            flaggedTargets: flaggedTargets.targets,
+            fiscalYear: plan.fiscalYear,
+            planId: plan._id,
+            recipientEmail: await resolveDepartmentUserNotificationEmail(ctx, {
+                departmentId: plan.departmentId,
+                tenantId: authContext.tenantId,
+            }),
+            revisionDeadlineAt: revisionDeadline.value ?? null,
+            tenantId: authContext.tenantId,
+            tenantName: tenant.name,
+            timeZone: resolveDeadlineTimeZone({
+                tenantTimeZone: tenant.timeZone,
+            }).timeZone,
+        });
+
         return {
             departmentBudgetChanged,
+            notificationStatus: notification.notificationStatus,
             rejectedAt,
-            status: "rejected" as const,
+            status: args.decisionType,
+            statusLabel: getProcurementOfficerPlanDecisionStatusLabel(args.decisionType),
         };
     },
 });
@@ -747,6 +1182,7 @@ export const approveProcurementOfficerPlanReview = mutation({
     },
     returns: v.object({
         approvedAt: v.number(),
+        notificationStatus: v.union(v.literal("failed"), v.literal("queued")),
         status: v.literal("approved"),
     }),
     handler: async (ctx, args) => {
@@ -759,32 +1195,42 @@ export const approveProcurementOfficerPlanReview = mutation({
             });
         }
 
-        const [plan, tenantUser, authUser] = await Promise.all([
+        const [plan, tenantUser, authUser, tenant] = await Promise.all([
             ctx.db.get(normalizedPlanId),
             loadProcurementOfficerTenantUser(ctx, authContext),
             ctx.db.get(authContext.userId),
+            ctx.db.get(authContext.tenantId),
         ]);
-        const targetState = resolveProcurementOfficerReviewTargetState({
-            planExists: Boolean(plan),
-            planStatus: plan?.status ?? null,
-            requestPlanIdIsValid: true,
-            tenantMatches: plan?.tenantId === authContext.tenantId,
-        });
-        if (targetState.state === "redirect") {
-            throw new ConvexError({
-                code: "PLAN_NOT_FOUND",
-                message:
-                    targetState.message ?? PROCUREMENT_OFFICER_REVIEW_TARGET_UNAVAILABLE_MESSAGE,
-            });
-        }
-        if (!plan) {
+        if (!tenant || !plan || plan.tenantId !== authContext.tenantId) {
             throw new ConvexError({
                 code: "PLAN_NOT_FOUND",
                 message: PROCUREMENT_OFFICER_REVIEW_TARGET_UNAVAILABLE_MESSAGE,
             });
         }
 
-        assertPlanIsPendingReview(plan);
+        if (plan.status !== "submitted") {
+            await appendAuditLogRequired(
+                ctx,
+                buildPlanReviewAuditEntry({
+                    action: "approve",
+                    actorUserId: authContext.userId,
+                    departmentId: plan.departmentId,
+                    event: AUDIT_EVENT_NAMES.planReviewApproved,
+                    metadata: {
+                        nextStatus: plan.status,
+                        previousStatus: plan.status,
+                        reason: "Only submitted plans can be approved.",
+                    },
+                    outcome: AUDIT_OUTCOMES.blockedStateTransition,
+                    planId: plan._id,
+                    tenantId: authContext.tenantId,
+                }),
+            );
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message: "Only submitted plans can be approved.",
+            });
+        }
 
         const normalizedOptionalComment = (args.body ?? "").trim();
         if (normalizedOptionalComment.length > 0) {
@@ -802,6 +1248,7 @@ export const approveProcurementOfficerPlanReview = mutation({
         }
 
         const approvedAt = Date.now();
+        await supersedeActivePlanReviewDecisions(ctx, plan._id, approvedAt);
         await ctx.db.patch(plan._id, {
             approvedAt,
             lastApprovedAt: approvedAt,
@@ -813,6 +1260,19 @@ export const approveProcurementOfficerPlanReview = mutation({
             redraftRequestedAt: undefined,
             status: "approved",
             updatedAt: approvedAt,
+        });
+        const decisionId = await ctx.db.insert("planReviewDecisions", {
+            comment: normalizedOptionalComment || "Plan approved.",
+            decidedAt: approvedAt,
+            decidedByTenantUserId: tenantUser._id,
+            decidedByUserId: authContext.userId,
+            decisionType: "approved",
+            departmentId: plan.departmentId,
+            fiscalYear: plan.fiscalYear,
+            flaggedTargets: [],
+            lifecycleStatus: "active",
+            planId: plan._id,
+            tenantId: authContext.tenantId,
         });
 
         if (normalizedOptionalComment.length > 0) {
@@ -827,9 +1287,149 @@ export const approveProcurementOfficerPlanReview = mutation({
             });
         }
 
+        await appendAuditLogRequired(
+            ctx,
+            buildPlanReviewAuditEntry({
+                action: "approve",
+                actorUserId: authContext.userId,
+                departmentId: plan.departmentId,
+                event: AUDIT_EVENT_NAMES.planReviewApproved,
+                metadata: {
+                    comment: normalizedOptionalComment || null,
+                    decisionId: String(decisionId),
+                    nextStatus: "approved",
+                    previousStatus: "submitted",
+                },
+                outcome: AUDIT_OUTCOMES.allowed,
+                planId: plan._id,
+                tenantId: authContext.tenantId,
+            }),
+        );
+
+        const notification = await queuePlanReviewDecisionNotification(ctx, {
+            comment: normalizedOptionalComment || "Plan approved.",
+            decisionId,
+            decidedAt: approvedAt,
+            decisionType: "approved",
+            departmentName: plan.departmentNameSnapshot ?? "Department",
+            flaggedTargets: [],
+            fiscalYear: plan.fiscalYear,
+            planId: plan._id,
+            recipientEmail: await resolveDepartmentUserNotificationEmail(ctx, {
+                departmentId: plan.departmentId,
+                tenantId: authContext.tenantId,
+            }),
+            revisionDeadlineAt: null,
+            tenantId: authContext.tenantId,
+            tenantName: tenant.name,
+            timeZone: resolveDeadlineTimeZone({
+                tenantTimeZone: tenant.timeZone,
+            }).timeZone,
+        });
+
         return {
             approvedAt,
+            notificationStatus: notification.notificationStatus,
             status: "approved" as const,
+        };
+    },
+});
+
+export const undoProcurementOfficerPlanApproval = mutation({
+    args: {
+        planId: v.string(),
+    },
+    returns: v.object({
+        reviewStartedAt: v.union(v.number(), v.null()),
+        status: v.literal("submitted"),
+        undoneAt: v.number(),
+    }),
+    handler: async (ctx, args) => {
+        const authContext = await requireTenantRole(ctx, ["procurement_officer"]);
+        const normalizedPlanId = ctx.db.normalizeId("plans", args.planId);
+        if (!normalizedPlanId) {
+            throw new ConvexError({
+                code: "PLAN_NOT_FOUND",
+                message: PROCUREMENT_OFFICER_REVIEW_TARGET_UNAVAILABLE_MESSAGE,
+            });
+        }
+
+        const plan = await ctx.db.get(normalizedPlanId);
+        if (!plan || plan.tenantId !== authContext.tenantId) {
+            throw new ConvexError({
+                code: "PLAN_NOT_FOUND",
+                message: PROCUREMENT_OFFICER_REVIEW_TARGET_UNAVAILABLE_MESSAGE,
+            });
+        }
+
+        const eligibility = getProcurementOfficerUndoApprovalEligibility({
+            approvedAt: plan.approvedAt ?? null,
+            consolidatedAt: plan.consolidatedAt ?? null,
+            now: Date.now(),
+            status: plan.status,
+        });
+        if (!eligibility.canUndo) {
+            await appendAuditLogRequired(
+                ctx,
+                buildPlanReviewAuditEntry({
+                    action: "undo_approval",
+                    actorUserId: authContext.userId,
+                    departmentId: plan.departmentId,
+                    event: AUDIT_EVENT_NAMES.planReviewApprovalUndone,
+                    metadata: {
+                        nextStatus: plan.status,
+                        previousStatus: plan.status,
+                        reason: eligibility.blockedReason,
+                    },
+                    outcome: AUDIT_OUTCOMES.blockedStateTransition,
+                    planId: plan._id,
+                    tenantId: authContext.tenantId,
+                }),
+            );
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                message:
+                    eligibility.blockedReason ??
+                    "Approval can no longer be undone.",
+            });
+        }
+
+        const activeDecision = await getLatestActivePlanReviewDecision(ctx, plan._id);
+        const undoneAt = Date.now();
+        if (activeDecision && activeDecision.decisionType === "approved") {
+            await ctx.db.patch(activeDecision._id, {
+                lifecycleStatus: "undone",
+                undoneAt,
+                undoneByUserId: authContext.userId,
+            });
+        }
+
+        await ctx.db.patch(plan._id, {
+            approvedAt: undefined,
+            status: "submitted",
+            updatedAt: undoneAt,
+        });
+        await appendAuditLogRequired(
+            ctx,
+            buildPlanReviewAuditEntry({
+                action: "undo_approval",
+                actorUserId: authContext.userId,
+                departmentId: plan.departmentId,
+                event: AUDIT_EVENT_NAMES.planReviewApprovalUndone,
+                metadata: {
+                    nextStatus: "submitted",
+                    previousStatus: "approved",
+                },
+                outcome: AUDIT_OUTCOMES.allowed,
+                planId: plan._id,
+                tenantId: authContext.tenantId,
+            }),
+        );
+
+        return {
+            reviewStartedAt: plan.reviewStartedAt ?? null,
+            status: "submitted" as const,
+            undoneAt,
         };
     },
 });
