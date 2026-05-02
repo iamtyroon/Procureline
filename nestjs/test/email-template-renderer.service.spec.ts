@@ -2,6 +2,7 @@ import React from "react";
 import { AccessCodeDeliveryTemplate } from "@/email/templates/access-code-delivery.template";
 import { DeadlineExtensionTemplate } from "@/email/templates/deadline-extension.template";
 import { DeadlineReminderTemplate } from "@/email/templates/deadline-reminder.template";
+import { SubmissionReminderTemplate } from "@/email/templates/submission-reminder.template";
 
 describe("AccessCodeDeliveryTemplate", () => {
   it("builds the access-code delivery element with an absolute DU login url", () => {
@@ -50,5 +51,23 @@ describe("DeadlineExtensionTemplate", () => {
     expect(React.isValidElement(element)).toBe(true);
     expect(serialized).toContain("2026-2027");
     expect(serialized).toContain("25 Aug 2026, 15:00 GMT+3");
+  });
+});
+
+describe("SubmissionReminderTemplate", () => {
+  it("renders the department, due date, and department entry url", () => {
+    const element = SubmissionReminderTemplate({
+      deadlineLabel: "23 Aug 2026, 15:00 GMT+3",
+      departmentName: "Finance",
+      fiscalYearLabel: "2026-2027",
+      loginUrl: "https://procureline.example.com/access/department-user",
+      statusLabel: "draft",
+    });
+
+    const serialized = JSON.stringify(element);
+    expect(React.isValidElement(element)).toBe(true);
+    expect(serialized).toContain("Finance");
+    expect(serialized).toContain("23 Aug 2026, 15:00 GMT+3");
+    expect(serialized).toContain("https://procureline.example.com/access/department-user");
   });
 });

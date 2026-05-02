@@ -5,6 +5,7 @@ import { BillingSupportTemplate } from "@/email/templates/billing-support.templa
 import { DeadlineExtensionTemplate } from "@/email/templates/deadline-extension.template";
 import { DeadlineReminderTemplate } from "@/email/templates/deadline-reminder.template";
 import { GenericNotificationTemplate } from "@/email/templates/generic-notification.template";
+import { SubmissionReminderTemplate } from "@/email/templates/submission-reminder.template";
 
 @Injectable()
 export class EmailTemplateRendererService {
@@ -16,7 +17,8 @@ export class EmailTemplateRendererService {
       | "catalog-request-status"
       | "catalog-request-submitted"
       | "deadline-extension"
-      | "deadline-reminder",
+      | "deadline-reminder"
+      | "submission-reminder",
     templateProps?: Record<string, unknown>,
   ): Promise<string> {
     if (template === "access-code-delivery") {
@@ -142,6 +144,33 @@ export class EmailTemplateRendererService {
             typeof templateProps?.tenantName === "string"
               ? templateProps.tenantName
               : "Procureline",
+        }),
+      );
+    }
+
+    if (template === "submission-reminder") {
+      return render(
+        SubmissionReminderTemplate({
+          deadlineLabel:
+            typeof templateProps?.deadlineLabel === "string"
+              ? templateProps.deadlineLabel
+              : "Not configured",
+          departmentName:
+            typeof templateProps?.departmentName === "string"
+              ? templateProps.departmentName
+              : "Department",
+          fiscalYearLabel:
+            typeof templateProps?.fiscalYearLabel === "string"
+              ? templateProps.fiscalYearLabel
+              : "current fiscal year",
+          loginUrl:
+            typeof templateProps?.loginUrl === "string"
+              ? templateProps.loginUrl
+              : "/access/department-user",
+          statusLabel:
+            typeof templateProps?.statusLabel === "string"
+              ? templateProps.statusLabel
+              : "draft",
         }),
       );
     }

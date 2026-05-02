@@ -139,7 +139,7 @@ import {
 import { ProcurementOfficerDeadlinesWorkspace } from "./ProcurementOfficerDeadlinesWorkspace";
 import { ProcurementOfficerPlanReviewSummaryModal } from "./ProcurementOfficerPlanReviewSummaryModal";
 import { ProcurementOfficerRequestsWorkspace } from "./ProcurementOfficerRequestsWorkspace";
-import { ProcurementOfficerSubmittedPlansPanel } from "./ProcurementOfficerSubmittedPlansPanel";
+import { ProcurementOfficerSubmissionMonitoringWorkspace } from "./ProcurementOfficerSubmissionMonitoringWorkspace";
 
 /* ─── Donut Ring ──────────────────────────────────────────────────── */
 
@@ -1758,7 +1758,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                     <FileStack className="h-4 w-4" />
                   </IconBox>
                   <span className="text-[15px] font-bold text-foreground">
-                    Submitted Plans
+                    Submission Monitoring
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1771,8 +1771,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                 </div>
               </div>
               <div className="p-5">
-                <ProcurementOfficerSubmittedPlansPanel
-                  onOpenReview={openDashboardReviewModal}
+                <ProcurementOfficerSubmissionMonitoringWorkspace
                   selectedFiscalYear={selectedFiscalYear}
                 />
               </div>

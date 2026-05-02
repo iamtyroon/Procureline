@@ -16,6 +16,7 @@ import {
   buildProcurementCatalogExportRows,
   type ProcurementItemWorkspaceRow,
 } from "../../lib/procurement-officer/items";
+import { buildProcurementOfficerMonitoringExportRows } from "../../lib/procurement-officer/submission-monitoring";
 
 interface CatalogBrowseResult {
   meta: {
@@ -207,6 +208,92 @@ export const exportCatalogItems = action({
       });
       throw error;
     }
+  },
+});
+
+export const exportSubmissionMonitoringReport = action({
+  args: {
+    departmentIds: v.optional(v.array(v.string())),
+    selectedFiscalYear: v.string(),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const actor = await getServiceActorContext(ctx);
+    if (actor.role !== "procurement_officer" || !actor.tenantId) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "Procurement Officer access is required for this resource.",
+      });
+    }
+
+    const monitoringWorkspace = (await ctx.runQuery(
+      api.functions.procurementOfficerSubmissions
+        .getProcurementOfficerSubmissionMonitoringWorkspace,
+      {
+        selectedFiscalYear: args.selectedFiscalYear,
+      },
+    )) as {
+      meta: { selectedFiscalYearLabel: string };
+      rows: Array<{
+        departmentId: string;
+        departmentName: string;
+        duContactLabel: string;
+        lastUpdatedLabel: string;
+        statusLabel: string;
+      }>;
+    };
+    const allowedDepartmentIds = new Set(args.departmentIds ?? []);
+    const exportRows =
+      allowedDepartmentIds.size > 0
+        ? monitoringWorkspace.rows.filter((row) =>
+            allowedDepartmentIds.has(row.departmentId),
+          )
+        : monitoringWorkspace.rows;
+
+    if (exportRows.length === 0) {
+      throw new ConvexError({
+        code: "VALIDATION_FAILED",
+        message: "No monitoring rows are available for export.",
+      });
+    }
+
+    const workbook = await callNestService<{
+      fileName: string;
+      workbookBase64: string;
+    }>(ctx, {
+      actor,
+      body: {
+        reportName: `Submission Monitoring ${monitoringWorkspace.meta.selectedFiscalYearLabel}`,
+        rows: buildProcurementOfficerMonitoringExportRows(exportRows),
+      },
+      path: "/api/services/files/exports/excel",
+    });
+
+    await ctx.runMutation(internal.functions.auditLogs.appendAuditLogFromAction, {
+      action: "export",
+      actorRole: actor.role,
+      actorState: createAuthenticatedAuditActor({
+        role: actor.role,
+        userId: actor.userId,
+      }).state,
+      actorUserId: actor.userId as Id<"users">,
+      entityType: "submission_monitoring",
+      event: "submission_monitoring.exported" as any,
+      metadata: {
+        fiscalYear: args.selectedFiscalYear,
+        rowCount: exportRows.length,
+      },
+      outcome: AUDIT_OUTCOMES.allowed,
+      sourceTenantId: actor.tenantId as Id<"tenants"> | undefined,
+      tableName: "plans",
+      targetTenantId: actor.tenantId as Id<"tenants"> | undefined,
+      timestamp: Date.now(),
+    });
+
+    return {
+      ...workbook,
+      filteredCount: exportRows.length,
+    };
   },
 });
 

@@ -5,6 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runDepartmentUserRevisionFlowTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
+const node_fs_1 = __importDefault(require("node:fs"));
+const node_path_1 = __importDefault(require("node:path"));
 const revision_feedback_1 = require("../lib/department-user/revision-feedback");
 const compliance_1 = require("../lib/procurement/compliance");
 const revision_deadline_1 = require("../lib/plans/revision-deadline");
@@ -129,6 +131,27 @@ function runDepartmentUserRevisionFlowTests() {
     });
     strict_1.default.deepEqual(revisionHistory.map((entry) => entry.title), ["Submitted", "Revision Requested", "Submitted"]);
     completedTests.push("revision history merges immutable submission snapshots and DU-visible review decisions into one chronological DU-facing timeline without inventing extra workflow states");
+    const metadataOnlyHistory = (0, revision_feedback_1.buildDepartmentUserRevisionHistory)({
+        decisions: [],
+        snapshots: [
+            {
+                capturedAt: Date.UTC(2026, 7, 11, 9, 0, 0),
+                lifecycleStatus: "superseded",
+                submissionReference: "CS-2627-LEGACY",
+                submissionSequence: 1,
+                submittedAt: null,
+            },
+        ],
+        timeZone: "Africa/Nairobi",
+    });
+    strict_1.default.deepEqual(metadataOnlyHistory.map((entry) => entry.title), ["Submission Metadata"]);
+    strict_1.default.match(metadataOnlyHistory[0]?.detail ?? "", /Historical submission metadata is available/i);
+    completedTests.push("legacy submission snapshots degrade to metadata-only history rows instead of disappearing from the DU revision timeline");
+    const plansSource = node_fs_1.default.readFileSync(node_path_1.default.join(process.cwd(), "convex", "functions", "plans.ts"), "utf8");
+    strict_1.default.match(plansSource, /const requiresAuthoritativeDecision = args\.plan\.status === "rejected";/);
+    strict_1.default.match(plansSource, /resolveRevisionDecisionSubmissionReference/);
+    strict_1.default.doesNotMatch(plansSource, /snapshot\.submissionSequence === args\.plan\.submissionSequence[\s\S]*snapshot\.submissionReference === args\.plan\.submissionReference/);
+    completedTests.push("department-user revision queries now fail closed for rejected plans without one active DU-visible decision and no longer mis-attribute review decisions to the current submission reference");
     return completedTests;
 }
 exports.runDepartmentUserRevisionFlowTests = runDepartmentUserRevisionFlowTests;

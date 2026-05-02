@@ -111,6 +111,7 @@ exports.planWorkspaceContextValidator = values_1.v.object({
         selectedCategoryIds: values_1.v.array(values_1.v.string()),
         state: departmentUserWorkspaceStateValidator,
         subtitle: values_1.v.string(),
+        timeZone: values_1.v.string(),
         title: values_1.v.string(),
         unavailableCategories: values_1.v.array(values_1.v.object({
             id: values_1.v.string(),
@@ -308,6 +309,23 @@ function mapDepartmentUserRevisionDecision(args) {
         submissionReference: args.submissionReference,
     };
 }
+function resolveRevisionDecisionSubmissionReference(args) {
+    const matchingSnapshot = [...args.planSnapshots]
+        .filter((snapshot) => {
+        const snapshotTimestamp = snapshot.submittedAt ?? snapshot.capturedAt;
+        return snapshotTimestamp <= args.decision.decidedAt;
+    })
+        .sort((left, right) => {
+        const leftTimestamp = left.submittedAt ?? left.capturedAt;
+        const rightTimestamp = right.submittedAt ?? right.capturedAt;
+        if (leftTimestamp !== rightTimestamp) {
+            return rightTimestamp - leftTimestamp;
+        }
+        return ((right.submissionSequence ?? Number.MIN_SAFE_INTEGER) -
+            (left.submissionSequence ?? Number.MIN_SAFE_INTEGER));
+    })[0] ?? null;
+    return matchingSnapshot?.submissionReference ?? null;
+}
 async function loadDepartmentUserRevisionContext(ctx, args) {
     const decisions = await ctx.db
         .query("planReviewDecisions")
@@ -315,19 +333,16 @@ async function loadDepartmentUserRevisionContext(ctx, args) {
         .collect();
     const activeDecisions = decisions.filter((decision) => decision.lifecycleStatus === "active");
     const reviewDecisions = decisions.map((decision) => {
-        const matchingSnapshot = args.planSnapshots.find((snapshot) => snapshot.submissionSequence === args.plan.submissionSequence &&
-            snapshot.submissionReference === args.plan.submissionReference) ?? null;
         return mapDepartmentUserRevisionDecision({
             decision,
             submissionDeadlineAt: args.submissionDeadlineAt,
-            submissionReference: matchingSnapshot?.submissionReference ??
-                args.plan.submissionReference ??
-                null,
+            submissionReference: resolveRevisionDecisionSubmissionReference({
+                decision,
+                planSnapshots: args.planSnapshots,
+            }),
         });
     });
-    const requiresAuthoritativeDecision = args.plan.status === "rejected" &&
-        reviewDecisions.some((decision) => decision.decisionType === "rejected" ||
-            decision.decisionType === "revision_requested");
+    const requiresAuthoritativeDecision = args.plan.status === "rejected";
     const activeDuVisibleDecisions = activeDecisions.filter((decision) => decision.decisionType === "rejected" ||
         decision.decisionType === "revision_requested");
     let inconsistentStateMessage = null;
@@ -356,7 +371,10 @@ async function loadDepartmentUserRevisionContext(ctx, args) {
             .map((decision) => mapDepartmentUserRevisionDecision({
             decision,
             submissionDeadlineAt: args.submissionDeadlineAt,
-            submissionReference: args.plan.submissionReference ?? null,
+            submissionReference: resolveRevisionDecisionSubmissionReference({
+                decision,
+                planSnapshots: args.planSnapshots,
+            }),
         }))
             .sort((left, right) => right.decidedAt - left.decidedAt)[0] ?? null
         : null;
@@ -454,6 +472,7 @@ function createBlockedContext(args) {
             selectedCategoryIds: [],
             state: "blocked",
             subtitle: args.message,
+            timeZone: "Africa/Nairobi",
             title: "Planning workspace unavailable",
             unavailableCategories: [],
         },
@@ -529,6 +548,7 @@ exports.getDepartmentUserNewPlanWorkspaceContext = (0, server_1.query)({
                     selectedCategoryIds: existingPlan.selectedCategoryIds.map((categoryId) => String(categoryId)),
                     state: "redirect",
                     subtitle: "A current fiscal-year plan already exists. Opening the canonical workspace instead.",
+                    timeZone: "Africa/Nairobi",
                     title: "Redirecting to your existing plan",
                     unavailableCategories: sanitizedSelection.unavailableCategories,
                 },
@@ -552,6 +572,7 @@ exports.getDepartmentUserNewPlanWorkspaceContext = (0, server_1.query)({
                 selectedCategoryIds: sanitizedSelection.sanitizedCategoryIds,
                 state: "ready",
                 subtitle: "Preparing the Blockly workspace for your selected categories.",
+                timeZone: "Africa/Nairobi",
                 title: `${base.department.name} procurement plan`,
                 unavailableCategories: sanitizedSelection.unavailableCategories,
             },
@@ -664,6 +685,7 @@ exports.getDepartmentUserPlanWorkspace = (0, server_1.query)({
                     selectedCategoryIds: [],
                     state: "not_found",
                     subtitle: "This plan could not be opened. It may have been removed, belong to a different department, or fall outside supported planning states.",
+                    timeZone: "Africa/Nairobi",
                     title: "Plan not found",
                     unavailableCategories: [],
                 },
@@ -716,6 +738,7 @@ exports.getDepartmentUserPlanWorkspace = (0, server_1.query)({
                     selectedCategoryIds: sanitizedSelection.sanitizedCategoryIds,
                     state: "blocked",
                     subtitle: revisionContext.inconsistentStateMessage,
+                    timeZone: tenant?.timeZone ?? "Africa/Nairobi",
                     title: "Revision feedback unavailable",
                     unavailableCategories: sanitizedSelection.unavailableCategories,
                 },
@@ -753,6 +776,7 @@ exports.getDepartmentUserPlanWorkspace = (0, server_1.query)({
                         : mode === "edit"
                             ? "Drag categories and items into the Blockly canvas to shape your quarterly procurement plan."
                             : "This plan is open in read-only mode because it is no longer editable from this department session.",
+                timeZone: tenant?.timeZone ?? "Africa/Nairobi",
                 title: `${base.department.name} procurement plan`,
                 unavailableCategories: sanitizedSelection.unavailableCategories,
             },
@@ -816,6 +840,7 @@ exports.saveDepartmentUserWorkspaceDraft = (0, server_1.mutation)({
             });
         }
         if (plan.status === "rejected") {
+            const tenant = await ctx.db.get(base.authContext.tenantId);
             const revisionContext = await loadDepartmentUserRevisionContext(ctx, {
                 actorUserId: base.authContext.userId,
                 departmentId: base.department._id,
@@ -828,7 +853,7 @@ exports.saveDepartmentUserWorkspaceDraft = (0, server_1.mutation)({
                     base.department.submissionEndsAt ??
                     null,
                 tenantId: base.authContext.tenantId,
-                timeZone: "Africa/Nairobi",
+                timeZone: tenant?.timeZone ?? "Africa/Nairobi",
             });
             if (revisionContext.inconsistentStateMessage ||
                 revisionContext.effectiveDeadlineExpired) {
@@ -936,10 +961,13 @@ exports.submitDepartmentUserPlan = (0, server_1.mutation)({
             }));
             buildBlockedSubmissionError("This plan is no longer editable from the current Department User session.");
         }
-        const newestSharedDeadline = await loadNewestSharedSubmissionDeadline(ctx, {
-            fiscalYear: plan.fiscalYear,
-            tenantId: base.authContext.tenantId,
-        });
+        const [newestSharedDeadline, tenant] = await Promise.all([
+            loadNewestSharedSubmissionDeadline(ctx, {
+                fiscalYear: plan.fiscalYear,
+                tenantId: base.authContext.tenantId,
+            }),
+            ctx.db.get(base.authContext.tenantId),
+        ]);
         const revisionContext = plan.status === "rejected"
             ? await loadDepartmentUserRevisionContext(ctx, {
                 actorUserId: base.authContext.userId,
@@ -950,7 +978,7 @@ exports.submitDepartmentUserPlan = (0, server_1.mutation)({
                     department.submissionEndsAt ??
                     null,
                 tenantId: base.authContext.tenantId,
-                timeZone: "Africa/Nairobi",
+                timeZone: tenant?.timeZone ?? "Africa/Nairobi",
             })
             : null;
         if (plan.status !== "draft" && plan.status !== "rejected") {

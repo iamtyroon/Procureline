@@ -10,7 +10,7 @@ exports.queueTransactionalEmail = (0, server_1.action)({
         deliverAt: values_1.v.optional(values_1.v.number()),
         idempotencyKey: values_1.v.string(),
         subject: values_1.v.string(),
-        template: values_1.v.union(values_1.v.literal("generic-notification"), values_1.v.literal("billing-support"), values_1.v.literal("access-code-delivery"), values_1.v.literal("catalog-request-status"), values_1.v.literal("catalog-request-submitted"), values_1.v.literal("deadline-extension"), values_1.v.literal("deadline-reminder"), values_1.v.literal("plan-submission-confirmation")),
+        template: values_1.v.union(values_1.v.literal("generic-notification"), values_1.v.literal("billing-support"), values_1.v.literal("access-code-delivery"), values_1.v.literal("catalog-request-status"), values_1.v.literal("catalog-request-submitted"), values_1.v.literal("deadline-extension"), values_1.v.literal("deadline-reminder"), values_1.v.literal("plan-submission-confirmation"), values_1.v.literal("submission-reminder")),
         templateProps: values_1.v.optional(values_1.v.any()),
         to: values_1.v.string(),
     },

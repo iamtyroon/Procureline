@@ -1,7 +1,7 @@
 "use node";
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.exportCatalogItems = exports.createPdf = exports.importWorkbook = exports.queueExcelExport = exports.createExcelExport = void 0;
+exports.exportSubmissionMonitoringReport = exports.exportCatalogItems = exports.createPdf = exports.importWorkbook = exports.queueExcelExport = exports.createExcelExport = void 0;
 const values_1 = require("convex/values");
 const api_1 = require("../_generated/api");
 const server_1 = require("../_generated/server");
@@ -9,6 +9,7 @@ const _helpers_1 = require("./_helpers");
 const audit_1 = require("../../lib/security/audit");
 const catalog_filters_1 = require("../../lib/procurement-officer/catalog-filters");
 const items_1 = require("../../lib/procurement-officer/items");
+const submission_monitoring_1 = require("../../lib/procurement-officer/submission-monitoring");
 exports.createExcelExport = (0, server_1.action)({
     args: {
         idempotencyKey: values_1.v.optional(values_1.v.string()),
@@ -162,6 +163,68 @@ exports.exportCatalogItems = (0, server_1.action)({
             });
             throw error;
         }
+    },
+});
+exports.exportSubmissionMonitoringReport = (0, server_1.action)({
+    args: {
+        departmentIds: values_1.v.optional(values_1.v.array(values_1.v.string())),
+        selectedFiscalYear: values_1.v.string(),
+    },
+    returns: values_1.v.any(),
+    handler: async (ctx, args) => {
+        const actor = await (0, _helpers_1.getServiceActorContext)(ctx);
+        if (actor.role !== "procurement_officer" || !actor.tenantId) {
+            throw new values_1.ConvexError({
+                code: "UNAUTHORIZED",
+                message: "Procurement Officer access is required for this resource.",
+            });
+        }
+        const monitoringWorkspace = (await ctx.runQuery(api_1.api.functions.procurementOfficerSubmissions
+            .getProcurementOfficerSubmissionMonitoringWorkspace, {
+            selectedFiscalYear: args.selectedFiscalYear,
+        }));
+        const allowedDepartmentIds = new Set(args.departmentIds ?? []);
+        const exportRows = allowedDepartmentIds.size > 0
+            ? monitoringWorkspace.rows.filter((row) => allowedDepartmentIds.has(row.departmentId))
+            : monitoringWorkspace.rows;
+        if (exportRows.length === 0) {
+            throw new values_1.ConvexError({
+                code: "VALIDATION_FAILED",
+                message: "No monitoring rows are available for export.",
+            });
+        }
+        const workbook = await (0, _helpers_1.callNestService)(ctx, {
+            actor,
+            body: {
+                reportName: `Submission Monitoring ${monitoringWorkspace.meta.selectedFiscalYearLabel}`,
+                rows: (0, submission_monitoring_1.buildProcurementOfficerMonitoringExportRows)(exportRows),
+            },
+            path: "/api/services/files/exports/excel",
+        });
+        await ctx.runMutation(api_1.internal.functions.auditLogs.appendAuditLogFromAction, {
+            action: "export",
+            actorRole: actor.role,
+            actorState: (0, audit_1.createAuthenticatedAuditActor)({
+                role: actor.role,
+                userId: actor.userId,
+            }).state,
+            actorUserId: actor.userId,
+            entityType: "submission_monitoring",
+            event: "submission_monitoring.exported",
+            metadata: {
+                fiscalYear: args.selectedFiscalYear,
+                rowCount: exportRows.length,
+            },
+            outcome: audit_1.AUDIT_OUTCOMES.allowed,
+            sourceTenantId: actor.tenantId,
+            tableName: "plans",
+            targetTenantId: actor.tenantId,
+            timestamp: Date.now(),
+        });
+        return {
+            ...workbook,
+            filteredCount: exportRows.length,
+        };
     },
 });
 async function appendCatalogExportAudit(ctx, actor, args) {

@@ -106,6 +106,9 @@ async function main(): Promise<void> {
     const { runProcurementOfficerSubmissionTests } = await import(
         "./procurement-officer-submissions.test.js"
     );
+    const { runProcurementOfficerSubmissionMonitoringTests } = await import(
+        "./procurement-officer-submission-monitoring.test.js"
+    );
     const { runProcurementOfficerRequestTests } = await import(
         "./procurement-officer-requests.test.js"
     );
@@ -170,6 +173,7 @@ async function main(): Promise<void> {
         ...runPricingFlowTests(),
         ...runProcurementOfficerDashboardTests(),
         ...runProcurementOfficerSubmissionTests(),
+        ...runProcurementOfficerSubmissionMonitoringTests(),
         ...runProcurementOfficerRequestTests(),
         ...runProcurementOfficerReviewTests(),
         ...runProcurementOfficerReviewDecisionTests(),

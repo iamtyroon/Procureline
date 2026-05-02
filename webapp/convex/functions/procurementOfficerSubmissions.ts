@@ -1,16 +1,31 @@
 import { ConvexError, v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
-import { query } from "../_generated/server";
+import { action, query } from "../_generated/server";
 import {
+  buildAvailableProcurementFiscalYears,
+  deriveSharedSubmissionDeadline,
   formatProcurementFiscalYearLabel,
+  getDepartmentFiscalYearKey,
   getProcurementFiscalYearForDate,
 } from "../../lib/procurement-officer/dashboard";
+import { ACCESS_CODE_LOGIN_URL_PATH, buildAbsoluteAccessCodeLoginUrl } from "../../lib/procurement-officer/access-codes";
+import {
+  buildProcurementOfficerMonitoringRow,
+  buildProcurementOfficerSubmissionReminderWindow,
+  buildProcurementOfficerSubmissionReminderIdempotencyKey,
+  selectCanonicalMonitoringPlan,
+  summarizeProcurementOfficerMonitoringRows,
+  type ProcurementOfficerMonitoringContact,
+  type ProcurementOfficerMonitoringPlanLike,
+} from "../../lib/procurement-officer/submission-monitoring";
 import {
   shapeProcurementOfficerSubmissionRow,
   sortProcurementOfficerSubmissionRows,
   type ProcurementOfficerSubmissionSourceRow,
 } from "../../lib/procurement-officer/submissions";
 import { requireTenantRole } from "./_roleGuard";
+import { getServiceActorContext } from "../actions/_helpers";
+import { AUDIT_OUTCOMES, createAuthenticatedAuditActor } from "../../lib/security/audit";
 
 const reviewTargetStateValidator = v.union(
   v.literal("ready"),
@@ -219,6 +234,286 @@ export const getProcurementOfficerSubmissionQueue = query({
   },
 });
 
+export const getProcurementOfficerSubmissionMonitoringWorkspace = query({
+  args: {
+    selectedFiscalYear: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const authContext = await requireTenantRole(ctx, ["procurement_officer"]);
+    const tenant = await ctx.db.get(authContext.tenantId);
+
+    if (!tenant) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Tenant record not found",
+      });
+    }
+
+    const now = Date.now();
+    const [
+      departments,
+      plans,
+      submissionDeadlines,
+      planReviewDecisions,
+      planSubmissionSnapshots,
+      departmentUserProfiles,
+      tenantUsers,
+      departmentAccessCodes,
+    ] = await Promise.all([
+      ctx.db
+        .query("departments")
+        .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
+        .collect(),
+      ctx.db
+        .query("plans")
+        .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
+        .collect(),
+      ctx.db
+        .query("submissionDeadlines")
+        .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
+        .collect(),
+      ctx.db
+        .query("planReviewDecisions")
+        .withIndex("by_tenantId_lifecycleStatus_decidedAt", (q) =>
+          q.eq("tenantId", authContext.tenantId).eq("lifecycleStatus", "active"),
+        )
+        .collect(),
+      ctx.db
+        .query("planSubmissionSnapshots")
+        .withIndex("by_tenantId_departmentId_fiscalYear_capturedAt", (q) =>
+          q.eq("tenantId", authContext.tenantId),
+        )
+        .collect(),
+      ctx.db
+        .query("departmentUserProfiles")
+        .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
+        .collect(),
+      ctx.db
+        .query("tenantUsers")
+        .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
+        .collect(),
+      ctx.db
+        .query("departmentAccessCodes")
+        .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
+        .collect(),
+    ]);
+    const userDocs = await Promise.all(
+      Array.from(new Set(tenantUsers.map((tenantUser) => String(tenantUser.userId)))).map(
+        async (userId) => {
+          const normalized = ctx.db.normalizeId("users", userId);
+          return normalized ? await ctx.db.get(normalized) : null;
+        },
+      ),
+    );
+
+    const activeDepartments = departments.filter(
+      (department) => department.isActive && department.deletedAt === undefined,
+    );
+    const requestedFiscalYear = args.selectedFiscalYear ?? null;
+    const selectedFiscalYear =
+      buildAvailableProcurementFiscalYears({
+        departments: activeDepartments.map((department) => ({
+          id: String(department._id),
+          isActive: department.isActive,
+          submissionEndsAt: department.submissionEndsAt,
+          submissionStartsAt: department.submissionStartsAt,
+        })),
+        existingFiscalYearKeys: submissionDeadlines.map((deadline) => deadline.fiscalYearKey),
+        fiscalYearStartMonth: tenant.fiscalYearStartMonth,
+        now,
+        requestedFiscalYear,
+        timeZone: tenant.timeZone,
+      })[0] ??
+      getProcurementFiscalYearForDate(now, {
+        fiscalYearStartMonth: tenant.fiscalYearStartMonth,
+        timeZone: tenant.timeZone,
+      }).key;
+
+    const departmentsInScope = activeDepartments.filter(
+      (department) =>
+        getDepartmentFiscalYearKey(
+          {
+            id: String(department._id),
+            isActive: department.isActive,
+            submissionEndsAt: department.submissionEndsAt,
+            submissionStartsAt: department.submissionStartsAt,
+          },
+          {
+            fiscalYearStartMonth: tenant.fiscalYearStartMonth,
+            timeZone: tenant.timeZone,
+          },
+        ) === selectedFiscalYear,
+    );
+    const scopedDepartments =
+      departmentsInScope.length > 0 ? departmentsInScope : activeDepartments;
+
+    const sharedDeadline = deriveSharedSubmissionDeadline({
+      deadlineRecord:
+        submissionDeadlines.find((deadline) => deadline.fiscalYearKey === selectedFiscalYear) ?? null,
+      departments: scopedDepartments.map((department) => ({
+        id: String(department._id),
+        isActive: department.isActive,
+        submissionEndsAt: department.submissionEndsAt,
+        submissionStartsAt: department.submissionStartsAt,
+      })),
+      fiscalYearKey: selectedFiscalYear,
+      fiscalYearStartMonth: tenant.fiscalYearStartMonth,
+      now,
+      tenantTimeZone: tenant.timeZone,
+    });
+
+    const snapshotsByPlanId = new Map<string, typeof planSubmissionSnapshots>();
+    for (const snapshot of planSubmissionSnapshots) {
+      const key = String(snapshot.planId);
+      const existing = snapshotsByPlanId.get(key) ?? [];
+      existing.push(snapshot);
+      snapshotsByPlanId.set(key, existing);
+    }
+
+    const activeDecisionByPlanId = new Map<string, (typeof planReviewDecisions)[number]>();
+    for (const decision of planReviewDecisions) {
+      const key = String(decision.planId);
+      const existing = activeDecisionByPlanId.get(key);
+      if (!existing || decision.decidedAt >= existing.decidedAt) {
+        activeDecisionByPlanId.set(key, decision);
+      }
+    }
+
+    const decisionsByPlanId = new Map<string, (typeof planReviewDecisions)>();
+    for (const decision of planReviewDecisions) {
+      const key = String(decision.planId);
+      const existing = decisionsByPlanId.get(key) ?? [];
+      existing.push(decision);
+      decisionsByPlanId.set(key, existing);
+    }
+
+    const tenantUserById = new Map(
+      tenantUsers.map((tenantUser) => [String(tenantUser._id), tenantUser] as const),
+    );
+    const userById = new Map(
+      userDocs
+        .filter((user): user is NonNullable<typeof user> => Boolean(user))
+        .map((user) => [String(user._id), user] as const),
+    );
+
+    const contactsByDepartmentId = new Map<string, ProcurementOfficerMonitoringContact[]>();
+    for (const profile of departmentUserProfiles) {
+      const tenantUser = tenantUserById.get(String(profile.tenantUserId));
+      if (
+        !tenantUser ||
+        !tenantUser.isActive ||
+        tenantUser.role !== "department_user" ||
+        !profile.isActive ||
+        profile.deactivatedAt != null
+      ) {
+        continue;
+      }
+
+      const user = userById.get(String(tenantUser.userId));
+      const key = String(profile.departmentId);
+      const existing = contactsByDepartmentId.get(key) ?? [];
+      existing.push({
+        email: typeof user?.email === "string" ? user.email : null,
+        isActive: true,
+        name: typeof user?.name === "string" ? user.name : null,
+      });
+      contactsByDepartmentId.set(key, existing);
+    }
+
+    const safeAccessByDepartmentId = new Set(
+      departmentAccessCodes
+        .filter(
+          (accessCode) =>
+            accessCode.isActive &&
+            accessCode.revokedAt == null &&
+            accessCode.expiresAt > now,
+        )
+        .map((accessCode) => String(accessCode.departmentId)),
+    );
+
+    const plansByDepartmentId = new Map<string, ProcurementOfficerMonitoringPlanLike[]>();
+    for (const plan of plans) {
+      const key = String(plan.departmentId);
+      const existing = plansByDepartmentId.get(key) ?? [];
+      existing.push({
+        ...plan,
+        departmentId: key,
+        id: String(plan._id),
+        latestDecision: (() => {
+          const decision = activeDecisionByPlanId.get(String(plan._id));
+          if (!decision) {
+            return null;
+          }
+          return {
+            comment: decision.comment,
+            decidedAt: decision.decidedAt,
+            decisionType: decision.decisionType,
+            effectiveRevisionDeadlineAt: decision.effectiveRevisionDeadlineAt ?? null,
+            revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
+          };
+        })(),
+        reviewDecisions: (decisionsByPlanId.get(String(plan._id)) ?? []).map((decision) => ({
+          comment: decision.comment,
+          decidedAt: decision.decidedAt,
+          decisionType: decision.decisionType,
+          effectiveRevisionDeadlineAt: decision.effectiveRevisionDeadlineAt ?? null,
+          id: String(decision._id),
+          lifecycleStatus: decision.lifecycleStatus,
+          revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
+        })),
+        submissionSnapshots: (snapshotsByPlanId.get(String(plan._id)) ?? []).map((snapshot) => ({
+          capturedAt: snapshot.capturedAt,
+          lifecycleStatus: snapshot.lifecycleStatus ?? null,
+          submissionReference: snapshot.submissionReference ?? null,
+          submissionSequence: snapshot.submissionSequence ?? null,
+          submittedAt: snapshot.submittedAt,
+          withdrawnAt: snapshot.withdrawnAt ?? null,
+        })),
+      });
+      plansByDepartmentId.set(key, existing);
+    }
+
+    const rows = scopedDepartments
+      .map((department) => {
+        const canonicalPlan = selectCanonicalMonitoringPlan(
+          plansByDepartmentId.get(String(department._id)) ?? [],
+          selectedFiscalYear,
+        );
+        return buildProcurementOfficerMonitoringRow({
+          contacts: contactsByDepartmentId.get(String(department._id)) ?? [],
+          deadlineAt: sharedDeadline.deadlineAt,
+          department: {
+            code: department.code,
+            id: String(department._id),
+            isActive: department.isActive,
+            name: department.name,
+          },
+          fiscalYear: selectedFiscalYear,
+          hasSafeDuAccess: safeAccessByDepartmentId.has(String(department._id)),
+          now,
+          plan: canonicalPlan,
+          tenantTimeZone: tenant.timeZone,
+        });
+      })
+      .sort((left, right) => left.departmentName.localeCompare(right.departmentName));
+
+    return {
+      meta: {
+        currentFiscalYear: getProcurementFiscalYearForDate(now, {
+          fiscalYearStartMonth: tenant.fiscalYearStartMonth,
+          timeZone: tenant.timeZone,
+        }).key,
+        selectedFiscalYear,
+        selectedFiscalYearLabel: formatProcurementFiscalYearLabel(selectedFiscalYear),
+        tenantTimeZone: tenant.timeZone ?? null,
+      },
+      rows,
+      summary: summarizeProcurementOfficerMonitoringRows(rows),
+    };
+  },
+});
+
 export const getProcurementOfficerSubmissionReviewTarget = query({
   args: {
     planId: v.string(),
@@ -292,6 +587,188 @@ export const getProcurementOfficerSubmissionReviewTarget = query({
         tenantTimeZone: tenant.timeZone,
       }),
       state: "ready" as const,
+    };
+  },
+});
+
+export const sendSubmissionMonitoringReminders = action({
+  args: {
+    appUrl: v.optional(v.string()),
+    departmentIds: v.array(v.string()),
+    requestKey: v.optional(v.string()),
+    selectedFiscalYear: v.string(),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const actor = await getServiceActorContext(ctx);
+    if (actor.role !== "procurement_officer" || !actor.tenantId) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "Procurement Officer access is required for this resource.",
+      });
+    }
+
+    const workspace = (await ctx.runQuery(
+      "functions/procurementOfficerSubmissions:getProcurementOfficerSubmissionMonitoringWorkspace" as any,
+      {
+        selectedFiscalYear: args.selectedFiscalYear,
+      },
+    )) as {
+      rows: Array<{
+        departmentId: string;
+        departmentName: string;
+        dueAt: number | null;
+        dueLabel: string | null;
+        recipientEmails: string[];
+        reminderEligibility: {
+          eligible: boolean;
+          reason: string | null;
+        };
+        status: "approved" | "draft" | "not_started" | "rejected" | "submitted";
+      }>;
+    };
+
+    const requestedIds = new Set(args.departmentIds);
+    const targetRows = workspace.rows.filter((row) => requestedIds.has(row.departmentId));
+    const targetRowIds = new Set(targetRows.map((row) => row.departmentId));
+    if (requestedIds.size === 0) {
+      throw new ConvexError({
+        code: "VALIDATION_FAILED",
+        message: "No monitoring departments were selected for reminders.",
+      });
+    }
+
+    const loginUrl = buildAbsoluteAccessCodeLoginUrl({
+      appUrl: args.appUrl,
+      loginPath: ACCESS_CODE_LOGIN_URL_PATH,
+    });
+    let queuedCount = 0;
+    let skippedCount = 0;
+    let failedCount = 0;
+    const results: Array<{
+      departmentId: string;
+      departmentName: string | null;
+      outcome: "failed" | "queued" | "skipped";
+      reason: string | null;
+    }> = [];
+    for (const requestedId of requestedIds) {
+      if (!targetRowIds.has(requestedId)) {
+        skippedCount += 1;
+        results.push({
+          departmentId: requestedId,
+          departmentName: null,
+          outcome: "skipped",
+          reason: "stale_target",
+        });
+      }
+    }
+    const reminderWindow = buildProcurementOfficerSubmissionReminderWindow({
+      now: Date.now(),
+    });
+
+    for (const row of targetRows) {
+      if (!row.reminderEligibility.eligible || typeof row.dueAt !== "number") {
+        skippedCount += 1;
+        results.push({
+          departmentId: row.departmentId,
+          departmentName: row.departmentName,
+          outcome: "skipped",
+          reason: row.reminderEligibility.reason ?? "not eligible",
+        });
+        continue;
+      }
+
+      if (row.recipientEmails.length === 0) {
+        skippedCount += 1;
+        results.push({
+          departmentId: row.departmentId,
+          departmentName: row.departmentName,
+          outcome: "skipped",
+          reason: "missing_contact_email",
+        });
+        continue;
+      }
+
+      let departmentQueued = 0;
+      let departmentFailed = 0;
+      for (const recipientEmail of row.recipientEmails) {
+        try {
+          await ctx.runAction("actions/email:queueTransactionalEmail" as any, {
+            idempotencyKey: buildProcurementOfficerSubmissionReminderIdempotencyKey({
+              departmentId: row.departmentId,
+              dueAt: row.dueAt,
+              fiscalYear: args.selectedFiscalYear,
+              reminderWindow,
+              reason: row.status,
+              tenantId: actor.tenantId,
+            }) + `:${recipientEmail}`,
+            subject: `${row.departmentName} submission reminder`,
+            template: "submission-reminder",
+            templateProps: {
+              deadlineLabel: row.dueLabel ?? "Unavailable",
+              departmentName: row.departmentName,
+              fiscalYearLabel: args.selectedFiscalYear,
+              loginUrl,
+              statusLabel: row.status,
+            },
+            to: recipientEmail,
+          });
+          departmentQueued += 1;
+        } catch {
+          departmentFailed += 1;
+        }
+      }
+
+      if (departmentQueued > 0) {
+        queuedCount += 1;
+        results.push({
+          departmentId: row.departmentId,
+          departmentName: row.departmentName,
+          outcome: departmentFailed > 0 ? "queued" : "queued",
+          reason: departmentFailed > 0 ? `${departmentFailed} recipient(s) failed` : null,
+        });
+      } else {
+        failedCount += 1;
+        results.push({
+          departmentId: row.departmentId,
+          departmentName: row.departmentName,
+          outcome: "failed",
+          reason: "queue_failed",
+        });
+      }
+    }
+
+    await ctx.runMutation("functions/auditLogs:appendAuditLogFromAction" as any, {
+      action: "email_queue",
+      actorRole: actor.role,
+      actorState: createAuthenticatedAuditActor({
+        role: actor.role,
+        userId: actor.userId,
+      }).state,
+      actorUserId: actor.userId as any,
+      entityType: "submission_monitoring",
+      event: "submission_monitoring.reminders_queued" as any,
+      metadata: {
+        failedCount,
+        fiscalYear: args.selectedFiscalYear,
+        queuedCount,
+        reminderWindow,
+        requestKey: args.requestKey ?? null,
+        skippedCount,
+      },
+      outcome:
+        failedCount > 0 ? AUDIT_OUTCOMES.failed : AUDIT_OUTCOMES.queued,
+      sourceTenantId: actor.tenantId,
+      tableName: "plans",
+      targetTenantId: actor.tenantId,
+      timestamp: Date.now(),
+    }).catch(() => undefined);
+
+    return {
+      failedCount,
+      queuedCount,
+      results,
+      skippedCount,
     };
   },
 });

@@ -82,6 +82,19 @@ function buildDepartmentUserRevisionHistory(args) {
                 title: "Withdrawn",
             });
         }
+        if (typeof snapshot.submittedAt !== "number" &&
+            typeof snapshot.withdrawnAt !== "number") {
+            entries.push({
+                detail: snapshot.submissionReference?.trim()
+                    ? `Historical submission metadata is available for ${snapshot.submissionReference.trim()}, but the full submission timestamp is unavailable.`
+                    : "Historical submission metadata is available, but the full submission timestamp is unavailable.",
+                id: `submission-metadata:${snapshot.submissionSequence ?? snapshot.capturedAt}`,
+                kind: "submitted",
+                timestamp: snapshot.capturedAt,
+                timestampLabel: (0, deadlines_1.formatDeadlineDateTime)(snapshot.capturedAt, args.timeZone),
+                title: "Submission Metadata",
+            });
+        }
     }
     for (const decision of [...args.decisions].sort((left, right) => left.decidedAt - right.decidedAt)) {
         if (decision.lifecycleStatus === "undone") {

@@ -19,6 +19,7 @@ export class SendEmailDto {
       "catalog-request-submitted",
       "deadline-extension",
       "deadline-reminder",
+      "submission-reminder",
     ],
   })
   @IsIn([
@@ -29,6 +30,7 @@ export class SendEmailDto {
     "catalog-request-submitted",
     "deadline-extension",
     "deadline-reminder",
+    "submission-reminder",
   ])
   template!:
     | "generic-notification"
@@ -37,7 +39,8 @@ export class SendEmailDto {
     | "catalog-request-status"
     | "catalog-request-submitted"
     | "deadline-extension"
-    | "deadline-reminder";
+    | "deadline-reminder"
+    | "submission-reminder";
 
   @ApiProperty({ required: false, additionalProperties: true })
   @IsOptional()
