@@ -23,14 +23,14 @@ POs (like Sarah Mwangi from the user journey) can complete consolidation in hour
 ## Key Transformation
 
 **Before Procureline:** 2+ weeks of manual Excel consolidation with error-prone copy-paste.
-**After Procureline:** 2-4 hours of drag-and-drop consolidation with automatic calculations.
+**After Procureline:** 2-4 hours of automated consolidation with a unified workspace and automatic calculations.
 
 ## Requirements Covered
 
 ### Functional Requirements
 
 **Consolidation Workspace (18 FRs):**
-- FR58-FR60a: Consolidation workspace, department blocks, drag-and-drop
+- FR58-FR60a: Consolidation workspace, automated aggregation of approved plans into a unified view
 - FR61-FR64a: Grand totals, AGPO (30%), PWD (2%), Local Content (40%)
 - FR65-FR66e: Quarterly subtotals, finalization, versioning, print view
 
@@ -46,7 +46,8 @@ POs (like Sarah Mwangi from the user journey) can complete consolidation in hour
 
 ## Implementation Notes
 
-- Consolidation uses Blockly-like visual interface for department blocks
+- Consolidation uses a unified Blockly visual interface which aggregates all approved departmental plans automatically, as implemented in the prototype @procurelinedb.html
+
 - Compliance calculations performed server-side for accuracy
 - Excel generation via NestJS microservice using ExcelJS
 - GOK template includes: cover page, summary, department breakdowns, compliance sheet
@@ -57,7 +58,7 @@ POs (like Sarah Mwangi from the user journey) can complete consolidation in hour
 ## Story Delivery Map
 
 - `Story 7.1` achieves controlled entry into the consolidation phase. Delivery should ensure only the right PO and the right plan states can open the consolidation workspace, with enough context to understand what is ready.
-- `Story 7.2` achieves the actual assembly of approved departmental plans into one institutional view. Delivery should support drag-and-drop or equivalent composition mechanics while preserving traceability back to source plans.
+- `Story 7.2` achieves the actual assembly of approved departmental plans into one institutional view. Delivery should support automated aggregation of approved plans within the workspace while preserving traceability back to source plans.
 - `Story 7.3` achieves trustworthy compliance and financial totals during consolidation. Delivery should centralize calculations, surface threshold breaches immediately, and avoid duplicating business logic across UI and export layers.
 - `Story 7.4` achieves a formal handoff from editable consolidation to frozen versioned output. Delivery should introduce explicit finalization rules, revision history, and safeguards against silent post-finalization changes.
 - `Story 7.5` achieves exportability of the consolidated plan. Delivery should orchestrate export jobs, progress feedback, and secure retrieval of generated files without blocking the main user workflow.
@@ -90,9 +91,9 @@ So that I can begin aggregating approved department plans.
 **And** shows count: "X of Y departments ready"
 
 **Given** approved plans exist
-**When** PO views available departments
-**Then** system shows all approved department plans as draggable blocks (FR59)
-**And** each block shows: department name, total amount, item count
+**When** PO opens the consolidation workspace
+**Then** system automatically loads all approved department plans into the unified view (FR59)
+**And** each department's items and totals are displayed
 
 **Given** a PO wants to work on consolidation later
 **When** they save progress
@@ -107,43 +108,33 @@ So that I can begin aggregating approved department plans.
 
 ---
 
-### Story 7.2: Drag-and-Drop Department Consolidation
+### Story 7.2: Automated Department Plan Aggregation
 
 As a **Procurement Officer**,
-I want to drag approved department plans into the consolidation,
-So that I can build the master Annual Procurement Plan.
+I want the consolidation workspace to automatically aggregate all approved department plans,
+So that I can immediately view the master Annual Procurement Plan without manual assembly.
 
 **Acceptance Criteria:**
 
-**Given** a PO views available departments
-**When** they drag a department block onto the consolidation canvas
-**Then** department is added to the master aggregate plan (FR60)
-**And** totals update automatically
+**Given** a PO opens the consolidation workspace
+**When** the workspace initializes
+**Then** system automatically aggregates all approved department plans into a single unified master plan (FR60)
+**And** totals update automatically based on the aggregated items
 
-**Given** a department is in the consolidation
-**When** PO wants to remove it
-**Then** PO can drag it back or click remove (FR59a)
-**And** department returns to available list
-**And** totals recalculate
+**Given** an aggregated department is in the consolidation
+**When** PO reviews the plan
+**Then** PO can see the origin of each item (which department it belongs to)
+**And** items are grouped or tagged by their source department
 
-**Given** multiple departments are consolidated
-**When** PO wants to organize them
-**Then** PO can reorder department blocks via drag-and-drop (FR59b)
-**And** order is preserved in export
-
-**Given** a department is added to consolidation
-**When** viewing the block
+**Given** a PO reviews the consolidation canvas
+**When** viewing the interface
 **Then** PO can expand to see department details: categories, items, quarterly totals
-
-**Given** all desired departments are consolidated
-**When** viewing the canvas
-**Then** system displays clear visual indication of consolidated vs. remaining departments
+**And** system displays a clear visual indication of all consolidated departments
 
 **Technical Notes:**
-- Drag-and-drop via react-beautiful-dnd or similar
-- Consolidation data stored as ordered array of department IDs
-- Expansion state stored in localStorage for persistence
-- Visual distinction via opacity/color for consolidated vs. available
+- The full blockly workflow for PO consolidation has been prototyped in @procurelinedb.html where it automatically aggregates all plans in a single view. The implementation should mimic this unified workspace.
+- Consolidation data is derived dynamically from all `status: 'approved'` plans.
+- Expansion state stored in localStorage for persistence.
 
 ---
 
@@ -357,7 +348,7 @@ So that it meets government submission requirements.
 ```
 Story 7.1 (Workspace Access)
     │
-    └── Story 7.2 (Drag-and-Drop)
+    └── Story 7.2 (Automated Aggregation)
             │
             └── Story 7.3 (Compliance Calculations)
                     │

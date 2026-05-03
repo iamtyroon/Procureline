@@ -100,10 +100,10 @@ development_status:
   6-5-plan-approval-rejection: done
   6-6-du-revision-flow: done
   4-6-submission-monitoring-reminders: done
-  3-9-cross-institutional-visibility: ready-for-dev # frontend-complete
+  3-9-cross-institutional-visibility: review # frontend-complete
 
   7-1-consolidation-workspace-access: backlog
-  7-2-drag-and-drop-department-consolidation: backlog
+  7-2-automated-department-plan-aggregation: backlog
   7-3-compliance-calculations-totals: backlog
   7-4-finalization-versioning: backlog
   7-5-excel-export: backlog
@@ -234,7 +234,7 @@ story_surfaces:
 
   epic-7:
     7-1-consolidation-workspace-access: frontend-led
-    7-2-drag-and-drop-department-consolidation: frontend-led
+    7-2-automated-department-plan-aggregation: frontend-led
     7-3-compliance-calculations-totals: backend-led
     7-4-finalization-versioning: full-stack
     7-5-excel-export: backend-led
@@ -330,7 +330,7 @@ recommended_execution_sequence:
     rationale: "Only start consolidation once approved-plan inputs and review states are trustworthy."
     stories:
       - 7-1-consolidation-workspace-access
-      - 7-2-drag-and-drop-department-consolidation
+      - 7-2-automated-department-plan-aggregation
       - 7-3-compliance-calculations-totals
       - 7-4-finalization-versioning
       - 7-5-excel-export

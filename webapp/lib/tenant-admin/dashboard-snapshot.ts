@@ -12,6 +12,7 @@ import {
     type OnboardingChecklistItem,
     type QuickActionItem,
 } from "./dashboard";
+import type { TenantAdminInstitutionalOverview } from "./institutional-visibility";
 
 export type DashboardTenantTier =
     | "enterprise"
@@ -186,6 +187,7 @@ export interface TenantAdminDashboardSnapshot {
     };
     meta: TenantAdminDashboardMeta;
     onboardingChecklist: OnboardingChecklistItem[];
+    institutionalOverview: TenantAdminInstitutionalOverview;
     quickActions: QuickActionItem[];
     summaryCards: {
         budgetUtilization: DashboardSummaryCard;
@@ -199,6 +201,7 @@ export interface TenantAdminDashboardSnapshot {
 export interface BuildTenantAdminDashboardSnapshotArgs {
     activityLogs: readonly DashboardAuditLogRecord[];
     departments: readonly DashboardDepartmentRecord[];
+    fiscalYearKeys?: readonly string[];
     now: number;
     selectedFiscalYear?: string;
     tenant: DashboardTenantRecord;
@@ -214,12 +217,14 @@ export function buildTenantAdminDashboardSnapshot(
     const availableFiscalYears = buildAvailableFiscalYears({
         activityTimestamps,
         departmentWindows: args.departments,
+        fiscalYearKeys: args.fiscalYearKeys,
         now: args.now,
         selectedFiscalYear,
     });
 
     const selectedFiscalYearHasSignals =
         selectedFiscalYear === currentFiscalYear ||
+        availableFiscalYears.includes(selectedFiscalYear) ||
         activityTimestamps.some((timestamp) =>
             isTimestampInFiscalYear({ fiscalYearKey: selectedFiscalYear, timestamp }),
         ) ||
@@ -304,6 +309,10 @@ export function buildTenantAdminDashboardSnapshot(
             departmentCount: activeDepartmentCount,
             procurementOfficerCount,
         }),
+        institutionalOverview: createEmptyInstitutionalOverview({
+            fiscalYear: selectedFiscalYear,
+            now: args.now,
+        }),
         quickActions: deriveQuickActions({
             cycleState: cycleState.state,
             departmentCount: activeDepartmentCount,
@@ -321,6 +330,38 @@ export function buildTenantAdminDashboardSnapshot(
             departmentUsers: departmentUserCount,
             procurementOfficers: procurementOfficerCount,
             tenantAdmins: tenantAdminCount,
+        },
+    };
+}
+
+function createEmptyInstitutionalOverview(args: {
+    fiscalYear: string;
+    now: number;
+}): TenantAdminInstitutionalOverview {
+    return {
+        anomalies: [],
+        availableFiscalYears: [args.fiscalYear],
+        exportRequest: {
+            asOf: args.now,
+            state: "queued",
+            summary: "Institutional export requests are queued and generated server-side.",
+        },
+        fiscalYear: args.fiscalYear,
+        generatedAt: args.now,
+        poRollups: [],
+        rows: [],
+        summary: {
+            anomalyCount: 0,
+            approvedOrSubmitted: 0,
+            approvedOrSubmittedLabel: "0 of 0",
+            poCoverageLabel: "0 of 0",
+            totalAllocated: 0,
+            totalAllocatedLabel: "KES 0",
+            totalDepartments: 0,
+            totalUtilizationLabel: "Unavailable",
+            totalUtilizationPercent: null,
+            totalUtilized: 0,
+            totalUtilizedLabel: "KES 0",
         },
     };
 }

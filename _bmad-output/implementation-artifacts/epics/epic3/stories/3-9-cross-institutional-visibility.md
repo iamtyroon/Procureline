@@ -1,6 +1,6 @@
 # Story 3.9: Cross-Institutional Visibility
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -38,57 +38,57 @@ so that I can maintain oversight without interfering with Procurement Officer op
 ## Tasks / Subtasks
 
 - [ ] Task 1: Add a tenant-admin institutional visibility data model and query (AC: 1, 2, 6, 7, 8, 10, 13, 14, 15, 18)
-  - [ ] Extend `webapp/lib/tenant-admin/dashboard-snapshot.ts` with overview row, detail, summary, PO rollup, anomaly, and export-request presentation types.
-  - [ ] Add a dedicated Convex query such as `getTenantAdminInstitutionalOverview` in `webapp/convex/functions/tenantAdminDashboard.ts` or a focused `tenantAdminInstitutionalOverview.ts` module.
-  - [ ] Start from active tenant departments using `departments.by_tenantId_isActive`, then join tenant users, users, DU profiles, plans, submission snapshots, review decisions, and audit metadata in tenant scope.
-  - [ ] Reuse `selectCanonicalPlans(...)` or extract a shared canonical-plan selector so Tenant Admin, DU, and PO status surfaces cannot disagree.
-  - [ ] Return one row per active department, with explicit unavailable states for missing budget, missing plan, missing PO, missing DU contact, or legacy missing timestamps.
-  - [ ] Derive available fiscal years from department windows, submission deadlines, plans, plan submission snapshots, review decisions, redraft requests, and tenant-scoped audit activity so missing department windows do not hide real plan history.
-  - [ ] Resolve PO and DU display summaries only after verifying the related `tenantUsers` row is active and belongs to the current tenant; unresolved or inactive assignments must remain visible as attention states.
+  - [x] Extend `webapp/lib/tenant-admin/dashboard-snapshot.ts` with overview row, detail, summary, PO rollup, anomaly, and export-request presentation types.
+  - [x] Add a dedicated Convex query such as `getTenantAdminInstitutionalOverview` in `webapp/convex/functions/tenantAdminDashboard.ts` or a focused `tenantAdminInstitutionalOverview.ts` module.
+  - [x] Start from active tenant departments using `departments.by_tenantId_isActive`, then join tenant users, users, DU profiles, plans, submission snapshots, review decisions, and audit metadata in tenant scope.
+  - [x] Reuse `selectCanonicalPlans(...)` or extract a shared canonical-plan selector so Tenant Admin, DU, and PO status surfaces cannot disagree.
+  - [x] Return one row per active department, with explicit unavailable states for missing budget, missing plan, missing PO, missing DU contact, or legacy missing timestamps.
+  - [x] Derive available fiscal years from department windows, submission deadlines, plans, plan submission snapshots, review decisions, redraft requests, and tenant-scoped audit activity so missing department windows do not hide real plan history.
+  - [x] Resolve PO and DU display summaries only after verifying the related `tenantUsers` row is active and belongs to the current tenant; unresolved or inactive assignments must remain visible as attention states.
   - [ ] Keep query validators explicit and serializable; avoid returning raw Convex documents to the client.
 
 - [ ] Task 2: Replace the staged department-status table with a real institutional overview surface (AC: 1-5, 8-11, 14-17, 19)
-  - [ ] Keep `webapp/app/(app)/tenant-admin/departments/page.tsx` and `TenantAdminDashboard` as the route shell; do not create a second tenant-admin layout.
-  - [ ] Replace `renderDepartmentsView(...)` placeholder budget cells in `webapp/src/components/tenant-admin/TenantAdminViewContent.tsx` with a dedicated component if the view becomes stateful.
-  - [ ] Add summary tiles for total allocated, total utilized, submitted/approved coverage, anomaly count, and PO coverage.
-  - [ ] Add search, PO filter, submission-status filter, and fiscal-year-aware empty states.
-  - [ ] Add a read-only department detail sheet/dialog with budget, plan, category summary, item totals, DU contacts, PO assignment, and timeline/history.
-  - [ ] Ensure action buttons do not mutate PO or DU workflows from this surface.
+  - [x] Keep `webapp/app/(app)/tenant-admin/departments/page.tsx` and `TenantAdminDashboard` as the route shell; do not create a second tenant-admin layout.
+  - [x] Replace `renderDepartmentsView(...)` placeholder budget cells in `webapp/src/components/tenant-admin/TenantAdminViewContent.tsx` with a dedicated component if the view becomes stateful.
+  - [x] Add summary tiles for total allocated, total utilized, submitted/approved coverage, anomaly count, and PO coverage.
+  - [x] Add search, PO filter, submission-status filter, and fiscal-year-aware empty states.
+  - [x] Add a read-only department detail sheet/dialog with budget, plan, category summary, item totals, DU contacts, PO assignment, and timeline/history.
+  - [x] Ensure action buttons do not mutate PO or DU workflows from this surface.
 
 - [ ] Task 3: Add scalable list behavior for larger institutions (AC: 3, 4, 17)
   - [ ] Use a proven virtual-list approach if the dataset can exceed 100 rows; recommended options are `@tanstack/react-virtual` if adding a dependency is acceptable, or Convex `usePaginatedQuery` plus "load more" if avoiding a new dependency.
   - [ ] Keep filtering and sorting server-authoritative when pagination is used; do not filter only the rows already loaded into the client.
-  - [ ] Keep row height, filter controls, and detail-trigger affordances stable so filtering and virtual scrolling do not shift the dashboard shell.
-  - [ ] Use stable row ids for detail panel selection so opening a detail row still resolves the intended department after filters, sorting, or live Convex updates change the visible list.
+  - [x] Keep row height, filter controls, and detail-trigger affordances stable so filtering and virtual scrolling do not shift the dashboard shell.
+  - [x] Use stable row ids for detail panel selection so opening a detail row still resolves the intended department after filters, sorting, or live Convex updates change the visible list.
   - [ ] If a new dependency is added, update `webapp/package.json` intentionally and include focused UI regression coverage.
   - [ ] Avoid `react-virtualized`; it is not currently installed and would add older API surface without matching the repo's current stack.
 
 - [ ] Task 4: Implement anomaly detection and PO summary shaping (AC: 9, 10, 14, 15, 19, 20)
-  - [ ] Add pure helper logic for anomaly detection in `webapp/lib/tenant-admin/institutional-visibility.ts` or a similar tenant-admin module.
-  - [ ] Detect budget variance greater than 50% using `estimatedBudgetUsed` versus `budgetAllocation` when both are available.
-  - [ ] Detect over-budget plans using existing budget-state logic where possible instead of duplicating calculation rules.
-  - [ ] Detect duplicate active department names/codes within the tenant from normalized department fields.
-  - [ ] Detect departments without safe active DU coverage, inactive or unresolved PO assignment, and stale submitted plans that have not entered review.
-  - [ ] Treat missing, zero, or negative budget allocation as an explicit unavailable/invalid state rather than a numeric variance calculation.
-  - [ ] Derive PO rollups from assigned active departments and their canonical statuses, with last activity from audit logs or profile metadata.
+  - [x] Add pure helper logic for anomaly detection in `webapp/lib/tenant-admin/institutional-visibility.ts` or a similar tenant-admin module.
+  - [x] Detect budget variance greater than 50% using `estimatedBudgetUsed` versus `budgetAllocation` when both are available.
+  - [x] Detect over-budget plans using existing budget-state logic where possible instead of duplicating calculation rules.
+  - [x] Detect duplicate active department names/codes within the tenant from normalized department fields.
+  - [x] Detect departments without safe active DU coverage, inactive or unresolved PO assignment, and stale submitted plans that have not entered review.
+  - [x] Treat missing, zero, or negative budget allocation as an explicit unavailable/invalid state rather than a numeric variance calculation.
+  - [x] Derive PO rollups from assigned active departments and their canonical statuses, with last activity from audit logs or profile metadata.
 
 - [ ] Task 5: Add secure institutional export request handling (AC: 12, 13, 16, 21)
   - [ ] Inspect the current `webapp/convex/actions/files.ts` and NestJS file/export implementation before choosing direct versus queued export.
-  - [ ] Add a tenant-admin export request action that derives tenant scope from `requireTenantRole(ctx, ["tenant_admin"])`.
+  - [x] Add a tenant-admin export request action that derives tenant scope from `requireTenantRole(ctx, ["tenant_admin"])`.
   - [ ] Include user data, tenant users, PO assignments, DU profiles, departments, plans, snapshots, category/item summaries, item/category requests, and audit logs where available.
   - [ ] Exclude secrets and internal-only fields from export projections, including invite tokens, activation-code hashes, access-code hashes, auth challenge secrets, provider webhook payloads, and PO-internal `planReviewComments`.
-  - [ ] Stamp every export package with `asOf`, selected fiscal year or all-years scope, request id, tenant id, actor id, and package schema version.
+  - [x] Stamp every export package with `asOf`, selected fiscal year or all-years scope, request id, tenant id, actor id, and package schema version.
   - [ ] Use server-side file generation and secure download/storage paths; do not build a browser-only ZIP or client-owned export.
   - [ ] Add audit entries for request creation, export completion/failure, and download access.
 
 - [ ] Task 6: Add deterministic regression coverage (AC: 1-22)
-  - [ ] Add pure tests for row shaping, filter application, canonical status derivation, budget aggregation, anomaly detection, PO rollups, and export payload scoping.
+  - [x] Add pure tests for row shaping, filter application, canonical status derivation, budget aggregation, anomaly detection, PO rollups, and export payload scoping.
   - [ ] Add Convex query tests proving tenant isolation, no client-provided tenant trust, missing-data fallback, and every active department appearing exactly once.
   - [ ] Add UI tests for summary tiles, filters, virtualized/incremental rows, read-only detail panel, anomaly labels, and export request states.
   - [ ] Add edge-case tests for inactive PO assignment, duplicate DU emails, missing auth users, missing fiscal-year windows with plan history, zero/negative budgets, and duplicate names/codes that only differ by normalization.
   - [ ] Add export tests proving sensitive/internal fields are omitted and exported metadata contains `asOf`, request id, actor id, tenant id, scope, and schema version.
   - [ ] Preserve or extend `webapp/tests/tenant-admin-dashboard.test.ts` so Story 3.2 dashboard behavior remains stable.
-  - [ ] Add runner registration in `webapp/tests/run-tests.ts` for new test files.
+  - [x] Add runner registration in `webapp/tests/run-tests.ts` for new test files.
 
 ## Dev Notes
 
@@ -324,21 +324,37 @@ GPT-5
 - 2026-05-02: Scoped the story as read-only institutional oversight, with PO/DU operational mutations explicitly out of scope.
 - 2026-05-02: Identified reusable canonical status and history sources from Story 4.6 PO monitoring and Story 6.7 DU status tracking.
 - 2026-05-02: Ran an edge-case review and patched missing guards for inactive assignments, unsafe DU coverage, fiscal-year discovery, pagination/filter scope, sensitive-field exclusion, export point-in-time metadata, budget invalid states, and duplicate normalization.
+- 2026-05-02: Implemented the first institutional visibility slice: tenant-scoped overview shaping, canonical PO/DU status reuse, budget rollups, anomaly detection, PO rollups, read-only department detail UI, queued export request auditing, and deterministic helper tests.
+- 2026-05-02: Validation note: isolated institutional visibility type check and direct assertions passed; repo-wide `npm test` and `npm run build` remain blocked by pre-existing TypeScript errors in Convex files unrelated to Story 3.9.
+- 2026-05-02: Code-review fixes applied: replaced the raw institutional overview return validator, switched overview reads to active-department-first plan/snapshot/decision loading, wired plan-derived fiscal years into the dashboard selector, aligned filtered summary tiles and export scope with the current filtered dataset, added incremental row loading, and moved institutional export queuing through the server-side file export bridge.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/epics/epic3/stories/3-9-cross-institutional-visibility.md`
+- `_bmad-output/implementation-artifacts/epics/epic7/epic-07-consolidation-export.md`
+- `_bmad-output/planning-artifacts/sprint-change-proposal-2026-05-02.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `webapp/convex/actions/files.ts`
+- `webapp/convex/functions/tenantAdminDashboard.ts`
+- `webapp/lib/tenant-admin/dashboard-snapshot.ts`
+- `webapp/lib/tenant-admin/dashboard.ts`
+- `webapp/lib/tenant-admin/institutional-visibility.ts`
+- `webapp/src/components/tenant-admin/InstitutionalOverviewView.tsx`
+- `webapp/src/components/tenant-admin/TenantAdminViewContent.tsx`
+- `webapp/tests/tenant-admin-institutional-visibility.test.ts`
+- `webapp/tests/run-tests.ts`
 
 ### Change Log
 
 - 2026-05-02: Story 3.9 created and moved to ready-for-dev with developer guidance for tenant-admin institutional overview, read-only department drill-down, budget aggregation, anomaly detection, PO rollups, scalable list rendering, and secure export request handling.
 - 2026-05-02: Edge-case review patch added explicit acceptance criteria and implementation guidance for stale relationships, sensitive/internal data projection, server-authoritative filter/export scope, point-in-time exports, fiscal-year signal discovery, and anomaly false-positive prevention.
+- 2026-05-02: Added institutional overview data shaping, read-only UI, anomaly/PO rollup logic, queued export request auditing, and regression coverage for core overview behavior.
+- 2026-05-02: Addressed code-review findings for large-list handling, filtered summary alignment, export request lifecycle, fiscal-year discovery, explicit Convex validators, and File List transparency.
 
 ## Story Completion Status
 
 - Story ID: `3.9`
 - Story Key: `3-9-cross-institutional-visibility`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic3/stories/3-9-cross-institutional-visibility.md`
-- Status: `ready-for-dev`
-- Completion Note: `Ultimate context engine analysis completed - comprehensive developer guide created.`
+- Status: `in-progress`
+- Completion Note: `Code-review findings addressed; story remains in review pending repo-wide quality gate cleanup and broader Convex/UI regression coverage.`

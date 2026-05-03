@@ -5,6 +5,8 @@ import {
     buildTenantAdminDashboardSnapshot,
     type TenantAdminProcurementOfficerDirectoryEntry,
 } from "../../lib/tenant-admin/dashboard-snapshot";
+import { getFiscalYearForDate } from "../../lib/tenant-admin/dashboard";
+import { buildTenantAdminInstitutionalOverview } from "../../lib/tenant-admin/institutional-visibility";
 import {
     evaluateProcurementOfficerInvitationStatus,
     formatProcurementOfficerInvitationStatusLabel,
@@ -70,6 +72,149 @@ const summaryCardValidator = v.object({
     tone: v.union(v.literal("neutral"), v.literal("positive"), v.literal("warning")),
     trendLabel: v.string(),
     value: v.string(),
+});
+
+const institutionalOverviewStatusValidator = v.union(
+    v.literal("approved"),
+    v.literal("draft"),
+    v.literal("not_started"),
+    v.literal("rejected"),
+    v.literal("submitted"),
+);
+
+const institutionalAnomalyTypeValidator = v.union(
+    v.literal("budget_variance"),
+    v.literal("duplicate_department_code"),
+    v.literal("duplicate_department_name"),
+    v.literal("invalid_budget_allocation"),
+    v.literal("missing_du_coverage"),
+    v.literal("over_budget"),
+    v.literal("stale_submitted_plan"),
+    v.literal("unresolved_po_assignment"),
+);
+
+const institutionalBudgetValidator = v.object({
+    allocation: v.union(v.number(), v.null()),
+    allocationLabel: v.string(),
+    state: v.union(
+        v.literal("available"),
+        v.literal("invalid"),
+        v.literal("unavailable"),
+    ),
+    used: v.union(v.number(), v.null()),
+    usedLabel: v.string(),
+    utilizationLabel: v.string(),
+    utilizationPercent: v.union(v.number(), v.null()),
+});
+
+const institutionalCategorySummaryValidator = v.object({
+    amount: v.number(),
+    categoryId: v.string(),
+    categoryName: v.string(),
+    itemCount: v.number(),
+});
+
+const institutionalOverviewValidator = v.object({
+    anomalies: v.array(
+        v.object({
+            departmentId: v.string(),
+            departmentName: v.string(),
+            description: v.string(),
+            severity: v.union(
+                v.literal("attention"),
+                v.literal("critical"),
+                v.literal("warning"),
+            ),
+            type: institutionalAnomalyTypeValidator,
+        }),
+    ),
+    availableFiscalYears: v.array(v.string()),
+    exportRequest: v.object({
+        asOf: v.number(),
+        state: v.union(v.literal("queued"), v.literal("export_ready")),
+        summary: v.string(),
+    }),
+    fiscalYear: v.string(),
+    generatedAt: v.number(),
+    poRollups: v.array(
+        v.object({
+            attentionNeeded: v.number(),
+            complete: v.number(),
+            departmentCount: v.number(),
+            id: v.string(),
+            inProgress: v.number(),
+            lastActivityAt: v.union(v.number(), v.null()),
+            name: v.string(),
+            notStarted: v.number(),
+            status: v.union(
+                v.literal("attention_needed"),
+                v.literal("complete"),
+                v.literal("in_progress"),
+                v.literal("not_started"),
+            ),
+            statusLabel: v.union(
+                v.literal("Attention Needed"),
+                v.literal("Complete"),
+                v.literal("In Progress"),
+                v.literal("Not Started"),
+            ),
+        }),
+    ),
+    rows: v.array(
+        v.object({
+            anomalyCount: v.number(),
+            budget: institutionalBudgetValidator,
+            categorySummaries: v.array(institutionalCategorySummaryValidator),
+            departmentCode: v.union(v.string(), v.null()),
+            departmentId: v.string(),
+            departmentName: v.string(),
+            duContacts: v.array(
+                v.object({
+                    email: v.string(),
+                    id: v.string(),
+                    name: v.string(),
+                    state: v.literal("active"),
+                }),
+            ),
+            itemTotal: v.number(),
+            lastActivityAt: v.union(v.number(), v.null()),
+            planId: v.union(v.string(), v.null()),
+            procurementOfficer: v.object({
+                email: v.union(v.string(), v.null()),
+                id: v.union(v.string(), v.null()),
+                name: v.string(),
+                state: v.union(
+                    v.literal("active"),
+                    v.literal("inactive"),
+                    v.literal("unavailable"),
+                ),
+            }),
+            status: institutionalOverviewStatusValidator,
+            statusLabel: v.string(),
+            timeline: v.array(
+                v.object({
+                    description: v.string(),
+                    id: v.string(),
+                    timestamp: v.union(v.number(), v.null()),
+                    timestampLabel: v.string(),
+                    title: v.string(),
+                }),
+            ),
+        }),
+    ),
+    summary: v.object({
+        anomalyCount: v.number(),
+        approvedOrSubmitted: v.number(),
+        approvedOrSubmittedLabel: v.string(),
+        poCoverageLabel: v.string(),
+        totalAllocated: v.number(),
+        totalAllocatedLabel: v.string(),
+        totalDepartments: v.number(),
+        totalUtilizationLabel: v.string(),
+        totalUtilizationPercent: v.union(v.number(), v.null()),
+        totalUtilized: v.number(),
+        totalUtilizedLabel: v.string(),
+    }),
 });
 
 const dashboardSnapshotValidator = v.object({
@@ -231,6 +376,7 @@ const dashboardSnapshotValidator = v.object({
             status: onboardingStatusValidator,
         }),
     ),
+    institutionalOverview: institutionalOverviewValidator,
     quickActions: v.array(
         v.object({
             description: v.string(),
@@ -275,7 +421,10 @@ export const getTenantAdminDashboardSnapshot = query({
             });
         }
 
-        const [tenantUsers, departments, departmentUserProfiles, poInvitations, targetActivity, sourceActivity] =
+        const now = Date.now();
+        const selectedFiscalYear =
+            args.selectedFiscalYear ?? getFiscalYearForDate(now).key;
+        const [tenantUsers, departments, departmentUserProfiles, poInvitations, targetActivity, sourceActivity, submissionDeadlines] =
             await Promise.all([
                 ctx.db
                     .query("tenantUsers")
@@ -285,8 +434,8 @@ export const getTenantAdminDashboardSnapshot = query({
                     .collect(),
                 ctx.db
                     .query("departments")
-                    .withIndex("by_tenantId", (q) =>
-                        q.eq("tenantId", authContext.tenantId),
+                    .withIndex("by_tenantId_isActive", (q) =>
+                        q.eq("tenantId", authContext.tenantId).eq("isActive", true),
                     )
                     .collect(),
                 ctx.db
@@ -315,7 +464,87 @@ export const getTenantAdminDashboardSnapshot = query({
                     )
                     .order("desc")
                     .take(20),
+                ctx.db
+                    .query("submissionDeadlines")
+                    .withIndex("by_tenantId", (q) =>
+                        q.eq("tenantId", authContext.tenantId),
+                    )
+                    .collect(),
             ]);
+
+        const departmentProcurementData = await Promise.all(
+            departments.map(async (department) => {
+                const [departmentPlans, departmentSnapshots, departmentDecisions, departmentRedrafts] =
+                    await Promise.all([
+                        ctx.db
+                            .query("plans")
+                            .withIndex("by_departmentId", (q) =>
+                                q.eq("departmentId", department._id),
+                            )
+                            .collect(),
+                        ctx.db
+                            .query("planSubmissionSnapshots")
+                            .withIndex(
+                                "by_tenantId_departmentId_fiscalYear_capturedAt",
+                                (q) =>
+                                    q
+                                        .eq("tenantId", authContext.tenantId)
+                                        .eq("departmentId", department._id)
+                                        .eq("fiscalYear", selectedFiscalYear),
+                            )
+                            .collect(),
+                        ctx.db
+                            .query("planReviewDecisions")
+                            .withIndex(
+                                "by_tenantId_departmentId_fiscalYear_decidedAt",
+                                (q) =>
+                                    q
+                                        .eq("tenantId", authContext.tenantId)
+                                        .eq("departmentId", department._id)
+                                        .eq("fiscalYear", selectedFiscalYear),
+                            )
+                            .collect(),
+                        ctx.db
+                            .query("planRedraftRequests")
+                            .withIndex(
+                                "by_tenantId_departmentId_fiscalYear",
+                                (q) =>
+                                    q
+                                        .eq("tenantId", authContext.tenantId)
+                                        .eq("departmentId", department._id)
+                                        .eq("fiscalYear", selectedFiscalYear),
+                            )
+                            .collect(),
+                    ]);
+
+                return {
+                    decisions: departmentDecisions,
+                    plans: departmentPlans,
+                    redrafts: departmentRedrafts,
+                    snapshots: departmentSnapshots,
+                };
+            }),
+        );
+        const plans = departmentProcurementData.flatMap((entry) => entry.plans);
+        const planSubmissionSnapshots = departmentProcurementData.flatMap(
+            (entry) => entry.snapshots,
+        );
+        const planReviewDecisions = departmentProcurementData.flatMap(
+            (entry) => entry.decisions,
+        );
+        const planRedraftRequests = departmentProcurementData.flatMap(
+            (entry) => entry.redrafts,
+        );
+        const fiscalYearKeys = Array.from(
+            new Set([
+                selectedFiscalYear,
+                ...plans.map((plan) => plan.fiscalYear),
+                ...planSubmissionSnapshots.map((snapshot) => snapshot.fiscalYear),
+                ...planReviewDecisions.map((decision) => decision.fiscalYear),
+                ...planRedraftRequests.map((request) => request.fiscalYear),
+                ...submissionDeadlines.map((deadline) => deadline.fiscalYearKey),
+            ]),
+        );
 
         const mergedActivity = [...targetActivity, ...sourceActivity]
             .sort((left, right) => right.timestamp - left.timestamp)
@@ -534,8 +763,9 @@ export const getTenantAdminDashboardSnapshot = query({
                 submissionStartsAt: department.submissionStartsAt,
                 updatedAt: department.updatedAt,
             })),
+            fiscalYearKeys,
             now: Date.now(),
-            selectedFiscalYear: args.selectedFiscalYear,
+            selectedFiscalYear,
             tenant: {
                 createdAt: tenant.createdAt,
                 id: String(tenant._id),
@@ -548,6 +778,118 @@ export const getTenantAdminDashboardSnapshot = query({
                 isActive: tenantUser.isActive,
                 role: tenantUser.role,
             })),
+        });
+        const institutionalOverview = buildTenantAdminInstitutionalOverview({
+            auditLogs: mergedActivity.map((activity) => ({
+                actorUserId: activity.actorUserId ? String(activity.actorUserId) : null,
+                event: activity.event,
+                id: String(activity._id),
+                recordId: activity.recordId,
+                timestamp: activity.timestamp,
+            })),
+            departments: departments.map((department) => ({
+                budgetAllocation: department.budgetAllocation,
+                code: department.code,
+                createdAt: department.createdAt,
+                id: String(department._id),
+                isActive: department.isActive,
+                name: department.name,
+                normalizedCode: department.normalizedCode,
+                normalizedName: department.normalizedName,
+                procurementOfficerTenantUserId: String(department.procurementOfficerTenantUserId),
+                submissionEndsAt: department.submissionEndsAt,
+                submissionStartsAt: department.submissionStartsAt,
+                updatedAt: department.updatedAt,
+            })),
+            departmentUserProfiles: departmentUserProfiles.map((profile) => ({
+                departmentId: String(profile.departmentId),
+                id: String(profile._id),
+                isActive: profile.isActive,
+                lastAuthenticatedAt: profile.lastAuthenticatedAt,
+                normalizedEmail: profile.normalizedEmail,
+                tenantId: String(profile.tenantId),
+                tenantUserId: String(profile.tenantUserId),
+                updatedAt: profile.updatedAt,
+            })),
+            fiscalYear: baseSnapshot.meta.selectedFiscalYear,
+            now,
+            planReviewDecisions: planReviewDecisions.map((decision) => ({
+                comment: decision.comment,
+                decidedAt: decision.decidedAt,
+                decisionType: decision.decisionType,
+                fiscalYear: decision.fiscalYear,
+                id: String(decision._id),
+                lifecycleStatus: decision.lifecycleStatus,
+                planId: String(decision.planId),
+                revisionDeadlineAt: decision.revisionDeadlineAt,
+            })),
+            planSubmissionSnapshots: planSubmissionSnapshots.map((snapshot) => ({
+                capturedAt: snapshot.capturedAt,
+                categorySummaries: snapshot.categorySummaries,
+                departmentId: String(snapshot.departmentId),
+                estimatedBudgetUsed: snapshot.estimatedBudgetUsed,
+                fiscalYear: snapshot.fiscalYear,
+                id: String(snapshot._id),
+                itemCount: snapshot.itemCount,
+                lifecycleStatus: snapshot.lifecycleStatus,
+                planId: String(snapshot.planId),
+                selectedCategoryIds: snapshot.selectedCategoryIds,
+                submittedAt: snapshot.submittedAt,
+                submissionReference: snapshot.submissionReference,
+                submissionSequence: snapshot.submissionSequence,
+                withdrawnAt: snapshot.withdrawnAt,
+            })),
+            plans: plans.map((plan) => ({
+                approvedAt: plan.approvedAt,
+                categorySummaries: plan.categorySummaries.map((summary: {
+                    amount: number;
+                    categoryId: unknown;
+                    categoryName: string;
+                    itemCount: number;
+                }) => ({
+                    amount: summary.amount,
+                    categoryId: String(summary.categoryId),
+                    categoryName: summary.categoryName,
+                    itemCount: summary.itemCount,
+                })),
+                createdAt: plan.createdAt,
+                departmentId: String(plan.departmentId),
+                estimatedBudgetUsed: plan.estimatedBudgetUsed,
+                fiscalYear: plan.fiscalYear,
+                id: String(plan._id),
+                itemCount: plan.itemCount,
+                lastApprovedAt: plan.lastApprovedAt,
+                rejectedAt: plan.rejectedAt,
+                rejectionComment: plan.rejectionComment,
+                reviewStartedAt: plan.reviewStartedAt,
+                selectedCategoryIds: plan.selectedCategoryIds.map(String),
+                status: plan.status,
+                submittedAt: plan.submittedAt,
+                submissionReference: plan.submissionReference,
+                updatedAt: plan.updatedAt,
+            })),
+            submissionDeadlines: submissionDeadlines.map((deadline) => ({
+                fiscalYearKey: deadline.fiscalYearKey,
+                submissionEndsAt: deadline.submissionEndsAt,
+                submissionStartsAt: deadline.submissionStartsAt,
+                updatedAt: deadline.updatedAt,
+            })),
+            tenantId: String(authContext.tenantId),
+            tenantUsers: tenantUsers.map((tenantUser) => ({
+                id: String(tenantUser._id),
+                isActive: tenantUser.isActive,
+                role: tenantUser.role,
+                tenantId: String(tenantUser.tenantId),
+                userId: String(tenantUser.userId),
+            })),
+            users: userDocuments.map(([userId, userDocument]) => {
+                const summary = readAuthUserSummary(userDocument, "User");
+                return {
+                    email: summary.email === "No email available" ? null : summary.email,
+                    id: userId,
+                    name: summary.name,
+                };
+            }),
         });
 
         return {
@@ -562,6 +904,7 @@ export const getTenantAdminDashboardSnapshot = query({
                 procurementOfficerDirectory,
                 procurementOfficers,
             },
+            institutionalOverview,
         };
     },
 });

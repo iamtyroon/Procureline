@@ -39,6 +39,7 @@ import type {
 } from "@/lib/tenant-admin/dashboard-snapshot";
 import { formatDashboardTimestamp, formatFiscalYearLabel, type DashboardCycleState } from "@/lib/tenant-admin/dashboard";
 import { cn } from "@/lib/utils";
+import { InstitutionalOverviewView } from "@/src/components/tenant-admin/InstitutionalOverviewView";
 
 export type TenantAdminView =
     | "audit-log"
@@ -486,46 +487,7 @@ function renderDepartmentUsersView({
 }
 
 function renderDepartmentsView(snapshot: TenantAdminDashboardSnapshot): JSX.Element {
-    return (
-        <Card className="rounded-2xl border-border/70 bg-card shadow-sm">
-            <CardHeader className="border-b border-border/70 pb-4">
-                <CardTitle className="text-base text-foreground">Department Status</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                        <thead className="border-b border-border/70 bg-muted/30 text-left text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                            <tr>
-                                <th className="px-6 py-4">Department</th>
-                                <th className="px-6 py-4">Budget Allocated</th>
-                                <th className="px-6 py-4">Budget Used</th>
-                                <th className="px-6 py-4">Utilization</th>
-                                <th className="px-6 py-4">Plan Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {snapshot.departmentStatus.map((department) => (
-                                <tr key={department.id} className="border-b border-border/60">
-                                    <td className="px-6 py-4 font-medium text-foreground">{department.name}</td>
-                                    <td className="px-6 py-4 text-muted-foreground">Awaiting budget source</td>
-                                    <td className="px-6 py-4 text-muted-foreground">Awaiting budget source</td>
-                                    <td className="px-6 py-4">
-                                        <div className="max-w-[11rem] space-y-2">
-                                            <div className="text-xs text-muted-foreground">{department.progressValue}%</div>
-                                            <Progress value={department.progressValue} className="h-2 bg-muted" />
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <StatusBadge tone={getDepartmentTone(department.progressTone)} value={department.statusLabel} />
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </CardContent>
-        </Card>
-    );
+    return <InstitutionalOverviewView overview={snapshot.institutionalOverview} />;
 }
 
 function renderBillingView(snapshot: TenantAdminDashboardSnapshot): JSX.Element {

@@ -17,6 +17,12 @@ import {
   type ProcurementItemWorkspaceRow,
 } from "../../lib/procurement-officer/items";
 import { buildProcurementOfficerMonitoringExportRows } from "../../lib/procurement-officer/submission-monitoring";
+import {
+  buildInstitutionalExportPreview,
+  filterInstitutionalOverviewRows,
+  summarizeInstitutionalOverview,
+  type TenantAdminInstitutionalOverview,
+} from "../../lib/tenant-admin/institutional-visibility";
 
 interface CatalogBrowseResult {
   meta: {
@@ -296,6 +302,183 @@ export const exportSubmissionMonitoringReport = action({
     };
   },
 });
+
+export const queueTenantAdminInstitutionalExport = action({
+  args: {
+    fiscalYear: v.string(),
+    procurementOfficerId: v.optional(v.string()),
+    query: v.optional(v.string()),
+    status: v.optional(
+      v.union(
+        v.literal("all"),
+        v.literal("approved"),
+        v.literal("draft"),
+        v.literal("not_started"),
+        v.literal("rejected"),
+        v.literal("submitted"),
+      ),
+    ),
+  },
+  returns: v.object({
+    asOf: v.number(),
+    fileName: v.optional(v.string()),
+    fiscalYear: v.string(),
+    requestId: v.string(),
+    schemaVersion: v.string(),
+    state: v.union(v.literal("queued"), v.literal("export_ready")),
+    tenantId: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const actor = await getServiceActorContext(ctx);
+    if (actor.role !== "tenant_admin" || !actor.tenantId) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "Tenant Admin access is required for this export.",
+      });
+    }
+
+    const asOf = Date.now();
+    const requestId = [
+      "tenant-admin-institutional-export",
+      actor.tenantId,
+      args.fiscalYear,
+      actor.userId,
+      String(asOf),
+    ].join(":");
+    const snapshot = (await ctx.runQuery(
+      api.functions.tenantAdminDashboard.getTenantAdminDashboardSnapshot,
+      { selectedFiscalYear: args.fiscalYear },
+    )) as { institutionalOverview: TenantAdminInstitutionalOverview };
+    const filteredRows = filterInstitutionalOverviewRows(
+      snapshot.institutionalOverview.rows,
+      {
+        procurementOfficerId: args.procurementOfficerId ?? "all",
+        query: args.query ?? "",
+        status: args.status ?? "all",
+      },
+    );
+    const filteredDepartmentIds = new Set(
+      filteredRows.map((row) => row.departmentId),
+    );
+    const filteredAnomalies = snapshot.institutionalOverview.anomalies.filter(
+      (anomaly) => filteredDepartmentIds.has(anomaly.departmentId),
+    );
+    const filteredOverview: TenantAdminInstitutionalOverview = {
+      ...snapshot.institutionalOverview,
+      anomalies: filteredAnomalies,
+      rows: filteredRows,
+      summary: summarizeInstitutionalOverview(filteredRows, filteredAnomalies),
+    };
+    const exportPreview = buildInstitutionalExportPreview({
+      actorTenantUserId: actor.userId,
+      asOf,
+      fiscalYear: args.fiscalYear,
+      overview: filteredOverview,
+      requestId,
+      tenantId: String(actor.tenantId),
+    });
+
+    await appendTenantAdminInstitutionalExportAudit(ctx, actor, {
+      asOf,
+      fiscalYear: args.fiscalYear,
+      outcome: "queued",
+      requestId,
+      rowCount: exportPreview.departments.length,
+      summary: "Institutional export request queued for server-side generation.",
+    });
+
+    try {
+      const queued = await callNestService<{
+        fileName?: string;
+        state?: "queued" | "export_ready";
+      }>(ctx, {
+        actor,
+        body: {
+          idempotencyKey: requestId,
+          reportName: `Institutional Overview ${args.fiscalYear}`,
+          rows: exportPreview.departments,
+          metadata: exportPreview.metadata,
+        },
+        path: "/api/services/files/exports/excel/queue",
+      });
+      const state = queued.state ?? "queued";
+
+      await appendTenantAdminInstitutionalExportAudit(ctx, actor, {
+        asOf,
+        fiscalYear: args.fiscalYear,
+        outcome: state,
+        requestId,
+        rowCount: exportPreview.departments.length,
+        summary:
+          state === "export_ready"
+            ? "Institutional export package is ready for secure delivery."
+            : "Institutional export package is being generated server-side.",
+      });
+
+      return {
+        asOf,
+        fiscalYear: args.fiscalYear,
+        requestId,
+        schemaVersion: exportPreview.metadata.schemaVersion,
+        state,
+        tenantId: String(actor.tenantId),
+        ...(queued.fileName ? { fileName: queued.fileName } : {}),
+      };
+    } catch (error) {
+      await appendTenantAdminInstitutionalExportAudit(ctx, actor, {
+        asOf,
+        fiscalYear: args.fiscalYear,
+        outcome: "failed",
+        requestId,
+        rowCount: exportPreview.departments.length,
+        summary:
+          error instanceof Error && error.message.trim().length > 0
+            ? error.message.trim()
+            : "Institutional export generation failed.",
+      });
+      throw error;
+    }
+  },
+});
+
+async function appendTenantAdminInstitutionalExportAudit(
+  ctx: ActionCtx,
+  actor: Awaited<ReturnType<typeof getServiceActorContext>>,
+  args: {
+    asOf: number;
+    fiscalYear: string;
+    outcome: string;
+    requestId: string;
+    rowCount: number;
+    summary: string;
+  },
+) {
+  await ctx.runMutation(internal.functions.auditLogs.appendAuditLogFromAction, {
+    action: "export",
+    actorRole: actor.role,
+    actorState: createAuthenticatedAuditActor({
+      role: actor.role,
+      userId: actor.userId,
+    }).state,
+    actorUserId: actor.userId as Id<"users">,
+    entityType: "tenant_admin_institutional_export",
+    event: "tenant_admin.institutional_export.requested" as any,
+    metadata: {
+      asOf: args.asOf,
+      fiscalYear: args.fiscalYear,
+      requestId: args.requestId,
+      rowCount: args.rowCount,
+      schemaVersion: "tenant-admin-institutional-export.v1",
+      summary: args.summary,
+    },
+    outcome: args.outcome,
+    recordId: args.requestId,
+    sourceTenantId: actor.tenantId as Id<"tenants"> | undefined,
+    tableName: "auditLogs",
+    targetTenantId: actor.tenantId as Id<"tenants"> | undefined,
+    timestamp: Date.now(),
+  });
+}
 
 async function appendCatalogExportAudit(
   ctx: ActionCtx,
