@@ -327,14 +327,6 @@ export function runProcurementOfficerDashboardTests(): string[] {
     "procurement-officer empty states surface the first-department CTA without inventing fiscal-year blockers before real deadline setup starts",
   );
 
-  assert.deepEqual(
-    normalizeProcurementOfficerWorkspaceModalState({
-      modal: "access-codes",
-    }),
-    {
-      modal: "access-codes",
-    },
-  );
   assert.equal(
     buildProcurementOfficerWorkspaceModalPath({
       modal: "review",
@@ -417,7 +409,6 @@ export function runProcurementOfficerDashboardTests(): string[] {
     "/po/departments",
     "/po/categories",
     "/po/items",
-    "/po/access-codes",
     "/po/deadlines",
     "/po/requests",
     "/po/review",
@@ -430,13 +421,15 @@ export function runProcurementOfficerDashboardTests(): string[] {
     "procurement-officer placeholder routes remain under the existing segment-aware role guard",
   );
 
-  const componentSource = readFileSync(
-    join(
-      process.cwd(),
-      "src/components/procurement-officer/ProcurementOfficerDashboard.tsx",
-    ),
-    "utf8",
-  );
+  const componentSource = [
+    "src/components/procurement-officer/ProcurementOfficerDashboard.tsx",
+    "src/components/procurement-officer/dashboard/category-editor-dialog.tsx",
+    "src/components/procurement-officer/dashboard/item-editor-dialog.tsx",
+  ]
+    .map((sourcePath) =>
+      readFileSync(join(process.cwd(), sourcePath), "utf8"),
+    )
+    .join("\n");
   assert.equal(
     componentSource.includes("useMutation(api.functions.categories.createCategory)"),
     true,

@@ -39,13 +39,13 @@ export function DeleteDepartmentDialog({
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>
-                        {department ? `Delete ${department.name}?` : "Delete department?"}
+                        {department ? `Archive ${department.name}?` : "Archive department?"}
                     </AlertDialogTitle>
                     <AlertDialogDescription asChild>
                         <div className="space-y-3">
                             <p>
-                                This action archives the department for audit history and removes it
-                                from active setup views.
+                                This archives the department, keeps it visible as archived, and removes
+                                its active Departmental User access.
                             </p>
                             {department && department.deleteBlockerMessages.length > 0 ? (
                                 <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-3 text-sm text-amber-900">
@@ -60,6 +60,20 @@ export function DeleteDepartmentDialog({
                                     ) : null}
                                 </div>
                             ) : null}
+                            {department?.canDelete &&
+                            department.activeDepartmentUserEmails.length > 0 &&
+                            department.deleteBlockerMessages.length === 0 ? (
+                                <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-3 text-sm text-amber-900">
+                                    <p>
+                                        Assigned Departmental Users and active department codes will be
+                                        deactivated.
+                                    </p>
+                                    <p className="mt-2">
+                                        Affected DUs:{" "}
+                                        {department.activeDepartmentUserEmails.join(", ")}
+                                    </p>
+                                </div>
+                            ) : null}
                         </div>
                     </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -72,7 +86,7 @@ export function DeleteDepartmentDialog({
                             void onConfirm();
                         }}
                     >
-                        {isDeleting ? "Deleting..." : "Delete department"}
+                        {isDeleting ? "Archiving..." : "Archive department"}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

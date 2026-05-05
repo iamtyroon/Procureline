@@ -72,6 +72,12 @@ const planReviewFlaggedTargetValidator = v.object({
   type: v.union(v.literal("category"), v.literal("item")),
 });
 
+const consolidationStatusValidator = v.union(
+  v.literal("draft"),
+  v.literal("finalized"),
+  v.literal("archived"),
+);
+
 export default defineSchema({
   ...authTables,
 
@@ -675,6 +681,22 @@ export default defineSchema({
   })
     .index("by_planId_createdAt", ["planId", "createdAt"])
     .index("by_tenantId_planId_createdAt", ["tenantId", "planId", "createdAt"]),
+
+  consolidations: defineTable({
+    tenantId: v.id("tenants"),
+    fiscalYear: v.string(),
+    status: consolidationStatusValidator,
+    draftData: v.any(),
+    workspaceState: v.optional(v.any()),
+    schemaVersion: v.number(),
+    revision: v.number(),
+    createdByTenantUserId: v.id("tenantUsers"),
+    updatedByTenantUserId: v.id("tenantUsers"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_tenantId_fiscalYear", ["tenantId", "fiscalYear"])
+    .index("by_tenantId_status_fiscalYear", ["tenantId", "status", "fiscalYear"]),
 
   departmentAccessCodes: defineTable({
     tenantId: v.id("tenants"),

@@ -570,9 +570,12 @@ export const getDepartmentUserDashboardSnapshot = query({
                                       revisionDeadlineAt:
                                           activeDecision.revisionDeadlineAt ?? null,
                                       submissionDeadlineAt:
-                                          submissionDeadline?.submissionEndsAt ??
-                                          department.submissionEndsAt ??
-                                          null,
+                                          resolveDepartmentEffectiveSubmissionDeadlineAt({
+                                              departmentSubmissionEndsAt:
+                                                  department.submissionEndsAt,
+                                              sharedSubmissionEndsAt:
+                                                  submissionDeadline?.submissionEndsAt,
+                                          }),
                                   }).effectiveDeadlineAt,
                               revisionDeadlineAt:
                                   activeDecision.revisionDeadlineAt ?? null,
@@ -595,9 +598,11 @@ export const getDepartmentUserDashboardSnapshot = query({
                             decidedAt: decision.decidedAt,
                             revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
                             submissionDeadlineAt:
-                                submissionDeadline?.submissionEndsAt ??
-                                department.submissionEndsAt ??
-                                null,
+                                resolveDepartmentEffectiveSubmissionDeadlineAt({
+                                    departmentSubmissionEndsAt: department.submissionEndsAt,
+                                    sharedSubmissionEndsAt:
+                                        submissionDeadline?.submissionEndsAt,
+                                }),
                         }).effectiveDeadlineAt,
                     id: String(decision._id),
                     lifecycleStatus: decision.lifecycleStatus ?? null,
@@ -691,3 +696,17 @@ type DashboardReviewerSummary = {
     label: string | null;
     state: "available" | "unavailable";
 };
+
+function resolveDepartmentEffectiveSubmissionDeadlineAt(args: {
+    departmentSubmissionEndsAt?: number | null;
+    sharedSubmissionEndsAt?: number | null;
+}): number | null {
+    if (
+        typeof args.departmentSubmissionEndsAt === "number" &&
+        typeof args.sharedSubmissionEndsAt === "number"
+    ) {
+        return Math.max(args.departmentSubmissionEndsAt, args.sharedSubmissionEndsAt);
+    }
+
+    return args.sharedSubmissionEndsAt ?? args.departmentSubmissionEndsAt ?? null;
+}

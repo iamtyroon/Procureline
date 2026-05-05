@@ -248,11 +248,6 @@ function runProcurementOfficerDashboardTests() {
     strict_1.default.equal(emptySnapshot.hero.primaryAction.label, "Create your first department");
     strict_1.default.equal(emptySnapshot.departmentReadiness.state, "empty");
     completedTests.push("procurement-officer empty states surface the first-department CTA without inventing fiscal-year blockers before real deadline setup starts");
-    strict_1.default.deepEqual((0, dashboard_1.normalizeProcurementOfficerWorkspaceModalState)({
-        modal: "access-codes",
-    }), {
-        modal: "access-codes",
-    });
     strict_1.default.equal((0, dashboard_1.buildProcurementOfficerWorkspaceModalPath)({
         modal: "review",
         planId: "plan-77",
@@ -297,7 +292,6 @@ function runProcurementOfficerDashboardTests() {
         "/po/departments",
         "/po/categories",
         "/po/items",
-        "/po/access-codes",
         "/po/deadlines",
         "/po/requests",
         "/po/review",
@@ -307,7 +301,13 @@ function runProcurementOfficerDashboardTests() {
         strict_1.default.equal((0, roles_1.getProtectedRouteRole)(route), "procurement_officer");
     }
     completedTests.push("procurement-officer placeholder routes remain under the existing segment-aware role guard");
-    const componentSource = (0, node_fs_1.readFileSync)((0, node_path_1.join)(process.cwd(), "src/components/procurement-officer/ProcurementOfficerDashboard.tsx"), "utf8");
+    const componentSource = [
+        "src/components/procurement-officer/ProcurementOfficerDashboard.tsx",
+        "src/components/procurement-officer/dashboard/category-editor-dialog.tsx",
+        "src/components/procurement-officer/dashboard/item-editor-dialog.tsx",
+    ]
+        .map((sourcePath) => (0, node_fs_1.readFileSync)((0, node_path_1.join)(process.cwd(), sourcePath), "utf8"))
+        .join("\n");
     strict_1.default.equal(componentSource.includes("useMutation(api.functions.categories.createCategory)"), true);
     strict_1.default.equal(componentSource.includes("openDashboardCategoryCreateDialog"), true);
     strict_1.default.equal(componentSource.includes("Create category"), true);

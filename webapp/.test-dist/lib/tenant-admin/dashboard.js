@@ -57,6 +57,11 @@ function buildAvailableFiscalYears(args) {
     for (const timestamp of args.activityTimestamps ?? []) {
         years.add(getFiscalYearKeyForTimestamp(timestamp));
     }
+    for (const fiscalYearKey of args.fiscalYearKeys ?? []) {
+        if (parseFiscalYearKey(fiscalYearKey)) {
+            years.add(fiscalYearKey);
+        }
+    }
     for (const department of args.departmentWindows ?? []) {
         if (typeof department.submissionStartsAt === "number") {
             years.add(getFiscalYearKeyForTimestamp(department.submissionStartsAt));

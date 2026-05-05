@@ -1,29 +1,32 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { getLocalTimeZone, parseDate, today } from "@internationalized/date";
 import { useAction, useQuery } from "convex/react";
-import { AlertTriangle, CalendarClock, Loader2, Megaphone } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ConvexError } from "convex/values";
+import { CalendarClock, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import type { DateValue } from "react-aria-components";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
     Form,
     FormControl,
+    FormDescription,
     FormField,
     FormItem,
     FormLabel,
     FormMessage,
 } from "@/components/ui/form";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
 import {
     classifySubmissionDeadlineChange,
-    getSkippedReminderOffsets,
+    formatDeadlineDateTime,
+    formatTimeZoneInputValue,
+    getFiscalYearForTimestampInTimeZone,
     parseTimeZoneInputValue,
 } from "@/lib/procurement-officer/deadlines";
 import {
@@ -53,6 +56,7 @@ interface DeadlinesWorkspaceData {
     };
     meta: {
         activeDepartmentCount: number;
+        fiscalYearStartMonth: number | undefined;
         impactedDepartmentCount: number;
         now: number;
         recipientCount: number;
@@ -72,18 +76,111 @@ interface DeadlinesWorkspaceData {
     };
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const START_OF_DAY = "00:00";
+const END_OF_DAY = "23:59";
+
+function getDefaultFutureWindow(timeZone: string): {
+    submissionEndsAtInput: string;
+    submissionStartsAtInput: string;
+} {
+    const now = Date.now();
+    const nextHour = Math.ceil(now / HOUR_MS) * HOUR_MS;
+    return {
+        submissionEndsAtInput: formatTimeZoneInputValue(nextHour + 14 * DAY_MS, timeZone),
+        submissionStartsAtInput: formatTimeZoneInputValue(nextHour, timeZone),
+    };
+}
+
+function getDatePart(value: string): string {
+    return value.match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? "";
+}
+
+function composeDateTimeInput(date: DateValue | null, time: string): string {
+    if (!date) {
+        return "";
+    }
+
+    return `${date.year}-${String(date.month).padStart(2, "0")}-${String(date.day).padStart(2, "0")}T${time}`;
+}
+
+function parseDateValue(value: string): DateValue | null {
+    const datePart = getDatePart(value);
+    if (!datePart) {
+        return null;
+    }
+
+    try {
+        return parseDate(datePart);
+    } catch {
+        return null;
+    }
+}
+
+function formatDateValueLabel(value: DateValue | null): string {
+    if (!value) {
+        return "Not set";
+    }
+
+    return new Intl.DateTimeFormat("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+    }).format(new Date(value.year, value.month - 1, value.day));
+}
+
+function getChangeLabel(
+    changeType: ReturnType<typeof classifySubmissionDeadlineChange>,
+): string {
+    switch (changeType) {
+        case "extension":
+            return "Updating shared window";
+        case "initial_setup":
+            return "Creating shared deadline";
+        case "tightened":
+            return "Shortening current window";
+        case "unchanged":
+            return "No date changes";
+        case "edited":
+        default:
+            return "Updating shared window";
+    }
+}
+
+function getSaveLabel(
+    changeType: ReturnType<typeof classifySubmissionDeadlineChange>,
+): string {
+    switch (changeType) {
+        case "extension":
+            return "Save correction";
+        case "initial_setup":
+            return "Create deadline";
+        case "tightened":
+            return "Update deadline";
+        case "unchanged":
+            return "Saved";
+        case "edited":
+        default:
+            return "Save deadline";
+    }
+}
+
 export function ProcurementOfficerDeadlinesWorkspace(props?: {
     onSelectedFiscalYearChange?: (fiscalYear: string) => void;
     selectedFiscalYear?: string;
 }): JSX.Element {
+    const onSelectedFiscalYearChange = props?.onSelectedFiscalYearChange;
+    const selectedFiscalYearProp = props?.selectedFiscalYear;
     const [selectedFiscalYear, setSelectedFiscalYear] = useState<string | undefined>(
-        props?.selectedFiscalYear,
+        selectedFiscalYearProp,
     );
     const workspace = useQuery(
         api.functions.deadlines.getDeadlinesWorkspace,
         selectedFiscalYear ? { selectedFiscalYear } : {},
     ) as DeadlinesWorkspaceData | undefined;
     const saveDeadline = useAction(api.functions.deadlines.upsertSubmissionDeadline);
+    const [isEditing, setIsEditing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const form = useForm<SubmissionDeadlineFormData>({
         resolver: zodResolver(submissionDeadlineFormSchema),
@@ -98,46 +195,80 @@ export function ProcurementOfficerDeadlinesWorkspace(props?: {
     });
 
     useEffect(() => {
-        if (!props?.selectedFiscalYear) {
+        if (!selectedFiscalYearProp) {
             return;
         }
 
-        setSelectedFiscalYear(props.selectedFiscalYear);
-    }, [props?.selectedFiscalYear]);
+        setSelectedFiscalYear(selectedFiscalYearProp);
+    }, [selectedFiscalYearProp]);
 
     useEffect(() => {
         if (!workspace) {
             return;
         }
 
-        setSelectedFiscalYear(workspace.selection.selectedFiscalYear);
-        props?.onSelectedFiscalYearChange?.(workspace.selection.selectedFiscalYear);
+        const nextFiscalYear = workspace.selection.selectedFiscalYear;
+        const currentWindowIsExpired =
+            typeof workspace.current.submissionEndsAt === "number" &&
+            workspace.current.submissionEndsAt <= workspace.meta.now;
+        const futureWindow = currentWindowIsExpired
+            ? getDefaultFutureWindow(workspace.current.timeZone)
+            : null;
+
+        setSelectedFiscalYear((current) =>
+            current === nextFiscalYear ? current : nextFiscalYear,
+        );
+        if (selectedFiscalYearProp !== nextFiscalYear) {
+            onSelectedFiscalYearChange?.(nextFiscalYear);
+        }
+
+        if (isEditing && form.getValues("selectedFiscalYear") === nextFiscalYear) {
+            return;
+        }
+
+        setIsEditing(false);
         form.reset({
             confirmTightening: false,
             extensionReason: "",
-            reminderOffsets: workspace.current.reminderOffsets,
-            selectedFiscalYear: workspace.selection.selectedFiscalYear,
-            submissionEndsAt: workspace.current.submissionEndsAtInput,
-            submissionStartsAt: workspace.current.submissionStartsAtInput,
+            reminderOffsets: [],
+            selectedFiscalYear: nextFiscalYear,
+            submissionEndsAt:
+                futureWindow?.submissionEndsAtInput ?? workspace.current.submissionEndsAtInput,
+            submissionStartsAt:
+                futureWindow?.submissionStartsAtInput ??
+                workspace.current.submissionStartsAtInput,
         });
-    }, [form, props, workspace]);
+    }, [form, isEditing, onSelectedFiscalYearChange, selectedFiscalYearProp, workspace]);
 
-    const values = form.watch();
-    const preview = useMemo(() => {
-        if (!workspace) {
-            return null;
-        }
-
+    if (!workspace) {
+        return <DeadlinesWorkspaceSkeleton />;
+    }
+    const watchedSubmissionStart = form.watch("submissionStartsAt");
+    const watchedSubmissionEnd = form.watch("submissionEndsAt");
+    // Whether the submission window has already opened (start is in the past).
+    // In this case the PO can only adjust the end date, not move the start.
+    const submissionWindowStarted =
+        typeof workspace.current.submissionStartsAt === "number" &&
+        workspace.current.submissionStartsAt <= workspace.meta.now;
+    // Use tomorrow as the earliest selectable date so that the composed
+    // "YYYY-MM-DDT00:00" timestamp (midnight) is never <= now.
+    const minimumDate = today(getLocalTimeZone()).add({ days: 1 });
+    const startDate = parseDateValue(watchedSubmissionStart);
+    const endDate = parseDateValue(watchedSubmissionEnd);
+    const preview = (() => {
         const nextStart = parseTimeZoneInputValue(
-            values.submissionStartsAt,
+            watchedSubmissionStart,
             workspace.current.timeZone,
         );
         const nextEnd = parseTimeZoneInputValue(
-            values.submissionEndsAt,
+            watchedSubmissionEnd,
             workspace.current.timeZone,
         );
+        const hasCompleteRange =
+            typeof nextStart === "number" && typeof nextEnd === "number";
+        const isInvalidRange = hasCompleteRange ? nextEnd <= nextStart : true;
         const changeType =
-            typeof nextStart === "number" && typeof nextEnd === "number"
+            hasCompleteRange && !isInvalidRange
                 ? classifySubmissionDeadlineChange({
                       currentEndsAt: workspace.current.submissionEndsAt,
                       currentStartsAt: workspace.current.submissionStartsAt,
@@ -145,37 +276,50 @@ export function ProcurementOfficerDeadlinesWorkspace(props?: {
                       nextStartsAt: nextStart,
                   })
                 : "unchanged";
-        const skippedReminderOffsets =
-            typeof nextEnd === "number"
-                ? getSkippedReminderOffsets({
-                      deadlineAt: nextEnd,
-                      now: workspace.meta.now,
-                      reminderOffsets: values.reminderOffsets,
-                  })
-                : [];
 
         return {
             changeType,
-            skippedReminderOffsets,
+            isInvalidRange,
+            nextEnd,
+            nextStart,
         };
-    }, [
-        values.reminderOffsets,
-        values.submissionEndsAt,
-        values.submissionStartsAt,
-        workspace,
-    ]);
+    })();
+    const saveDisabled =
+        isSubmitting ||
+        workspace.meta.activeDepartmentCount === 0 ||
+        !isEditing ||
+        preview.isInvalidRange ||
+        preview.changeType === "unchanged";
 
-    if (!workspace) {
-        return <DeadlinesWorkspaceSkeleton />;
+    function resetFormToWorkspace(currentWorkspace: DeadlinesWorkspaceData): void {
+        const currentWindowIsExpired =
+            typeof currentWorkspace.current.submissionEndsAt === "number" &&
+            currentWorkspace.current.submissionEndsAt <= currentWorkspace.meta.now;
+        const futureWindow = currentWindowIsExpired
+            ? getDefaultFutureWindow(currentWorkspace.current.timeZone)
+            : null;
+
+        form.reset({
+            confirmTightening: false,
+            extensionReason: "",
+            reminderOffsets: [],
+            selectedFiscalYear: currentWorkspace.selection.selectedFiscalYear,
+            submissionEndsAt:
+                futureWindow?.submissionEndsAtInput ??
+                currentWorkspace.current.submissionEndsAtInput,
+            submissionStartsAt:
+                futureWindow?.submissionStartsAtInput ??
+                currentWorkspace.current.submissionStartsAtInput,
+        });
     }
 
     async function handleSubmit(data: SubmissionDeadlineFormData): Promise<void> {
         setIsSubmitting(true);
         try {
             const result = await saveDeadline({
-                confirmTightening: data.confirmTightening,
-                extensionReason: data.extensionReason,
-                reminderOffsets: data.reminderOffsets,
+                confirmTightening: true,
+                extensionReason: "",
+                reminderOffsets: [],
                 selectedFiscalYear: data.selectedFiscalYear,
                 submissionEndsAtInput: data.submissionEndsAt,
                 submissionStartsAtInput: data.submissionStartsAt,
@@ -205,289 +349,283 @@ export function ProcurementOfficerDeadlinesWorkspace(props?: {
 
             if (warnings.length > 0) {
                 toast.warning(`Submission deadline saved with warnings: ${warnings.join("; ")}.`);
-            } else if (result.changeType === "extension") {
-                toast.success("Deadline extended and notifications queued.");
             } else if (result.changeType === "unchanged") {
                 toast.success("Submission deadline is already up to date.");
             } else {
-                toast.success("Submission deadline saved.");
+                toast.success("Shared submission window saved.");
             }
+            setIsEditing(false);
         } catch (error) {
-            const message =
-                error instanceof Error
-                    ? error.message
-                    : "We could not save the submission deadline right now.";
-            toast.error(message);
+            // ConvexError carries structured data in `error.data`.
+            // Route field-specific errors to the form so they appear inline
+            // under the relevant input; fall back to a toast for everything else.
+            const convexData =
+                error instanceof ConvexError
+                    ? (error.data as {
+                          code?: string;
+                          field?: string;
+                          message?: string;
+                      })
+                    : null;
+
+            if (convexData?.message && convexData.field) {
+                const fieldMap: Partial<
+                    Record<string, keyof SubmissionDeadlineFormData>
+                > = {
+                    confirmTightening: "confirmTightening",
+                    selectedFiscalYear: "selectedFiscalYear",
+                    submissionEndsAt: "submissionEndsAt",
+                    submissionStartsAt: "submissionStartsAt",
+                };
+                const formField = fieldMap[convexData.field];
+                if (formField) {
+                    form.setError(formField, {
+                        message: convexData.message,
+                        type: "server",
+                    });
+                    // Also surface in a toast so it's hard to miss
+                    toast.error(convexData.message);
+                } else {
+                    toast.error(convexData.message);
+                }
+            } else if (convexData?.message) {
+                toast.error(convexData.message);
+            } else {
+                toast.error(
+                    error instanceof Error && error.message
+                        ? error.message
+                        : "We could not save the submission deadline right now.",
+                );
+            }
         } finally {
             setIsSubmitting(false);
         }
     }
 
     return (
-        <div className="space-y-4">
-            <div className="rounded-3xl border border-border/70 bg-card p-5 shadow-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
-                            <CalendarClock className="h-4 w-4" />
-                            Submission deadline management
+        <Form {...form}>
+            <form className="space-y-3" onSubmit={(event) => void form.handleSubmit(handleSubmit)(event)}>
+                <div className="grid gap-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-2 lg:grid-cols-[minmax(13rem,0.85fr)_minmax(0,1.6fr)_auto] lg:items-center">
+                    <div className="flex items-center justify-between gap-3 lg:block">
+                        <div className="min-w-0">
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                {workspace.meta.tenantName}
+                            </div>
+                            <div className="text-sm font-medium text-foreground">
+                                FY {workspace.selection.selectedFiscalYear}
+                            </div>
                         </div>
-                        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-                            Configure one truthful submission window for every active department in the selected fiscal year.
-                        </p>
+                        <div className="rounded-full border border-border/70 bg-background px-3 py-1 text-xs text-muted-foreground">
+                            {workspace.meta.activeDepartmentCount} department
+                            {workspace.meta.activeDepartmentCount === 1 ? "" : "s"}
+                        </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        <Badge variant="outline" className="rounded-full px-3 py-1.5">
-                            FY {workspace.selection.selectedFiscalYear}
-                        </Badge>
-                        <Badge variant="outline" className="rounded-full px-3 py-1.5">
-                            {workspace.current.timeZone}
-                        </Badge>
-                        <Badge variant="outline" className="rounded-full px-3 py-1.5">
-                            {workspace.current.countdownLabel}
-                        </Badge>
+                    <div className="flex items-center gap-2 rounded-md border border-border/70 bg-background px-3 py-1.5 text-sm">
+                        <CalendarClock className="h-4 w-4 shrink-0 text-primary" />
+                        <div className="min-w-0">
+                            <div className="font-medium text-foreground">
+                                {getChangeLabel(preview.changeType)}
+                            </div>
+                            <div className="truncate text-xs text-muted-foreground">
+                                {typeof preview.nextStart === "number" &&
+                                typeof preview.nextEnd === "number"
+                                    ? `${formatDeadlineDateTime(
+                                          preview.nextStart,
+                                          workspace.current.timeZone,
+                                      )} to ${formatDeadlineDateTime(
+                                          preview.nextEnd,
+                                          workspace.current.timeZone,
+                                      )}`
+                                    : "Choose a start and end date."}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex justify-end">
+                        <Button
+                            type="button"
+                            variant={isEditing ? "outline" : "default"}
+                            size="sm"
+                            onClick={() => {
+                                if (isEditing) {
+                                    resetFormToWorkspace(workspace);
+                                    setIsEditing(false);
+                                    return;
+                                }
+
+                                setIsEditing(true);
+                            }}
+                            disabled={isSubmitting}
+                        >
+                            {isEditing ? "Cancel edit" : "Edit deadline"}
+                        </Button>
                     </div>
                 </div>
 
-                <div className="mt-4 grid gap-3 md:grid-cols-3">
-                    <MetricCard label="Impacted departments" value={String(workspace.meta.impactedDepartmentCount)} />
-                    <MetricCard label="DU recipients" value={String(workspace.meta.recipientCount)} />
-                    <MetricCard label="Reminder jobs" value={String(workspace.reminderJobs.scheduledCount)} />
-                </div>
-
-                {workspace.current.timeZoneUsesFallback ? (
-                    <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-900">
-                        Tenant timezone is not configured yet. This workspace is using the explicit fallback timezone <strong>{workspace.current.timeZone}</strong>.
-                    </div>
-                ) : null}
-
-                {workspace.current.announcementTitle && workspace.current.announcementMessage ? (
-                    <div className="mt-4 rounded-2xl border border-border/70 bg-muted/20 px-4 py-4">
-                        <div className="flex items-center gap-2 font-medium text-foreground">
-                            <Megaphone className="h-4 w-4 text-primary" />
-                            {workspace.current.announcementTitle}
-                        </div>
-                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                            {workspace.current.announcementMessage}
-                        </p>
-                    </div>
-                ) : null}
-            </div>
-
-            <div className="rounded-3xl border border-border/70 bg-card p-5 shadow-sm">
-                <Form {...form}>
-                    <form className="space-y-5" onSubmit={(event) => void form.handleSubmit(handleSubmit)(event)}>
-                        <FormField
-                            control={form.control}
-                            name="selectedFiscalYear"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Fiscal year</FormLabel>
-                                    <FormControl>
-                                        <select
-                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                            {...field}
-                                            onChange={(event) => {
-                                                field.onChange(event.target.value);
-                                                setSelectedFiscalYear(event.target.value);
-                                                props?.onSelectedFiscalYearChange?.(event.target.value);
-                                            }}
-                                        >
-                                            {workspace.selection.options.map((option) => (
-                                                <option key={option} value={option}>
-                                                    {option}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <FormField
-                                control={form.control}
-                                name="submissionStartsAt"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Submission start</FormLabel>
-                                        <FormControl>
-                                            <Input type="datetime-local" step="60" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="submissionEndsAt"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Submission deadline</FormLabel>
-                                        <FormControl>
-                                            <Input type="datetime-local" step="60" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
-
-                        <FormField
-                            control={form.control}
-                            name="reminderOffsets"
-                            render={() => (
-                                <FormItem>
-                                    <FormLabel>Reminder offsets</FormLabel>
-                                    <div className="grid gap-3 md:grid-cols-3">
-                                        {workspace.meta.reminderOptionDays.map((offset) => (
-                                            <FormField
-                                                key={offset}
-                                                control={form.control}
-                                                name="reminderOffsets"
-                                                render={({ field }) => {
-                                                    const checked = field.value.includes(offset);
-                                                    return (
-                                                        <FormItem className="flex flex-row items-start gap-3 rounded-2xl border border-border/70 px-4 py-3">
-                                                            <FormControl>
-                                                                <Checkbox
-                                                                    checked={checked}
-                                                                    onCheckedChange={(nextChecked) => {
-                                                                        field.onChange(
-                                                                            nextChecked
-                                                                                ? [...field.value, offset]
-                                                                                : field.value.filter((value) => value !== offset),
-                                                                        );
-                                                                    }}
-                                                                />
-                                                            </FormControl>
-                                                            <div className="space-y-1">
-                                                                <FormLabel>{offset} day{offset === 1 ? "" : "s"} before</FormLabel>
-                                                                <p className="text-sm text-muted-foreground">
-                                                                    Queue a server-owned reminder email for this offset.
-                                                                </p>
-                                                            </div>
-                                                        </FormItem>
-                                                    );
-                                                }}
-                                            />
+                <div className="grid gap-3 lg:grid-cols-[minmax(11rem,0.75fr)_minmax(13rem,1fr)_minmax(13rem,1fr)_auto] lg:items-end">
+                    <FormField
+                        control={form.control}
+                        name="selectedFiscalYear"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Fiscal year</FormLabel>
+                                <FormControl>
+                                    <select
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                        disabled={!isEditing}
+                                        {...field}
+                                        onChange={(event) => {
+                                            field.onChange(event.target.value);
+                                            setSelectedFiscalYear(event.target.value);
+                                            props?.onSelectedFiscalYearChange?.(event.target.value);
+                                        }}
+                                    >
+                                        {workspace.selection.options.map((option) => (
+                                            <option key={option} value={option}>
+                                                {option}
+                                            </option>
                                         ))}
-                                    </div>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                                    </select>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
 
-                        <div className="rounded-2xl border border-border/70 bg-muted/20 px-4 py-4">
-                            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                                Save preview
-                            </div>
-                            <div className="mt-3 grid gap-3 md:grid-cols-2">
-                                <PreviewLine label="Fiscal year" value={values.selectedFiscalYear} />
-                                <PreviewLine label="Timezone" value={workspace.current.timeZone} />
-                                <PreviewLine label="Departments" value={String(workspace.meta.impactedDepartmentCount)} />
-                                <PreviewLine label="Reminder recipients" value={String(workspace.meta.recipientCount)} />
-                            </div>
-                            {preview?.skippedReminderOffsets.length ? (
-                                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-900">
-                                    Skipping elapsed reminder offsets: {preview.skippedReminderOffsets.join(", ")} day(s) before deadline.
-                                </div>
-                            ) : null}
-                            {preview?.changeType === "extension" ? (
-                                <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-900">
-                                    This save extends the current deadline. DU communication will be queued immediately after the save succeeds.
-                                </div>
-                            ) : null}
-                            {preview?.changeType === "tightened" ? (
-                                <div className="mt-4 space-y-3 rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-4 text-sm text-rose-900">
-                                    <div className="flex items-start gap-2">
-                                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                                        <p>
-                                            This save would shorten or otherwise tighten the current shared window. Confirm the guarded save path before continuing.
-                                        </p>
-                                    </div>
-                                    <FormField
-                                        control={form.control}
-                                        name="confirmTightening"
-                                        render={({ field }) => (
-                                            <FormItem className="flex flex-row items-start gap-3">
-                                                <FormControl>
-                                                    <Checkbox
-                                                        checked={field.value}
-                                                        onCheckedChange={(checked) => field.onChange(Boolean(checked))}
-                                                    />
-                                                </FormControl>
-                                                <div className="space-y-1">
-                                                    <FormLabel>Confirm this tightened deadline change</FormLabel>
-                                                    <FormMessage />
-                                                </div>
-                                            </FormItem>
-                                        )}
+                    <FormField
+                        control={form.control}
+                        name="submissionStartsAt"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Start date</FormLabel>
+                                <FormControl>
+                                    <DatePicker
+                                        aria-label="Submission start date"
+                                        isDisabled={!isEditing || submissionWindowStarted}
+                                        minValue={minimumDate}
+                                        value={parseDateValue(field.value)}
+                                        onChange={(date) => {
+                                            const currentEndDate = parseDateValue(
+                                                form.getValues("submissionEndsAt"),
+                                            );
+                                            field.onChange(
+                                                composeDateTimeInput(date, START_OF_DAY),
+                                            );
+                                            if (
+                                                date &&
+                                                currentEndDate &&
+                                                currentEndDate.compare(date) < 0
+                                            ) {
+                                                form.setValue(
+                                                    "submissionEndsAt",
+                                                    composeDateTimeInput(date, END_OF_DAY),
+                                                    {
+                                                        shouldDirty: true,
+                                                        shouldValidate: true,
+                                                    },
+                                                );
+                                            }
+                                        }}
                                     />
-                                </div>
-                            ) : null}
-                        </div>
+                                </FormControl>
+                                <FormDescription className="whitespace-nowrap text-xs">
+                                    {submissionWindowStarted
+                                        ? "Window already opened"
+                                        : `Opens ${formatDateValueLabel(startDate)}`}
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="submissionEndsAt"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>End date</FormLabel>
+                                <FormControl>
+                                    <DatePicker
+                                        aria-label="Submission end date"
+                                        isDisabled={!isEditing}
+                                        minValue={startDate ?? minimumDate}
+                                        value={endDate}
+                                        onChange={(date) => {
+                                            const inputStr = composeDateTimeInput(date, END_OF_DAY);
+                                            field.onChange(inputStr);
+                                            // Auto-switch fiscal year when the chosen end date
+                                            // falls in a different FY than the current selection.
+                                            // Use parseTimeZoneInputValue so the timestamp respects
+                                            // the tenant's timezone (not the browser's local clock).
+                                            if (date && workspace.meta.fiscalYearStartMonth != null) {
+                                                const ts = parseTimeZoneInputValue(
+                                                    inputStr,
+                                                    workspace.meta.timeZone,
+                                                );
+                                                if (ts !== null) {
+                                                    const derivedFY = getFiscalYearForTimestampInTimeZone({
+                                                        fiscalYearStartMonth: workspace.meta.fiscalYearStartMonth,
+                                                        timeZone: workspace.meta.timeZone,
+                                                        timestamp: ts,
+                                                    }).key;
+                                                    const currentFY = form.getValues("selectedFiscalYear");
+                                                    if (
+                                                        derivedFY !== currentFY &&
+                                                        workspace.selection.options.includes(derivedFY)
+                                                    ) {
+                                                        form.setValue("selectedFiscalYear", derivedFY, {
+                                                            shouldDirty: true,
+                                                        });
+                                                        form.clearErrors("selectedFiscalYear");
+                                                        setSelectedFiscalYear(derivedFY);
+                                                        props?.onSelectedFiscalYearChange?.(derivedFY);
+                                                    }
+                                                }
+                                            }
+                                        }}
+                                    />
+                                </FormControl>
+                                <FormDescription className="whitespace-nowrap text-xs">
+                                    Closes {formatDateValueLabel(endDate)}
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
 
-                        {preview?.changeType === "extension" ? (
-                            <FormField
-                                control={form.control}
-                                name="extensionReason"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Extension note</FormLabel>
-                                        <FormControl>
-                                            <Textarea
-                                                placeholder="Optional context for the audit trail and operator history."
-                                                {...field}
-                                            />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        ) : null}
-
-                        <div className="flex items-center justify-end gap-3">
+                    <div className="flex items-end justify-end gap-2">
+                        {isEditing ? (
                             <Button
-                                type="submit"
-                                className="rounded-xl"
-                                disabled={isSubmitting || workspace.meta.activeDepartmentCount === 0}
+                                type="button"
+                                variant="outline"
+                                disabled={isSubmitting}
+                                onClick={() => {
+                                    resetFormToWorkspace(workspace);
+                                    setIsEditing(false);
+                                }}
                             >
-                                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                Save shared deadline
+                                Cancel
                             </Button>
-                        </div>
-                    </form>
-                </Form>
-            </div>
-        </div>
-    );
-}
+                        ) : null}
+                        <Button
+                            type="submit"
+                            disabled={saveDisabled}
+                        >
+                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            {getSaveLabel(preview.changeType)}
+                        </Button>
+                    </div>
+                </div>
 
-function MetricCard({ label, value }: { label: string; value: string }) {
-    return (
-        <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
-            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
-            <div className="mt-3 text-2xl font-black tracking-[-0.04em] text-foreground">{value}</div>
-        </div>
-    );
-}
+                {isEditing && preview.isInvalidRange ? (
+                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                        Choose an end date on or after the start date.
+                    </div>
+                ) : null}
 
-function PreviewLine({ label, value }: { label: string; value: string }) {
-    return (
-        <div className="rounded-2xl border border-border/70 bg-background px-3 py-2">
-            <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
-            <div className="mt-1 text-sm text-foreground">{value || "Not set"}</div>
-        </div>
+            </form>
+        </Form>
     );
 }
 
 function DeadlinesWorkspaceSkeleton(): JSX.Element {
-    return (
-        <div className="space-y-4">
-            <Skeleton className="h-44 rounded-3xl" />
-            <Skeleton className="h-[34rem] rounded-3xl" />
-        </div>
-    );
+    return <Skeleton className="h-64 rounded-2xl" />;
 }

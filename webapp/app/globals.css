@@ -30,8 +30,8 @@
     --destructive: oklch(0.6137 0.2039 25.5645);
     --destructive-foreground: oklch(1.0000 0 0);
 
-    --border: oklch(0.9288 0.0126 255.5078);
-    --input: oklch(0.9288 0.0126 255.5078);
+    --border: oklch(0.8620 0.0190 255.5078);
+    --input: oklch(0.8620 0.0190 255.5078);
     --ring: oklch(0.6342 0.1283 156.1966);
 
     --radius: 0.5rem;
@@ -48,7 +48,7 @@
     --sidebar-primary-foreground: oklch(1.0000 0 0);
     --sidebar-accent: oklch(0.9588 0.0086 247.9151);
     --sidebar-accent-foreground: oklch(0.5532 0.1067 157.9886);
-    --sidebar-border: oklch(0.9288 0.0126 255.5078);
+    --sidebar-border: oklch(0.8620 0.0190 255.5078);
     --sidebar-ring: oklch(0.6342 0.1283 156.1966);
   }
 
@@ -111,6 +111,19 @@
     @apply bg-background text-foreground min-h-full;
     font-family: var(--font-inter, "Inter", system-ui, -apple-system, sans-serif);
     letter-spacing: var(--tracking-normal, normal);
+  }
+
+  :root:not(.dark) .shadow-sm {
+    box-shadow:
+      0 1px 2px 0 oklch(0.3351 0.0331 260.9120 / 0.08),
+      0 0 0 1px oklch(0.8620 0.0190 255.5078 / 0.38);
+  }
+
+  :root:not(.dark) .shadow {
+    box-shadow:
+      0 1px 3px 0 oklch(0.3351 0.0331 260.9120 / 0.10),
+      0 1px 2px -1px oklch(0.3351 0.0331 260.9120 / 0.10),
+      0 0 0 1px oklch(0.8620 0.0190 255.5078 / 0.32);
   }
 
   /* WCAG AA — visible focus indicators for keyboard navigation */

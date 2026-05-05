@@ -1,7 +1,7 @@
 "use node";
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.exportSubmissionMonitoringReport = exports.exportCatalogItems = exports.createPdf = exports.importWorkbook = exports.queueExcelExport = exports.createExcelExport = void 0;
+exports.queueTenantAdminInstitutionalExport = exports.exportSubmissionMonitoringReport = exports.exportCatalogItems = exports.createPdf = exports.importWorkbook = exports.queueExcelExport = exports.createExcelExport = void 0;
 const values_1 = require("convex/values");
 const api_1 = require("../_generated/api");
 const server_1 = require("../_generated/server");
@@ -10,6 +10,7 @@ const audit_1 = require("../../lib/security/audit");
 const catalog_filters_1 = require("../../lib/procurement-officer/catalog-filters");
 const items_1 = require("../../lib/procurement-officer/items");
 const submission_monitoring_1 = require("../../lib/procurement-officer/submission-monitoring");
+const institutional_visibility_1 = require("../../lib/tenant-admin/institutional-visibility");
 exports.createExcelExport = (0, server_1.action)({
     args: {
         idempotencyKey: values_1.v.optional(values_1.v.string()),
@@ -227,6 +228,142 @@ exports.exportSubmissionMonitoringReport = (0, server_1.action)({
         };
     },
 });
+exports.queueTenantAdminInstitutionalExport = (0, server_1.action)({
+    args: {
+        fiscalYear: values_1.v.string(),
+        procurementOfficerId: values_1.v.optional(values_1.v.string()),
+        query: values_1.v.optional(values_1.v.string()),
+        status: values_1.v.optional(values_1.v.union(values_1.v.literal("all"), values_1.v.literal("approved"), values_1.v.literal("draft"), values_1.v.literal("not_started"), values_1.v.literal("rejected"), values_1.v.literal("submitted"))),
+    },
+    returns: values_1.v.object({
+        asOf: values_1.v.number(),
+        fileName: values_1.v.optional(values_1.v.string()),
+        fiscalYear: values_1.v.string(),
+        requestId: values_1.v.string(),
+        schemaVersion: values_1.v.string(),
+        state: values_1.v.union(values_1.v.literal("queued"), values_1.v.literal("export_ready")),
+        tenantId: values_1.v.string(),
+    }),
+    handler: async (ctx, args) => {
+        const actor = await (0, _helpers_1.getServiceActorContext)(ctx);
+        if (actor.role !== "tenant_admin" || !actor.tenantId) {
+            throw new values_1.ConvexError({
+                code: "UNAUTHORIZED",
+                message: "Tenant Admin access is required for this export.",
+            });
+        }
+        const asOf = Date.now();
+        const requestId = [
+            "tenant-admin-institutional-export",
+            actor.tenantId,
+            args.fiscalYear,
+            actor.userId,
+            String(asOf),
+        ].join(":");
+        const snapshot = (await ctx.runQuery(api_1.api.functions.tenantAdminDashboard.getTenantAdminDashboardSnapshot, { selectedFiscalYear: args.fiscalYear }));
+        const filteredRows = (0, institutional_visibility_1.filterInstitutionalOverviewRows)(snapshot.institutionalOverview.rows, {
+            procurementOfficerId: args.procurementOfficerId ?? "all",
+            query: args.query ?? "",
+            status: args.status ?? "all",
+        });
+        const filteredDepartmentIds = new Set(filteredRows.map((row) => row.departmentId));
+        const filteredAnomalies = snapshot.institutionalOverview.anomalies.filter((anomaly) => filteredDepartmentIds.has(anomaly.departmentId));
+        const filteredOverview = {
+            ...snapshot.institutionalOverview,
+            anomalies: filteredAnomalies,
+            rows: filteredRows,
+            summary: (0, institutional_visibility_1.summarizeInstitutionalOverview)(filteredRows, filteredAnomalies),
+        };
+        const exportPreview = (0, institutional_visibility_1.buildInstitutionalExportPreview)({
+            actorTenantUserId: actor.userId,
+            asOf,
+            fiscalYear: args.fiscalYear,
+            overview: filteredOverview,
+            requestId,
+            tenantId: String(actor.tenantId),
+        });
+        await appendTenantAdminInstitutionalExportAudit(ctx, actor, {
+            asOf,
+            fiscalYear: args.fiscalYear,
+            outcome: "queued",
+            requestId,
+            rowCount: exportPreview.departments.length,
+            summary: "Institutional export request queued for server-side generation.",
+        });
+        try {
+            const queued = await (0, _helpers_1.callNestService)(ctx, {
+                actor,
+                body: {
+                    idempotencyKey: requestId,
+                    reportName: `Institutional Overview ${args.fiscalYear}`,
+                    rows: exportPreview.departments,
+                    metadata: exportPreview.metadata,
+                },
+                path: "/api/services/files/exports/excel/queue",
+            });
+            const state = queued.state ?? "queued";
+            await appendTenantAdminInstitutionalExportAudit(ctx, actor, {
+                asOf,
+                fiscalYear: args.fiscalYear,
+                outcome: state,
+                requestId,
+                rowCount: exportPreview.departments.length,
+                summary: state === "export_ready"
+                    ? "Institutional export package is ready for secure delivery."
+                    : "Institutional export package is being generated server-side.",
+            });
+            return {
+                asOf,
+                fiscalYear: args.fiscalYear,
+                requestId,
+                schemaVersion: exportPreview.metadata.schemaVersion,
+                state,
+                tenantId: String(actor.tenantId),
+                ...(queued.fileName ? { fileName: queued.fileName } : {}),
+            };
+        }
+        catch (error) {
+            await appendTenantAdminInstitutionalExportAudit(ctx, actor, {
+                asOf,
+                fiscalYear: args.fiscalYear,
+                outcome: "failed",
+                requestId,
+                rowCount: exportPreview.departments.length,
+                summary: error instanceof Error && error.message.trim().length > 0
+                    ? error.message.trim()
+                    : "Institutional export generation failed.",
+            });
+            throw error;
+        }
+    },
+});
+async function appendTenantAdminInstitutionalExportAudit(ctx, actor, args) {
+    await ctx.runMutation(api_1.internal.functions.auditLogs.appendAuditLogFromAction, {
+        action: "export",
+        actorRole: actor.role,
+        actorState: (0, audit_1.createAuthenticatedAuditActor)({
+            role: actor.role,
+            userId: actor.userId,
+        }).state,
+        actorUserId: actor.userId,
+        entityType: "tenant_admin_institutional_export",
+        event: "tenant_admin.institutional_export.requested",
+        metadata: {
+            asOf: args.asOf,
+            fiscalYear: args.fiscalYear,
+            requestId: args.requestId,
+            rowCount: args.rowCount,
+            schemaVersion: "tenant-admin-institutional-export.v1",
+            summary: args.summary,
+        },
+        outcome: args.outcome,
+        recordId: args.requestId,
+        sourceTenantId: actor.tenantId,
+        tableName: "auditLogs",
+        targetTenantId: actor.tenantId,
+        timestamp: Date.now(),
+    });
+}
 async function appendCatalogExportAudit(ctx, actor, args) {
     await ctx.runMutation(api_1.internal.functions.auditLogs.appendAuditLogFromAction, {
         action: "export",

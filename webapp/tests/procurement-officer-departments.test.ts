@@ -7,6 +7,11 @@ import {
     buildDepartmentWorkspaceSummary,
     DEPARTMENT_BUDGET_POSITIVE_MESSAGE,
     DEPARTMENT_CODE_EXISTS_MESSAGE,
+    DEPARTMENT_DEADLINE_EXTENSION_ORDER_MESSAGE,
+    DEPARTMENT_DEADLINE_EXTENSION_PAST_MESSAGE,
+    DEPARTMENT_DEADLINE_NOT_CONFIGURED_MESSAGE,
+    DEPARTMENT_DELETE_DU_MESSAGE,
+    DEPARTMENT_HARD_DELETE_ACTIVE_MESSAGE,
     DEPARTMENT_NAME_EXISTS_MESSAGE,
     DEPARTMENT_NOT_FOUND_MESSAGE,
     DEPARTMENT_VOTE_NUMBER_EXISTS_MESSAGE,
@@ -135,8 +140,17 @@ export function runProcurementOfficerDepartmentTests(): string[] {
         "du2@example.com",
     ]);
     assert.equal(deletionBlockers.messages[0], "Cannot delete department with submitted plans");
+    const deletionWithAssignedUsers = buildDepartmentDeletionBlockers({
+        activeDepartmentUserEmails: ["du@example.com"],
+        hasProtectedPlans: false,
+    });
+    assert.equal(deletionWithAssignedUsers.canDelete, true);
+    assert.equal(
+        deletionWithAssignedUsers.messages[0],
+        DEPARTMENT_DELETE_DU_MESSAGE,
+    );
     completedTests.push(
-        "department delete blockers surface submitted-plan protection and the exact active DU emails that must be resolved before archiving",
+        "department delete blockers only block submitted-plan protection while surfacing DU access that will be deactivated during archive",
     );
 
     const workspaceSummary = buildDepartmentWorkspaceSummary({
@@ -227,6 +241,22 @@ export function runProcurementOfficerDepartmentTests(): string[] {
         "Update the department code here if the DU access identifier changes. Generate a new canonical code or enter one manually.",
     );
     assert.equal(DEPARTMENT_CODE_EXISTS_MESSAGE, "Department code already exists");
+    assert.equal(
+        DEPARTMENT_DEADLINE_NOT_CONFIGURED_MESSAGE,
+        "Configure the shared submission deadline before extending one department.",
+    );
+    assert.equal(
+        DEPARTMENT_DEADLINE_EXTENSION_PAST_MESSAGE,
+        "Choose a new expiry date in the future.",
+    );
+    assert.equal(
+        DEPARTMENT_DEADLINE_EXTENSION_ORDER_MESSAGE,
+        "New expiry date must be after the current department expiry.",
+    );
+    assert.equal(
+        DEPARTMENT_HARD_DELETE_ACTIVE_MESSAGE,
+        "Archive the department before permanently deleting it.",
+    );
     assert.equal(DEPARTMENT_NAME_EXISTS_MESSAGE, "Department name already exists");
     assert.equal(DEPARTMENT_VOTE_NUMBER_EXISTS_MESSAGE, "Vote number already exists");
     assert.equal(DEPARTMENT_BUDGET_POSITIVE_MESSAGE, "Budget must be a positive number");

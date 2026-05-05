@@ -22,12 +22,22 @@ export const DEPARTMENT_VOTE_NUMBER_EXISTS_MESSAGE =
     "Vote number already exists";
 export const DEPARTMENT_BUDGET_POSITIVE_MESSAGE = "Budget must be a positive number";
 export const DEPARTMENT_NOT_FOUND_MESSAGE = "Department not found";
+export const DEPARTMENT_HARD_DELETE_ACTIVE_MESSAGE =
+    "Archive the department before permanently deleting it.";
+export const DEPARTMENT_HARD_DELETE_GENERIC_ERROR_MESSAGE =
+    "We could not permanently delete the department right now. Please try again.";
 export const DEPARTMENT_DELETE_PLANS_MESSAGE =
     "Cannot delete department with submitted plans";
 export const DEPARTMENT_DELETE_DU_MESSAGE =
-    "Deactivate assigned Departmental Users before deleting this department.";
+    "Assigned Departmental Users and active department codes will be deactivated when this department is deleted.";
+export const DEPARTMENT_DEADLINE_NOT_CONFIGURED_MESSAGE =
+    "Configure the shared submission deadline before extending one department.";
+export const DEPARTMENT_DEADLINE_EXTENSION_PAST_MESSAGE =
+    "Choose a new expiry date in the future.";
+export const DEPARTMENT_DEADLINE_EXTENSION_ORDER_MESSAGE =
+    "New expiry date must be after the current department expiry.";
 export const DEPARTMENT_CODE_EMAIL_AFTER_CREATE_MESSAGE =
-    "Create the department first, then queue the active code from Access Codes.";
+    "Create the department first, then send the department code.";
 export const DEPARTMENT_SAVE_GENERIC_ERROR_MESSAGE =
     "We could not save the department right now. Please try again.";
 export const DEPARTMENT_DELETE_GENERIC_ERROR_MESSAGE =
@@ -229,8 +239,8 @@ export function getDepartmentCodeFieldDescription(args: {
     isCreateMode: boolean;
 }): string {
     return args.isCreateMode
-        ? "Generate the DU access code now, or enter the canonical department code manually before creating the department."
-        : "Update the department code here if the DU access identifier changes. Generate a new canonical code or enter one manually.";
+        ? "Generate the department code now, or enter one manually before creating the department."
+        : "Update the department code here if the Department User sign-in identifier changes. Generate a new canonical code or enter one manually.";
 }
 
 export function formatDepartmentBudget(amount: number): string {
@@ -270,6 +280,10 @@ export function getDepartmentCrudErrorMessage(error: unknown): string {
             DEPARTMENT_CODE_REQUIRED_MESSAGE,
             DEPARTMENT_DELETE_DU_MESSAGE,
             DEPARTMENT_DELETE_PLANS_MESSAGE,
+            DEPARTMENT_DEADLINE_EXTENSION_ORDER_MESSAGE,
+            DEPARTMENT_DEADLINE_EXTENSION_PAST_MESSAGE,
+            DEPARTMENT_DEADLINE_NOT_CONFIGURED_MESSAGE,
+            DEPARTMENT_HARD_DELETE_ACTIVE_MESSAGE,
             DEPARTMENT_NAME_EXISTS_MESSAGE,
             DEPARTMENT_NAME_REQUIRED_MESSAGE,
             DEPARTMENT_NOT_FOUND_MESSAGE,
@@ -369,13 +383,13 @@ export function buildDepartmentDeletionBlockers(args: {
         messages.push(DEPARTMENT_DELETE_PLANS_MESSAGE);
     }
 
-    if (activeDepartmentUserEmails.length > 0) {
+    if (activeDepartmentUserEmails.length > 0 && !args.hasProtectedPlans) {
         messages.push(DEPARTMENT_DELETE_DU_MESSAGE);
     }
 
     return {
         activeDepartmentUserEmails,
-        canDelete: messages.length === 0,
+        canDelete: !args.hasProtectedPlans,
         hasProtectedPlans: args.hasProtectedPlans,
         messages,
     };

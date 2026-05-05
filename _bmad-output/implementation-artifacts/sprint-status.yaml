@@ -49,7 +49,7 @@ development_status:
   epic-4: in-progress
   epic-5: in-progress
   epic-6: in-progress
-  epic-7: backlog
+  epic-7: in-progress
   epic-8: backlog
   epic-9: backlog
   epic-10: backlog
@@ -100,9 +100,9 @@ development_status:
   6-5-plan-approval-rejection: done
   6-6-du-revision-flow: done
   4-6-submission-monitoring-reminders: done
-  3-9-cross-institutional-visibility: review # frontend-complete
+  3-9-cross-institutional-visibility: done # implementation reviewed, fixed, and verified with known repo-wide test gate limitations
 
-  7-1-consolidation-workspace-access: backlog
+  7-1-consolidation-workspace-access: review
   7-2-automated-department-plan-aggregation: backlog
   7-3-compliance-calculations-totals: backlog
   7-4-finalization-versioning: backlog

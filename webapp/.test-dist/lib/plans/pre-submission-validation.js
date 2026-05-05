@@ -31,6 +31,17 @@ function summarizePendingCatalogRequestBlockers(input) {
 }
 exports.summarizePendingCatalogRequestBlockers = summarizePendingCatalogRequestBlockers;
 function resolveEffectiveSubmissionWindow(input) {
+    if (input.sharedDeadline &&
+        typeof input.departmentSubmissionStartsAt === "number" &&
+        typeof input.departmentSubmissionEndsAt === "number" &&
+        input.departmentSubmissionEndsAt > input.sharedDeadline.submissionEndsAt) {
+        return {
+            source: "department",
+            submissionEndsAt: input.departmentSubmissionEndsAt,
+            submissionStartsAt: input.departmentSubmissionStartsAt,
+            timeZone: input.sharedDeadline.timeZone,
+        };
+    }
     if (input.sharedDeadline) {
         return {
             source: "shared",

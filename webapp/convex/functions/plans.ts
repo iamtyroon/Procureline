@@ -395,6 +395,20 @@ async function loadNewestSharedSubmissionDeadline(
     );
 }
 
+function resolveDepartmentEffectiveSubmissionDeadlineAt(args: {
+    departmentSubmissionEndsAt?: number | null;
+    sharedSubmissionEndsAt?: number | null;
+}): number | null {
+    if (
+        typeof args.departmentSubmissionEndsAt === "number" &&
+        typeof args.sharedSubmissionEndsAt === "number"
+    ) {
+        return Math.max(args.departmentSubmissionEndsAt, args.sharedSubmissionEndsAt);
+    }
+
+    return args.sharedSubmissionEndsAt ?? args.departmentSubmissionEndsAt ?? null;
+}
+
 function buildDepartmentUserRevisionAuditEntry(args: {
     actorUserId: Id<"users">;
     departmentId: Id<"departments">;
@@ -981,9 +995,10 @@ export const getDepartmentUserPlanWorkspace = query({
             plan,
             planSnapshots,
             submissionDeadlineAt:
-                newestSharedDeadline?.submissionEndsAt ??
-                base.department.submissionEndsAt ??
-                null,
+                resolveDepartmentEffectiveSubmissionDeadlineAt({
+                    departmentSubmissionEndsAt: base.department.submissionEndsAt,
+                    sharedSubmissionEndsAt: newestSharedDeadline?.submissionEndsAt,
+                }),
             tenantId: base.authContext.tenantId,
             timeZone: tenant?.timeZone ?? "Africa/Nairobi",
         });
@@ -1114,20 +1129,20 @@ export const saveDepartmentUserWorkspaceDraft = mutation({
 
         if (plan.status === "rejected") {
             const tenant = await ctx.db.get(base.authContext.tenantId);
+            const newestSharedDeadline = await loadNewestSharedSubmissionDeadline(ctx, {
+                fiscalYear: plan.fiscalYear,
+                tenantId: base.authContext.tenantId,
+            });
             const revisionContext = await loadDepartmentUserRevisionContext(ctx, {
                 actorUserId: base.authContext.userId,
                 departmentId: base.department._id,
                 plan,
                 planSnapshots: [],
                 submissionDeadlineAt:
-                    (
-                        await loadNewestSharedSubmissionDeadline(ctx, {
-                            fiscalYear: plan.fiscalYear,
-                            tenantId: base.authContext.tenantId,
-                        })
-                    )?.submissionEndsAt ??
-                    base.department.submissionEndsAt ??
-                    null,
+                    resolveDepartmentEffectiveSubmissionDeadlineAt({
+                        departmentSubmissionEndsAt: base.department.submissionEndsAt,
+                        sharedSubmissionEndsAt: newestSharedDeadline?.submissionEndsAt,
+                    }),
                 tenantId: base.authContext.tenantId,
                 timeZone: tenant?.timeZone ?? "Africa/Nairobi",
             });
@@ -1271,9 +1286,10 @@ export const submitDepartmentUserPlan = mutation({
                       plan,
                       planSnapshots,
                       submissionDeadlineAt:
-                          newestSharedDeadline?.submissionEndsAt ??
-                          department.submissionEndsAt ??
-                          null,
+                          resolveDepartmentEffectiveSubmissionDeadlineAt({
+                              departmentSubmissionEndsAt: department.submissionEndsAt,
+                              sharedSubmissionEndsAt: newestSharedDeadline?.submissionEndsAt,
+                          }),
                       tenantId: base.authContext.tenantId,
                       timeZone: tenant?.timeZone ?? "Africa/Nairobi",
                   })

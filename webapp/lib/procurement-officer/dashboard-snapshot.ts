@@ -437,7 +437,7 @@ function buildHero(args: {
     if (args.departmentCount === 0) {
         return {
             description:
-                "Start with departments first so access codes, deadline setup, and DU onboarding have a truthful place to anchor.",
+                "Start with departments first so department codes, deadline setup, and DU onboarding have a truthful place to anchor.",
             eyebrow: "Preparation dashboard",
             primaryAction: {
                 href: "/po/departments",
@@ -445,8 +445,8 @@ function buildHero(args: {
                 state: "available",
             },
             secondaryAction: {
-                href: "/po/access-codes",
-                label: "Access codes follow departments",
+                href: "/po/departments",
+                label: "Department codes follow departments",
                 state: "coming_soon",
             },
             state: "empty",
@@ -465,8 +465,8 @@ function buildHero(args: {
                 state: "setup_required",
             },
             secondaryAction: {
-                href: "/po/access-codes",
-                label: "Open access codes",
+                href: "/po/departments",
+                label: "Open departments",
                 state: "available",
             },
             state: "setup_required",
@@ -477,11 +477,11 @@ function buildHero(args: {
     if (args.accessCodeCoverage.readyCount < args.accessCodeCoverage.totalCount) {
         return {
             description:
-                "Departments are live for the selected fiscal year, but some DUs still need active access codes before onboarding can finish cleanly.",
+                "Departments are live for the selected fiscal year, but some DUs still need department codes before onboarding can finish cleanly.",
             eyebrow: formatProcurementFiscalYearLabel(args.selectedFiscalYear),
             primaryAction: {
-                href: "/po/access-codes",
-                label: "Open access codes",
+                href: "/po/departments",
+                label: "Open departments",
                 state: "available",
             },
             secondaryAction: {
@@ -503,11 +503,11 @@ function buildHero(args: {
             label: "Add department",
             state: "available",
         },
-        secondaryAction: {
-            href: "/po/consolidation",
-            label: "Consolidation coming soon",
-            state: "coming_soon",
-        },
+            secondaryAction: {
+                href: "/po/consolidation",
+                label: "Open consolidation workspace",
+                state: "available",
+            },
         state: "available",
         title: "Preparation dashboard is live",
     };
@@ -543,11 +543,11 @@ function buildSummaryCards(args: {
         {
             helperText:
                 args.departmentCount === 0
-                    ? "Access-code coverage appears after departments exist."
-                    : "Only currently valid active codes count, and each department contributes once.",
-            href: "/po/access-codes",
+                    ? "Department-code coverage appears after departments exist."
+                    : "Generate and email department codes from the department editor.",
+            href: "/po/departments",
             id: "access_code_coverage",
-            label: "Access-code coverage",
+            label: "Department-code coverage",
             state:
                 args.departmentCount === 0
                     ? "setup_required"
@@ -678,7 +678,7 @@ function buildDepartmentReadiness(args: {
             const blockers: string[] = [];
 
             if (!accessCodeReady) {
-                blockers.push("Access code missing.");
+                blockers.push("Department code not sent.");
             }
             if (!departmentUserReady) {
                 blockers.push("No active DU assigned.");
@@ -725,7 +725,7 @@ function buildDepartmentReadiness(args: {
         state: "available",
         summary:
             args.sharedDeadline.state === "available"
-                ? "Department readiness reflects access codes, DU coverage, and deadline setup."
+                ? "Department readiness reflects department codes, DU coverage, and deadline setup."
                 : "Department readiness is visible, but the shared deadline still needs honest setup.",
     };
 }
@@ -868,15 +868,15 @@ function buildFuturePanels(args?: {
         {
             cta: {
                 href: "/po/consolidation",
-                label: "Consolidation coming soon",
-                state: "coming_soon",
+                label: "Open consolidation workspace",
+                state: "available",
             },
             description:
-                "Consolidation remains a future workflow until reviewed department plans become a real live source in Epic 7.",
+                "Open the approved-only consolidation workspace with a Blockly shell, source-plan readiness, and durable draft recovery.",
             id: "consolidation",
             label: "Consolidation",
-            state: "coming_soon",
-            statusLabel: "Future workflow",
+            state: "available",
+            statusLabel: "Live workspace",
         },
     ];
 }

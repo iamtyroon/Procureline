@@ -242,6 +242,7 @@ exports.getDeadlinesWorkspace = (0, server_1.query)({
             },
             meta: {
                 activeDepartmentCount: departments.length,
+                fiscalYearStartMonth: tenant.fiscalYearStartMonth,
                 impactedDepartmentCount: departments.length,
                 now: Date.now(),
                 recipientCount: recipientEmails.length,
@@ -287,10 +288,31 @@ exports.saveSubmissionDeadlineState = (0, server_1.mutation)({
                 message: deadlines_1.DEADLINE_NO_DEPARTMENTS_MESSAGE,
             });
         }
-        if (args.submissionStartsAt <= now || args.submissionEndsAt <= now) {
+        // Fetch the existing record before validating timestamps so we can
+        // exempt an unchanged start date from the "must be in the future" rule.
+        // This lets a PO extend or correct the end date even after the
+        // submission window has already opened.
+        const currentRecord = await getTenantSubmissionDeadlineRecord(ctx, {
+            fiscalYearKey: args.selectedFiscalYear,
+            tenantId: authContext.tenantId,
+        });
+        const startDateUnchanged = currentRecord !== null &&
+            currentRecord.submissionStartsAt === args.submissionStartsAt;
+        // End date must always be in the future.
+        if (args.submissionEndsAt <= now) {
             throw new values_1.ConvexError({
                 code: "VALIDATION_FAILED",
                 field: "submissionEndsAt",
+                message: deadlines_1.DEADLINE_IN_PAST_MESSAGE,
+            });
+        }
+        // Start date must be in the future unless it matches the existing
+        // record — meaning the window has already opened and the PO is only
+        // adjusting the end date.
+        if (!startDateUnchanged && args.submissionStartsAt <= now) {
+            throw new values_1.ConvexError({
+                code: "VALIDATION_FAILED",
+                field: "submissionStartsAt",
                 message: deadlines_1.DEADLINE_IN_PAST_MESSAGE,
             });
         }
@@ -317,10 +339,7 @@ exports.saveSubmissionDeadlineState = (0, server_1.mutation)({
             });
         }
         const reminderOffsets = (0, deadlines_1.normalizeReminderOffsets)(args.reminderOffsets);
-        const currentRecord = await getTenantSubmissionDeadlineRecord(ctx, {
-            fiscalYearKey: args.selectedFiscalYear,
-            tenantId: authContext.tenantId,
-        });
+        // currentRecord already fetched above.
         const currentSharedDeadline = (0, dashboard_1.deriveSharedSubmissionDeadline)({
             deadlineRecord: currentRecord
                 ? {
@@ -348,6 +367,7 @@ exports.saveSubmissionDeadlineState = (0, server_1.mutation)({
             nextEndsAt: args.submissionEndsAt,
             nextStartsAt: args.submissionStartsAt,
         });
+        const sharedChangeType = changeType === "extension" ? "edited" : changeType;
         if (changeType === "tightened" && args.confirmTightening !== true) {
             throw new values_1.ConvexError({
                 code: "VALIDATION_FAILED",
@@ -356,7 +376,7 @@ exports.saveSubmissionDeadlineState = (0, server_1.mutation)({
             });
         }
         const persistedChangeType = resolvePersistedChangeType({
-            changeType,
+            changeType: sharedChangeType,
             hasCurrentRecord: Boolean(currentRecord),
         });
         const configChanged = !currentRecord ||
@@ -393,7 +413,7 @@ exports.saveSubmissionDeadlineState = (0, server_1.mutation)({
             }
             return {
                 cancelledReminderJobs: [],
-                changeType,
+                changeType: sharedChangeType,
                 extensionEmailRecipients: [],
                 fiscalYearKey: args.selectedFiscalYear,
                 impactedDepartmentCount: activeDepartments.length,
@@ -421,9 +441,7 @@ exports.saveSubmissionDeadlineState = (0, server_1.mutation)({
                 deadlineVersion: nextVersion,
                 fiscalYearKey: args.selectedFiscalYear,
                 lastChangeType: persistedChangeType,
-                lastExtensionReason: changeType === "extension"
-                    ? args.extensionReason?.trim() || undefined
-                    : undefined,
+                lastExtensionReason: undefined,
                 previousSubmissionEndsAt: typeof currentSharedDeadline.deadlineAt === "number"
                     ? currentSharedDeadline.deadlineAt
                     : undefined,
@@ -444,9 +462,7 @@ exports.saveSubmissionDeadlineState = (0, server_1.mutation)({
                 announcementTitle: announcement.title,
                 deadlineVersion: nextVersion,
                 lastChangeType: persistedChangeType,
-                lastExtensionReason: changeType === "extension"
-                    ? args.extensionReason?.trim() || undefined
-                    : undefined,
+                lastExtensionReason: undefined,
                 previousSubmissionEndsAt: typeof currentSharedDeadline.deadlineAt === "number"
                     ? currentSharedDeadline.deadlineAt
                     : undefined,
@@ -520,23 +536,21 @@ exports.saveSubmissionDeadlineState = (0, server_1.mutation)({
             fiscalYearKey: args.selectedFiscalYear,
             metadata: {
                 activeDepartmentCount: activeDepartments.length,
-                changeType,
+                changeType: sharedChangeType,
                 recipientCount: recipientEmails.length,
                 scheduledReminderOffsets,
                 skippedReminderOffsets,
                 submissionDeadlineId: String(submissionDeadlineId),
                 summary: `Shared submission deadline saved for ${args.selectedFiscalYear}.`,
             },
-            outcome: changeType === "extension"
-                ? audit_1.AUDIT_OUTCOMES.queued
-                : audit_1.AUDIT_OUTCOMES.allowed,
+            outcome: audit_1.AUDIT_OUTCOMES.allowed,
             recordId: String(submissionDeadlineId),
             tenantId: authContext.tenantId,
         }));
         return {
             cancelledReminderJobs,
-            changeType,
-            extensionEmailRecipients: changeType === "extension" ? recipientEmails : [],
+            changeType: sharedChangeType,
+            extensionEmailRecipients: [],
             fiscalYearKey: args.selectedFiscalYear,
             impactedDepartmentCount: activeDepartments.length,
             scheduledReminderJobs,

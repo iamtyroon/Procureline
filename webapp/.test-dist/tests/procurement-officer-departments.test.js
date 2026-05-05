@@ -89,7 +89,13 @@ function runProcurementOfficerDepartmentTests() {
         "du2@example.com",
     ]);
     strict_1.default.equal(deletionBlockers.messages[0], "Cannot delete department with submitted plans");
-    completedTests.push("department delete blockers surface submitted-plan protection and the exact active DU emails that must be resolved before archiving");
+    const deletionWithAssignedUsers = (0, departments_1.buildDepartmentDeletionBlockers)({
+        activeDepartmentUserEmails: ["du@example.com"],
+        hasProtectedPlans: false,
+    });
+    strict_1.default.equal(deletionWithAssignedUsers.canDelete, true);
+    strict_1.default.equal(deletionWithAssignedUsers.messages[0], departments_1.DEPARTMENT_DELETE_DU_MESSAGE);
+    completedTests.push("department delete blockers only block submitted-plan protection while surfacing DU access that will be deactivated during archive");
     const workspaceSummary = (0, departments_1.buildDepartmentWorkspaceSummary)({
         activeDepartmentCount: 2,
         departments: [
@@ -160,6 +166,10 @@ function runProcurementOfficerDepartmentTests() {
     strict_1.default.equal((0, departments_1.getDepartmentCodeFieldDescription)({ isCreateMode: true }), "Generate the DU access code now, or enter the canonical department code manually before creating the department.");
     strict_1.default.equal((0, departments_1.getDepartmentCodeFieldDescription)({ isCreateMode: false }), "Update the department code here if the DU access identifier changes. Generate a new canonical code or enter one manually.");
     strict_1.default.equal(departments_1.DEPARTMENT_CODE_EXISTS_MESSAGE, "Department code already exists");
+    strict_1.default.equal(departments_1.DEPARTMENT_DEADLINE_NOT_CONFIGURED_MESSAGE, "Configure the shared submission deadline before extending one department.");
+    strict_1.default.equal(departments_1.DEPARTMENT_DEADLINE_EXTENSION_PAST_MESSAGE, "Choose a new expiry date in the future.");
+    strict_1.default.equal(departments_1.DEPARTMENT_DEADLINE_EXTENSION_ORDER_MESSAGE, "New expiry date must be after the current department expiry.");
+    strict_1.default.equal(departments_1.DEPARTMENT_HARD_DELETE_ACTIVE_MESSAGE, "Archive the department before permanently deleting it.");
     strict_1.default.equal(departments_1.DEPARTMENT_NAME_EXISTS_MESSAGE, "Department name already exists");
     strict_1.default.equal(departments_1.DEPARTMENT_VOTE_NUMBER_EXISTS_MESSAGE, "Vote number already exists");
     strict_1.default.equal(departments_1.DEPARTMENT_BUDGET_POSITIVE_MESSAGE, "Budget must be a positive number");

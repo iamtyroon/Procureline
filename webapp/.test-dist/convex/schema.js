@@ -29,6 +29,7 @@ const planReviewFlaggedTargetValidator = values_1.v.object({
     label: values_1.v.string(),
     type: values_1.v.union(values_1.v.literal("category"), values_1.v.literal("item")),
 });
+const consolidationStatusValidator = values_1.v.union(values_1.v.literal("draft"), values_1.v.literal("finalized"), values_1.v.literal("archived"));
 exports.default = (0, server_1.defineSchema)({
     ...server_2.authTables,
     tenants: (0, server_1.defineTable)({
@@ -546,6 +547,21 @@ exports.default = (0, server_1.defineSchema)({
     })
         .index("by_planId_createdAt", ["planId", "createdAt"])
         .index("by_tenantId_planId_createdAt", ["tenantId", "planId", "createdAt"]),
+    consolidations: (0, server_1.defineTable)({
+        tenantId: values_1.v.id("tenants"),
+        fiscalYear: values_1.v.string(),
+        status: consolidationStatusValidator,
+        draftData: values_1.v.any(),
+        workspaceState: values_1.v.optional(values_1.v.any()),
+        schemaVersion: values_1.v.number(),
+        revision: values_1.v.number(),
+        createdByTenantUserId: values_1.v.id("tenantUsers"),
+        updatedByTenantUserId: values_1.v.id("tenantUsers"),
+        createdAt: values_1.v.number(),
+        updatedAt: values_1.v.number(),
+    })
+        .index("by_tenantId_fiscalYear", ["tenantId", "fiscalYear"])
+        .index("by_tenantId_status_fiscalYear", ["tenantId", "status", "fiscalYear"]),
     departmentAccessCodes: (0, server_1.defineTable)({
         tenantId: values_1.v.id("tenants"),
         departmentId: values_1.v.id("departments"),

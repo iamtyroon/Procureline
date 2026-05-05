@@ -2,7 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { useAction, useQuery } from "convex/react";
-import { Download, History, TriangleAlert } from "lucide-react";
+import {
+  Download,
+  Filter,
+  History,
+  Search,
+  Send,
+  TriangleAlert,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +22,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -29,6 +42,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+const STATUS_FILTER_OPTIONS = [
+  { label: "All statuses", value: "all" },
+  { label: "Not started", value: "not_started" },
+  { label: "Draft", value: "draft" },
+  { label: "Submitted", value: "submitted" },
+  { label: "Rejected", value: "rejected" },
+  { label: "Approved", value: "approved" },
+] as const;
 
 function getStatusBadgeClassName(status: string): string {
   switch (status) {
@@ -67,6 +89,13 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
   const [isExporting, setIsExporting] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
+  const activeFilterCount = [
+    searchText.trim().length > 0,
+    statusFilter !== "all",
+    updatedFrom.length > 0,
+    updatedTo.length > 0,
+  ].filter(Boolean).length;
+
   const rows = useMemo(() => {
     if (!workspace) {
       return [];
@@ -84,6 +113,10 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
         ? rawToTimestamp
         : null;
     return workspace.rows.filter((row: any) => {
+      if (!row.planId) {
+        return false;
+      }
+
       if (statusFilter !== "all" && row.status !== statusFilter) {
         return false;
       }
@@ -114,6 +147,16 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
   }, [searchText, statusFilter, updatedFrom, updatedTo, workspace]);
 
   const historyRow = rows.find((row: any) => row.departmentId === historyDepartmentId) ?? null;
+  const eligibleReminderDepartmentIds = rows
+    .filter((row: any) => row.reminderEligibility.eligible === true)
+    .map((row: any) => row.departmentId);
+
+  function clearFilters(): void {
+    setSearchText("");
+    setStatusFilter("all");
+    setUpdatedFrom("");
+    setUpdatedTo("");
+  }
 
   async function onExport(): Promise<void> {
     if (!workspace) {
@@ -169,11 +212,135 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              className="h-8 rounded-lg px-3 text-xs"
+              type="button"
+              variant="outline"
+            >
+              <Filter className="mr-2 h-3.5 w-3.5" />
+              Filters
+              {activeFilterCount > 0 ? (
+                <span className="ml-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary-foreground">
+                  {activeFilterCount}
+                </span>
+              ) : null}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="start"
+            className="w-[22rem] rounded-2xl border-border/80 p-3 shadow"
+          >
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-foreground">
+                    Monitoring filters
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Search, status, and last-updated range.
+                  </div>
+                </div>
+                <Button
+                  aria-label="Clear monitoring filters"
+                  className="h-7 w-7 rounded-lg"
+                  disabled={activeFilterCount === 0}
+                  onClick={clearFilters}
+                  size="icon"
+                  type="button"
+                  variant="ghost"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="h-8 pl-8 text-xs"
+                  placeholder="Search department or code"
+                  value={searchText}
+                  onChange={(event) => setSearchText(event.target.value)}
+                />
+              </div>
+
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_FILTER_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                    Updated from
+                  </div>
+                  <Input
+                    aria-label="Updated from"
+                    className="h-8 text-xs"
+                    type="date"
+                    value={updatedFrom}
+                    onChange={(event) => setUpdatedFrom(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                    Updated to
+                  </div>
+                  <Input
+                    aria-label="Updated to"
+                    className="h-8 text-xs"
+                    type="date"
+                    value={updatedTo}
+                    onChange={(event) => setUpdatedTo(event.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button
+            className="h-8 rounded-lg px-3 text-xs"
+            type="button"
+            variant="outline"
+            disabled={isExporting || rows.length === 0}
+            onClick={onExport}
+          >
+            <Download className="mr-2 h-3.5 w-3.5" />
+            {isExporting ? "Exporting..." : "Export"}
+          </Button>
+          <Button
+            className="h-8 rounded-lg px-3 text-xs"
+            type="button"
+            disabled={isSending || eligibleReminderDepartmentIds.length === 0}
+            onClick={() => onSendReminders(eligibleReminderDepartmentIds)}
+          >
+            <Send className="mr-2 h-3.5 w-3.5" />
+            {isSending ? "Queueing..." : "Send reminders"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-1.5 sm:grid-cols-3 xl:grid-cols-6">
         <SummaryPill
-          label="Submitted"
-          value={workspace.summary.submittedOfTotalLabel}
+          helper="submitted"
+          label="Progress"
+          value={workspace.summary.submittedOfTotalLabel.replace(
+            " departments submitted",
+            "",
+          )}
         />
         <SummaryPill label="Not Started" value={String(workspace.summary.notStarted)} />
         <SummaryPill label="Draft" value={String(workspace.summary.draft)} />
@@ -182,69 +349,8 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
         <SummaryPill label="Approved" value={String(workspace.summary.approved)} />
       </div>
 
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_14rem_10rem_10rem] xl:w-[52rem]">
-          <Input
-            placeholder="Search department or code"
-            value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
-          />
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="not_started">Not started</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="submitted">Submitted</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-            </SelectContent>
-          </Select>
-          <Input
-            aria-label="Updated from"
-            type="date"
-            value={updatedFrom}
-            onChange={(event) => setUpdatedFrom(event.target.value)}
-          />
-          <Input
-            aria-label="Updated to"
-            type="date"
-            value={updatedTo}
-            onChange={(event) => setUpdatedTo(event.target.value)}
-          />
-        </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          disabled={isExporting || rows.length === 0}
-          onClick={onExport}
-        >
-          <Download className="mr-2 h-4 w-4" />
-          {isExporting ? "Exporting..." : "Export report"}
-        </Button>
-        <Button
-          type="button"
-          disabled={
-            isSending ||
-            rows.every((row: any) => row.reminderEligibility.eligible !== true)
-          }
-          onClick={() =>
-            onSendReminders(
-              rows
-                .filter((row: any) => row.reminderEligibility.eligible === true)
-                .map((row: any) => row.departmentId),
-            )
-          }
-        >
-          {isSending ? "Queueing..." : "Send eligible reminders"}
-        </Button>
-      </div>
-
       {rows.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 px-5 py-8 text-center text-sm text-muted-foreground">
+        <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 px-5 py-7 text-center text-sm text-muted-foreground">
           No departments match the current monitoring filters.
         </div>
       ) : (
@@ -340,7 +446,7 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
                 No canonical submission history is available for this department yet.
               </div>
             ) : (
-              historyRow.timeline.map((item: any) => (
+              (historyRow?.timeline ?? []).map((item: any) => (
                 <div
                   key={item.id}
                   className="rounded-xl border border-border/70 bg-muted/10 p-4"
@@ -371,13 +477,28 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
   );
 }
 
-function SummaryPill({ label, value }: { label: string; value: string }) {
+function SummaryPill({
+  helper,
+  label,
+  value,
+}: {
+  helper?: string;
+  label: string;
+  value: string;
+}) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-muted/10 px-4 py-3">
-      <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+    <div className="min-h-[3.25rem] rounded-lg border border-border/70 bg-muted/10 px-2.5 py-2">
+      <div className="truncate text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
         {label}
       </div>
-      <div className="mt-1 text-sm font-semibold text-foreground">{value}</div>
+      <div className="mt-0.5 truncate text-sm font-bold leading-tight text-foreground">
+        {value}
+      </div>
+      {helper ? (
+        <div className="truncate text-[10px] leading-tight text-muted-foreground">
+          {helper}
+        </div>
+      ) : null}
     </div>
   );
 }

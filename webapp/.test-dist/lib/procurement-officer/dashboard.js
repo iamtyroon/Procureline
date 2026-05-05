@@ -5,7 +5,6 @@ const dashboard_1 = require("../tenant-admin/dashboard");
 const deadlines_1 = require("./deadlines");
 const dashboard_search_1 = require("./dashboard-search");
 exports.PROCUREMENT_OFFICER_WORKSPACE_MODALS = [
-    "access-codes",
     "deadlines",
     "requests",
     "review",
@@ -82,16 +81,6 @@ function resolveProcurementOfficerWorkspaceNavigation(href) {
             return {
                 href: `${targetUrl.pathname}${targetUrl.search}`,
                 type: "route",
-            };
-        case "/po/access-codes":
-            return {
-                href: buildProcurementOfficerWorkspaceModalPath({
-                    modal: "access-codes",
-                }, {
-                    dashboardSearchParams: targetUrl.searchParams,
-                }),
-                type: "modal",
-                modalState: { modal: "access-codes" },
             };
         case "/po/deadlines":
             return {
@@ -234,9 +223,6 @@ function deriveSharedSubmissionDeadline(args) {
 exports.deriveSharedSubmissionDeadline = deriveSharedSubmissionDeadline;
 function deriveProcurementChecklist(args) {
     const hasDepartments = args.departmentCount > 0;
-    const accessCodesReady = hasDepartments &&
-        args.accessCodeCoverage.totalCount > 0 &&
-        args.accessCodeCoverage.readyCount === args.accessCodeCoverage.totalCount;
     const sharedDeadlineReady = args.sharedDeadline.state === "available";
     return [
         {
@@ -267,15 +253,13 @@ function deriveProcurementChecklist(args) {
         },
         {
             description: !hasDepartments
-                ? "Access-code readiness unlocks after departments exist."
-                : accessCodesReady
-                    ? "Every active department has at least one valid active access code."
-                    : `${args.accessCodeCoverage.readyCount} of ${args.accessCodeCoverage.totalCount} active department${args.accessCodeCoverage.totalCount === 1 ? "" : "s"} currently have valid access-code coverage.`,
-            href: "/po/access-codes",
-            id: "generate_access_codes",
-            label: "Generate Access Codes",
-            state: accessCodesReady ? "available" : "setup_required",
-            statusLabel: accessCodesReady ? "Complete" : "Action needed",
+                ? "Department-code generation unlocks after departments exist."
+                : "Generate and email each Department User code from the department editor.",
+            href: "/po/departments",
+            id: "generate_department_codes",
+            label: "Generate Department Codes",
+            state: hasDepartments ? "available" : "setup_required",
+            statusLabel: hasDepartments ? "Use department editor" : "Action needed",
         },
         {
             description: !hasDepartments

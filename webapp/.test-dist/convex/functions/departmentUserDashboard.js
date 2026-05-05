@@ -467,9 +467,10 @@ exports.getDepartmentUserDashboardSnapshot = (0, server_1.query)({
                                 decisionType: activeDecision.decisionType,
                                 decidedAt: activeDecision.decidedAt,
                                 revisionDeadlineAt: activeDecision.revisionDeadlineAt ?? null,
-                                submissionDeadlineAt: submissionDeadline?.submissionEndsAt ??
-                                    department.submissionEndsAt ??
-                                    null,
+                                submissionDeadlineAt: resolveDepartmentEffectiveSubmissionDeadlineAt({
+                                    departmentSubmissionEndsAt: department.submissionEndsAt,
+                                    sharedSubmissionEndsAt: submissionDeadline?.submissionEndsAt,
+                                }),
                             }).effectiveDeadlineAt,
                             revisionDeadlineAt: activeDecision.revisionDeadlineAt ?? null,
                         }
@@ -487,9 +488,10 @@ exports.getDepartmentUserDashboardSnapshot = (0, server_1.query)({
                         decisionType: decision.decisionType,
                         decidedAt: decision.decidedAt,
                         revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
-                        submissionDeadlineAt: submissionDeadline?.submissionEndsAt ??
-                            department.submissionEndsAt ??
-                            null,
+                        submissionDeadlineAt: resolveDepartmentEffectiveSubmissionDeadlineAt({
+                            departmentSubmissionEndsAt: department.submissionEndsAt,
+                            sharedSubmissionEndsAt: submissionDeadline?.submissionEndsAt,
+                        }),
                     }).effectiveDeadlineAt,
                     id: String(decision._id),
                     lifecycleStatus: decision.lifecycleStatus ?? null,
@@ -564,4 +566,11 @@ function readRecord(value) {
     return value && typeof value === "object" && !Array.isArray(value)
         ? value
         : null;
+}
+function resolveDepartmentEffectiveSubmissionDeadlineAt(args) {
+    if (typeof args.departmentSubmissionEndsAt === "number" &&
+        typeof args.sharedSubmissionEndsAt === "number") {
+        return Math.max(args.departmentSubmissionEndsAt, args.sharedSubmissionEndsAt);
+    }
+    return args.sharedSubmissionEndsAt ?? args.departmentSubmissionEndsAt ?? null;
 }

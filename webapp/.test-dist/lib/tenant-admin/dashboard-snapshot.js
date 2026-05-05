@@ -9,10 +9,12 @@ function buildTenantAdminDashboardSnapshot(args) {
     const availableFiscalYears = (0, dashboard_1.buildAvailableFiscalYears)({
         activityTimestamps,
         departmentWindows: args.departments,
+        fiscalYearKeys: args.fiscalYearKeys,
         now: args.now,
         selectedFiscalYear,
     });
     const selectedFiscalYearHasSignals = selectedFiscalYear === currentFiscalYear ||
+        availableFiscalYears.includes(selectedFiscalYear) ||
         activityTimestamps.some((timestamp) => (0, dashboard_1.isTimestampInFiscalYear)({ fiscalYearKey: selectedFiscalYear, timestamp })) ||
         args.departments.some((department) => (typeof department.submissionStartsAt === "number" &&
             (0, dashboard_1.isTimestampInFiscalYear)({
@@ -73,6 +75,10 @@ function buildTenantAdminDashboardSnapshot(args) {
             departmentCount: activeDepartmentCount,
             procurementOfficerCount,
         }),
+        institutionalOverview: createEmptyInstitutionalOverview({
+            fiscalYear: selectedFiscalYear,
+            now: args.now,
+        }),
         quickActions: (0, dashboard_1.deriveQuickActions)({
             cycleState: cycleState.state,
             departmentCount: activeDepartmentCount,
@@ -94,6 +100,34 @@ function buildTenantAdminDashboardSnapshot(args) {
     };
 }
 exports.buildTenantAdminDashboardSnapshot = buildTenantAdminDashboardSnapshot;
+function createEmptyInstitutionalOverview(args) {
+    return {
+        anomalies: [],
+        availableFiscalYears: [args.fiscalYear],
+        exportRequest: {
+            asOf: args.now,
+            state: "queued",
+            summary: "Institutional export requests are queued and generated server-side.",
+        },
+        fiscalYear: args.fiscalYear,
+        generatedAt: args.now,
+        poRollups: [],
+        rows: [],
+        summary: {
+            anomalyCount: 0,
+            approvedOrSubmitted: 0,
+            approvedOrSubmittedLabel: "0 of 0",
+            poCoverageLabel: "0 of 0",
+            totalAllocated: 0,
+            totalAllocatedLabel: "KES 0",
+            totalDepartments: 0,
+            totalUtilizationLabel: "Unavailable",
+            totalUtilizationPercent: null,
+            totalUtilized: 0,
+            totalUtilizedLabel: "KES 0",
+        },
+    };
+}
 function buildDepartmentStatus(departments, now) {
     return departments
         .filter((department) => department.isActive)

@@ -261,7 +261,23 @@ function runDepartmentUserPlanSubmissionTests() {
         departmentSubmissionStartsAt: 10_000,
         sharedDeadline: null,
     }).source, "department");
-    completedTests.push("submission deadline validation prefers shared canonical windows and blocks before-open plus exact-close boundary submissions");
+    const departmentExtensionWindow = (0, pre_submission_validation_1.resolveEffectiveSubmissionWindow)({
+        departmentSubmissionEndsAt: 50_000,
+        departmentSubmissionStartsAt: 30_000,
+        sharedDeadline: {
+            deadlineVersion: 2,
+            submissionEndsAt: 40_000,
+            submissionStartsAt: 30_000,
+            timeZone: "Africa/Nairobi",
+            updatedAt: 9_000,
+        },
+    });
+    strict_1.default.equal(departmentExtensionWindow.source, "department");
+    strict_1.default.equal((0, pre_submission_validation_1.evaluateSubmissionDeadlineIssue)({
+        now: 45_000,
+        window: departmentExtensionWindow,
+    }), null);
+    completedTests.push("submission deadline validation prefers shared canonical windows unless a department-specific extension gives one department extra submission time");
     strict_1.default.equal((0, submission_1.formatPlanSubmissionReference)({
         departmentCode: " cs / dept ",
         fiscalYear: "2026-2027",

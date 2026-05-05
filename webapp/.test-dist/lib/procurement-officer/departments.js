@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.buildDepartmentWorkspaceSummary = exports.buildDepartmentOverAllocationWarning = exports.summarizeDepartmentPlanningState = exports.buildDepartmentDeletionBlockers = exports.buildDepartmentTierLimitModalContent = exports.buildDepartmentTierLimitState = exports.isDepartmentCrudAuthorizationError = exports.getDepartmentCrudErrorMessage = exports.isDepartmentTierLimitMessage = exports.getDepartmentCrudRecoveryHref = exports.getDepartmentUpgradeHref = exports.formatDepartmentBudget = exports.getDepartmentCodeFieldDescription = exports.departmentFormSchema = exports.validateDepartmentCode = exports.normalizeDepartmentVoteNumber = exports.normalizeDepartmentCode = exports.normalizeDepartmentName = exports.DEPARTMENT_CODE_FORMAT_MESSAGE = exports.DEPARTMENT_VOTE_NUMBER_REQUIRED_MESSAGE = exports.DEPARTMENT_CODE_REQUIRED_MESSAGE = exports.DEPARTMENT_NAME_REQUIRED_MESSAGE = exports.DEPARTMENT_SETUP_REQUIRED_MESSAGE = exports.DEPARTMENT_DELETE_GENERIC_ERROR_MESSAGE = exports.DEPARTMENT_SAVE_GENERIC_ERROR_MESSAGE = exports.DEPARTMENT_CODE_EMAIL_AFTER_CREATE_MESSAGE = exports.DEPARTMENT_DELETE_DU_MESSAGE = exports.DEPARTMENT_DELETE_PLANS_MESSAGE = exports.DEPARTMENT_NOT_FOUND_MESSAGE = exports.DEPARTMENT_BUDGET_POSITIVE_MESSAGE = exports.DEPARTMENT_VOTE_NUMBER_EXISTS_MESSAGE = exports.DEPARTMENT_NAME_EXISTS_MESSAGE = exports.DEPARTMENT_CODE_EXISTS_MESSAGE = exports.DEPARTMENT_CODE_MAX_LENGTH = void 0;
+exports.buildDepartmentWorkspaceSummary = exports.buildDepartmentOverAllocationWarning = exports.summarizeDepartmentPlanningState = exports.buildDepartmentDeletionBlockers = exports.buildDepartmentTierLimitModalContent = exports.buildDepartmentTierLimitState = exports.isDepartmentCrudAuthorizationError = exports.getDepartmentCrudErrorMessage = exports.isDepartmentTierLimitMessage = exports.getDepartmentCrudRecoveryHref = exports.getDepartmentUpgradeHref = exports.formatDepartmentBudget = exports.getDepartmentCodeFieldDescription = exports.departmentFormSchema = exports.validateDepartmentCode = exports.normalizeDepartmentVoteNumber = exports.normalizeDepartmentCode = exports.normalizeDepartmentName = exports.DEPARTMENT_CODE_FORMAT_MESSAGE = exports.DEPARTMENT_VOTE_NUMBER_REQUIRED_MESSAGE = exports.DEPARTMENT_CODE_REQUIRED_MESSAGE = exports.DEPARTMENT_NAME_REQUIRED_MESSAGE = exports.DEPARTMENT_SETUP_REQUIRED_MESSAGE = exports.DEPARTMENT_DELETE_GENERIC_ERROR_MESSAGE = exports.DEPARTMENT_SAVE_GENERIC_ERROR_MESSAGE = exports.DEPARTMENT_CODE_EMAIL_AFTER_CREATE_MESSAGE = exports.DEPARTMENT_DEADLINE_EXTENSION_ORDER_MESSAGE = exports.DEPARTMENT_DEADLINE_EXTENSION_PAST_MESSAGE = exports.DEPARTMENT_DEADLINE_NOT_CONFIGURED_MESSAGE = exports.DEPARTMENT_DELETE_DU_MESSAGE = exports.DEPARTMENT_DELETE_PLANS_MESSAGE = exports.DEPARTMENT_HARD_DELETE_GENERIC_ERROR_MESSAGE = exports.DEPARTMENT_HARD_DELETE_ACTIVE_MESSAGE = exports.DEPARTMENT_NOT_FOUND_MESSAGE = exports.DEPARTMENT_BUDGET_POSITIVE_MESSAGE = exports.DEPARTMENT_VOTE_NUMBER_EXISTS_MESSAGE = exports.DEPARTMENT_NAME_EXISTS_MESSAGE = exports.DEPARTMENT_CODE_EXISTS_MESSAGE = exports.DEPARTMENT_CODE_MAX_LENGTH = void 0;
 const zod_1 = require("zod");
 const roles_1 = require("../auth/roles");
 const input_1 = require("../security/input");
@@ -11,9 +11,14 @@ exports.DEPARTMENT_NAME_EXISTS_MESSAGE = "Department name already exists";
 exports.DEPARTMENT_VOTE_NUMBER_EXISTS_MESSAGE = "Vote number already exists";
 exports.DEPARTMENT_BUDGET_POSITIVE_MESSAGE = "Budget must be a positive number";
 exports.DEPARTMENT_NOT_FOUND_MESSAGE = "Department not found";
+exports.DEPARTMENT_HARD_DELETE_ACTIVE_MESSAGE = "Archive the department before permanently deleting it.";
+exports.DEPARTMENT_HARD_DELETE_GENERIC_ERROR_MESSAGE = "We could not permanently delete the department right now. Please try again.";
 exports.DEPARTMENT_DELETE_PLANS_MESSAGE = "Cannot delete department with submitted plans";
-exports.DEPARTMENT_DELETE_DU_MESSAGE = "Deactivate assigned Departmental Users before deleting this department.";
-exports.DEPARTMENT_CODE_EMAIL_AFTER_CREATE_MESSAGE = "Create the department first, then queue the active code from Access Codes.";
+exports.DEPARTMENT_DELETE_DU_MESSAGE = "Assigned Departmental Users and active department codes will be deactivated when this department is deleted.";
+exports.DEPARTMENT_DEADLINE_NOT_CONFIGURED_MESSAGE = "Configure the shared submission deadline before extending one department.";
+exports.DEPARTMENT_DEADLINE_EXTENSION_PAST_MESSAGE = "Choose a new expiry date in the future.";
+exports.DEPARTMENT_DEADLINE_EXTENSION_ORDER_MESSAGE = "New expiry date must be after the current department expiry.";
+exports.DEPARTMENT_CODE_EMAIL_AFTER_CREATE_MESSAGE = "Create the department first, then send the department code.";
 exports.DEPARTMENT_SAVE_GENERIC_ERROR_MESSAGE = "We could not save the department right now. Please try again.";
 exports.DEPARTMENT_DELETE_GENERIC_ERROR_MESSAGE = "We could not delete the department right now. Please try again.";
 exports.DEPARTMENT_SETUP_REQUIRED_MESSAGE = "Department setup is incomplete. Contact your Procurement Officer.";
@@ -133,8 +138,8 @@ exports.departmentFormSchema = zod_1.z
 });
 function getDepartmentCodeFieldDescription(args) {
     return args.isCreateMode
-        ? "Generate the DU access code now, or enter the canonical department code manually before creating the department."
-        : "Update the department code here if the DU access identifier changes. Generate a new canonical code or enter one manually.";
+        ? "Generate the department code now, or enter one manually before creating the department."
+        : "Update the department code here if the Department User sign-in identifier changes. Generate a new canonical code or enter one manually.";
 }
 exports.getDepartmentCodeFieldDescription = getDepartmentCodeFieldDescription;
 function formatDepartmentBudget(amount) {
@@ -170,6 +175,10 @@ function getDepartmentCrudErrorMessage(error) {
         exports.DEPARTMENT_CODE_REQUIRED_MESSAGE,
         exports.DEPARTMENT_DELETE_DU_MESSAGE,
         exports.DEPARTMENT_DELETE_PLANS_MESSAGE,
+        exports.DEPARTMENT_DEADLINE_EXTENSION_ORDER_MESSAGE,
+        exports.DEPARTMENT_DEADLINE_EXTENSION_PAST_MESSAGE,
+        exports.DEPARTMENT_DEADLINE_NOT_CONFIGURED_MESSAGE,
+        exports.DEPARTMENT_HARD_DELETE_ACTIVE_MESSAGE,
         exports.DEPARTMENT_NAME_EXISTS_MESSAGE,
         exports.DEPARTMENT_NAME_REQUIRED_MESSAGE,
         exports.DEPARTMENT_NOT_FOUND_MESSAGE,
@@ -242,12 +251,12 @@ function buildDepartmentDeletionBlockers(args) {
     if (args.hasProtectedPlans) {
         messages.push(exports.DEPARTMENT_DELETE_PLANS_MESSAGE);
     }
-    if (activeDepartmentUserEmails.length > 0) {
+    if (activeDepartmentUserEmails.length > 0 && !args.hasProtectedPlans) {
         messages.push(exports.DEPARTMENT_DELETE_DU_MESSAGE);
     }
     return {
         activeDepartmentUserEmails,
-        canDelete: messages.length === 0,
+        canDelete: !args.hasProtectedPlans,
         hasProtectedPlans: args.hasProtectedPlans,
         messages,
     };

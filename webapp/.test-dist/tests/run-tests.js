@@ -41,6 +41,7 @@ async function main() {
     const { runPlatformAdminDashboardTests } = await import("./platform-admin-dashboard.test.js");
     const { runPricingFlowTests } = await import("./pricing-flow.test.js");
     const { runProcurementOfficerDashboardTests } = await import("./procurement-officer-dashboard.test.js");
+    const { runProcurementOfficerConsolidationTests } = await import("./procurement-officer-consolidation.test.js");
     const { runProcurementOfficerSubmissionTests } = await import("./procurement-officer-submissions.test.js");
     const { runProcurementOfficerSubmissionMonitoringTests } = await import("./procurement-officer-submission-monitoring.test.js");
     const { runProcurementOfficerRequestTests } = await import("./procurement-officer-requests.test.js");
@@ -58,6 +59,7 @@ async function main() {
     const { runSessionManagementTests } = await import("./session-management.test.js");
     const { runSignupFlowTests } = await import("./signup-flow.test.js");
     const { runTenantAdminDashboardTests } = await import("./tenant-admin-dashboard.test.js");
+    const { runTenantAdminInstitutionalVisibilityTests } = await import("./tenant-admin-institutional-visibility.test.js");
     const { runTenantAdminOnboardingTests } = await import("./tenant-admin-onboarding.test.js");
     const { runTenantIsolationTests } = await import("./tenant-isolation.test.js");
     const completedTests = [
@@ -85,6 +87,7 @@ async function main() {
         ...(await runPlatformAdminDashboardTests()),
         ...runPricingFlowTests(),
         ...runProcurementOfficerDashboardTests(),
+        ...runProcurementOfficerConsolidationTests(),
         ...runProcurementOfficerSubmissionTests(),
         ...runProcurementOfficerSubmissionMonitoringTests(),
         ...runProcurementOfficerRequestTests(),
@@ -101,6 +104,7 @@ async function main() {
         ...runSessionManagementTests(),
         ...runSignupFlowTests(),
         ...runTenantAdminDashboardTests(),
+        ...runTenantAdminInstitutionalVisibilityTests(),
         ...(await runTenantAdminOnboardingTests()),
         ...runTenantIsolationTests(),
     ];

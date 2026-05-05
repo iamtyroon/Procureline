@@ -380,6 +380,7 @@ export const getDeadlinesWorkspace = query({
             },
             meta: {
                 activeDepartmentCount: departments.length,
+                fiscalYearStartMonth: tenant.fiscalYearStartMonth,
                 impactedDepartmentCount: departments.length,
                 now: Date.now(),
                 recipientCount: recipientEmails.length,
@@ -429,10 +430,34 @@ export const saveSubmissionDeadlineState = mutation({
             });
         }
 
-        if (args.submissionStartsAt <= now || args.submissionEndsAt <= now) {
+        // Fetch the existing record before validating timestamps so we can
+        // exempt an unchanged start date from the "must be in the future" rule.
+        // This lets a PO extend or correct the end date even after the
+        // submission window has already opened.
+        const currentRecord = await getTenantSubmissionDeadlineRecord(ctx, {
+            fiscalYearKey: args.selectedFiscalYear,
+            tenantId: authContext.tenantId,
+        });
+        const startDateUnchanged =
+            currentRecord !== null &&
+            currentRecord.submissionStartsAt === args.submissionStartsAt;
+
+        // End date must always be in the future.
+        if (args.submissionEndsAt <= now) {
             throw new ConvexError({
                 code: "VALIDATION_FAILED",
                 field: "submissionEndsAt",
+                message: DEADLINE_IN_PAST_MESSAGE,
+            });
+        }
+
+        // Start date must be in the future unless it matches the existing
+        // record — meaning the window has already opened and the PO is only
+        // adjusting the end date.
+        if (!startDateUnchanged && args.submissionStartsAt <= now) {
+            throw new ConvexError({
+                code: "VALIDATION_FAILED",
+                field: "submissionStartsAt",
                 message: DEADLINE_IN_PAST_MESSAGE,
             });
         }
@@ -462,10 +487,7 @@ export const saveSubmissionDeadlineState = mutation({
         }
 
         const reminderOffsets = normalizeReminderOffsets(args.reminderOffsets);
-        const currentRecord = await getTenantSubmissionDeadlineRecord(ctx, {
-            fiscalYearKey: args.selectedFiscalYear,
-            tenantId: authContext.tenantId,
-        });
+        // currentRecord already fetched above.
         const currentSharedDeadline = deriveSharedSubmissionDeadline({
             deadlineRecord: currentRecord
                 ? {
@@ -493,6 +515,7 @@ export const saveSubmissionDeadlineState = mutation({
             nextEndsAt: args.submissionEndsAt,
             nextStartsAt: args.submissionStartsAt,
         });
+        const sharedChangeType = changeType === "extension" ? "edited" : changeType;
 
         if (changeType === "tightened" && args.confirmTightening !== true) {
             throw new ConvexError({
@@ -503,7 +526,7 @@ export const saveSubmissionDeadlineState = mutation({
         }
 
         const persistedChangeType = resolvePersistedChangeType({
-            changeType,
+            changeType: sharedChangeType,
             hasCurrentRecord: Boolean(currentRecord),
         });
         const configChanged =
@@ -548,7 +571,7 @@ export const saveSubmissionDeadlineState = mutation({
 
             return {
                 cancelledReminderJobs: [],
-                changeType,
+                changeType: sharedChangeType,
                 extensionEmailRecipients: [],
                 fiscalYearKey: args.selectedFiscalYear,
                 impactedDepartmentCount: activeDepartments.length,
@@ -577,10 +600,7 @@ export const saveSubmissionDeadlineState = mutation({
                   deadlineVersion: nextVersion,
                   fiscalYearKey: args.selectedFiscalYear,
                   lastChangeType: persistedChangeType,
-                  lastExtensionReason:
-                      changeType === "extension"
-                          ? args.extensionReason?.trim() || undefined
-                          : undefined,
+                  lastExtensionReason: undefined,
                   previousSubmissionEndsAt:
                       typeof currentSharedDeadline.deadlineAt === "number"
                           ? currentSharedDeadline.deadlineAt
@@ -603,10 +623,7 @@ export const saveSubmissionDeadlineState = mutation({
                 announcementTitle: announcement.title,
                 deadlineVersion: nextVersion,
                 lastChangeType: persistedChangeType,
-                lastExtensionReason:
-                    changeType === "extension"
-                        ? args.extensionReason?.trim() || undefined
-                        : undefined,
+                lastExtensionReason: undefined,
                 previousSubmissionEndsAt:
                     typeof currentSharedDeadline.deadlineAt === "number"
                         ? currentSharedDeadline.deadlineAt
@@ -709,17 +726,14 @@ export const saveSubmissionDeadlineState = mutation({
                 fiscalYearKey: args.selectedFiscalYear,
                 metadata: {
                     activeDepartmentCount: activeDepartments.length,
-                    changeType,
+                    changeType: sharedChangeType,
                     recipientCount: recipientEmails.length,
                     scheduledReminderOffsets,
                     skippedReminderOffsets,
                     submissionDeadlineId: String(submissionDeadlineId),
                     summary: `Shared submission deadline saved for ${args.selectedFiscalYear}.`,
                 },
-                outcome:
-                    changeType === "extension"
-                        ? AUDIT_OUTCOMES.queued
-                        : AUDIT_OUTCOMES.allowed,
+                outcome: AUDIT_OUTCOMES.allowed,
                 recordId: String(submissionDeadlineId),
                 tenantId: authContext.tenantId,
             }),
@@ -727,9 +741,8 @@ export const saveSubmissionDeadlineState = mutation({
 
         return {
             cancelledReminderJobs,
-            changeType,
-            extensionEmailRecipients:
-                changeType === "extension" ? recipientEmails : [],
+            changeType: sharedChangeType,
+            extensionEmailRecipients: [],
             fiscalYearKey: args.selectedFiscalYear,
             impactedDepartmentCount: activeDepartments.length,
             scheduledReminderJobs,
