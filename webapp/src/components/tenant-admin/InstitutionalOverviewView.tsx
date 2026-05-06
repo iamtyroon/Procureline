@@ -34,8 +34,8 @@ import {
     summarizeInstitutionalOverview,
     type InstitutionalOverviewStatus,
     type TenantAdminInstitutionalOverview,
-} from "@/lib/tenant-admin/institutional-visibility";
-import { formatDashboardTimestamp, formatFiscalYearLabel } from "@/lib/tenant-admin/dashboard";
+} from "@/lib/shared/tenant-admin/institutional-visibility";
+import { formatDashboardTimestamp, formatFiscalYearLabel } from "@/lib/shared/tenant-admin/dashboard";
 import { cn } from "@/lib/utils";
 import { api } from "@/convex/_generated/api";
 

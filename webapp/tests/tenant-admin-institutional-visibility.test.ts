@@ -4,7 +4,7 @@ import {
     buildTenantAdminInstitutionalOverview,
     filterInstitutionalOverviewRows,
     summarizeInstitutionalOverview,
-} from "../lib/tenant-admin/institutional-visibility";
+} from "../lib/shared/tenant-admin/institutional-visibility";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

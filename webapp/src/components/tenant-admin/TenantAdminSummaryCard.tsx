@@ -10,7 +10,7 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import type { DashboardSummaryCard } from "@/lib/tenant-admin/dashboard-snapshot";
+import type { DashboardSummaryCard } from "@/lib/shared/tenant-admin/dashboard-snapshot";
 
 interface TenantAdminSummaryCardProps {
     card: DashboardSummaryCard;

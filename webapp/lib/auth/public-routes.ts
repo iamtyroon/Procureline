@@ -1,4 +1,4 @@
-import { PLATFORM_ADMIN_AUTH_ROUTES } from "../platform-admin/auth";
+import { PLATFORM_ADMIN_AUTH_ROUTES } from "../shared/platform-admin/auth";
 
 export const PUBLIC_ROUTES = [
     "/",

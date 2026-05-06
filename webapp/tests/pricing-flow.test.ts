@@ -14,7 +14,7 @@ import {
     resolveVerificationSelectedTier,
     shouldUseFallbackPricingCatalog,
     sortPricingTiers,
-} from "../lib/marketing/pricing";
+} from "../lib/shared/marketing/pricing";
 import {
     contactSalesSchema,
     ENTERPRISE_INQUIRY_COOLDOWN_MS,

@@ -4,14 +4,14 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "../_generated/server";
 import { AUDIT_EVENT_NAMES, createAuthenticatedAuditActor } from "../../lib/security/audit";
-import { sha256Hex } from "../../lib/platform-admin/risk";
+import { sha256Hex } from "../../lib/backend/platform-admin/risk";
 import {
     TENANT_ADMIN_INVITATION_TTL_MS,
     TENANT_ADMIN_VERIFICATION_WINDOW_MS,
     canAutoResendTenantAdminVerification,
     getTenantAdminInvitationAccessMessage,
     invalidateSupersededInvitationStatuses,
-} from "../../lib/tenant-admin/invitations";
+} from "../../lib/shared/tenant-admin/invitations";
 import {
     normalizeAuthEmail,
     normalizePlainText,

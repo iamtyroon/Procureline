@@ -12,7 +12,7 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import type { TenantAdminDashboardSnapshot } from "@/lib/tenant-admin/dashboard-snapshot";
+import type { TenantAdminDashboardSnapshot } from "@/lib/shared/tenant-admin/dashboard-snapshot";
 
 interface TenantAdminQuickActionsProps {
     className?: string;

@@ -5,7 +5,7 @@ import {
     buildSecurityInputRejectedEvent,
     createAuthenticatedAuditActor,
 } from "../../lib/security/audit";
-import { resolveTenantRegistrationTier } from "../../lib/marketing/pricing";
+import { resolveTenantRegistrationTier } from "../../lib/shared/marketing/pricing";
 import { validateOrganizationNameInput } from "../../lib/security/input";
 import { appendAuditLogBestEffort } from "./_audit";
 import {

@@ -1,11 +1,11 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "../_generated/server";
-import { buildPlatformAdminDashboardSnapshot } from "../../lib/platform-admin/dashboard-snapshot";
-import { normalizePlatformAdminDashboardPreferences } from "../../lib/platform-admin/dashboard";
+import { buildPlatformAdminDashboardSnapshot } from "../../lib/shared/platform-admin/dashboard-snapshot";
+import { normalizePlatformAdminDashboardPreferences } from "../../lib/shared/platform-admin/dashboard";
 import {
     createPlatformAdminDashboardReadAccessToken,
     verifyPlatformAdminDashboardReadAccessToken,
-} from "../../lib/platform-admin/dashboard-access-token";
+} from "../../lib/shared/platform-admin/dashboard-access-token";
 import { requirePlatformAdmin } from "./_roleGuard";
 import { auditPlatformAdminBypassRead } from "./_tenantGuard";
 

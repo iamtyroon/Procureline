@@ -10,8 +10,8 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { formatFiscalYearLabel } from "@/lib/tenant-admin/dashboard";
-import type { TenantAdminActivityFeed } from "@/lib/tenant-admin/dashboard-snapshot";
+import { formatFiscalYearLabel } from "@/lib/shared/tenant-admin/dashboard";
+import type { TenantAdminActivityFeed } from "@/lib/shared/tenant-admin/dashboard-snapshot";
 import { cn } from "@/lib/utils";
 
 interface TenantAdminRecentActivityProps {

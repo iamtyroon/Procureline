@@ -39,11 +39,11 @@ import {
     getVisiblePlatformAdminWidgetOrder,
     movePlatformAdminWidget,
     type PlatformAdminDashboardWidgetId,
-} from "@/lib/platform-admin/dashboard";
+} from "@/lib/shared/platform-admin/dashboard";
 import type {
     PlatformAdminDashboardNavigationGroup,
     PlatformAdminDashboardSnapshot,
-} from "@/lib/platform-admin/dashboard-snapshot";
+} from "@/lib/shared/platform-admin/dashboard-snapshot";
 import { cn } from "@/lib/utils";
 import {
     AlertRow,

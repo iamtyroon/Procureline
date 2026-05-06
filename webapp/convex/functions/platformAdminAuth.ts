@@ -33,16 +33,16 @@ import {
     type PlatformAdminChallengePurpose,
     type PlatformAdminRiskReason,
     type PlatformAdminVerificationMethod,
-} from "../../lib/platform-admin/auth";
+} from "../../lib/shared/platform-admin/auth";
 import {
     evaluatePlatformAdminRisk,
     fingerprintPlatformAdminRequestContext,
     sha256Hex,
-} from "../../lib/platform-admin/risk";
+} from "../../lib/backend/platform-admin/risk";
 import {
     PlatformAdminRequestContextSignatureError,
     verifySignedPlatformAdminRequestContext,
-} from "../../lib/platform-admin/request-context-token";
+} from "../../lib/backend/platform-admin/request-context-token";
 import { resolveSessionState } from "../../lib/auth/session";
 import {
     validateEmailInput,

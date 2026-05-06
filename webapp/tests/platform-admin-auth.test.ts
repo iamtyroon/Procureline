@@ -3,18 +3,18 @@ import {
     PLATFORM_ADMIN_AUTH_ROUTES,
     PLATFORM_ADMIN_DELETE_BLOCKED_MESSAGE,
     consumePlatformAdminBackupCode,
-} from "../lib/platform-admin/auth";
+} from "../lib/shared/platform-admin/auth";
 import {
     createSignedPlatformAdminRequestContextToken,
     DEVELOPMENT_PLATFORM_ADMIN_REQUEST_CONTEXT_TOKEN_SECRET,
     resolvePlatformAdminRequestContextTokenSecret,
     verifySignedPlatformAdminRequestContextToken,
-} from "../lib/platform-admin/request-context-token";
+} from "../lib/backend/platform-admin/request-context-token";
 import {
     evaluatePlatformAdminRisk,
     fingerprintPlatformAdminRequestContext,
-} from "../lib/platform-admin/risk";
-import { maskPlatformAdminEmail } from "../lib/platform-admin/auth";
+} from "../lib/backend/platform-admin/risk";
+import { maskPlatformAdminEmail } from "../lib/shared/platform-admin/auth";
 import {
     PLATFORM_ADMIN_INACTIVITY_WINDOW_MS,
     REMEMBER_ME_SESSION_WINDOW_MS,

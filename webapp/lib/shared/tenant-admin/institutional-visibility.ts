@@ -232,6 +232,8 @@ export interface BuildTenantAdminInstitutionalOverviewArgs {
     planReviewDecisions: readonly InstitutionalPlanReviewDecisionRecord[];
     planSubmissionSnapshots: readonly InstitutionalPlanSubmissionSnapshotRecord[];
     plans: readonly InstitutionalPlanRecord[];
+    procurementCategories?: readonly unknown[];
+    procurementItems?: readonly unknown[];
     staleSubmittedThresholdMs?: number;
     submissionDeadlines: readonly InstitutionalSubmissionDeadlineRecord[];
     tenantId: string;

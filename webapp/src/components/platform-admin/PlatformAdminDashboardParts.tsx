@@ -27,8 +27,8 @@ import type {
     PlatformAdminHealthTile,
     PlatformAdminRecentTenantRow,
     PlatformAdminSummaryCard,
-} from "@/lib/platform-admin/dashboard-snapshot";
-import { getPlatformAdminLocalTimestampLabel } from "@/lib/platform-admin/dashboard";
+} from "@/lib/shared/platform-admin/dashboard-snapshot";
+import { getPlatformAdminLocalTimestampLabel } from "@/lib/shared/platform-admin/dashboard";
 import { cn } from "@/lib/utils";
 
 type NavigationItemId = PlatformAdminDashboardNavigationGroup["items"][number]["id"];

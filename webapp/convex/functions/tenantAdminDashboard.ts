@@ -4,9 +4,9 @@ import { requireTenantRole } from "./_roleGuard";
 import {
     buildTenantAdminDashboardSnapshot,
     type TenantAdminProcurementOfficerDirectoryEntry,
-} from "../../lib/tenant-admin/dashboard-snapshot";
-import { getFiscalYearForDate } from "../../lib/tenant-admin/dashboard";
-import { buildTenantAdminInstitutionalOverview } from "../../lib/tenant-admin/institutional-visibility";
+} from "../../lib/shared/tenant-admin/dashboard-snapshot";
+import { getFiscalYearForDate } from "../../lib/shared/tenant-admin/dashboard";
+import { buildTenantAdminInstitutionalOverview } from "../../lib/shared/tenant-admin/institutional-visibility";
 import {
     evaluateProcurementOfficerInvitationStatus,
     formatProcurementOfficerInvitationStatusLabel,

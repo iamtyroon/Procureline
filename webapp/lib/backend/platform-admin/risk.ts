@@ -1,7 +1,7 @@
 import type {
     PlatformAdminRiskLevel,
     PlatformAdminRiskReason,
-} from "./auth";
+} from "../../shared/platform-admin/auth";
 
 export interface PlatformAdminRiskFingerprint {
     country?: string | null;

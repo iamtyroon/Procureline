@@ -15,11 +15,11 @@ import {
     PENDING_TENANT_SETUP_RETRY_STORAGE_KEY,
     PENDING_VERIFICATION_EMAIL_STORAGE_KEY,
 } from "@/lib/auth/signup-flow";
-import { buildTenantAdminSignupContinuationHref } from "@/lib/tenant-admin/onboarding";
+import { buildTenantAdminSignupContinuationHref } from "@/lib/shared/tenant-admin/onboarding";
 import {
     resolveVerificationSelectedTier,
     type SelfServeTier,
-} from "@/lib/marketing/pricing";
+} from "@/lib/shared/marketing/pricing";
 import {
     getPublicVerificationErrorMessage,
     isExistingRoleAssignmentError,

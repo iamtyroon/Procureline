@@ -2,8 +2,8 @@ import type {
     PlatformAdminAuthStage,
     PlatformAdminRiskLevel,
     PlatformAdminVerificationMethod,
-} from "../platform-admin/auth";
-import { PLATFORM_ADMIN_INACTIVITY_WINDOW_MS } from "../platform-admin/auth";
+} from "../shared/platform-admin/auth";
+import { PLATFORM_ADMIN_INACTIVITY_WINDOW_MS } from "../shared/platform-admin/auth";
 
 export { PLATFORM_ADMIN_INACTIVITY_WINDOW_MS };
 

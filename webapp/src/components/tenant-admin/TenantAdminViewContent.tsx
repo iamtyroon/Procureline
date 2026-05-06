@@ -36,8 +36,8 @@ import type {
     TenantAdminDashboardSnapshot,
     TenantAdminDepartmentUserProfile,
     TenantAdminProcurementOfficerProfile,
-} from "@/lib/tenant-admin/dashboard-snapshot";
-import { formatDashboardTimestamp, formatFiscalYearLabel, type DashboardCycleState } from "@/lib/tenant-admin/dashboard";
+} from "@/lib/shared/tenant-admin/dashboard-snapshot";
+import { formatDashboardTimestamp, formatFiscalYearLabel, type DashboardCycleState } from "@/lib/shared/tenant-admin/dashboard";
 import { cn } from "@/lib/utils";
 import { InstitutionalOverviewView } from "@/src/components/tenant-admin/InstitutionalOverviewView";
 

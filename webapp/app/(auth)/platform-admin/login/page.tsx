@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getSingleSearchParam } from "@/lib/auth/password-reset";
-import { readSignedPlatformAdminRequestContext } from "@/lib/platform-admin/request-context";
+import { readSignedPlatformAdminRequestContext } from "@/lib/backend/platform-admin/request-context";
 import { PlatformAdminLoginForm } from "@/src/components/auth/PlatformAdminLoginForm";
 
 export const metadata: Metadata = {

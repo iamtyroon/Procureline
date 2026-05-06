@@ -1,7 +1,7 @@
 import {
   formatFiscalYearLabel,
   getFiscalYearForDate,
-} from "../tenant-admin/dashboard";
+} from "../shared/tenant-admin/dashboard";
 import {
   buildDeadlineFiscalYearOptions,
   formatDeadlineDate,

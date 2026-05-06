@@ -31,12 +31,12 @@ import {
     PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON,
     resolvePlatformAdminAuthStage,
     type PlatformAdminAuthStage,
-} from "../../lib/platform-admin/auth";
+} from "../../lib/shared/platform-admin/auth";
 import {
     TENANT_ADMIN_ONBOARDING_ROUTE,
     resolveTenantAdminOnboardingStage,
     type TenantAdminOnboardingStage,
-} from "../../lib/tenant-admin/onboarding";
+} from "../../lib/shared/tenant-admin/onboarding";
 import {
     loadCurrentSessionDocuments,
     loadCurrentSessionState,

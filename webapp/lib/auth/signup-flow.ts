@@ -1,4 +1,4 @@
-import type { SelfServeTier } from "../marketing/pricing";
+import type { SelfServeTier } from "../shared/marketing/pricing";
 
 export const PENDING_ORG_NAME_STORAGE_KEY = "pendingOrgName";
 export const PENDING_SELECTED_TIER_STORAGE_KEY = "pendingSelectedTier";

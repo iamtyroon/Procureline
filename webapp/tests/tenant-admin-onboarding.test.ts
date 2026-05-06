@@ -6,21 +6,21 @@ import {
     resendInvitationForBackendTests,
     startVerificationWindowForBackendTests,
     TenantAdminOnboardingBackendError,
-} from "../lib/tenant-admin/onboarding-backend";
+} from "../lib/backend/tenant-admin/onboarding";
 import {
     canAutoResendTenantAdminVerification,
     getTenantAdminInvitationAccessMessage,
     invalidateSupersededInvitationStatuses,
     TENANT_ADMIN_INVITATION_TTL_MS,
     TENANT_ADMIN_VERIFICATION_WINDOW_MS,
-} from "../lib/tenant-admin/invitations";
+} from "../lib/shared/tenant-admin/invitations";
 import {
     buildTenantAdminSignupContinuationHref,
     evaluateTenantAdminOnboardingRouteAccess,
     isTenantAdminOnboardingRoute,
     resolveTenantAdminOnboardingStage,
     TENANT_ADMIN_ONBOARDING_ROUTE,
-} from "../lib/tenant-admin/onboarding";
+} from "../lib/shared/tenant-admin/onboarding";
 
 type TableName =
     | "auditLogs"

@@ -1,4 +1,4 @@
-import type { TenantAdminDashboardSnapshot } from "./dashboard-snapshot";
+import type { TenantAdminDashboardSnapshot } from "../../shared/tenant-admin/dashboard-snapshot";
 
 export const TENANT_ADMIN_DASHBOARD_CACHE_PREFIX =
     "procureline.tenant-admin-dashboard";

@@ -6,14 +6,14 @@ import {
     createPlatformAdminDashboardReadAccessToken,
     resolvePlatformAdminDashboardAccessTokenSecret,
     verifyPlatformAdminDashboardReadAccessToken,
-} from "../lib/platform-admin/dashboard-access-token";
+} from "../lib/backend/platform-admin/dashboard-access-token";
 import {
     filterPlatformAdminAlertsBySeverity,
     getPlatformAdminTimestampPresentation,
     movePlatformAdminWidget,
     normalizePlatformAdminDashboardPreferences,
-} from "../lib/platform-admin/dashboard";
-import { buildPlatformAdminDashboardSnapshot } from "../lib/platform-admin/dashboard-snapshot";
+} from "../lib/shared/platform-admin/dashboard";
+import { buildPlatformAdminDashboardSnapshot } from "../lib/shared/platform-admin/dashboard-snapshot";
 
 export async function runPlatformAdminDashboardTests(): Promise<string[]> {
     const completedTests: string[] = [];

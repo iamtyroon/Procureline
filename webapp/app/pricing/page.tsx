@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { buildPricingRedirectTarget } from "@/lib/marketing/pricing";
+import { buildPricingRedirectTarget } from "@/lib/shared/marketing/pricing";
 
 interface PricingPageProps {
     searchParams: Promise<Record<string, string | string[] | undefined>>;

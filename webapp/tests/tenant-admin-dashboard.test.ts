@@ -5,15 +5,15 @@ import {
     deriveOnboardingChecklist,
     deriveQuickActions,
     getFiscalYearForDate,
-} from "../lib/tenant-admin/dashboard";
+} from "../lib/shared/tenant-admin/dashboard";
 import {
     buildTenantAdminDashboardSnapshot,
     type TenantAdminDashboardSnapshot,
-} from "../lib/tenant-admin/dashboard-snapshot";
+} from "../lib/shared/tenant-admin/dashboard-snapshot";
 import {
     createTenantAdminDashboardCacheKey,
     resolveDashboardSnapshotState,
-} from "../lib/tenant-admin/dashboard-cache";
+} from "../lib/frontend/tenant-admin/dashboard-cache";
 
 function createSnapshotFixture(): TenantAdminDashboardSnapshot {
     return buildTenantAdminDashboardSnapshot({

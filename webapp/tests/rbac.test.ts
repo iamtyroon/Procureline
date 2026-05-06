@@ -9,7 +9,7 @@ import {
     getProtectedRouteRole,
     resolveRoleRecords,
 } from "../lib/auth/roles";
-import { TENANT_ADMIN_ONBOARDING_ROUTE } from "../lib/tenant-admin/onboarding";
+import { TENANT_ADMIN_ONBOARDING_ROUTE } from "../lib/shared/tenant-admin/onboarding";
 
 const ACTIVE_SESSION_CONTEXT = {
     isSessionValid: true,

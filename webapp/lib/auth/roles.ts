@@ -4,11 +4,11 @@ import {
     isPlatformAdminAuthStageVerified,
     PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON,
     type PlatformAdminAuthStage,
-} from "../platform-admin/auth";
+} from "../shared/platform-admin/auth";
 import {
     evaluateTenantAdminOnboardingRouteAccess,
     type TenantAdminOnboardingStage,
-} from "../tenant-admin/onboarding";
+} from "../shared/tenant-admin/onboarding";
 
 export const APP_ROLES = [
     "platform_admin",

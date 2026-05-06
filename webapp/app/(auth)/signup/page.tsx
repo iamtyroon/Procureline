@@ -1,4 +1,4 @@
-import { resolveSelfServeTier } from "@/lib/marketing/pricing";
+import { resolveSelfServeTier } from "@/lib/shared/marketing/pricing";
 import { SignupFlow } from "@/src/components/auth/SignupFlow";
 
 interface SignupPageProps {

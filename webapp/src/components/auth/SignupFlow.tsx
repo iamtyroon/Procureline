@@ -10,7 +10,7 @@ import {
     type SignupMode,
     type SignupStep,
 } from "@/lib/auth/signup-flow";
-import type { SelfServeTier } from "@/lib/marketing/pricing";
+import type { SelfServeTier } from "@/lib/shared/marketing/pricing";
 import { api } from "@/convex/_generated/api";
 import {
     Card,

@@ -38,13 +38,13 @@ import {
 } from "@/components/ui/tooltip";
 import {
     formatDashboardTimestamp,
-} from "@/lib/tenant-admin/dashboard";
+} from "@/lib/shared/tenant-admin/dashboard";
 import {
     readTenantAdminDashboardCache,
     resolveDashboardSnapshotState,
     writeTenantAdminDashboardCache,
     type TenantAdminDashboardCacheEnvelope,
-} from "@/lib/tenant-admin/dashboard-cache";
+} from "@/lib/frontend/tenant-admin/dashboard-cache";
 import {
     renderTenantAdminView,
     TENANT_ADMIN_VIEW_META,

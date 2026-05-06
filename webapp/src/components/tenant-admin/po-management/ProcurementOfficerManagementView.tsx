@@ -45,7 +45,7 @@ import { Input } from "@/components/ui/input";
 import type {
     TenantAdminDashboardSnapshot,
     TenantAdminProcurementOfficerDirectoryEntry,
-} from "@/lib/tenant-admin/dashboard-snapshot";
+} from "@/lib/shared/tenant-admin/dashboard-snapshot";
 import {
     procurementOfficerInviteSchema,
     type ProcurementOfficerInviteFormData,

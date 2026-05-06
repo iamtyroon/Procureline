@@ -22,7 +22,7 @@ import {
   filterInstitutionalOverviewRows,
   summarizeInstitutionalOverview,
   type TenantAdminInstitutionalOverview,
-} from "../../lib/tenant-admin/institutional-visibility";
+} from "../../lib/shared/tenant-admin/institutional-visibility";
 
 interface CatalogBrowseResult {
   meta: {

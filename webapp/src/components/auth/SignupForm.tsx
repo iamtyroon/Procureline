@@ -24,7 +24,7 @@ import {
 import {
     resolveVerificationSelectedTier,
     type SelfServeTier,
-} from "@/lib/marketing/pricing";
+} from "@/lib/shared/marketing/pricing";
 import { normalizeAuthEmail, normalizePlainText } from "@/lib/security/input";
 import {
     organizationSetupSchema,

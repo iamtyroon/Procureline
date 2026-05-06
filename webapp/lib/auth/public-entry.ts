@@ -3,10 +3,10 @@ import {
     isSelfServeTier,
     resolveSelfServeTier,
     type SelfServeTier,
-} from "../marketing/pricing";
+} from "../shared/marketing/pricing";
 import { SESSION_EXPIRED_REDIRECT_PATH } from "./proxy";
 import type { AuthContextSnapshot } from "./roles";
-import { isPlatformAdminAuthStageVerified } from "../platform-admin/auth";
+import { isPlatformAdminAuthStageVerified } from "../shared/platform-admin/auth";
 
 export const AUTH_ENTRY_ROUTE = "/access";
 export const PROCUREMENT_OFFICER_ACCESS_ROUTE = "/access/procurement-officer";

@@ -6,7 +6,7 @@ import {
     evaluateRoleRouteAccess,
     type AuthContextSnapshot,
 } from "@/lib/auth/roles";
-import { isTenantAdminOnboardingRoute } from "@/lib/tenant-admin/onboarding";
+import { isTenantAdminOnboardingRoute } from "@/lib/shared/tenant-admin/onboarding";
 
 interface RoleGuardProps {
     authContext: AuthContextSnapshot;

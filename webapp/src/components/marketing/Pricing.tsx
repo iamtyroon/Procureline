@@ -17,7 +17,7 @@ import {
     type PricingCurrency,
     type PublicPricingDisplayTier,
     type TierLimitValue,
-} from "@/lib/marketing/pricing";
+} from "@/lib/shared/marketing/pricing";
 import {
     contactSalesSchema,
     type ContactSalesFormData,
