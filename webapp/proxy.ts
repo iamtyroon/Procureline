@@ -2,22 +2,22 @@ import {
   convexAuthNextjsMiddleware,
   createRouteMatcher,
 } from "@convex-dev/auth/nextjs/server";
-import { PUBLIC_ROUTES } from "@/lib/auth/public-routes";
+import { PUBLIC_ROUTES } from "@/lib/shared/auth/public-routes";
 import {
   PROTECTED_ROUTE_CACHE_HEADERS,
   PROTECTED_ROUTE_SECURITY_HEADERS,
   SESSION_EXPIRED_REDIRECT_PATH,
-} from "@/lib/auth/proxy";
+} from "@/lib/backend/auth/proxy";
 import {
   SecurityAuditProxyConfigurationError,
   resolveSecurityAuditProxyToken,
-} from "@/lib/security/bridge";
+} from "@/lib/backend/security/bridge";
 import {
   AllowedOriginsConfigurationError,
   evaluateOriginPolicy,
   resolveAllowedOrigins,
-} from "@/lib/security/origins";
-import { SECURITY_PROXY_AUDIT_ROUTE } from "@/lib/security/policy";
+} from "@/lib/backend/security/origins";
+import { SECURITY_PROXY_AUDIT_ROUTE } from "@/lib/backend/security/policy";
 import { NextResponse } from "next/server";
 
 const isPublicRoute = createRouteMatcher([...PUBLIC_ROUTES]);

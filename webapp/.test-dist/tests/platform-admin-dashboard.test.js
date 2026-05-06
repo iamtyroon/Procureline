@@ -7,10 +7,10 @@ exports.runPlatformAdminDashboardTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_fs_1 = require("node:fs");
 const node_path_1 = require("node:path");
-const roles_1 = require("../lib/auth/roles");
-const dashboard_access_token_1 = require("../lib/platform-admin/dashboard-access-token");
-const dashboard_1 = require("../lib/platform-admin/dashboard");
-const dashboard_snapshot_1 = require("../lib/platform-admin/dashboard-snapshot");
+const roles_1 = require("../lib/shared/auth/roles");
+const dashboard_access_token_1 = require("../lib/backend/platform-admin/dashboard-access-token");
+const dashboard_1 = require("../lib/shared/platform-admin/dashboard");
+const dashboard_snapshot_1 = require("../lib/shared/platform-admin/dashboard-snapshot");
 async function runPlatformAdminDashboardTests() {
     const completedTests = [];
     const timestampPresentation = (0, dashboard_1.getPlatformAdminTimestampPresentation)({

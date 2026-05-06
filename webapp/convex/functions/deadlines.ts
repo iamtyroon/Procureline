@@ -12,7 +12,7 @@ import {
 import {
     AUDIT_OUTCOMES,
     createAuthenticatedAuditActor,
-} from "../../lib/security/audit";
+} from "../../lib/shared/security/audit";
 import {
     classifySubmissionDeadlineChange,
     DEADLINE_IN_PAST_MESSAGE,

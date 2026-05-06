@@ -7,7 +7,7 @@ import {
     resolveTenantRecordAccess,
     sanitizeTenantOwnedRecordsForActor,
     TENANT_ISOLATION_EVENT_NAMES,
-} from "../lib/auth/tenant-isolation";
+} from "../lib/backend/auth/tenant-isolation";
 
 const BASE_ACTOR = {
     actorRole: "tenant_admin" as const,

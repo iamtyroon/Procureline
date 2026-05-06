@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { getProtectedRouteRole } from "../lib/auth/roles";
+import { getProtectedRouteRole } from "../lib/shared/auth/roles";
 import {
     buildDepartmentBudgetChangeAnnouncement,
     createCategorySelectionState,

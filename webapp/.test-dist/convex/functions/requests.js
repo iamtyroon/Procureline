@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.undoCatalogRequestDenial = exports.bulkDenyCatalogRequests = exports.bulkApproveCatalogRequests = exports.bulkDenyCatalogRequestsInternal = exports.bulkApproveCatalogRequestsInternal = exports.denyCatalogRequest = exports.approveItemRequest = exports.approveCategoryRequest = exports.applyDenialUndo = exports.prepareDenialUndo = exports.markDecisionNotificationFailed = exports.markDecisionNotificationQueued = exports.denyCatalogRequestInternal = exports.approveItemRequestInternal = exports.approveCategoryRequestInternal = exports.getRequestorEmail = exports.getProcurementOfficerCatalogRequests = void 0;
 const values_1 = require("convex/values");
 const server_1 = require("../_generated/server");
-const audit_1 = require("../../lib/security/audit");
+const audit_1 = require("../../lib/shared/security/audit");
 const catalog_requests_1 = require("../../lib/procurement/catalog-requests");
 const categories_1 = require("../../lib/procurement-officer/categories");
 const items_1 = require("../../lib/procurement-officer/items");

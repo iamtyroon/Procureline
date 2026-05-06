@@ -6,7 +6,7 @@ const random_1 = require("@oslojs/crypto/random");
 const values_1 = require("convex/values");
 const api_1 = require("../_generated/api");
 const server_1 = require("../_generated/server");
-const password_reset_1 = require("../../lib/auth/password-reset");
+const password_reset_1 = require("../../lib/shared/auth/password-reset");
 function randomReader() {
     return {
         read(bytes) {

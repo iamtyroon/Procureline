@@ -3,14 +3,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.withdrawDepartmentUserPlanSubmission = exports.submitDepartmentUserPlan = exports.saveDepartmentUserWorkspaceDraft = exports.getDepartmentUserPlanWorkspace = exports.ensureDepartmentUserDraftPlan = exports.getDepartmentUserNewPlanWorkspaceContext = exports.loadTenantCatalog = exports.mapDepartmentDepartmentRecord = exports.planWorkspaceContextValidator = exports.workspaceDepartmentValidator = exports.workspaceCategoryValidator = exports.workspaceItemValidator = exports.workspaceCategorySummaryValidator = exports.workspaceRecordValidator = void 0;
 const values_1 = require("convex/values");
 const server_1 = require("../_generated/server");
-const blockly_serialization_1 = require("../../lib/blockly/blockly-serialization");
-const plan_submission_1 = require("../../lib/blockly/plan-submission");
+const blockly_serialization_1 = require("../../lib/shared/blockly/blockly-serialization");
+const plan_submission_1 = require("../../lib/shared/blockly/plan-submission");
 const revision_feedback_1 = require("../../lib/department-user/revision-feedback");
 const categories_1 = require("../../lib/procurement-officer/categories");
-const workspace_save_1 = require("../../lib/blockly/workspace-save");
-const du_plan_routes_1 = require("../../lib/blockly/du-plan-routes");
-const du_toolbox_1 = require("../../lib/blockly/du-toolbox");
-const audit_1 = require("../../lib/security/audit");
+const workspace_save_1 = require("../../lib/shared/blockly/workspace-save");
+const du_plan_rules_1 = require("../../lib/shared/blockly/du-plan-rules");
+const du_toolbox_selection_1 = require("../../lib/shared/blockly/du-toolbox-selection");
+const audit_1 = require("../../lib/shared/security/audit");
 const submission_1 = require("../../lib/plans/submission");
 const pre_submission_validation_1 = require("../../lib/plans/pre-submission-validation");
 const revision_deadline_1 = require("../../lib/plans/revision-deadline");
@@ -352,13 +352,14 @@ async function loadDepartmentUserRevisionContext(ctx, args) {
     const requiresAuthoritativeDecision = args.plan.status === "rejected";
     const activeDuVisibleDecisions = activeDecisions.filter((decision) => decision.decisionType === "rejected" ||
         decision.decisionType === "revision_requested");
+    let inconsistentStateAuditEntry = null;
     let inconsistentStateMessage = null;
     if (requiresAuthoritativeDecision && activeDuVisibleDecisions.length !== 1) {
         inconsistentStateMessage =
             activeDuVisibleDecisions.length === 0
                 ? "Revision feedback is temporarily unavailable because the active Procurement decision could not be confirmed."
                 : "Revision feedback is temporarily unavailable because multiple active Procurement decisions were found for this plan.";
-        await (0, _audit_1.appendAuditLogBestEffort)(ctx, buildDepartmentUserRevisionAuditEntry({
+        inconsistentStateAuditEntry = buildDepartmentUserRevisionAuditEntry({
             actorUserId: args.actorUserId,
             departmentId: args.departmentId,
             metadata: {
@@ -371,7 +372,7 @@ async function loadDepartmentUserRevisionContext(ctx, args) {
             outcome: audit_1.AUDIT_OUTCOMES.blockedStateTransition,
             planId: args.plan._id,
             tenantId: args.tenantId,
-        }));
+        });
     }
     const activeDecision = inconsistentStateMessage === null
         ? activeDuVisibleDecisions
@@ -403,6 +404,7 @@ async function loadDepartmentUserRevisionContext(ctx, args) {
             })),
             timeZone: args.timeZone,
         }),
+        inconsistentStateAuditEntry,
         inconsistentStateMessage,
         reviewDecisions: reviewDecisions.sort((left, right) => right.decidedAt - left.decidedAt),
     };
@@ -505,7 +507,7 @@ exports.getDepartmentUserNewPlanWorkspaceContext = (0, server_1.query)({
             });
         }
         const catalog = await loadTenantCatalog(ctx, base.authContext.tenantId);
-        const sanitizedSelection = (0, du_toolbox_1.sanitizeDepartmentUserWorkspaceCategorySelection)({
+        const sanitizedSelection = (0, du_toolbox_selection_1.sanitizeDepartmentUserWorkspaceCategorySelection)({
             categories: catalog.categories,
             items: catalog.items,
             requestedCategoryIds: args.categoryIds,
@@ -533,7 +535,7 @@ exports.getDepartmentUserNewPlanWorkspaceContext = (0, server_1.query)({
         const canonicalPlans = await loadCanonicalDepartmentPlans(ctx, base.department._id);
         const existingPlan = canonicalPlans.find((plan) => plan.fiscalYear === args.fiscalYear);
         if (existingPlan) {
-            const workspaceMode = (0, du_plan_routes_1.resolveDepartmentUserWorkspaceMode)({
+            const workspaceMode = (0, du_plan_rules_1.resolveDepartmentUserWorkspaceMode)({
                 accessMode: base.authContext.departmentAccessMode,
                 requestedMode: existingPlan.status === "draft" || existingPlan.status === "rejected"
                     ? "edit"
@@ -605,7 +607,7 @@ exports.ensureDepartmentUserDraftPlan = (0, server_1.mutation)({
             .query("procurementCategories")
             .withIndex("by_tenantId", (q) => q.eq("tenantId", base.authContext.tenantId))
             .collect();
-        const sanitizedSelection = (0, du_toolbox_1.sanitizeDepartmentUserWorkspaceCategorySelection)({
+        const sanitizedSelection = (0, du_toolbox_selection_1.sanitizeDepartmentUserWorkspaceCategorySelection)({
             categories: catalog.categories,
             items: catalog.items,
             requestedCategoryIds: args.categoryIds,
@@ -701,7 +703,7 @@ exports.getDepartmentUserPlanWorkspace = (0, server_1.query)({
                 statusMessage: "The requested plan could not be found for this department.",
             };
         }
-        const sanitizedSelection = (0, du_toolbox_1.sanitizeDepartmentUserWorkspaceCategorySelection)({
+        const sanitizedSelection = (0, du_toolbox_selection_1.sanitizeDepartmentUserWorkspaceCategorySelection)({
             categories: catalog.categories,
             items: catalog.items,
             requestedCategoryIds: plan.selectedCategoryIds.map((categoryId) => String(categoryId)),
@@ -755,7 +757,7 @@ exports.getDepartmentUserPlanWorkspace = (0, server_1.query)({
                 statusMessage: revisionContext.inconsistentStateMessage,
             };
         }
-        const mode = (0, du_plan_routes_1.resolveDepartmentUserWorkspaceMode)({
+        const mode = (0, du_plan_rules_1.resolveDepartmentUserWorkspaceMode)({
             accessMode: base.authContext.departmentAccessMode,
             requestedMode: plan.status === "rejected" && revisionContext.effectiveDeadlineExpired
                 ? "view"
@@ -867,6 +869,9 @@ exports.saveDepartmentUserWorkspaceDraft = (0, server_1.mutation)({
             });
             if (revisionContext.inconsistentStateMessage ||
                 revisionContext.effectiveDeadlineExpired) {
+                if (revisionContext.inconsistentStateAuditEntry) {
+                    await (0, _audit_1.appendAuditLogBestEffort)(ctx, revisionContext.inconsistentStateAuditEntry);
+                }
                 throw new values_1.ConvexError({
                     code: "VALIDATION_FAILED",
                     message: revisionContext.inconsistentStateMessage ??
@@ -952,7 +957,7 @@ exports.submitDepartmentUserPlan = (0, server_1.mutation)({
                 submittedAt: plan.submittedAt,
             };
         }
-        if (!(0, du_plan_routes_1.canDepartmentUserEditWorkspace)({
+        if (!(0, du_plan_rules_1.canDepartmentUserEditWorkspace)({
             accessMode: base.authContext.departmentAccessMode,
             status: plan.status,
         })) {
@@ -992,6 +997,9 @@ exports.submitDepartmentUserPlan = (0, server_1.mutation)({
                 timeZone: tenant?.timeZone ?? "Africa/Nairobi",
             })
             : null;
+        if (revisionContext?.inconsistentStateAuditEntry) {
+            await (0, _audit_1.appendAuditLogBestEffort)(ctx, revisionContext.inconsistentStateAuditEntry);
+        }
         if (plan.status !== "draft" && plan.status !== "rejected") {
             await (0, _audit_1.appendAuditLogRequired)(ctx, buildDepartmentUserPlanAuditEntry({
                 action: "submit",

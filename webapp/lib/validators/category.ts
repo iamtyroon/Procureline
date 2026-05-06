@@ -9,7 +9,7 @@ import {
     normalizeCategoryIcon,
     normalizeCategoryName,
 } from "../procurement-officer/categories";
-import { normalizePlainText } from "../security/input";
+import { normalizePlainText } from "../shared/security/input";
 
 export const categoryFormSchema = z
     .object({

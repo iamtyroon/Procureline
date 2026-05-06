@@ -7,9 +7,10 @@ const dashboard_1 = require("../../lib/procurement-officer/dashboard");
 const access_codes_1 = require("../../lib/procurement-officer/access-codes");
 const submission_monitoring_1 = require("../../lib/procurement-officer/submission-monitoring");
 const submissions_1 = require("../../lib/procurement-officer/submissions");
+const revision_deadline_1 = require("../../lib/plans/revision-deadline");
 const _roleGuard_1 = require("./_roleGuard");
 const _helpers_1 = require("../actions/_helpers");
-const audit_1 = require("../../lib/security/audit");
+const audit_1 = require("../../lib/shared/security/audit");
 const reviewTargetStateValidator = values_1.v.union(values_1.v.literal("ready"), values_1.v.literal("redirect"));
 const submissionReviewTargetValidator = values_1.v.object({
     message: values_1.v.union(values_1.v.string(), values_1.v.null()),
@@ -151,6 +152,13 @@ exports.getProcurementOfficerSubmissionQueue = (0, server_1.query)({
         };
     },
 });
+function resolveDepartmentEffectiveSubmissionDeadlineAt(args) {
+    if (typeof args.departmentSubmissionEndsAt === "number" &&
+        typeof args.sharedSubmissionEndsAt === "number") {
+        return Math.max(args.departmentSubmissionEndsAt, args.sharedSubmissionEndsAt);
+    }
+    return args.sharedSubmissionEndsAt ?? args.departmentSubmissionEndsAt ?? null;
+}
 exports.getProcurementOfficerSubmissionMonitoringWorkspace = (0, server_1.query)({
     args: {
         selectedFiscalYear: values_1.v.optional(values_1.v.string()),
@@ -233,6 +241,7 @@ exports.getProcurementOfficerSubmissionMonitoringWorkspace = (0, server_1.query)
             timeZone: tenant.timeZone,
         }) === selectedFiscalYear);
         const scopedDepartments = departmentsInScope.length > 0 ? departmentsInScope : activeDepartments;
+        const departmentById = new Map(scopedDepartments.map((department) => [String(department._id), department]));
         const sharedDeadline = (0, dashboard_1.deriveSharedSubmissionDeadline)({
             deadlineRecord: submissionDeadlines.find((deadline) => deadline.fiscalYearKey === selectedFiscalYear) ?? null,
             departments: scopedDepartments.map((department) => ({
@@ -301,6 +310,22 @@ exports.getProcurementOfficerSubmissionMonitoringWorkspace = (0, server_1.query)
         for (const plan of plans) {
             const key = String(plan.departmentId);
             const existing = plansByDepartmentId.get(key) ?? [];
+            const submissionDeadlineAt = resolveDepartmentEffectiveSubmissionDeadlineAt({
+                departmentSubmissionEndsAt: departmentById.get(key)?.submissionEndsAt,
+                sharedSubmissionEndsAt: sharedDeadline.deadlineAt,
+            });
+            const mapReviewDecision = (decision) => ({
+                comment: decision.comment,
+                decidedAt: decision.decidedAt,
+                decisionType: decision.decisionType,
+                effectiveRevisionDeadlineAt: (0, revision_deadline_1.deriveDepartmentUserEffectiveRevisionDeadline)({
+                    decidedAt: decision.decidedAt,
+                    decisionType: decision.decisionType,
+                    revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
+                    submissionDeadlineAt,
+                }).effectiveDeadlineAt,
+                revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
+            });
             existing.push({
                 ...plan,
                 departmentId: key,
@@ -310,22 +335,12 @@ exports.getProcurementOfficerSubmissionMonitoringWorkspace = (0, server_1.query)
                     if (!decision) {
                         return null;
                     }
-                    return {
-                        comment: decision.comment,
-                        decidedAt: decision.decidedAt,
-                        decisionType: decision.decisionType,
-                        effectiveRevisionDeadlineAt: decision.effectiveRevisionDeadlineAt ?? null,
-                        revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
-                    };
+                    return mapReviewDecision(decision);
                 })(),
                 reviewDecisions: (decisionsByPlanId.get(String(plan._id)) ?? []).map((decision) => ({
-                    comment: decision.comment,
-                    decidedAt: decision.decidedAt,
-                    decisionType: decision.decisionType,
-                    effectiveRevisionDeadlineAt: decision.effectiveRevisionDeadlineAt ?? null,
+                    ...mapReviewDecision(decision),
                     id: String(decision._id),
                     lifecycleStatus: decision.lifecycleStatus,
-                    revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
                 })),
                 submissionSnapshots: (snapshotsByPlanId.get(String(plan._id)) ?? []).map((snapshot) => ({
                     capturedAt: snapshot.capturedAt,

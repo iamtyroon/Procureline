@@ -19,7 +19,7 @@ import {
 } from "../_generated/server";
 import {
     PROCUREMENT_OFFICER_ACCESS_ROUTE,
-} from "../../lib/auth/public-entry";
+} from "../../lib/shared/auth/public-entry";
 import {
     AUDIT_EVENT_NAMES,
     AUDIT_OUTCOMES,
@@ -27,13 +27,13 @@ import {
     createAuthenticatedAuditActor,
     serializeAuditEvent,
     type AuditEventEntry,
-} from "../../lib/security/audit";
+} from "../../lib/shared/security/audit";
 import {
     normalizeAuthEmail,
     normalizePlainText,
     validateEmailInput,
     validatePlainTextInput,
-} from "../../lib/security/input";
+} from "../../lib/shared/security/input";
 import {
     canReuseAcceptedProcurementOfficerInvitation,
     PROCUREMENT_OFFICER_AUTH_CHALLENGE_WINDOW_MS,

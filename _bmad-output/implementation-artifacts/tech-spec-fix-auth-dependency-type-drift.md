@@ -2,7 +2,7 @@
 title: 'Fix Auth Dependency Type Drift'
 slug: 'fix-auth-dependency-type-drift'
 created: '2026-04-28'
-status: 'ready-for-dev'
+status: 'Implementation Complete'
 stepsCompleted: [1, 2, 3, 4]
 tech_stack:
   - '@auth/core'
@@ -83,37 +83,52 @@ Normalize the auth dependency graph so the installed versions of `@auth/core`, `
 
 ### Tasks
 
-- [ ] Task 1: Inventory the resolved auth dependency graph.
+- [x] Task 1: Inventory the resolved auth dependency graph.
   - File: `webapp/package-lock.json`
   - Action: Identify the installed versions of `@auth/core`, `@convex-dev/auth`, and any related packages implicated by the current errors.
   - Notes: Capture which packages require missing exports or missing peer/type packages.
 
-- [ ] Task 2: Determine the supported package set for the repo's auth usage.
+- [x] Task 2: Determine the supported package set for the repo's auth usage.
   - File: `webapp/package.json`
   - Action: Choose a compatible set of versions for `@auth/core`, `@convex-dev/auth`, and required auxiliary packages.
   - Notes: Avoid mixing versions that expect different `@auth/core` declaration shapes.
 
-- [ ] Task 3: Update dependencies and lockfile.
+- [x] Task 3: Update dependencies and lockfile.
   - File: `webapp/package.json`
   - Action: Add, remove, or pin auth-related dependencies and refresh `package-lock.json`.
   - Notes: Include any missing peer/type packages such as mailer or WebAuthn dependencies only if the resolved packages require them for type-checking.
 
-- [ ] Task 4: Validate representative auth entry points.
+- [x] Task 4: Validate representative auth entry points.
   - File: `webapp/convex/auth.ts`
   - Action: Confirm the main Convex auth setup compiles against the updated dependency set.
   - Notes: Repeat spot checks in `convex/functions/sessions.ts`, `convex/ResendOTP.ts`, and `convex/ResendPasswordReset.ts`.
 
-- [ ] Task 5: Apply only necessary source adjustments after dependency alignment.
+- [x] Task 5: Apply only necessary source adjustments after dependency alignment.
   - File: `webapp/convex/functions/sessions.ts`
   - Action: Update imports or types if the chosen supported package set requires minor code changes.
   - Notes: Do not refactor behavior unless the dependency/API change makes it necessary.
 
 ### Acceptance Criteria
 
-- [ ] AC 1: Given the updated auth dependency graph, when TypeScript checks auth-related source, then missing-export errors from `@auth/core` no longer occur.
-- [ ] AC 2: Given the installed auth packages, when TypeScript resolves their declarations, then missing module errors for required auth peer/type packages are eliminated.
-- [ ] AC 3: Given representative auth files such as `convex/auth.ts` and `convex/functions/sessions.ts`, when TypeScript checks them, then remaining errors are limited to unrelated repo issues rather than auth dependency drift.
-- [ ] AC 4: Given the updated `package.json` and `package-lock.json`, when another developer installs dependencies and runs the same compile commands, then they reproduce the stabilized auth type environment without manual patching.
+- [x] AC 1: Given the updated auth dependency graph, when TypeScript checks auth-related source, then missing-export errors from `@auth/core` no longer occur.
+- [x] AC 2: Given the installed auth packages, when TypeScript resolves their declarations, then missing module errors for required auth peer/type packages are eliminated.
+- [x] AC 3: Given representative auth files such as `convex/auth.ts` and `convex/functions/sessions.ts`, when TypeScript checks them, then remaining errors are limited to unrelated repo issues rather than auth dependency drift.
+- [x] AC 4: Given the updated `package.json` and `package-lock.json`, when another developer installs dependencies and runs the same compile commands, then they reproduce the stabilized auth type environment without manual patching.
+
+## Implementation Notes
+
+- Resolved auth graph after update: `@convex-dev/auth@0.0.92`, `@auth/core@0.37.4`, `convex@1.31.7`, `nodemailer@6.10.1`, and `@types/nodemailer@6.4.17`.
+- Added `patch-package` with source-aligned declaration patches for the known upstream `@auth/core@0.37.4` and `@convex-dev/auth@0.0.92` missing-export defects so installs automatically reproduce the stabilized auth type environment. The `@auth/core` patch also avoids installing unused optional WebAuthn peer packages solely for declaration resolution.
+- `npx tsc --noEmit --pretty false` no longer reports auth dependency drift; remaining failures are unrelated existing app-level errors in `convex/functions/plans.ts` and `convex/functions/procurementOfficerSubmissions.ts`.
+- `npx tsc --noEmit --pretty false --skipLibCheck false` no longer reports auth package errors; remaining strict declaration failures are unrelated React/Next library type drift plus the same app-level Convex errors.
+
+## Review Notes
+
+- Adversarial review completed.
+- Findings: 10 total, 8 fixed, 2 acknowledged as outside this auth dependency drift scope.
+- Resolution approach: auto-fix.
+- Fixed: `patch-package` moved to production dependencies for reliable `postinstall`; `@types/nodemailer` moved to dev dependencies; unused WebAuthn optional peer packages were removed; the deprecated `@simplewebauthn/types@9.0.1` transitive package was removed; `@auth/core` patch now uses source-aligned `RequestInternal`, `InternalOptions`, `EndpointHandler`, and `OAuthConfigInternal` declarations; `@convex-dev/auth` patch now uses its source-aligned `FunctionReferenceFromExport` helper type; implementation notes now describe automatic patching instead of manual patching.
+- Acknowledged: lockfile churn from dependency alignment and `patch-package` is expected; `npm test` was attempted but remains blocked by existing module-mode and Convex generated schema/index errors outside this spec.
 
 ## Additional Context
 

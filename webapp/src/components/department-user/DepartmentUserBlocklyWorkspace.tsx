@@ -16,7 +16,7 @@ import {
     getDepartmentUserWorkspaceAccessRefreshKey,
     getDepartmentUserMissingLaunchContextMessage,
     parseDepartmentUserLaunchContext,
-} from "@/lib/blockly/du-plan-routes";
+} from "@/lib/frontend/blockly/du-plan-routes";
 
 export function DepartmentUserBlocklyWorkspace({
     routeMode,

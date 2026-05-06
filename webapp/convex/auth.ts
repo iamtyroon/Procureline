@@ -3,25 +3,25 @@ import { ConvexCredentials } from "@convex-dev/auth/providers/ConvexCredentials"
 import { Password } from "@convex-dev/auth/providers/Password";
 import type { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
-import { REMEMBER_ME_SESSION_WINDOW_MS } from "../lib/auth/session";
+import { REMEMBER_ME_SESSION_WINDOW_MS } from "../lib/shared/auth/session";
 import {
   DEPARTMENT_USER_AUTH_PROVIDER,
   DEPARTMENT_USER_AUTH_START_FLOW,
   DEPARTMENT_USER_AUTH_VERIFY_FLOW,
-} from "../lib/auth/department-user-access";
+} from "../lib/shared/auth/department-user-access";
 import {
   PROCUREMENT_OFFICER_AUTH_PROVIDER,
   PROCUREMENT_OFFICER_AUTH_START_FLOW,
   PROCUREMENT_OFFICER_AUTH_VERIFY_FLOW,
 } from "../lib/procurement-officer/invitations";
-import { buildSecurityInputRejectedEvent } from "../lib/security/audit";
+import { buildSecurityInputRejectedEvent } from "../lib/shared/security/audit";
 import {
   PASSWORD_MIN_LENGTH,
   PASSWORD_PATTERNS,
   validateEmailInput,
   validateOneTimeCodeInput,
   validatePasswordLength,
-} from "../lib/security/input";
+} from "../lib/shared/security/input";
 import { ResendOTP } from "./ResendOTP";
 import { ResendPasswordReset } from "./ResendPasswordReset";
 import {

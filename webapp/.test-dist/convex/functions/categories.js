@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.importCategories = exports.reorderCategories = exports.deleteCategory = exports.archiveCategory = exports.updateCategory = exports.createCategory = exports.getCategoriesWorkspace = void 0;
 const values_1 = require("convex/values");
 const server_1 = require("../_generated/server");
-const audit_1 = require("../../lib/security/audit");
+const audit_1 = require("../../lib/shared/security/audit");
 const categories_1 = require("../../lib/procurement-officer/categories");
 const items_1 = require("../../lib/procurement-officer/items");
 const category_1 = require("../../lib/validators/category");

@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runSignupFlowTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const signup_flow_1 = require("../lib/auth/signup-flow");
+const signup_flow_1 = require("../lib/shared/auth/signup-flow");
 function runSignupFlowTests() {
     const completedTests = [];
     strict_1.default.deepEqual((0, signup_flow_1.createPendingSignupState)({

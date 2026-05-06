@@ -13,7 +13,7 @@ import {
     getDepartmentUserAccessCodeSuffix,
     hashDepartmentUserAccessCode,
     normalizeDepartmentUserAccessCode,
-} from "../../lib/auth/department-user-access";
+} from "../../lib/shared/auth/department-user-access";
 import {
     ACCESS_CODE_DEACTIVATED_MESSAGE,
     ACCESS_CODE_DELIVERY_GENERIC_ERROR_MESSAGE,
@@ -40,9 +40,9 @@ import {
     AUDIT_OUTCOMES,
     createAuthenticatedAuditActor,
     type AuditEventName,
-} from "../../lib/security/audit";
+} from "../../lib/shared/security/audit";
 import { resolveEmailTransportMode } from "../../lib/email/transport";
-import { normalizeAuthEmail, validateEmailInput } from "../../lib/security/input";
+import { normalizeAuthEmail, validateEmailInput } from "../../lib/shared/security/input";
 import { appendAuditLogRequired } from "./_audit";
 import { requireTenantRole } from "./_roleGuard";
 import { getCurrentTenantUserMembership } from "./_tenantGuard";

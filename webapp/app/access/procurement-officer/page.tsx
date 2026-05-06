@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { buildPublicEntrySelectionHref } from "@/lib/auth/public-entry";
+import { buildPublicEntrySelectionHref } from "@/lib/shared/auth/public-entry";
 import { PublicAccessGate } from "@/src/components/auth/PublicAccessGate";
 import { ProcurementOfficerAccessForm } from "@/src/components/auth/ProcurementOfficerAccessForm";
 import { resolveProcurementOfficerHandoff } from "@/lib/procurement-officer/invitations";

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getSingleSearchParam } from "@/lib/auth/password-reset";
+import { getSingleSearchParam } from "@/lib/shared/auth/password-reset";
 import {
     buildProcurementOfficerAccessHref,
     resolvePublicEntryState,
     type PublicEntrySearchParams,
-} from "@/lib/auth/public-entry";
+} from "@/lib/shared/auth/public-entry";
 import { LoginForm } from "@/src/components/auth/LoginForm";
 
 export const metadata: Metadata = {

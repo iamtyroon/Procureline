@@ -1,0 +1,14 @@
+diff --git a/node_modules/@convex-dev/auth/dist/server/convex_types.d.ts b/node_modules/@convex-dev/auth/dist/server/convex_types.d.ts
+index f085de5..2031139 100644
+--- a/node_modules/@convex-dev/auth/dist/server/convex_types.d.ts
++++ b/node_modules/@convex-dev/auth/dist/server/convex_types.d.ts
+@@ -1,5 +1,8 @@
+-import { DocumentByName, GenericDataModel, TableNamesInDataModel } from "convex/server";
++import { DocumentByName, FunctionReference, GenericDataModel, RegisteredAction, RegisteredMutation, RegisteredQuery, TableNamesInDataModel } from "convex/server";
+ import { GenericId } from "convex/values";
++export type FunctionReferenceFromExport<Export> = Export extends RegisteredQuery<infer Visibility, infer Args, infer Output> ? FunctionReference<"query", Visibility, Args, ConvertReturnType<Output>> : Export extends RegisteredMutation<infer Visibility, infer Args, infer Output> ? FunctionReference<"mutation", Visibility, Args, ConvertReturnType<Output>> : Export extends RegisteredAction<infer Visibility, infer Args, infer Output> ? FunctionReference<"action", Visibility, Args, ConvertReturnType<Output>> : never;
++type ConvertReturnType<T> = UndefinedToNull<Awaited<T>>;
++type UndefinedToNull<T> = T extends void ? null : T;
+ /**
+  * Convex document from a given table.
+  */

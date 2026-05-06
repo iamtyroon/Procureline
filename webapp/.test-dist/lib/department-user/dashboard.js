@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildDepartmentDeadlineAnnouncement = exports.buildDepartmentBudgetChangeAnnouncement = exports.formatDepartmentUserCount = exports.formatDepartmentUserCurrency = exports.deriveLaunchpadInteractivity = exports.deriveLaunchpadState = exports.deriveDeadlinePresentation = exports.derivePlanAction = exports.isDepartmentUserEditablePlanStatus = exports.normalizeDepartmentUserPlanStatus = exports.sanitizeCategorySelection = exports.selectAllCategories = exports.toggleCategorySelection = exports.createCategorySelectionState = exports.formatDepartmentUserFiscalYearLabel = exports.getDepartmentUserFiscalYearForDate = void 0;
-const department_user_access_1 = require("../auth/department-user-access");
+const department_user_access_1 = require("../shared/auth/department-user-access");
 const deadlines_1 = require("../procurement-officer/deadlines");
 const DAY_MS = 24 * 60 * 60 * 1000;
 function getDepartmentUserFiscalYearForDate(timestamp, args) {

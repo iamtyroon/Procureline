@@ -13,8 +13,8 @@ import {
     isDepartmentUserOtpProviderFailureMessage,
     normalizeDepartmentUserAccessCode,
     scrubDepartmentUserAccessCodeFromUrl,
-} from "../lib/auth/department-user-access";
-import { validateDepartmentUserAccessCodeInput } from "../lib/security/input";
+} from "../lib/shared/auth/department-user-access";
+import { validateDepartmentUserAccessCodeInput } from "../lib/shared/security/input";
 
 const NOW = new Date("2026-03-13T10:00:00.000Z").getTime();
 

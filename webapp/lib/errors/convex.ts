@@ -9,7 +9,7 @@ import {
     INVALID_ACCESS_CODE_MESSAGE,
     SUBSCRIPTION_INACTIVE_MESSAGE,
     isDepartmentUserOtpProviderFailureMessage,
-} from "../auth/department-user-access";
+} from "../shared/auth/department-user-access";
 import {
     PROCUREMENT_OFFICER_BOUNCED_MESSAGE,
     PROCUREMENT_OFFICER_DUPLICATE_MEMBERSHIP_MESSAGE,

@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.resetPasswordSchema = exports.forgotPasswordSchema = exports.departmentUserAccessRequestSchema = exports.loginSchema = exports.passwordRequirements = exports.otpSchema = exports.organizationSetupSchema = exports.signupSchema = exports.passwordSchema = void 0;
 const zod_1 = require("zod");
-const input_1 = require("../security/input");
+const input_1 = require("../shared/security/input");
 function validateWithSharedResult(result, ctx) {
     if (result.ok) {
         return;

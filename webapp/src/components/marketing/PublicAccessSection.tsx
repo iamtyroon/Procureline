@@ -21,7 +21,7 @@ import {
     buildPublicEntrySelectionHref,
     resolvePublicEntryState,
     type PublicEntrySearchParams,
-} from "@/lib/auth/public-entry";
+} from "@/lib/shared/auth/public-entry";
 import { cn } from "@/lib/utils";
 
 interface PublicAccessSectionProps {

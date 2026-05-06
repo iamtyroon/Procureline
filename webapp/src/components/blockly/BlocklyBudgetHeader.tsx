@@ -3,7 +3,7 @@
 import { AlertTriangle, CheckCircle2, CircleHelp, Wallet } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import type { DepartmentUserBudgetMeterState } from "@/lib/blockly/du-workspace-calculations";
+import type { DepartmentUserBudgetMeterState } from "@/lib/shared/blockly/du-workspace-calculations";
 
 export function BlocklyBudgetHeader({
     budgetState,

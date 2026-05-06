@@ -3,8 +3,8 @@
 import { ConvexError, v } from "convex/values";
 import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
-import { buildBlockedOriginEvent } from "../../lib/security/audit";
-import { resolveSecurityAuditProxyToken } from "../../lib/security/bridge";
+import { buildBlockedOriginEvent } from "../../lib/shared/security/audit";
+import { resolveSecurityAuditProxyToken } from "../../lib/backend/security/bridge";
 
 export const logBlockedOriginFromProxy = action({
     args: {

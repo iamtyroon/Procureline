@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.importItems = exports.archiveItem = exports.updateItem = exports.createItem = exports.browseItemsCatalog = exports.getItemsWorkspace = void 0;
 const values_1 = require("convex/values");
 const server_1 = require("../_generated/server");
-const audit_1 = require("../../lib/security/audit");
+const audit_1 = require("../../lib/shared/security/audit");
 const catalog_filters_1 = require("../../lib/procurement-officer/catalog-filters");
 const item_backend_1 = require("../../lib/procurement-officer/item-backend");
 const items_1 = require("../../lib/procurement-officer/items");

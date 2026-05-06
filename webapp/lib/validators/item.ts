@@ -18,7 +18,7 @@ import {
     PROCUREMENT_ITEM_UNIT_INVALID_MESSAGE,
     PROCUREMENT_ITEM_UNIT_REQUIRED_MESSAGE,
 } from "../procurement-officer/items";
-import { normalizePlainText } from "../security/input";
+import { normalizePlainText } from "../shared/security/input";
 
 export const itemFormSchema = z
     .object({

@@ -1,7 +1,7 @@
 import {
     evaluateDepartmentUserSubmissionWindow,
     type DepartmentUserAccessMode,
-} from "../auth/department-user-access";
+} from "../shared/auth/department-user-access";
 import {
     formatDeadlineCountdown,
     formatDeadlineDateTime,

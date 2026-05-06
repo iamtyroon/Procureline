@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useConvexAuth, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { api } from "@/convex/_generated/api";
-import { resolveAuthenticatedAccessRedirect } from "@/lib/auth/public-entry";
+import { resolveAuthenticatedAccessRedirect } from "@/lib/shared/auth/public-entry";
 import { Spinner } from "@/src/components/ui/Spinner";
 
 interface PublicAccessGateProps {

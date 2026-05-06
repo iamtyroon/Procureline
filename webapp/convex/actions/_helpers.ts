@@ -6,7 +6,7 @@ import type { Id } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
 import {
   createAuthenticatedAuditActor,
-} from "../../lib/security/audit";
+} from "../../lib/shared/security/audit";
 import {
   createNestServiceRequest,
 } from "../../lib/services/external-service-client";

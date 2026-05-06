@@ -14,36 +14,36 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { registerDepartmentUserBlocklyBlocks } from "@/lib/blockly/block-definitions";
+import { registerDepartmentUserBlocklyBlocks } from "@/lib/frontend/blockly/block-definitions";
 import {
-    loadBlocklyWorkspace,
     type BlocklyWorkspaceRecord,
-} from "@/lib/blockly/blockly-serialization";
+} from "@/lib/shared/blockly/blockly-serialization";
 import {
     createSerializedBlocklyWorkspaceSnapshot,
-} from "@/lib/blockly/workspace-save";
+    loadBlocklyWorkspace,
+} from "@/lib/frontend/blockly/workspace-serialization";
 import {
     applyDepartmentWorkspaceRollup,
     mapDepartmentUserBudgetMeterState,
     type DepartmentUserBudgetMeterState,
     type DepartmentUserWorkspaceSummary,
-} from "@/lib/blockly/du-workspace-calculations";
+} from "@/lib/shared/blockly/du-workspace-calculations";
 import {
     synchronizeDepartmentUserWorkspaceCatalogIdentity,
     collectDepartmentUserWorkspaceSourceUsageFromDepartmentBlock,
     type DepartmentUserWorkspaceSourceUsage,
     type DepartmentUserCatalogItem,
-} from "@/lib/blockly/workspace-catalog-identity";
+} from "@/lib/shared/blockly/workspace-catalog-identity";
 import {
     resolveDepartmentUserWorkspaceEvent,
     type DepartmentUserCategoryDeletionConfirmation,
-} from "@/lib/blockly/workspace-events";
+} from "@/lib/frontend/blockly/workspace-events";
 import {
     readDepartmentUserWorkspaceUiState,
     restoreDepartmentUserWorkspaceUiState,
     writeDepartmentUserWorkspaceUiState,
-} from "@/lib/blockly/workspace-ui-state";
-import { buildDepartmentUserBlocklyInjectionOptions } from "@/lib/blockly/workspace-runtime";
+} from "@/lib/frontend/blockly/workspace-ui-state";
+import { buildDepartmentUserBlocklyInjectionOptions } from "@/lib/frontend/blockly/workspace-runtime";
 import styles from "./BlocklyWorkspace.module.css";
 
 type BlocklyModule = typeof import("blockly");

@@ -17,7 +17,7 @@ import {
     PASSWORD_RESET_INVALID_MESSAGE,
     PASSWORD_RESET_SUCCESS_REASON,
     PASSWORD_RESET_TOO_MANY_ATTEMPTS_MESSAGE,
-} from "@/lib/auth/password-reset";
+} from "@/lib/shared/auth/password-reset";
 import {
     passwordRequirements,
     resetPasswordSchema,

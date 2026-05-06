@@ -4,7 +4,7 @@ import {
     REMEMBER_ME_SESSION_WINDOW_MS,
     resolveSessionState,
     STANDARD_SESSION_INACTIVITY_MS,
-} from "../lib/auth/session";
+} from "../lib/shared/auth/session";
 
 const NOW = new Date("2026-03-08T10:00:00.000Z").getTime();
 

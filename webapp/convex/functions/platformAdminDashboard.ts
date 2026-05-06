@@ -5,7 +5,7 @@ import { normalizePlatformAdminDashboardPreferences } from "../../lib/shared/pla
 import {
     createPlatformAdminDashboardReadAccessToken,
     verifyPlatformAdminDashboardReadAccessToken,
-} from "../../lib/shared/platform-admin/dashboard-access-token";
+} from "../../lib/backend/platform-admin/dashboard-access-token";
 import { requirePlatformAdmin } from "./_roleGuard";
 import { auditPlatformAdminBypassRead } from "./_tenantGuard";
 

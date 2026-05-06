@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runPricingFlowTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const pricing_1 = require("../lib/marketing/pricing");
+const pricing_1 = require("../lib/shared/marketing/pricing");
 const sales_1 = require("../lib/validators/sales");
 function runPricingFlowTests() {
     const completedTests = [];

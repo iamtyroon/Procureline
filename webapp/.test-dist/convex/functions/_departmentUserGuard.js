@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.requireDepartmentUserAccess = void 0;
 const values_1 = require("convex/values");
-const department_user_access_1 = require("../../lib/auth/department-user-access");
+const department_user_access_1 = require("../../lib/shared/auth/department-user-access");
 const _roleGuard_1 = require("./_roleGuard");
 function createUnauthorizedError(message) {
     throw new values_1.ConvexError({

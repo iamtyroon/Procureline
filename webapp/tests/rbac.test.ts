@@ -8,7 +8,7 @@ import {
     getHomePathForRole,
     getProtectedRouteRole,
     resolveRoleRecords,
-} from "../lib/auth/roles";
+} from "../lib/shared/auth/roles";
 import { TENANT_ADMIN_ONBOARDING_ROUTE } from "../lib/shared/tenant-admin/onboarding";
 
 const ACTIVE_SESSION_CONTEXT = {

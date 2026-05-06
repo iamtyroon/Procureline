@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { MARKETING_ACCESS_CTA } from "@/lib/auth/public-entry";
+import { MARKETING_ACCESS_CTA } from "@/lib/shared/auth/public-entry";
 
 export function Hero(): JSX.Element {
     return (

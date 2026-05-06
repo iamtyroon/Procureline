@@ -1,5 +1,5 @@
 import { generateRandomString } from "@oslojs/crypto/random";
-import { buildPasswordResetLink } from "../lib/auth/password-reset";
+import { buildPasswordResetLink } from "../lib/shared/auth/password-reset";
 import { sendAppEmail } from "./emailTransport";
 
 export const PASSWORD_RESET_PROVIDER_ID = "resend-password-reset";

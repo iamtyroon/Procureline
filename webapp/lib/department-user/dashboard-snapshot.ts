@@ -1,4 +1,4 @@
-import type { DepartmentUserAccessMode } from "../auth/department-user-access";
+import type { DepartmentUserAccessMode } from "../shared/auth/department-user-access";
 import {
     createCategorySelectionState,
     deriveDeadlinePresentation,

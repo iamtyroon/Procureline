@@ -5,9 +5,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runBlocklyWorkspacePersistenceTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const blockly_serialization_1 = require("../lib/blockly/blockly-serialization");
-const workspace_draft_queue_1 = require("../lib/blockly/workspace-draft-queue");
-const workspace_save_1 = require("../lib/blockly/workspace-save");
+const blockly_serialization_1 = require("../lib/shared/blockly/blockly-serialization");
+const workspace_draft_queue_1 = require("../lib/frontend/blockly/workspace-draft-queue");
+const workspace_save_1 = require("../lib/shared/blockly/workspace-save");
 function runBlocklyWorkspacePersistenceTests() {
     const completedTests = [];
     const olderSnapshot = (0, blockly_serialization_1.createBlocklyWorkspaceRecord)({

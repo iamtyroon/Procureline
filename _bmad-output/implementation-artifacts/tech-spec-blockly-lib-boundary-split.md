@@ -2,7 +2,7 @@
 title: 'Blockly Lib Boundary Split'
 slug: 'blockly-lib-boundary-split'
 created: '2026-05-05'
-status: 'ready-for-development'
+status: 'Completed'
 stepsCompleted: [1, 2, 3, 4]
 tech_stack: ['Next.js', 'TypeScript', 'Google Blockly']
 files_to_modify:
@@ -94,36 +94,36 @@ Use `shared` for runtime-safe workspace JSON, DTOs, validation, calculations, an
 
 ### Tasks
 
-1. Inventory Blockly imports and consumers.
+1. [x] Inventory Blockly imports and consumers.
    - File: all files under `webapp/lib/blockly/`.
    - Action: Record imports from Blockly runtime packages, React, DOM/window, Next APIs, Convex, procurement helpers, and plan helpers.
    - Action: Record consumers with `rg "@/lib/blockly/" webapp`.
 
-2. Move frontend runtime helpers.
+2. [x] Move frontend runtime helpers.
    - Files: `block-definitions.ts`, `du-toolbox.ts`, `workspace-runtime.ts`, `workspace-ui-state.ts`, `workspace-events.ts`, `du-editor-fallback.ts`.
    - Action: Move verified frontend-only files to `webapp/lib/frontend/blockly/`.
    - Action: Update component imports.
 
-3. Split route/editability helper.
+3. [x] Split route/editability helper.
    - File: `du-plan-routes.ts`.
    - Action: Move route construction/search behavior to `webapp/lib/frontend/blockly/du-plan-routes.ts`.
    - Action: Move pure access-mode/editability rules to `webapp/lib/shared/blockly/du-plan-rules.ts` if needed by non-frontend code.
 
-4. Split draft/save helpers.
+4. [x] Split draft/save helpers.
    - Files: `workspace-draft-queue.ts`, `workspace-save.ts`.
    - Action: Move browser state, debounce, or local queue helpers to `webapp/lib/frontend/blockly/`.
    - Action: Move pure save payload and workspace summary transformations to `webapp/lib/shared/blockly/`.
 
-5. Move shared JSON/calculation helpers.
+5. [x] Move shared JSON/calculation helpers.
    - Files: `blockly-serialization.ts`, `du-workspace-calculations.ts`, `editor-contract.ts`, `plan-submission.ts`, `workspace-catalog-identity.ts`, `workspace-validation.ts`.
    - Action: Move to `webapp/lib/shared/blockly/` only after dependencies point at `webapp/lib/shared/...` paths.
    - Action: Update tests and domain consumers.
 
-6. Update imports and remove old files.
+6. [x] Update imports and remove old files.
    - Action: Replace `@/lib/blockly/...` imports with boundary paths.
    - Action: Do not leave root-level re-export shims.
 
-7. Update `webapp/lib/MIGRATION_MAP.md`.
+7. [x] Update `webapp/lib/MIGRATION_MAP.md`.
    - Action: Mark completed Blockly moves under Already Migrated.
    - Action: Keep unresolved mixed helpers under Deferred with the coupling reason.
 
@@ -150,3 +150,9 @@ cmd /c npm test
 ```
 
 Known unrelated blockers may remain: `webapp/convex/functions/plans.ts:543` for build and `webapp/convex/auth.ts(1,28)` for tests.
+
+## Review Notes
+
+- Adversarial review completed.
+- Findings: 10 total, 4 real boundary findings fixed, 6 noise/low-risk findings reviewed.
+- Resolution approach: auto-fix requested by user.

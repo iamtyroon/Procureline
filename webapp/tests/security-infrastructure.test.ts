@@ -5,12 +5,12 @@ import {
     buildSecurityInputRejectedEvent,
     createAuthenticatedAuditActor,
     serializeAuditEvent,
-} from "../lib/security/audit";
+} from "../lib/shared/security/audit";
 import {
     DEVELOPMENT_SECURITY_AUDIT_PROXY_TOKEN,
     SecurityAuditProxyConfigurationError,
     resolveSecurityAuditProxyToken,
-} from "../lib/security/bridge";
+} from "../lib/backend/security/bridge";
 import {
     AUTH_INPUT_LIMITS,
     normalizeAuthEmail,
@@ -19,18 +19,18 @@ import {
     validateOneTimeCodeInput,
     validateOrganizationNameInput,
     validatePasswordLength,
-} from "../lib/security/input";
+} from "../lib/shared/security/input";
 import {
     AllowedOriginsConfigurationError,
     DEVELOPMENT_ALLOWED_ORIGINS,
     evaluateOriginPolicy,
     resolveAllowedOrigins,
-} from "../lib/security/origins";
+} from "../lib/backend/security/origins";
 import {
     PLAIN_TEXT_ONLY_FIELDS,
     SECURITY_HTTP_SURFACES,
     SECURITY_PROXY_AUDIT_ROUTE,
-} from "../lib/security/policy";
+} from "../lib/backend/security/policy";
 import {
     forgotPasswordSchema,
     otpSchema,

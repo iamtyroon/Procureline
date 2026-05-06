@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {
     createSignedDepartmentUserRequestContextToken,
     verifySignedDepartmentUserRequestContextToken,
-} from "../lib/auth/department-user-request-context-token";
+} from "../lib/backend/auth/department-user-request-context-token";
 import {
     catalogCategoryRequestFormSchema,
     catalogItemRequestFormSchema,

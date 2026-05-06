@@ -1,11 +1,11 @@
-import { AUDIT_EVENT_NAMES } from "../../security/audit";
+import { AUDIT_EVENT_NAMES } from "../../shared/security/audit";
 import {
     normalizeAuthEmail,
     normalizePlainText,
     validateEmailInput,
     validateOrganizationNameInput,
     validatePlainTextInput,
-} from "../../security/input";
+} from "../../shared/security/input";
 import { sha256Hex } from "../platform-admin/risk";
 import {
     TENANT_ADMIN_INVITATION_TTL_MS,

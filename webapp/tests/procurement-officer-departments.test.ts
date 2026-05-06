@@ -25,7 +25,7 @@ import {
     normalizeDepartmentName,
     normalizeDepartmentVoteNumber,
 } from "../lib/procurement-officer/departments";
-import { buildDashboardPath, FORBIDDEN_ACCESS_REASON } from "../lib/auth/roles";
+import { buildDashboardPath, FORBIDDEN_ACCESS_REASON } from "../lib/shared/auth/roles";
 
 export function runProcurementOfficerDepartmentTests(): string[] {
     const completedTests: string[] = [];

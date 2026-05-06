@@ -12,11 +12,11 @@ import {
     type TenantIsolationAuditEvent,
     type TenantScopedTableName,
     type VerifiedTenantRecordId,
-} from "../../lib/auth/tenant-isolation";
+} from "../../lib/backend/auth/tenant-isolation";
 import {
     createAuthenticatedAuditActor,
     type AuditEventEntry,
-} from "../../lib/security/audit";
+} from "../../lib/shared/security/audit";
 import {
     appendAuditLogBestEffort,
     appendAuditLogRequired,

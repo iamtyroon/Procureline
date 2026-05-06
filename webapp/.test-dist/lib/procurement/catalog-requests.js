@@ -4,7 +4,7 @@ exports.isCatalogRequestEditable = exports.formatCatalogRequestDuplicateCatalogM
 const zod_1 = require("zod");
 const categories_1 = require("../procurement-officer/categories");
 const items_1 = require("../procurement-officer/items");
-const input_1 = require("../security/input");
+const input_1 = require("../shared/security/input");
 exports.CATALOG_REQUEST_STATUS_VALUES = [
     "pending",
     "approved",

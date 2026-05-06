@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import {
     buildPublicEntrySelectionHref,
     getTrimmedSearchParam,
-} from "@/lib/auth/public-entry";
-import { readSignedDepartmentUserRequestContext } from "@/lib/auth/department-user-request-context";
+} from "@/lib/shared/auth/public-entry";
+import { readSignedDepartmentUserRequestContext } from "@/lib/backend/auth/department-user-request-context";
 import { PublicAccessGate } from "@/src/components/auth/PublicAccessGate";
 import { DepartmentUserAccessForm } from "@/src/components/auth/DepartmentUserAccessForm";
 

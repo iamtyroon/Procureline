@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getSingleSearchParam } from "@/lib/auth/password-reset";
+import { getSingleSearchParam } from "@/lib/shared/auth/password-reset";
 import { readSignedPlatformAdminRequestContext } from "@/lib/backend/platform-admin/request-context";
 import { PlatformAdminLoginForm } from "@/src/components/auth/PlatformAdminLoginForm";
 

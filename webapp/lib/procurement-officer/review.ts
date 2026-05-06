@@ -1,4 +1,4 @@
-import type { BlocklyWorkspaceRecord } from "../blockly/blockly-serialization";
+import type { BlocklyWorkspaceRecord } from "@/lib/shared/blockly/blockly-serialization";
 import {
     buildDepartmentUserWorkspaceSummaryFromPersistedPlan,
     calculateDepartmentUserWorkspaceSummaryFromWorkspaceRecord,
@@ -6,8 +6,8 @@ import {
     workspaceRecordHasMeaningfulDepartmentContent,
     type DepartmentUserPersistedPlanSummary,
     type DepartmentUserWorkspaceSummary,
-} from "../blockly/du-workspace-calculations";
-import type { DepartmentUserCatalogItem } from "../blockly/workspace-catalog-identity";
+} from "@/lib/shared/blockly/du-workspace-calculations";
+import type { DepartmentUserCatalogItem } from "@/lib/shared/blockly/workspace-catalog-identity";
 import {
     buildPlanSubmissionSequenceKey,
     selectPreviousActivePlanSubmissionSnapshot,

@@ -12,7 +12,7 @@ import {
   type AuditEventName,
   createAnonymousAuditActor,
   createAuthenticatedAuditActor,
-} from "../../lib/security/audit";
+} from "../../lib/shared/security/audit";
 import {
   PROCUREMENT_CATALOG_PAGE_SIZE,
   normalizeProcurementCatalogBrowseState,

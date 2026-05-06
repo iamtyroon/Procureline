@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
     validateEmailInput,
     validatePlainTextInput,
-} from "../security/input";
+} from "../shared/security/input";
 
 function validateWithSharedResult(
     result:

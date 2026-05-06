@@ -3,7 +3,7 @@
 import { Layers3, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import type { DepartmentUserToolboxCategoryState } from "@/lib/blockly/du-toolbox";
+import type { DepartmentUserToolboxCategoryState } from "@/lib/frontend/blockly/du-toolbox";
 
 interface BlocklyToolboxRailProps {
     categories: DepartmentUserToolboxCategoryState[];

@@ -15,7 +15,7 @@ import {
     AUDIT_OUTCOMES,
     type AuditEventName,
     createAuthenticatedAuditActor,
-} from "../../lib/security/audit";
+} from "../../lib/shared/security/audit";
 import {
     buildDepartmentTierLimitState,
     buildDepartmentWorkspaceSummary,
@@ -42,10 +42,10 @@ import {
 import {
     getDepartmentUserAccessCodeSuffix,
     hashDepartmentUserAccessCode,
-} from "../../lib/auth/department-user-access";
+} from "../../lib/shared/auth/department-user-access";
 import { resolveEmailTransportMode } from "../../lib/email/transport";
 import { resolveDeadlineTimeZone } from "../../lib/procurement-officer/deadlines";
-import { normalizeAuthEmail, validateEmailInput } from "../../lib/security/input";
+import { normalizeAuthEmail, validateEmailInput } from "../../lib/shared/security/input";
 import { getServiceActorContext } from "../actions/_helpers";
 import { sendAppEmail } from "../emailTransport";
 import { appendAuditLogRequired } from "./_audit";

@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getProcurementCatalogExportGuardState = exports.isProcurementCatalogQueryParam = exports.hasActiveProcurementCatalogFilters = exports.areProcurementCatalogBrowseStatesEqual = exports.extractProcurementCatalogBrowseSearchParams = exports.applyProcurementCatalogBrowseStateToSearchParams = exports.stripProcurementCatalogBrowseParams = exports.readProcurementCatalogBrowseState = exports.normalizeProcurementCatalogBrowseState = exports.normalizeProcurementCatalogSearchText = exports.createDefaultProcurementCatalogBrowseState = exports.PROCUREMENT_CATALOG_QUERY_PARAM_KEYS = exports.PROCUREMENT_CATALOG_PROFESSIONAL_EXPORT_LIMIT = exports.PROCUREMENT_CATALOG_SEARCH_DEBOUNCE_MS = exports.PROCUREMENT_CATALOG_PAGE_SIZE = void 0;
 const items_1 = require("./items");
-const input_1 = require("../security/input");
+const input_1 = require("../shared/security/input");
 exports.PROCUREMENT_CATALOG_PAGE_SIZE = 50;
 exports.PROCUREMENT_CATALOG_SEARCH_DEBOUNCE_MS = 300;
 exports.PROCUREMENT_CATALOG_PROFESSIONAL_EXPORT_LIMIT = 10_000;

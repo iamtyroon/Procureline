@@ -14,7 +14,7 @@ import {
     PENDING_SELECTED_TIER_STORAGE_KEY,
     PENDING_TENANT_SETUP_RETRY_STORAGE_KEY,
     PENDING_VERIFICATION_EMAIL_STORAGE_KEY,
-} from "@/lib/auth/signup-flow";
+} from "@/lib/shared/auth/signup-flow";
 import { buildTenantAdminSignupContinuationHref } from "@/lib/shared/tenant-admin/onboarding";
 import {
     resolveVerificationSelectedTier,
@@ -25,7 +25,7 @@ import {
     isExistingRoleAssignmentError,
     isOrganizationNameConflictError,
 } from "@/lib/errors/convex";
-import { normalizeAuthEmail, normalizePlainText } from "@/lib/security/input";
+import { normalizeAuthEmail, normalizePlainText } from "@/lib/shared/security/input";
 import { otpSchema, type OtpFormData } from "@/lib/validators/auth";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";

@@ -1,4 +1,4 @@
-import { getTrimmedSearchParam, type PublicEntrySearchParams } from "../auth/public-entry";
+import { getTrimmedSearchParam, type PublicEntrySearchParams } from "../shared/auth/public-entry";
 
 export const PROCUREMENT_OFFICER_AUTH_PROVIDER =
     "procurement-officer-access" as const;

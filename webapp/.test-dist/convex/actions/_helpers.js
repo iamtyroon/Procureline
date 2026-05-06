@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.callNestService = exports.getServiceActorContext = void 0;
 const values_1 = require("convex/values");
 const api_1 = require("../_generated/api");
-const audit_1 = require("../../lib/security/audit");
+const audit_1 = require("../../lib/shared/security/audit");
 const external_service_client_1 = require("../../lib/services/external-service-client");
 const procureline_service_auth_1 = require("../../lib/services/procureline-service-auth");
 async function appendServiceBridgeFailureAudit(ctx, actor, message, path) {

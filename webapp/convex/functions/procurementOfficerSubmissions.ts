@@ -23,9 +23,10 @@ import {
   sortProcurementOfficerSubmissionRows,
   type ProcurementOfficerSubmissionSourceRow,
 } from "../../lib/procurement-officer/submissions";
+import { deriveDepartmentUserEffectiveRevisionDeadline } from "../../lib/plans/revision-deadline";
 import { requireTenantRole } from "./_roleGuard";
 import { getServiceActorContext } from "../actions/_helpers";
-import { AUDIT_OUTCOMES, createAuthenticatedAuditActor } from "../../lib/security/audit";
+import { AUDIT_OUTCOMES, createAuthenticatedAuditActor } from "../../lib/shared/security/audit";
 
 const reviewTargetStateValidator = v.union(
   v.literal("ready"),
@@ -234,6 +235,20 @@ export const getProcurementOfficerSubmissionQueue = query({
   },
 });
 
+function resolveDepartmentEffectiveSubmissionDeadlineAt(args: {
+  departmentSubmissionEndsAt?: number | null;
+  sharedSubmissionEndsAt?: number | null;
+}): number | null {
+  if (
+    typeof args.departmentSubmissionEndsAt === "number" &&
+    typeof args.sharedSubmissionEndsAt === "number"
+  ) {
+    return Math.max(args.departmentSubmissionEndsAt, args.sharedSubmissionEndsAt);
+  }
+
+  return args.sharedSubmissionEndsAt ?? args.departmentSubmissionEndsAt ?? null;
+}
+
 export const getProcurementOfficerSubmissionMonitoringWorkspace = query({
   args: {
     selectedFiscalYear: v.optional(v.string()),
@@ -347,6 +362,9 @@ export const getProcurementOfficerSubmissionMonitoringWorkspace = query({
     );
     const scopedDepartments =
       departmentsInScope.length > 0 ? departmentsInScope : activeDepartments;
+    const departmentById = new Map(
+      scopedDepartments.map((department) => [String(department._id), department] as const),
+    );
 
     const sharedDeadline = deriveSharedSubmissionDeadline({
       deadlineRecord:
@@ -436,6 +454,22 @@ export const getProcurementOfficerSubmissionMonitoringWorkspace = query({
     for (const plan of plans) {
       const key = String(plan.departmentId);
       const existing = plansByDepartmentId.get(key) ?? [];
+      const submissionDeadlineAt = resolveDepartmentEffectiveSubmissionDeadlineAt({
+        departmentSubmissionEndsAt: departmentById.get(key)?.submissionEndsAt,
+        sharedSubmissionEndsAt: sharedDeadline.deadlineAt,
+      });
+      const mapReviewDecision = (decision: (typeof planReviewDecisions)[number]) => ({
+        comment: decision.comment,
+        decidedAt: decision.decidedAt,
+        decisionType: decision.decisionType,
+        effectiveRevisionDeadlineAt: deriveDepartmentUserEffectiveRevisionDeadline({
+          decidedAt: decision.decidedAt,
+          decisionType: decision.decisionType,
+          revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
+          submissionDeadlineAt,
+        }).effectiveDeadlineAt,
+        revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
+      });
       existing.push({
         ...plan,
         departmentId: key,
@@ -445,22 +479,12 @@ export const getProcurementOfficerSubmissionMonitoringWorkspace = query({
           if (!decision) {
             return null;
           }
-          return {
-            comment: decision.comment,
-            decidedAt: decision.decidedAt,
-            decisionType: decision.decisionType,
-            effectiveRevisionDeadlineAt: decision.effectiveRevisionDeadlineAt ?? null,
-            revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
-          };
+          return mapReviewDecision(decision);
         })(),
         reviewDecisions: (decisionsByPlanId.get(String(plan._id)) ?? []).map((decision) => ({
-          comment: decision.comment,
-          decidedAt: decision.decidedAt,
-          decisionType: decision.decisionType,
-          effectiveRevisionDeadlineAt: decision.effectiveRevisionDeadlineAt ?? null,
+          ...mapReviewDecision(decision),
           id: String(decision._id),
           lifecycleStatus: decision.lifecycleStatus,
-          revisionDeadlineAt: decision.revisionDeadlineAt ?? null,
         })),
         submissionSnapshots: (snapshotsByPlanId.get(String(plan._id)) ?? []).map((snapshot) => ({
           capturedAt: snapshot.capturedAt,

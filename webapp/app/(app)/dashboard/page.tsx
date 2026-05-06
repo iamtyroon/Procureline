@@ -4,7 +4,7 @@ import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
-import { getAuthNoticeMessage, getRoleLabel } from "@/lib/auth/roles";
+import { getAuthNoticeMessage, getRoleLabel } from "@/lib/shared/auth/roles";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/src/components/ui/Spinner";
 

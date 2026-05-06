@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ResendPasswordReset = exports.PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS = exports.PASSWORD_RESET_PROVIDER_ID = void 0;
 const random_1 = require("@oslojs/crypto/random");
-const password_reset_1 = require("../lib/auth/password-reset");
+const password_reset_1 = require("../lib/shared/auth/password-reset");
 const emailTransport_1 = require("./emailTransport");
 exports.PASSWORD_RESET_PROVIDER_ID = "resend-password-reset";
 exports.PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24;

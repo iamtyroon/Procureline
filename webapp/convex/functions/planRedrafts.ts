@@ -4,7 +4,7 @@ import { mutation, query, type MutationCtx } from "../_generated/server";
 import {
   createPersistedBlocklyWorkspaceRecord,
   normalizeBlocklyWorkspaceRecord,
-} from "../../lib/blockly/blockly-serialization";
+} from "../../lib/shared/blockly/blockly-serialization";
 import {
   buildApprovedPlanRedraftSnapshotKey,
   getPlanRedraftRequestEligibility,
@@ -15,7 +15,7 @@ import {
   AUDIT_EVENT_NAMES,
   AUDIT_OUTCOMES,
   createAuthenticatedAuditActor,
-} from "../../lib/security/audit";
+} from "../../lib/shared/security/audit";
 import { appendAuditLogRequired } from "./_audit";
 import { requireTenantRole } from "./_roleGuard";
 

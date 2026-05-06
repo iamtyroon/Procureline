@@ -5,8 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runRbacTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const roles_1 = require("../lib/auth/roles");
-const onboarding_1 = require("../lib/tenant-admin/onboarding");
+const roles_1 = require("../lib/shared/auth/roles");
+const onboarding_1 = require("../lib/shared/tenant-admin/onboarding");
 const ACTIVE_SESSION_CONTEXT = {
     isSessionValid: true,
     sessionStatus: "active",

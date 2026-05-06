@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runBlocklyWorkspaceValidationTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const workspace_validation_1 = require("../lib/blockly/workspace-validation");
+const workspace_validation_1 = require("../lib/shared/blockly/workspace-validation");
 function runBlocklyWorkspaceValidationTests() {
     const completedTests = [];
     const negativeQuantity = (0, workspace_validation_1.normalizeDepartmentUserQuantityValue)({

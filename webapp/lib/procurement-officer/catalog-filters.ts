@@ -2,7 +2,7 @@ import {
   normalizeComplianceFlags,
   type ProcurementItemComplianceFlag,
 } from "./items";
-import { normalizePlainText } from "../security/input";
+import { normalizePlainText } from "../shared/security/input";
 
 export const PROCUREMENT_CATALOG_PAGE_SIZE = 50;
 export const PROCUREMENT_CATALOG_SEARCH_DEBOUNCE_MS = 300;

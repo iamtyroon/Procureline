@@ -4,7 +4,7 @@ exports.markCurrentSessionLoggedOut = exports.setTenantSelectionForSession = exp
 const server_1 = require("@convex-dev/auth/server");
 const values_1 = require("convex/values");
 const server_2 = require("../_generated/server");
-const session_1 = require("../../lib/auth/session");
+const session_1 = require("../../lib/shared/auth/session");
 async function loadLatestSessionMetadata(ctx, sessionId) {
     const metadataRecords = await ctx.db
         .query("sessionMetadata")

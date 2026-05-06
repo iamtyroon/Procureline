@@ -15,7 +15,7 @@ import {
     PENDING_SELECTED_TIER_STORAGE_KEY,
     PENDING_TENANT_SETUP_RETRY_STORAGE_KEY,
     PENDING_VERIFICATION_EMAIL_STORAGE_KEY,
-} from "@/lib/auth/signup-flow";
+} from "@/lib/shared/auth/signup-flow";
 import {
     getPublicVerificationErrorMessage,
     isExistingRoleAssignmentError,
@@ -25,7 +25,7 @@ import {
     resolveVerificationSelectedTier,
     type SelfServeTier,
 } from "@/lib/shared/marketing/pricing";
-import { normalizeAuthEmail, normalizePlainText } from "@/lib/security/input";
+import { normalizeAuthEmail, normalizePlainText } from "@/lib/shared/security/input";
 import {
     organizationSetupSchema,
     passwordRequirements,

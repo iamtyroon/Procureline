@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.loadTenantUsersByIdsForCurrentTenantWithAudit = exports.tenantUserExistsForCurrentTenant = exports.countTenantUsersForCurrentTenant = exports.listTenantUsersForCurrentTenant = exports.getCurrentTenantUserMembership = exports.auditPlatformAdminBypassRead = exports.readTenantByIdWithPlatformAdminBypass = exports.readTenantByIdForCurrentTenantWithAudit = exports.readTenantByIdForCurrentTenant = exports.TENANT_ISOLATION_EVENT_NAMES = exports.sanitizeTenantOwnedRecordsForActor = exports.resolveTenantRecordAccess = exports.hasAccessibleTenantOwnedRecord = exports.getCanonicalTenantIndex = exports.countAccessibleTenantOwnedRecords = exports.classifyTenantIsolationTable = void 0;
 const values_1 = require("convex/values");
-const tenant_isolation_1 = require("../../lib/auth/tenant-isolation");
+const tenant_isolation_1 = require("../../lib/backend/auth/tenant-isolation");
 Object.defineProperty(exports, "classifyTenantIsolationTable", { enumerable: true, get: function () { return tenant_isolation_1.classifyTenantIsolationTable; } });
 Object.defineProperty(exports, "countAccessibleTenantOwnedRecords", { enumerable: true, get: function () { return tenant_isolation_1.countAccessibleTenantOwnedRecords; } });
 Object.defineProperty(exports, "getCanonicalTenantIndex", { enumerable: true, get: function () { return tenant_isolation_1.getCanonicalTenantIndex; } });
@@ -10,7 +10,7 @@ Object.defineProperty(exports, "hasAccessibleTenantOwnedRecord", { enumerable: t
 Object.defineProperty(exports, "resolveTenantRecordAccess", { enumerable: true, get: function () { return tenant_isolation_1.resolveTenantRecordAccess; } });
 Object.defineProperty(exports, "sanitizeTenantOwnedRecordsForActor", { enumerable: true, get: function () { return tenant_isolation_1.sanitizeTenantOwnedRecordsForActor; } });
 Object.defineProperty(exports, "TENANT_ISOLATION_EVENT_NAMES", { enumerable: true, get: function () { return tenant_isolation_1.TENANT_ISOLATION_EVENT_NAMES; } });
-const audit_1 = require("../../lib/security/audit");
+const audit_1 = require("../../lib/shared/security/audit");
 const _audit_1 = require("./_audit");
 const _roleGuard_1 = require("./_roleGuard");
 function createUnauthorizedError(message) {

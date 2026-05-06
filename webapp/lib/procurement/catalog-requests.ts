@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { normalizeCategoryName } from "../procurement-officer/categories";
 import { normalizeProcurementItemName } from "../procurement-officer/items";
-import { validatePlainTextInput } from "../security/input";
+import { validatePlainTextInput } from "../shared/security/input";
 
 export const CATALOG_REQUEST_STATUS_VALUES = [
     "pending",

@@ -11,7 +11,7 @@ import {
     normalizeAuthEmail,
     PASSWORD_RESET_REQUEST_ERROR_MESSAGE,
     PASSWORD_RESET_REQUEST_MESSAGE,
-} from "@/lib/auth/password-reset";
+} from "@/lib/shared/auth/password-reset";
 import {
     forgotPasswordSchema,
     type ForgotPasswordFormData,

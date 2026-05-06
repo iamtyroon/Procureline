@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runPasswordResetTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const password_reset_1 = require("../lib/auth/password-reset");
+const password_reset_1 = require("../lib/shared/auth/password-reset");
 const auth_1 = require("../lib/validators/auth");
 function runPasswordResetTests() {
     const completedTests = [];

@@ -5,9 +5,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runTenantAdminOnboardingTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const onboarding_backend_1 = require("../lib/tenant-admin/onboarding-backend");
-const invitations_1 = require("../lib/tenant-admin/invitations");
-const onboarding_1 = require("../lib/tenant-admin/onboarding");
+const onboarding_1 = require("../lib/backend/tenant-admin/onboarding");
+const invitations_1 = require("../lib/shared/tenant-admin/invitations");
+const onboarding_2 = require("../lib/shared/tenant-admin/onboarding");
 const INDEX_FIELD_MAP = {
     auditLogs: {},
     platformUsers: {
@@ -161,50 +161,50 @@ async function expectConvexError(callback) {
         strict_1.default.fail("Expected a backend onboarding error");
     }
     catch (error) {
-        strict_1.default.ok(error instanceof onboarding_backend_1.TenantAdminOnboardingBackendError);
+        strict_1.default.ok(error instanceof onboarding_1.TenantAdminOnboardingBackendError);
         return error;
     }
 }
 async function runTenantAdminOnboardingTests() {
     const completedTests = [];
-    strict_1.default.equal(onboarding_1.TENANT_ADMIN_ONBOARDING_ROUTE, "/tenant-admin/onboarding");
-    strict_1.default.equal((0, onboarding_1.isTenantAdminOnboardingRoute)("/tenant-admin/onboarding"), true);
-    strict_1.default.equal((0, onboarding_1.isTenantAdminOnboardingRoute)("/tenant-admin/onboarding/details"), true);
-    strict_1.default.equal((0, onboarding_1.isTenantAdminOnboardingRoute)("/tenant-admin"), false);
+    strict_1.default.equal(onboarding_2.TENANT_ADMIN_ONBOARDING_ROUTE, "/tenant-admin/onboarding");
+    strict_1.default.equal((0, onboarding_2.isTenantAdminOnboardingRoute)("/tenant-admin/onboarding"), true);
+    strict_1.default.equal((0, onboarding_2.isTenantAdminOnboardingRoute)("/tenant-admin/onboarding/details"), true);
+    strict_1.default.equal((0, onboarding_2.isTenantAdminOnboardingRoute)("/tenant-admin"), false);
     completedTests.push("tenant-admin onboarding route helpers identify the canonical onboarding namespace without confusing it with the dashboard root");
-    strict_1.default.equal((0, onboarding_1.resolveTenantAdminOnboardingStage)({
+    strict_1.default.equal((0, onboarding_2.resolveTenantAdminOnboardingStage)({
         profileComplete: false,
         role: "tenant_admin",
     }), "required");
-    strict_1.default.equal((0, onboarding_1.resolveTenantAdminOnboardingStage)({
+    strict_1.default.equal((0, onboarding_2.resolveTenantAdminOnboardingStage)({
         profileComplete: true,
         role: "tenant_admin",
     }), "complete");
-    strict_1.default.equal((0, onboarding_1.resolveTenantAdminOnboardingStage)({
+    strict_1.default.equal((0, onboarding_2.resolveTenantAdminOnboardingStage)({
         profileComplete: false,
         role: "procurement_officer",
     }), "not_applicable");
     completedTests.push("tenant-admin onboarding stage resolution distinguishes incomplete tenant admins from complete or non-tenant-admin roles");
-    strict_1.default.deepEqual((0, onboarding_1.evaluateTenantAdminOnboardingRouteAccess)({
-        homePath: onboarding_1.TENANT_ADMIN_ONBOARDING_ROUTE,
+    strict_1.default.deepEqual((0, onboarding_2.evaluateTenantAdminOnboardingRouteAccess)({
+        homePath: onboarding_2.TENANT_ADMIN_ONBOARDING_ROUTE,
         onboardingStage: "required",
         pathname: "/tenant-admin/settings",
     }), {
         action: "redirect",
-        target: onboarding_1.TENANT_ADMIN_ONBOARDING_ROUTE,
+        target: onboarding_2.TENANT_ADMIN_ONBOARDING_ROUTE,
     });
-    strict_1.default.deepEqual((0, onboarding_1.evaluateTenantAdminOnboardingRouteAccess)({
+    strict_1.default.deepEqual((0, onboarding_2.evaluateTenantAdminOnboardingRouteAccess)({
         homePath: "/tenant-admin",
         onboardingStage: "complete",
-        pathname: onboarding_1.TENANT_ADMIN_ONBOARDING_ROUTE,
+        pathname: onboarding_2.TENANT_ADMIN_ONBOARDING_ROUTE,
     }), {
         action: "redirect",
         target: "/tenant-admin",
     });
-    strict_1.default.deepEqual((0, onboarding_1.evaluateTenantAdminOnboardingRouteAccess)({
-        homePath: onboarding_1.TENANT_ADMIN_ONBOARDING_ROUTE,
+    strict_1.default.deepEqual((0, onboarding_2.evaluateTenantAdminOnboardingRouteAccess)({
+        homePath: onboarding_2.TENANT_ADMIN_ONBOARDING_ROUTE,
         onboardingStage: "required",
-        pathname: onboarding_1.TENANT_ADMIN_ONBOARDING_ROUTE,
+        pathname: onboarding_2.TENANT_ADMIN_ONBOARDING_ROUTE,
     }), { action: "allow" });
     completedTests.push("tenant-admin onboarding route access allows only the onboarding route while setup is incomplete and redirects complete users back to the dashboard");
     strict_1.default.equal(invitations_1.TENANT_ADMIN_INVITATION_TTL_MS, 72 * 60 * 60 * 1000);
@@ -258,7 +258,7 @@ async function runTenantAdminOnboardingTests() {
         verificationWindowExpiresAt: invitations_1.TENANT_ADMIN_VERIFICATION_WINDOW_MS,
     }), false);
     completedTests.push("verification auto-resend logic respects the OTP cadence, 24-hour onboarding window, and three-attempt safety cap");
-    strict_1.default.equal((0, onboarding_1.buildTenantAdminSignupContinuationHref)({
+    strict_1.default.equal((0, onboarding_2.buildTenantAdminSignupContinuationHref)({
         email: "admin@university.ac.ke",
         inviteToken: "tenant-admin-token",
         organizationName: "University of Nairobi",
@@ -275,14 +275,14 @@ async function runTenantAdminOnboardingTests() {
             subdomain: "alpha-university",
             tier: "starter",
         });
-        const firstInvite = await (0, onboarding_backend_1.issueInvitationForBackendTests)({
+        const firstInvite = await (0, onboarding_1.issueInvitationForBackendTests)({
             ctx: ctx,
             email: "admin@alpha.ac.ke",
             now: 1_710_000_000_000,
             platformUserId: "platform-user-1",
             tenantId,
         });
-        const resentInvite = await (0, onboarding_backend_1.resendInvitationForBackendTests)({
+        const resentInvite = await (0, onboarding_1.resendInvitationForBackendTests)({
             ctx: ctx,
             email: "admin@alpha.ac.ke",
             now: 1_710_000_000_000,
@@ -312,7 +312,7 @@ async function runTenantAdminOnboardingTests() {
             subdomain: "beta-university",
             tier: "free",
         });
-        const invitation = await (0, onboarding_backend_1.issueInvitationForBackendTests)({
+        const invitation = await (0, onboarding_1.issueInvitationForBackendTests)({
             ctx: ctx,
             email: "invited.admin@beta.ac.ke",
             now: 1_720_000_000_000,
@@ -320,7 +320,7 @@ async function runTenantAdminOnboardingTests() {
             tenantId,
         });
         const error = await expectConvexError(async () => {
-            await (0, onboarding_backend_1.startVerificationWindowForBackendTests)({
+            await (0, onboarding_1.startVerificationWindowForBackendTests)({
                 ctx: ctx,
                 email: "someone-else@beta.ac.ke",
                 inviteToken: invitation.inviteToken,
@@ -358,7 +358,7 @@ async function runTenantAdminOnboardingTests() {
             updatedAt: 1_729_000_000_000,
             verificationWindowExpiresAt: 1_731_000_000_000,
         });
-        const result = await (0, onboarding_backend_1.completeInstitutionProfileForBackendTests)({
+        const result = await (0, onboarding_1.completeInstitutionProfileForBackendTests)({
             authTenantId: tenantId,
             authUserId: "tenant-user-1",
             ctx: ctx,
@@ -395,7 +395,7 @@ async function runTenantAdminOnboardingTests() {
             tier: "starter",
         });
         const error = await expectConvexError(async () => {
-            await (0, onboarding_backend_1.completeInstitutionProfileForBackendTests)({
+            await (0, onboarding_1.completeInstitutionProfileForBackendTests)({
                 authTenantId: tenantId,
                 authUserId: "tenant-user-2",
                 ctx: ctx,
@@ -430,7 +430,7 @@ async function runTenantAdminOnboardingTests() {
             isActive: true,
             userId,
         });
-        const invitation = await (0, onboarding_backend_1.issueInvitationForBackendTests)({
+        const invitation = await (0, onboarding_1.issueInvitationForBackendTests)({
             ctx: ctx,
             email: "admin@delta.ac.ke",
             now: 1_750_000_000_000,
@@ -438,7 +438,7 @@ async function runTenantAdminOnboardingTests() {
             tenantId,
         });
         const error = await expectConvexError(async () => {
-            await (0, onboarding_backend_1.redeemInvitationForBackendTests)({
+            await (0, onboarding_1.redeemInvitationForBackendTests)({
                 ctx: ctx,
                 inviteToken: invitation.inviteToken,
                 now: 1_750_000_000_000,

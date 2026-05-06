@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import { isKnownPublicRoute, PUBLIC_ROUTES } from "../lib/auth/public-routes";
-import { getProtectedRouteRole } from "../lib/auth/roles";
+import { isKnownPublicRoute, PUBLIC_ROUTES } from "../lib/shared/auth/public-routes";
+import { getProtectedRouteRole } from "../lib/shared/auth/roles";
 import {
     PROTECTED_ROUTE_CACHE_HEADERS,
     PROTECTED_ROUTE_SECURITY_HEADERS,
     SESSION_EXPIRED_REDIRECT_PATH,
-} from "../lib/auth/proxy";
+} from "../lib/backend/auth/proxy";
 
 export function runProxyRouteTests(): string[] {
     const completedTests: string[] = [];

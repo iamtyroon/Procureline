@@ -1,4 +1,4 @@
-import type { DepartmentUserPlanSubmissionIssue } from "@/lib/blockly/plan-submission";
+import type { DepartmentUserPlanSubmissionIssue } from "@/lib/shared/blockly/plan-submission";
 
 export interface PendingCatalogRequestValidationInput {
     pendingCategoryRequestCount: number;

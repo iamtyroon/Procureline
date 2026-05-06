@@ -4,7 +4,7 @@ import {
     type ProcurementSubmissionDeadlineRecord,
     type ProcurementDepartmentWindowRecord,
 } from "./dashboard";
-import { normalizePlainText } from "../security/input";
+import { normalizePlainText } from "../shared/security/input";
 
 export const CANONICAL_ACCESS_CODE_RANDOM_LENGTH = 4;
 export const CANONICAL_ACCESS_CODE_MAX_LENGTH = 24;

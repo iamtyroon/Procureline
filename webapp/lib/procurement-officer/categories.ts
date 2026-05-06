@@ -7,8 +7,8 @@ import {
     Wrench,
     type LucideIcon,
 } from "lucide-react";
-import { buildDashboardPath, FORBIDDEN_ACCESS_REASON } from "../auth/roles";
-import { normalizePlainText } from "../security/input";
+import { buildDashboardPath, FORBIDDEN_ACCESS_REASON } from "../shared/auth/roles";
+import { normalizePlainText } from "../shared/security/input";
 
 export const CATEGORY_NAME_EXISTS_MESSAGE = "Category name already exists";
 export const CATEGORY_NOT_FOUND_MESSAGE = "Category not found";

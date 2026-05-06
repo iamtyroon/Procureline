@@ -17,7 +17,7 @@ import {
     type AuditEventEntry,
     type AuditEventName,
     type AuditOutcome,
-} from "../../lib/security/audit";
+} from "../../lib/shared/security/audit";
 import {
     consumePlatformAdminBackupCode,
     getPlatformAdminRedirectPath,
@@ -43,11 +43,11 @@ import {
     PlatformAdminRequestContextSignatureError,
     verifySignedPlatformAdminRequestContext,
 } from "../../lib/backend/platform-admin/request-context-token";
-import { resolveSessionState } from "../../lib/auth/session";
+import { resolveSessionState } from "../../lib/shared/auth/session";
 import {
     validateEmailInput,
     validateOneTimeCodeInput,
-} from "../../lib/security/input";
+} from "../../lib/shared/security/input";
 import { appendAuditLogBestEffort } from "./_audit";
 import { loadCurrentSessionDocuments } from "./sessions";
 import { sendAppEmail } from "../emailTransport";

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import {
     getSingleSearchParam,
     parsePasswordResetExpiresAt,
-} from "@/lib/auth/password-reset";
+} from "@/lib/shared/auth/password-reset";
 import { ResetPasswordForm } from "@/src/components/auth/ResetPasswordForm";
 
 export const metadata: Metadata = {

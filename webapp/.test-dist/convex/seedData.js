@@ -4,9 +4,9 @@ exports.bootstrapPlatformAdminByEmail = exports.removeDepartmentUserTenantRoleBy
 const values_1 = require("convex/values");
 const lucia_1 = require("lucia");
 const server_1 = require("./_generated/server");
-const department_user_access_1 = require("../lib/auth/department-user-access");
+const department_user_access_1 = require("../lib/shared/auth/department-user-access");
 const departments_1 = require("../lib/procurement-officer/departments");
-const input_1 = require("../lib/security/input");
+const input_1 = require("../lib/shared/security/input");
 function firstOrThrow(items, errorFactory) {
     const item = items[0];
     if (item === undefined) {

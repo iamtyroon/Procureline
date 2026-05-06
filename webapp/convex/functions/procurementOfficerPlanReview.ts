@@ -4,7 +4,7 @@ import { mutation, query, type MutationCtx, type QueryCtx } from "../_generated/
 import {
     createPersistedBlocklyWorkspaceRecord,
     normalizeBlocklyWorkspaceRecord,
-} from "../../lib/blockly/blockly-serialization";
+} from "../../lib/shared/blockly/blockly-serialization";
 import { formatDepartmentBudget } from "../../lib/procurement-officer/departments";
 import { formatDeadlineDateTime, resolveDeadlineTimeZone } from "../../lib/procurement-officer/deadlines";
 import {
@@ -43,7 +43,7 @@ import {
     AUDIT_EVENT_NAMES,
     AUDIT_OUTCOMES,
     createAuthenticatedAuditActor,
-} from "../../lib/security/audit";
+} from "../../lib/shared/security/audit";
 
 function readAuthUserSummary(
     userDocument: unknown,

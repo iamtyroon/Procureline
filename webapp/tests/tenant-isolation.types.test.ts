@@ -3,7 +3,7 @@ import {
     hasAccessibleTenantOwnedRecord,
     type AccessibleTenantOwnedRecord,
     type VerifiedTenantRecordId,
-} from "../lib/auth/tenant-isolation";
+} from "../lib/backend/auth/tenant-isolation";
 
 declare const rawTenantUserId: string;
 declare const verifiedTenantUserId: VerifiedTenantRecordId<"tenantUsers">;

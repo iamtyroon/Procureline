@@ -8,7 +8,7 @@ import {
     validateOneTimeCodeInput,
     validateOrganizationNameInput,
     validatePasswordLength,
-} from "../security/input";
+} from "../shared/security/input";
 
 function validateWithSharedResult(
     result:

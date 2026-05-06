@@ -8,7 +8,7 @@ import { AlertTriangle, KeyRound, LoaderCircle, MailCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { api } from "@/convex/_generated/api";
-import { shouldTerminateAuthenticatedSession } from "@/lib/auth/roles";
+import { shouldTerminateAuthenticatedSession } from "@/lib/shared/auth/roles";
 import { otpSchema, type OtpFormData } from "@/lib/validators/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

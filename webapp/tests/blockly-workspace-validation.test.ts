@@ -4,7 +4,7 @@ import {
     getDepartmentUserQuantityFieldPrecision,
     normalizeDepartmentUserQuantityValue,
     summarizeDepartmentUserBlockValidationIssues,
-} from "../lib/blockly/workspace-validation";
+} from "../lib/shared/blockly/workspace-validation";
 
 export function runBlocklyWorkspaceValidationTests(): string[] {
     const completedTests: string[] = [];

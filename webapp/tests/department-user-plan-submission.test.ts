@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import {
     mapDepartmentUserBudgetMeterState,
     type DepartmentUserWorkspaceSummary,
-} from "../lib/blockly/du-workspace-calculations";
+} from "../lib/shared/blockly/du-workspace-calculations";
 import {
     buildDepartmentUserPlanSubmissionReviewSummary,
     canDepartmentUserOpenPlanSubmissionReview,
     getDepartmentUserPlanSubmitState,
     shouldReplayDepartmentUserSubmittedPlan,
-} from "../lib/blockly/plan-submission";
+} from "../lib/shared/blockly/plan-submission";
 import { createUnavailableProcurementComplianceSnapshot } from "../lib/procurement/compliance";
 import {
     buildPlanSubmissionEmailIdempotencyKey,

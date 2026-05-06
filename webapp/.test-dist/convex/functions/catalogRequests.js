@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.cancelCatalogRequest = exports.updateItemRequest = exports.updateCategoryRequest = exports.createItemRequest = exports.createCategoryRequest = exports.expirePendingCatalogRequests = exports.expirePendingCatalogRequestsBatch = exports.cancelItemRequestInternal = exports.cancelCategoryRequestInternal = exports.updateItemRequestInternal = exports.updateCategoryRequestInternal = exports.createItemRequestInternal = exports.createCategoryRequestInternal = exports.getDepartmentUserCatalogRequests = exports.getDepartmentUserCatalogRequestActionContext = void 0;
 const values_1 = require("convex/values");
 const server_1 = require("../_generated/server");
-const audit_1 = require("../../lib/security/audit");
+const audit_1 = require("../../lib/shared/security/audit");
 const catalog_requests_1 = require("../../lib/procurement/catalog-requests");
 const categories_1 = require("../../lib/procurement-officer/categories");
 const _audit_1 = require("./_audit");

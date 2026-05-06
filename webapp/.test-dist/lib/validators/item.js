@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.itemFormSchema = void 0;
 const zod_1 = require("zod");
 const items_1 = require("../procurement-officer/items");
-const input_1 = require("../security/input");
+const input_1 = require("../shared/security/input");
 exports.itemFormSchema = zod_1.z
     .object({
     categoryId: zod_1.z.string(),

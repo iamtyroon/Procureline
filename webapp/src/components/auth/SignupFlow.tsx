@@ -9,7 +9,7 @@ import {
     restoreSignupFlowState,
     type SignupMode,
     type SignupStep,
-} from "@/lib/auth/signup-flow";
+} from "@/lib/shared/auth/signup-flow";
 import type { SelfServeTier } from "@/lib/shared/marketing/pricing";
 import { api } from "@/convex/_generated/api";
 import {

@@ -5,8 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runDepartmentUserAccessTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const department_user_access_1 = require("../lib/auth/department-user-access");
-const input_1 = require("../lib/security/input");
+const department_user_access_1 = require("../lib/shared/auth/department-user-access");
+const input_1 = require("../lib/shared/security/input");
 const NOW = new Date("2026-03-13T10:00:00.000Z").getTime();
 async function runDepartmentUserAccessTests() {
     const completedTests = [];

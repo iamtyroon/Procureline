@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runDepartmentUserRequestContextTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const department_user_request_context_token_1 = require("../lib/auth/department-user-request-context-token");
+const department_user_request_context_token_1 = require("../lib/backend/auth/department-user-request-context-token");
 const catalog_requests_1 = require("../lib/procurement/catalog-requests");
 async function runDepartmentUserRequestContextTests() {
     const completedTests = [];

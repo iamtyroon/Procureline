@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getByIdForPlatformAdmin = exports.getById = exports.create = void 0;
 const values_1 = require("convex/values");
 const server_1 = require("../_generated/server");
-const input_1 = require("../../lib/security/input");
+const input_1 = require("../../lib/shared/security/input");
 const _tenantGuard_1 = require("./_tenantGuard");
 const tenantRecordValidator = values_1.v.object({
     _id: values_1.v.id("tenants"),

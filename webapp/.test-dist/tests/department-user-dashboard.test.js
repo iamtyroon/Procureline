@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runDepartmentUserDashboardTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const roles_1 = require("../lib/auth/roles");
+const roles_1 = require("../lib/shared/auth/roles");
 const dashboard_1 = require("../lib/department-user/dashboard");
 const dashboard_snapshot_1 = require("../lib/department-user/dashboard-snapshot");
 function runDepartmentUserDashboardTests() {

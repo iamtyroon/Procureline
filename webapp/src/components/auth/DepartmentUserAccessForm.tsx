@@ -15,10 +15,10 @@ import {
     DEPARTMENT_USER_AUTH_VERIFY_FLOW,
     DEPARTMENT_USER_REMINDER_PLACEHOLDER,
     scrubDepartmentUserAccessCodeFromUrl,
-} from "@/lib/auth/department-user-access";
-import { clearRememberMeBootstrapValue } from "@/lib/auth/session";
-import { shouldTerminateAuthenticatedSession } from "@/lib/auth/roles";
-import { normalizeAuthEmail } from "@/lib/security/input";
+} from "@/lib/shared/auth/department-user-access";
+import { clearRememberMeBootstrapValue } from "@/lib/frontend/auth/session";
+import { shouldTerminateAuthenticatedSession } from "@/lib/shared/auth/roles";
+import { normalizeAuthEmail } from "@/lib/shared/security/input";
 import {
     departmentUserAccessRequestSchema,
     otpSchema,

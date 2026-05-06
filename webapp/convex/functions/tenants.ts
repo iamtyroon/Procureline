@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { internalMutation, mutation, query } from "../_generated/server";
-import { validateOrganizationNameInput } from "../../lib/security/input";
+import { validateOrganizationNameInput } from "../../lib/shared/security/input";
 import {
     readTenantByIdForCurrentTenant,
     readTenantByIdWithPlatformAdminBypass,

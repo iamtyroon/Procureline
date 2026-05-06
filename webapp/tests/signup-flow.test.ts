@@ -3,7 +3,7 @@ import {
     createPendingSignupState,
     PENDING_INVITE_TOKEN_STORAGE_KEY,
     restoreSignupFlowState,
-} from "../lib/auth/signup-flow";
+} from "../lib/shared/auth/signup-flow";
 
 export function runSignupFlowTests(): string[] {
     const completedTests: string[] = [];

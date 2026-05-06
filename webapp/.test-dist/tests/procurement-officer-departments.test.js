@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.runProcurementOfficerDepartmentTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
 const departments_1 = require("../lib/procurement-officer/departments");
-const roles_1 = require("../lib/auth/roles");
+const roles_1 = require("../lib/shared/auth/roles");
 function runProcurementOfficerDepartmentTests() {
     const completedTests = [];
     strict_1.default.equal((0, departments_1.normalizeDepartmentName)("  Human   Resources  "), "human resources");

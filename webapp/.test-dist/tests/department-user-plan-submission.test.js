@@ -5,8 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runDepartmentUserPlanSubmissionTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const du_workspace_calculations_1 = require("../lib/blockly/du-workspace-calculations");
-const plan_submission_1 = require("../lib/blockly/plan-submission");
+const du_workspace_calculations_1 = require("../lib/shared/blockly/du-workspace-calculations");
+const plan_submission_1 = require("../lib/shared/blockly/plan-submission");
 const compliance_1 = require("../lib/procurement/compliance");
 const submission_1 = require("../lib/plans/submission");
 const pre_submission_validation_1 = require("../lib/plans/pre-submission-validation");

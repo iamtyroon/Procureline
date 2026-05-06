@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runProcurementOfficerReviewTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const blockly_serialization_1 = require("../lib/blockly/blockly-serialization");
+const blockly_serialization_1 = require("../lib/shared/blockly/blockly-serialization");
 const review_1 = require("../lib/procurement-officer/review");
 function runProcurementOfficerReviewTests() {
     const completedTests = [];

@@ -5,7 +5,7 @@ import type {
     AuditActor,
     AuditEventEntry,
     SerializedAuditEventEntry,
-} from "../../lib/security/audit";
+} from "../../lib/shared/security/audit";
 
 function assertAuthenticatedActor(actor: AuditActor): void {
     if (actor.state === "authenticated" && !actor.userId) {

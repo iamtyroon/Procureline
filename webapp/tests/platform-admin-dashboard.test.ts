@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { getProtectedRouteRole } from "../lib/auth/roles";
+import { getProtectedRouteRole } from "../lib/shared/auth/roles";
 import {
     createPlatformAdminDashboardReadAccessToken,
     resolvePlatformAdminDashboardAccessTokenSecret,

@@ -19,7 +19,7 @@ import {
     PLATFORM_ADMIN_INACTIVITY_WINDOW_MS,
     REMEMBER_ME_SESSION_WINDOW_MS,
     resolveSessionState,
-} from "../lib/auth/session";
+} from "../lib/shared/auth/session";
 
 const NOW = new Date("2026-03-22T10:00:00.000Z").getTime();
 const REQUEST_CONTEXT = {

@@ -5,11 +5,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runSecurityInfrastructureTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const audit_1 = require("../lib/security/audit");
-const bridge_1 = require("../lib/security/bridge");
-const input_1 = require("../lib/security/input");
-const origins_1 = require("../lib/security/origins");
-const policy_1 = require("../lib/security/policy");
+const audit_1 = require("../lib/shared/security/audit");
+const bridge_1 = require("../lib/backend/security/bridge");
+const input_1 = require("../lib/shared/security/input");
+const origins_1 = require("../lib/backend/security/origins");
+const policy_1 = require("../lib/backend/security/policy");
 const auth_1 = require("../lib/validators/auth");
 function runSecurityInfrastructureTests() {
     const completedTests = [];

@@ -8,7 +8,7 @@ import {
     buildPasswordResetRedirectTo,
     isMaskedPasswordResetRequestError,
     normalizeAuthEmail,
-} from "../../lib/auth/password-reset";
+} from "../../lib/shared/auth/password-reset";
 
 function randomReader() {
     return {

@@ -3,10 +3,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.denyProcurementOfficerPlanRedraftRequest = exports.approveProcurementOfficerPlanRedraftRequest = exports.getProcurementOfficerPlanRedraftRequests = exports.requestDepartmentUserPlanRedraft = void 0;
 const values_1 = require("convex/values");
 const server_1 = require("../_generated/server");
-const blockly_serialization_1 = require("../../lib/blockly/blockly-serialization");
+const blockly_serialization_1 = require("../../lib/shared/blockly/blockly-serialization");
 const redraft_1 = require("../../lib/plans/redraft");
 const deadlines_1 = require("../../lib/procurement-officer/deadlines");
-const audit_1 = require("../../lib/security/audit");
+const audit_1 = require("../../lib/shared/security/audit");
 const _audit_1 = require("./_audit");
 const _roleGuard_1 = require("./_roleGuard");
 async function loadTenantUserForRole(ctx, args) {

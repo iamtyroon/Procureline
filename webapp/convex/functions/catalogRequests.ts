@@ -13,7 +13,7 @@ import {
     AUDIT_EVENT_NAMES,
     AUDIT_OUTCOMES,
     createAuthenticatedAuditActor,
-} from "../../lib/security/audit";
+} from "../../lib/shared/security/audit";
 import {
     buildCatalogRequestCategoryReferenceKey,
     buildCatalogRequestSummary,

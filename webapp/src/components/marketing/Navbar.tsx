@@ -13,7 +13,7 @@ import {
     SheetTitle,
     SheetTrigger,
 } from "@/components/ui/sheet";
-import { MARKETING_ACCESS_CTA } from "@/lib/auth/public-entry";
+import { MARKETING_ACCESS_CTA } from "@/lib/shared/auth/public-entry";
 import { cn } from "@/lib/utils";
 import { ModeToggle } from "@/src/components/mode-toggle";
 

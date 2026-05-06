@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildAccessCodeBulkGenerationFeedback = exports.buildAbsoluteAccessCodeLoginUrl = exports.resolveProcurelineAppUrl = exports.mapAccessCodeDeliveryStatusLabel = exports.selectDepartmentsForBulkAccessCodeGeneration = exports.getAccessCodeExpirationFormError = exports.validateAccessCodeExpiration = exports.deriveAccessCodeExpirationDefault = exports.maskCanonicalDepartmentAccessCode = exports.validateCanonicalDepartmentAccessCode = exports.buildCanonicalDepartmentAccessCode = exports.generateAccessCodeRandomChars = exports.sanitizeAccessCodeRandomChars = exports.resolveAccessCodeFiscalYearLabel = exports.buildDepartmentAccessCodeInitials = exports.normalizeCanonicalDepartmentAccessCode = exports.DEVELOPMENT_PROCURELINE_APP_URL = exports.ACCESS_CODE_SYNC_REPAIR_REQUIRED_MESSAGE = exports.ACCESS_CODE_LOGIN_URL_PATH = exports.ACCESS_CODE_DELIVERY_GENERIC_ERROR_MESSAGE = exports.ACCESS_CODE_INCOMPATIBLE_RECIPIENT_MESSAGE = exports.ACCESS_CODE_NO_ELIGIBLE_BULK_MESSAGE = exports.ACCESS_CODE_DEACTIVATED_MESSAGE = exports.ACCESS_CODE_NOT_FOUND_MESSAGE = exports.ACCESS_CODE_EXPIRATION_PAST_MESSAGE = exports.ACCESS_CODE_EXPIRATION_REQUIRED_MESSAGE = exports.ACCESS_CODE_FORMAT_MESSAGE = exports.CANONICAL_ACCESS_CODE_MAX_LENGTH = exports.CANONICAL_ACCESS_CODE_RANDOM_LENGTH = void 0;
 const dashboard_1 = require("./dashboard");
-const input_1 = require("../security/input");
+const input_1 = require("../shared/security/input");
 exports.CANONICAL_ACCESS_CODE_RANDOM_LENGTH = 4;
 exports.CANONICAL_ACCESS_CODE_MAX_LENGTH = 24;
 exports.ACCESS_CODE_FORMAT_MESSAGE = "Access code must use the canonical format YYYY-DEPT-AB12.";

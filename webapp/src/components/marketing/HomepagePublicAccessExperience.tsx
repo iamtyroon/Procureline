@@ -10,7 +10,7 @@ import {
     getTrimmedSearchParam,
     resolveAuthenticatedAccessRedirect,
     type PublicEntrySearchParams,
-} from "@/lib/auth/public-entry";
+} from "@/lib/shared/auth/public-entry";
 import { PublicAccessSection } from "@/src/components/marketing/PublicAccessSection";
 import { Spinner } from "@/src/components/ui/Spinner";
 

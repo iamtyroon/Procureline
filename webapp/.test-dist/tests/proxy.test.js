@@ -5,9 +5,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runProxyRouteTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const public_routes_1 = require("../lib/auth/public-routes");
-const roles_1 = require("../lib/auth/roles");
-const proxy_1 = require("../lib/auth/proxy");
+const public_routes_1 = require("../lib/shared/auth/public-routes");
+const roles_1 = require("../lib/shared/auth/roles");
+const proxy_1 = require("../lib/backend/auth/proxy");
 function runProxyRouteTests() {
     const completedTests = [];
     strict_1.default.equal((0, public_routes_1.isKnownPublicRoute)("/forgot-password"), true);

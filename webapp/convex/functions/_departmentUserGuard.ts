@@ -5,7 +5,7 @@ import {
     DEPARTMENT_USER_SETUP_REQUIRED_MESSAGE,
     evaluateDepartmentUserSubmissionWindow,
     hasConfiguredDepartmentUserSubmissionWindow,
-} from "../../lib/auth/department-user-access";
+} from "../../lib/shared/auth/department-user-access";
 import { requireTenantRole } from "./_roleGuard";
 
 type DepartmentUserCtx = QueryCtx | MutationCtx;

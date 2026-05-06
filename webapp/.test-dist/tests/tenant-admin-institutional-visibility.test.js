@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runTenantAdminInstitutionalVisibilityTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const institutional_visibility_1 = require("../lib/tenant-admin/institutional-visibility");
+const institutional_visibility_1 = require("../lib/shared/tenant-admin/institutional-visibility");
 const DAY_MS = 24 * 60 * 60 * 1000;
 function runTenantAdminInstitutionalVisibilityTests() {
     const completedTests = [];

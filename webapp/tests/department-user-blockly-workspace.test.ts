@@ -2,23 +2,23 @@ import assert from "node:assert/strict";
 import {
     createBlocklyWorkspaceRecord,
     normalizeBlocklyWorkspaceRecord,
-} from "../lib/blockly/blockly-serialization";
+} from "../lib/shared/blockly/blockly-serialization";
 import {
     buildDepartmentUserToolbox,
-    sanitizeDepartmentUserWorkspaceCategorySelection,
-} from "../lib/blockly/du-toolbox";
+} from "../lib/frontend/blockly/du-toolbox";
+import { sanitizeDepartmentUserWorkspaceCategorySelection } from "../lib/shared/blockly/du-toolbox-selection";
 import {
     createDepartmentUserWorkspaceUiStateStorageKey,
     parseDepartmentUserWorkspaceUiState,
     restoreDepartmentUserWorkspaceUiState,
     serializeDepartmentUserWorkspaceUiState,
-} from "../lib/blockly/workspace-ui-state";
+} from "../lib/frontend/blockly/workspace-ui-state";
 import {
     getDepartmentUserCategoryDeletionConfirmation,
     resolveDepartmentUserWorkspaceEvent,
     shouldRefreshDepartmentUserToolboxForEvent,
-} from "../lib/blockly/workspace-events";
-import { buildDepartmentUserBlocklyInjectionOptions } from "../lib/blockly/workspace-runtime";
+} from "../lib/frontend/blockly/workspace-events";
+import { buildDepartmentUserBlocklyInjectionOptions } from "../lib/frontend/blockly/workspace-runtime";
 import {
     applyDepartmentWorkspaceRollup,
     buildDepartmentUserWorkspaceSummaryFromPersistedPlan,
@@ -29,22 +29,22 @@ import {
     getDepartmentUserWorkspaceAnnouncement,
     mapDepartmentUserBudgetMeterState,
     resolveDepartmentUserDisplayedWorkspaceSummary,
-} from "../lib/blockly/du-workspace-calculations";
+} from "../lib/shared/blockly/du-workspace-calculations";
 import {
     buildDepartmentUserWorkspaceDraftPersistencePatch,
     buildDepartmentUserWorkspaceDraftSaveInput,
     buildPersistedDepartmentUserWorkspaceState,
-    createSerializedBlocklyWorkspaceSnapshot,
     deriveDepartmentUserWorkspaceDraftPersistenceSummary,
     prepareDepartmentUserWorkspaceDraftPersistence,
-} from "../lib/blockly/workspace-save";
+} from "../lib/shared/blockly/workspace-save";
+import { createSerializedBlocklyWorkspaceSnapshot } from "../lib/frontend/blockly/workspace-serialization";
 import {
     collectDepartmentUserWorkspaceSourceUsage,
     collectDepartmentUserWorkspaceSourceUsageFromDepartmentBlock,
     resolveDepartmentUserItemCatalogIdentity,
     synchronizeDepartmentUserWorkspaceCatalogIdentity,
-} from "../lib/blockly/workspace-catalog-identity";
-import { getPersistedPlanSummaryForWorkspaceSummaryChange } from "../lib/blockly/du-editor-fallback";
+} from "../lib/shared/blockly/workspace-catalog-identity";
+import { getPersistedPlanSummaryForWorkspaceSummaryChange } from "../lib/frontend/blockly/du-editor-fallback";
 
 class TestBlock {
     private readonly fields = new Map<string, string>();

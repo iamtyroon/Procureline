@@ -20,7 +20,7 @@ import {
     getAuthNoticeMessage,
     getRoleLabel,
     shouldTerminateAuthenticatedSession,
-} from "@/lib/auth/roles";
+} from "@/lib/shared/auth/roles";
 import { PROCUREMENT_OFFICER_DASHBOARD_QUERY_KEYS } from "@/lib/procurement-officer/dashboard-search";
 import { cn } from "@/lib/utils";
 import { ModeToggle } from "@/src/components/mode-toggle";

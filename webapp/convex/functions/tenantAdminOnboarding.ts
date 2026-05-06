@@ -3,7 +3,7 @@ import { generateRandomString } from "@oslojs/crypto/random";
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "../_generated/server";
-import { AUDIT_EVENT_NAMES, createAuthenticatedAuditActor } from "../../lib/security/audit";
+import { AUDIT_EVENT_NAMES, createAuthenticatedAuditActor } from "../../lib/shared/security/audit";
 import { sha256Hex } from "../../lib/backend/platform-admin/risk";
 import {
     TENANT_ADMIN_INVITATION_TTL_MS,
@@ -18,7 +18,7 @@ import {
     validateEmailInput,
     validateOrganizationNameInput,
     validatePlainTextInput,
-} from "../../lib/security/input";
+} from "../../lib/shared/security/input";
 import { appendAuditLogBestEffort } from "./_audit";
 import { requirePlatformAdmin, requireTenantRole } from "./_roleGuard";
 

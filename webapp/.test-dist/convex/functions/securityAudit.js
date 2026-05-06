@@ -5,8 +5,8 @@ exports.logBlockedOriginFromProxy = void 0;
 const values_1 = require("convex/values");
 const server_1 = require("../_generated/server");
 const api_1 = require("../_generated/api");
-const audit_1 = require("../../lib/security/audit");
-const bridge_1 = require("../../lib/security/bridge");
+const audit_1 = require("../../lib/shared/security/audit");
+const bridge_1 = require("../../lib/backend/security/bridge");
 exports.logBlockedOriginFromProxy = (0, server_1.action)({
     args: {
         allowedOrigins: values_1.v.array(values_1.v.string()),

@@ -6,11 +6,11 @@ import {
     ACCOUNT_DEACTIVATED_REASON,
     SESSION_EXPIRED_REASON,
     SUBSCRIPTION_INACTIVE_REASON,
-} from "../../lib/auth/session";
+} from "../../lib/shared/auth/session";
 import {
     evaluateDepartmentUserSubmissionWindow,
     hasConfiguredDepartmentUserSubmissionWindow,
-} from "../../lib/auth/department-user-access";
+} from "../../lib/shared/auth/department-user-access";
 import {
     buildDashboardPath,
     FORBIDDEN_ACCESS_REASON,
@@ -25,7 +25,7 @@ import {
     type AuthScope,
     type TenantScopedRole,
     type TenantStatusValue,
-} from "../../lib/auth/roles";
+} from "../../lib/shared/auth/roles";
 import {
     getPlatformAdminRedirectPath,
     PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON,

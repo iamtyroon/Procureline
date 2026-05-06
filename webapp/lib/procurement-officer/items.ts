@@ -1,5 +1,5 @@
-import { buildDashboardPath, FORBIDDEN_ACCESS_REASON } from "../auth/roles";
-import { normalizePlainText } from "../security/input";
+import { buildDashboardPath, FORBIDDEN_ACCESS_REASON } from "../shared/auth/roles";
+import { normalizePlainText } from "../shared/security/input";
 
 export const PROCUREMENT_ITEM_NAME_REQUIRED_MESSAGE =
   "Item description is required";

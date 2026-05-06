@@ -1,5 +1,5 @@
-import type { DepartmentUserPlanSubmissionIssue } from "@/lib/blockly/plan-submission";
-import type { DepartmentUserWorkspaceSummary } from "@/lib/blockly/du-workspace-calculations";
+import type { DepartmentUserPlanSubmissionIssue } from "@/lib/shared/blockly/plan-submission";
+import type { DepartmentUserWorkspaceSummary } from "@/lib/shared/blockly/du-workspace-calculations";
 import { formatDeadlineDateTime } from "@/lib/procurement-officer/deadlines";
 
 export interface DepartmentUserRevisionDecisionRecord {

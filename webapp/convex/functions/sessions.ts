@@ -12,7 +12,7 @@ import {
     createLogoutMetadataPatch,
     resolveSessionState,
     type SessionStatus,
-} from "../../lib/auth/session";
+} from "../../lib/shared/auth/session";
 
 interface CurrentSessionDocuments {
     authSession: Doc<"authSessions"> | null;

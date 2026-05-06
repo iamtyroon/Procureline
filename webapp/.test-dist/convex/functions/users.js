@@ -4,9 +4,9 @@ exports.assignPlatformAdmin = exports.listCurrentActiveTenantMembershipOptions =
 const server_1 = require("@convex-dev/auth/server");
 const values_1 = require("convex/values");
 const server_2 = require("../_generated/server");
-const audit_1 = require("../../lib/security/audit");
-const pricing_1 = require("../../lib/marketing/pricing");
-const input_1 = require("../../lib/security/input");
+const audit_1 = require("../../lib/shared/security/audit");
+const pricing_1 = require("../../lib/shared/marketing/pricing");
+const input_1 = require("../../lib/shared/security/input");
 const _audit_1 = require("./_audit");
 const _roleGuard_1 = require("./_roleGuard");
 const _tenantGuard_1 = require("./_tenantGuard");

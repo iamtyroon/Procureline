@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Building2, Mail, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { MARKETING_ACCESS_CTA } from "@/lib/auth/public-entry";
+import { MARKETING_ACCESS_CTA } from "@/lib/shared/auth/public-entry";
 
 interface FooterLink {
     href: string;

@@ -10,7 +10,7 @@ import {
   AUDIT_EVENT_NAMES,
   AUDIT_OUTCOMES,
   createAuthenticatedAuditActor,
-} from "../../lib/security/audit";
+} from "../../lib/shared/security/audit";
 import { getProcurementCatalogExportGuardState } from "../../lib/procurement-officer/catalog-filters";
 import {
   buildProcurementCatalogExportRows,

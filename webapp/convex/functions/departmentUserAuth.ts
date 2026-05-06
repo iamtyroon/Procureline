@@ -19,7 +19,7 @@ import {
     createAuthenticatedAuditActor,
     serializeAuditEvent,
     type AuditEventEntry,
-} from "../../lib/security/audit";
+} from "../../lib/shared/security/audit";
 import {
     DEACTIVATED_DEPARTMENT_USER_MESSAGE,
     DEPARTMENT_USER_ACCESS_CHALLENGE_WINDOW_MS,
@@ -43,11 +43,11 @@ import {
     isDepartmentUserOtpProviderFailureMessage,
     normalizeDepartmentUserAccessCode,
     type DepartmentUserAccessMode,
-} from "../../lib/auth/department-user-access";
+} from "../../lib/shared/auth/department-user-access";
 import {
     DepartmentUserRequestContextSignatureError,
     verifySignedDepartmentUserRequestContext,
-} from "../../lib/auth/department-user-request-context-token";
+} from "../../lib/backend/auth/department-user-request-context-token";
 import {
     normalizeDepartmentCode,
     normalizeDepartmentName,
@@ -57,7 +57,7 @@ import {
     normalizeAuthEmail,
     validateDepartmentUserAccessCodeInput,
     validateEmailInput,
-} from "../../lib/security/input";
+} from "../../lib/shared/security/input";
 import { type AccessCodeEventRequestOrigin, appendDepartmentAccessCodeEventBestEffort } from "./accessCodes";
 import { appendAuditLogBestEffort } from "./_audit";
 import { ResendOTP } from "../ResendOTP";

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const tenant_isolation_1 = require("../lib/auth/tenant-isolation");
+const tenant_isolation_1 = require("../lib/backend/auth/tenant-isolation");
 // @ts-expect-error Raw document IDs are not verified tenant-scoped IDs.
 const _invalidScopedId = rawTenantUserId;
 // @ts-expect-error Verified IDs for different tables are not interchangeable.

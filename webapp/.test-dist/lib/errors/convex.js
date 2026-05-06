@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getPublicProcurementOfficerAccessErrorMessage = exports.getPublicDepartmentUserAccessErrorMessage = exports.getPublicVerificationErrorMessage = exports.isVerificationCodeFailureMessage = exports.getPublicInquirySubmissionErrorMessage = exports.isOrganizationNameConflictError = exports.isExistingRoleAssignmentError = void 0;
 const sales_1 = require("../validators/sales");
-const department_user_access_1 = require("../auth/department-user-access");
+const department_user_access_1 = require("../shared/auth/department-user-access");
 const invitations_1 = require("../procurement-officer/invitations");
 const GENERIC_PUBLIC_ERROR_MESSAGE = "We could not complete your request right now. Please try again.";
 const GENERIC_PUBLIC_INQUIRY_ERROR_MESSAGE = "We could not submit your request right now. Please try again.";

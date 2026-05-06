@@ -4,9 +4,9 @@ import { internalMutation, mutation, query } from "../_generated/server";
 import {
     buildSecurityInputRejectedEvent,
     createAuthenticatedAuditActor,
-} from "../../lib/security/audit";
+} from "../../lib/shared/security/audit";
 import { resolveTenantRegistrationTier } from "../../lib/shared/marketing/pricing";
-import { validateOrganizationNameInput } from "../../lib/security/input";
+import { validateOrganizationNameInput } from "../../lib/shared/security/input";
 import { appendAuditLogBestEffort } from "./_audit";
 import {
     authContextValidator,

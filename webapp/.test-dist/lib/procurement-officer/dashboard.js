@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.isValidDepartmentWindow = exports.formatCoverageValue = exports.deriveProcurementChecklist = exports.deriveSharedSubmissionDeadline = exports.buildAvailableProcurementFiscalYears = exports.getDepartmentFiscalYearKey = exports.resolveProcurementOfficerWorkspaceNavigation = exports.buildProcurementOfficerWorkspaceModalPath = exports.normalizeProcurementOfficerWorkspaceModalState = exports.isProcurementOfficerWorkspaceModal = exports.formatProcurementFiscalYearLabel = exports.getProcurementFiscalYearForDate = exports.PROCUREMENT_OFFICER_WORKSPACE_MODALS = void 0;
-const dashboard_1 = require("../tenant-admin/dashboard");
+const dashboard_1 = require("../shared/tenant-admin/dashboard");
 const deadlines_1 = require("./deadlines");
 const dashboard_search_1 = require("./dashboard-search");
 exports.PROCUREMENT_OFFICER_WORKSPACE_MODALS = [

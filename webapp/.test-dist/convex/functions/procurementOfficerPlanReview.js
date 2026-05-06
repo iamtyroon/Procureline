@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.undoProcurementOfficerPlanApproval = exports.approveProcurementOfficerPlanReview = exports.rejectProcurementOfficerPlanReview = exports.addProcurementOfficerPlanReviewComment = exports.startProcurementOfficerPlanReview = exports.getProcurementOfficerPlanReviewWorkspace = void 0;
 const values_1 = require("convex/values");
 const server_1 = require("../_generated/server");
-const blockly_serialization_1 = require("../../lib/blockly/blockly-serialization");
+const blockly_serialization_1 = require("../../lib/shared/blockly/blockly-serialization");
 const departments_1 = require("../../lib/procurement-officer/departments");
 const deadlines_1 = require("../../lib/procurement-officer/deadlines");
 const review_decision_1 = require("../../lib/procurement-officer/review-decision");
@@ -12,7 +12,7 @@ const submissions_1 = require("../../lib/procurement-officer/submissions");
 const plans_1 = require("./plans");
 const _audit_1 = require("./_audit");
 const _roleGuard_1 = require("./_roleGuard");
-const audit_1 = require("../../lib/security/audit");
+const audit_1 = require("../../lib/shared/security/audit");
 function readAuthUserSummary(userDocument, fallbackName) {
     const record = userDocument && typeof userDocument === "object" && !Array.isArray(userDocument)
         ? userDocument

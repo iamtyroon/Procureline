@@ -9,12 +9,13 @@
     "dev:frontend-only": "next dev",
     "build": "next build",
     "start": "next start",
+    "postinstall": "patch-package",
     "lint": "tsc && eslint . --ext .ts,.tsx",
     "test": "tsc -p tsconfig.tests.json && node .test-dist/tests/run-tests.js"
   },
   "dependencies": {
     "@auth/core": "^0.37.4",
-    "@convex-dev/auth": "^0.0.90",
+    "@convex-dev/auth": "^0.0.92",
     "@hookform/resolvers": "^3.3.2",
     "@internationalized/date": "^3.12.1",
     "@oslojs/crypto": "^1.0.1",
@@ -64,6 +65,8 @@
     "lucide-react": "^0.577.0",
     "next": "^16.1.6",
     "next-themes": "^0.4.6",
+    "nodemailer": "^6.10.1",
+    "patch-package": "^8.0.1",
     "postcss": "8.4.29",
     "react": "^19.2.4",
     "react-aria-components": "^1.17.0",
@@ -81,6 +84,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@types/nodemailer": "^6.4.17",
     "npm-run-all": "^4.1.5"
   }
 }

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createBlocklyWorkspaceRecord } from "../lib/blockly/blockly-serialization";
+import { createBlocklyWorkspaceRecord } from "../lib/shared/blockly/blockly-serialization";
 import {
     createRecoveredDepartmentUserWorkspaceRecord,
     createClearedDepartmentUserWorkspaceRecord,
@@ -13,11 +13,11 @@ import {
     parseDepartmentUserWorkspaceSessionLease,
     shouldInterceptDepartmentUserRouteNavigation,
     shouldWarnDepartmentUserBeforeLeave,
-} from "../lib/blockly/workspace-draft-queue";
+} from "../lib/frontend/blockly/workspace-draft-queue";
 import {
     isDepartmentUserWorkspaceDraftStale,
     prepareDepartmentUserWorkspaceDraftPersistence,
-} from "../lib/blockly/workspace-save";
+} from "../lib/shared/blockly/workspace-save";
 
 export function runBlocklyWorkspacePersistenceTests(): string[] {
     const completedTests: string[] = [];

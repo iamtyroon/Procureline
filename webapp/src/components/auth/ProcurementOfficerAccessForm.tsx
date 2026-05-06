@@ -16,9 +16,9 @@ import {
     scrubProcurementOfficerHandoffFromUrl,
     type ResolvedProcurementOfficerHandoff,
 } from "@/lib/procurement-officer/invitations";
-import { clearRememberMeBootstrapValue } from "@/lib/auth/session";
-import { shouldTerminateAuthenticatedSession } from "@/lib/auth/roles";
-import { normalizeAuthEmail } from "@/lib/security/input";
+import { clearRememberMeBootstrapValue } from "@/lib/frontend/auth/session";
+import { shouldTerminateAuthenticatedSession } from "@/lib/shared/auth/roles";
+import { normalizeAuthEmail } from "@/lib/shared/security/input";
 import {
     procurementOfficerAccessRequestSchema,
     type ProcurementOfficerAccessRequestData,

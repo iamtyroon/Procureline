@@ -8,14 +8,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderCircle, LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { PASSWORD_RESET_SUCCESS_MESSAGE } from "@/lib/auth/password-reset";
+import { PASSWORD_RESET_SUCCESS_MESSAGE } from "@/lib/shared/auth/password-reset";
 import {
     clearRememberMeBootstrapValue,
     readRememberMeBootstrapValue,
     writeRememberMeBootstrapValue,
-} from "@/lib/auth/session";
-import { shouldTerminateAuthenticatedSession } from "@/lib/auth/roles";
-import { normalizeAuthEmail } from "@/lib/security/input";
+} from "@/lib/frontend/auth/session";
+import { shouldTerminateAuthenticatedSession } from "@/lib/shared/auth/roles";
+import { normalizeAuthEmail } from "@/lib/shared/security/input";
 import { loginSchema, type LoginFormData } from "@/lib/validators/auth";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";

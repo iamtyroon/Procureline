@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
-import { type SerializedAuditEventEntry } from "../../lib/security/audit";
+import { type SerializedAuditEventEntry } from "../../lib/shared/security/audit";
 import { appendAuditLogEntry, deserializeAuditEvent } from "./_audit";
 
 const auditActorRoleValidator = v.union(

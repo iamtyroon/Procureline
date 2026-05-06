@@ -5,15 +5,17 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runDepartmentUserBlocklyWorkspaceTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const blockly_serialization_1 = require("../lib/blockly/blockly-serialization");
-const du_toolbox_1 = require("../lib/blockly/du-toolbox");
-const workspace_ui_state_1 = require("../lib/blockly/workspace-ui-state");
-const workspace_events_1 = require("../lib/blockly/workspace-events");
-const workspace_runtime_1 = require("../lib/blockly/workspace-runtime");
-const du_workspace_calculations_1 = require("../lib/blockly/du-workspace-calculations");
-const workspace_save_1 = require("../lib/blockly/workspace-save");
-const workspace_catalog_identity_1 = require("../lib/blockly/workspace-catalog-identity");
-const du_editor_fallback_1 = require("../lib/blockly/du-editor-fallback");
+const blockly_serialization_1 = require("../lib/shared/blockly/blockly-serialization");
+const du_toolbox_1 = require("../lib/frontend/blockly/du-toolbox");
+const du_toolbox_selection_1 = require("../lib/shared/blockly/du-toolbox-selection");
+const workspace_ui_state_1 = require("../lib/frontend/blockly/workspace-ui-state");
+const workspace_events_1 = require("../lib/frontend/blockly/workspace-events");
+const workspace_runtime_1 = require("../lib/frontend/blockly/workspace-runtime");
+const du_workspace_calculations_1 = require("../lib/shared/blockly/du-workspace-calculations");
+const workspace_save_1 = require("../lib/shared/blockly/workspace-save");
+const workspace_serialization_1 = require("../lib/frontend/blockly/workspace-serialization");
+const workspace_catalog_identity_1 = require("../lib/shared/blockly/workspace-catalog-identity");
+const du_editor_fallback_1 = require("../lib/frontend/blockly/du-editor-fallback");
 class TestBlock {
     type;
     fields = new Map();
@@ -107,7 +109,7 @@ async function runDepartmentUserBlocklyWorkspaceTests() {
     strict_1.default.equal(overBudget.overBudgetAmount, 150_000);
     strict_1.default.match(overBudget.bannerText ?? "", /Budget exceeded by/i);
     completedTests.push("budget meter state now carries truthful unallocated and over-budget messaging");
-    const categorySelection = (0, du_toolbox_1.sanitizeDepartmentUserWorkspaceCategorySelection)({
+    const categorySelection = (0, du_toolbox_selection_1.sanitizeDepartmentUserWorkspaceCategorySelection)({
         categories: [
             { color: "#0B6E4F", icon: "cpu", id: "cat-it", isActive: true, name: "ICT Equipment", sortOrder: 1 },
             { color: "#4A90D9", icon: "boxes", id: "cat-office", isActive: true, name: "Office Supplies", sortOrder: 2 },
@@ -1114,7 +1116,7 @@ async function runDepartmentUserBlocklyWorkspaceTests() {
         mode: "edit",
     }).label, "Over Budget - Cannot Submit");
     completedTests.push("meaningful announcement keys and truthful reserved submit labels now track budget threshold changes");
-    const snapshot = (0, workspace_save_1.createSerializedBlocklyWorkspaceSnapshot)({
+    const snapshot = (0, workspace_serialization_1.createSerializedBlocklyWorkspaceSnapshot)({
         Blockly: {
             serialization: {
                 workspaces: {

@@ -7,7 +7,7 @@ import {
     buildDepartmentDeadlineAnnouncement,
 } from "../../lib/department-user/dashboard";
 import { buildDepartmentUserDashboardSnapshot } from "../../lib/department-user/dashboard-snapshot";
-import { hasConfiguredDepartmentUserSubmissionWindow } from "../../lib/auth/department-user-access";
+import { hasConfiguredDepartmentUserSubmissionWindow } from "../../lib/shared/auth/department-user-access";
 import {
     getFiscalYearForTimestampInTimeZone,
     resolveDeadlineTimeZone,

@@ -4,7 +4,7 @@ import {
     normalizePlainText,
     validateEmailInput,
     validatePlainTextInput,
-} from "../security/input";
+} from "../shared/security/input";
 
 export const ENTERPRISE_INQUIRY_COOLDOWN_MS = 10 * 60 * 1000;
 

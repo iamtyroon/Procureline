@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {
     createBlocklyWorkspaceRecord,
     createPersistedBlocklyWorkspaceRecord,
-} from "../lib/blockly/blockly-serialization";
+} from "../lib/shared/blockly/blockly-serialization";
 import {
     buildProcurementOfficerReviewComparison,
     buildProcurementOfficerReviewSelectionId,

@@ -9,9 +9,9 @@ import {
     buildPublicEntryLandingHref,
     resolveAuthenticatedAccessRedirect,
     resolvePublicEntryState,
-} from "../lib/auth/public-entry";
-import { scrubDepartmentUserAccessCodeFromUrl } from "../lib/auth/department-user-access";
-import { SESSION_EXPIRED_REDIRECT_PATH } from "../lib/auth/proxy";
+} from "../lib/shared/auth/public-entry";
+import { scrubDepartmentUserAccessCodeFromUrl } from "../lib/shared/auth/department-user-access";
+import { SESSION_EXPIRED_REDIRECT_PATH } from "../lib/backend/auth/proxy";
 
 function toUrl(path: string): URL {
     return new URL(path, "https://example.test");

@@ -28,9 +28,9 @@ import type {
 import {
     areBlocklyWorkspaceJsonEquivalent,
     type BlocklyWorkspaceRecord,
-} from "@/lib/blockly/blockly-serialization";
-import { getPersistedPlanSummaryForWorkspaceSummaryChange } from "@/lib/blockly/du-editor-fallback";
-import { buildDepartmentUserToolbox } from "@/lib/blockly/du-toolbox";
+} from "@/lib/shared/blockly/blockly-serialization";
+import { getPersistedPlanSummaryForWorkspaceSummaryChange } from "@/lib/frontend/blockly/du-editor-fallback";
+import { buildDepartmentUserToolbox } from "@/lib/frontend/blockly/du-toolbox";
 import {
     calculateDepartmentUserWorkspaceSummaryFromWorkspaceRecord,
     getDepartmentUserWorkspaceAnnouncement,
@@ -39,21 +39,21 @@ import {
     type DepartmentUserBudgetMeterState,
     type DepartmentUserPersistedPlanSummary,
     type DepartmentUserWorkspaceSummary,
-} from "@/lib/blockly/du-workspace-calculations";
+} from "@/lib/shared/blockly/du-workspace-calculations";
 import {
     buildDepartmentUserPlanSubmissionReviewSummary,
     canDepartmentUserOpenPlanSubmissionReview,
     getDepartmentUserPlanSubmitState,
     type DepartmentUserPlanSubmissionFixTarget,
     type DepartmentUserPlanSubmissionIssue,
-} from "@/lib/blockly/plan-submission";
+} from "@/lib/shared/blockly/plan-submission";
 import { mapDepartmentUserFlaggedTargetsToIssues } from "@/lib/department-user/revision-feedback";
 import { formatDeadlineDateTime } from "@/lib/procurement-officer/deadlines";
-import { buildDepartmentUserWorkspaceDraftSaveInput } from "@/lib/blockly/workspace-save";
+import { buildDepartmentUserWorkspaceDraftSaveInput } from "@/lib/shared/blockly/workspace-save";
 import {
     collectDepartmentUserWorkspaceSourceUsage,
     type DepartmentUserWorkspaceSourceUsage,
-} from "@/lib/blockly/workspace-catalog-identity";
+} from "@/lib/shared/blockly/workspace-catalog-identity";
 import {
     claimDepartmentUserWorkspaceSessionLease,
     clearDepartmentUserWorkspaceDraftState,
@@ -76,7 +76,7 @@ import {
     upsertDepartmentUserWorkspaceRecoverySnapshot,
     type DepartmentUserWorkspaceSaveIndicatorState,
     type DepartmentUserWorkspaceStorageFailure,
-} from "@/lib/blockly/workspace-draft-queue";
+} from "@/lib/frontend/blockly/workspace-draft-queue";
 import {
     buildCatalogRequestStatusMeta,
     type CatalogCategoryRequestFormValues,

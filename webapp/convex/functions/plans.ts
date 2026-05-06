@@ -5,11 +5,11 @@ import {
     createPersistedBlocklyWorkspaceRecord,
     createBlocklyWorkspaceRecord,
     normalizeBlocklyWorkspaceRecord,
-} from "../../lib/blockly/blockly-serialization";
+} from "../../lib/shared/blockly/blockly-serialization";
 import {
     getDepartmentUserPlanSubmitState,
     shouldReplayDepartmentUserSubmittedPlan,
-} from "../../lib/blockly/plan-submission";
+} from "../../lib/shared/blockly/plan-submission";
 import {
     buildDepartmentUserRevisionHistory,
     mapDepartmentUserFlaggedTargetsToIssues,
@@ -18,17 +18,17 @@ import { normalizeCategoryIcon } from "../../lib/procurement-officer/categories"
 import {
     prepareDepartmentUserWorkspaceDraftPersistence,
     deriveDepartmentUserWorkspaceDraftPersistenceSummary,
-} from "../../lib/blockly/workspace-save";
+} from "../../lib/shared/blockly/workspace-save";
 import {
     canDepartmentUserEditWorkspace,
     resolveDepartmentUserWorkspaceMode,
-} from "../../lib/blockly/du-plan-routes";
-import { sanitizeDepartmentUserWorkspaceCategorySelection } from "../../lib/blockly/du-toolbox";
+} from "../../lib/shared/blockly/du-plan-rules";
+import { sanitizeDepartmentUserWorkspaceCategorySelection } from "../../lib/shared/blockly/du-toolbox-selection";
 import {
     AUDIT_EVENT_NAMES,
     AUDIT_OUTCOMES,
     createAuthenticatedAuditActor,
-} from "../../lib/security/audit";
+} from "../../lib/shared/security/audit";
 import {
     buildPlanSubmissionEmailIdempotencyKey,
     buildPlanSubmissionPersistenceRecord,
@@ -533,30 +533,30 @@ async function loadDepartmentUserRevisionContext(
             decision.decisionType === "revision_requested",
     );
 
+    let inconsistentStateAuditEntry: ReturnType<
+        typeof buildDepartmentUserRevisionAuditEntry
+    > | null = null;
     let inconsistentStateMessage: string | null = null;
     if (requiresAuthoritativeDecision && activeDuVisibleDecisions.length !== 1) {
         inconsistentStateMessage =
             activeDuVisibleDecisions.length === 0
                 ? "Revision feedback is temporarily unavailable because the active Procurement decision could not be confirmed."
                 : "Revision feedback is temporarily unavailable because multiple active Procurement decisions were found for this plan.";
-        await appendAuditLogBestEffort(
-            ctx,
-            buildDepartmentUserRevisionAuditEntry({
-                actorUserId: args.actorUserId,
-                departmentId: args.departmentId,
-                metadata: {
-                    activeDecisionCount: activeDuVisibleDecisions.length,
-                    planStatus: args.plan.status,
-                    reason:
-                        activeDuVisibleDecisions.length === 0
-                            ? "missing_active_revision_decision"
-                            : "multiple_active_revision_decisions",
-                },
-                outcome: AUDIT_OUTCOMES.blockedStateTransition,
-                planId: args.plan._id,
-                tenantId: args.tenantId,
-            }),
-        );
+        inconsistentStateAuditEntry = buildDepartmentUserRevisionAuditEntry({
+            actorUserId: args.actorUserId,
+            departmentId: args.departmentId,
+            metadata: {
+                activeDecisionCount: activeDuVisibleDecisions.length,
+                planStatus: args.plan.status,
+                reason:
+                    activeDuVisibleDecisions.length === 0
+                        ? "missing_active_revision_decision"
+                        : "multiple_active_revision_decisions",
+            },
+            outcome: AUDIT_OUTCOMES.blockedStateTransition,
+            planId: args.plan._id,
+            tenantId: args.tenantId,
+        });
     }
 
     const activeDecision =
@@ -593,6 +593,7 @@ async function loadDepartmentUserRevisionContext(
             })),
             timeZone: args.timeZone,
         }),
+        inconsistentStateAuditEntry,
         inconsistentStateMessage,
         reviewDecisions: reviewDecisions.sort(
             (left, right) => right.decidedAt - left.decidedAt,
@@ -1150,6 +1151,12 @@ export const saveDepartmentUserWorkspaceDraft = mutation({
                 revisionContext.inconsistentStateMessage ||
                 revisionContext.effectiveDeadlineExpired
             ) {
+                if (revisionContext.inconsistentStateAuditEntry) {
+                    await appendAuditLogBestEffort(
+                        ctx,
+                        revisionContext.inconsistentStateAuditEntry,
+                    );
+                }
                 throw new ConvexError({
                     code: "VALIDATION_FAILED",
                     message:
@@ -1294,6 +1301,12 @@ export const submitDepartmentUserPlan = mutation({
                       timeZone: tenant?.timeZone ?? "Africa/Nairobi",
                   })
                 : null;
+        if (revisionContext?.inconsistentStateAuditEntry) {
+            await appendAuditLogBestEffort(
+                ctx,
+                revisionContext.inconsistentStateAuditEntry,
+            );
+        }
 
         if (plan.status !== "draft" && plan.status !== "rejected") {
             await appendAuditLogRequired(

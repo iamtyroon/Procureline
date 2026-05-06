@@ -5,7 +5,7 @@ import {
     getDepartmentUserAccessCodeSuffix,
     hashDepartmentUserAccessCode,
     normalizeDepartmentUserAccessCode,
-} from "../lib/auth/department-user-access";
+} from "../lib/shared/auth/department-user-access";
 import {
     normalizeDepartmentCode,
     normalizeDepartmentName,
@@ -15,7 +15,7 @@ import {
     PASSWORD_PATTERNS,
     validateEmailInput,
     validatePasswordLength,
-} from "../lib/security/input";
+} from "../lib/shared/security/input";
 
 function firstOrThrow<T>(items: readonly T[], errorFactory: () => Error): T {
     const item = items[0];

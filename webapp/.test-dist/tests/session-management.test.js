@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runSessionManagementTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const session_1 = require("../lib/auth/session");
+const session_1 = require("../lib/shared/auth/session");
 const NOW = new Date("2026-03-08T10:00:00.000Z").getTime();
 function runSessionManagementTests() {
     const completedTests = [];

@@ -8,7 +8,7 @@ import {
     matchesInitialPasswordResetAttempt,
     normalizeAuthEmail,
     parsePasswordResetExpiresAt,
-} from "../lib/auth/password-reset";
+} from "../lib/shared/auth/password-reset";
 import {
     forgotPasswordSchema,
     resetPasswordSchema,

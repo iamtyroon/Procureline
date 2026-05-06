@@ -5,9 +5,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runTenantAdminDashboardTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const dashboard_1 = require("../lib/tenant-admin/dashboard");
-const dashboard_snapshot_1 = require("../lib/tenant-admin/dashboard-snapshot");
-const dashboard_cache_1 = require("../lib/tenant-admin/dashboard-cache");
+const dashboard_1 = require("../lib/shared/tenant-admin/dashboard");
+const dashboard_snapshot_1 = require("../lib/shared/tenant-admin/dashboard-snapshot");
+const dashboard_cache_1 = require("../lib/frontend/tenant-admin/dashboard-cache");
 function createSnapshotFixture() {
     return (0, dashboard_snapshot_1.buildTenantAdminDashboardSnapshot)({
         activityLogs: [],

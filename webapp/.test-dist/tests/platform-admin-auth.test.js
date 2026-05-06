@@ -5,11 +5,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runPlatformAdminAuthTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const auth_1 = require("../lib/platform-admin/auth");
-const request_context_token_1 = require("../lib/platform-admin/request-context-token");
-const risk_1 = require("../lib/platform-admin/risk");
-const auth_2 = require("../lib/platform-admin/auth");
-const session_1 = require("../lib/auth/session");
+const auth_1 = require("../lib/shared/platform-admin/auth");
+const request_context_token_1 = require("../lib/backend/platform-admin/request-context-token");
+const risk_1 = require("../lib/backend/platform-admin/risk");
+const auth_2 = require("../lib/shared/platform-admin/auth");
+const session_1 = require("../lib/shared/auth/session");
 const NOW = new Date("2026-03-22T10:00:00.000Z").getTime();
 const REQUEST_CONTEXT = {
     city: "Nairobi",

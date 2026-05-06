@@ -5,9 +5,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runPublicAuthEntryTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const public_entry_1 = require("../lib/auth/public-entry");
-const department_user_access_1 = require("../lib/auth/department-user-access");
-const proxy_1 = require("../lib/auth/proxy");
+const public_entry_1 = require("../lib/shared/auth/public-entry");
+const department_user_access_1 = require("../lib/shared/auth/department-user-access");
+const proxy_1 = require("../lib/backend/auth/proxy");
 function toUrl(path) {
     return new URL(path, "https://example.test");
 }

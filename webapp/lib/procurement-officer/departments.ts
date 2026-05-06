@@ -2,12 +2,12 @@ import { z } from "zod";
 import {
     buildDashboardPath,
     FORBIDDEN_ACCESS_REASON,
-} from "../auth/roles";
+} from "../shared/auth/roles";
 import {
     normalizeAuthEmail,
     normalizePlainText,
     validateEmailInput,
-} from "../security/input";
+} from "../shared/security/input";
 import {
     ACCESS_CODE_FORMAT_MESSAGE,
     CANONICAL_ACCESS_CODE_MAX_LENGTH,

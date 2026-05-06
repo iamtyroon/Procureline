@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildProcurementOfficerReviewComparison = exports.resolveProcurementOfficerReviewRenderState = exports.revalidateProcurementOfficerReviewSelection = exports.prepareProcurementOfficerPlanReviewStart = exports.buildProcurementOfficerReviewSnapshotSequenceKey = exports.resolveProcurementOfficerReviewSelectionFromBlocklyBlock = exports.buildProcurementOfficerReviewSelectionId = exports.selectPriorFiscalYearBaseline = exports.selectPreviousSubmissionBaseline = exports.derivePreviousFiscalYearKey = exports.buildProcurementOfficerReviewStartPatch = exports.normalizeProcurementOfficerReviewBudgetAdjustment = exports.normalizeProcurementOfficerReviewComment = exports.resolveProcurementOfficerReviewDepartmentContext = exports.shouldStartProcurementOfficerReviewTracking = exports.resolveProcurementOfficerReviewTargetState = exports.PROCUREMENT_OFFICER_REVIEW_TARGET_UNAVAILABLE_MESSAGE = exports.PROCUREMENT_OFFICER_REVIEW_EMPTY_STATES = void 0;
-const du_workspace_calculations_1 = require("../blockly/du-workspace-calculations");
+const du_workspace_calculations_1 = require("@/lib/shared/blockly/du-workspace-calculations");
 const submission_1 = require("../plans/submission");
 exports.PROCUREMENT_OFFICER_REVIEW_EMPTY_STATES = {
     previousFiscalYear: "A prior fiscal-year comparison is unavailable for this department.",

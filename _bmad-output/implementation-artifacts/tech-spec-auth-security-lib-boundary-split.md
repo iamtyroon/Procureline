@@ -2,7 +2,7 @@
 title: 'Auth Security Lib Boundary Split'
 slug: 'auth-security-lib-boundary-split'
 created: '2026-05-05'
-status: 'ready-for-development'
+status: 'Completed'
 stepsCompleted: [1, 2, 3, 4]
 tech_stack: ['Next.js', 'TypeScript', 'Convex']
 files_to_modify:
@@ -103,39 +103,39 @@ Use `shared` for runtime-safe constants/types/validation, `frontend` only for br
 
 ### Tasks
 
-1. Inventory auth/security imports and consumers.
+1. [x] Inventory auth/security imports and consumers.
    - File: all files under `webapp/lib/auth/` and `webapp/lib/security/`.
    - Action: Record imports from `next/headers`, middleware APIs, node built-ins, Convex, React, app constants, and domain helpers.
    - Action: Record consumers with `rg "@/lib/auth/|@/lib/security/" webapp`.
 
-2. Move server request-context helpers.
+2. [x] Move server request-context helpers.
    - Files: `department-user-request-context.ts`, `department-user-request-context-token.ts`.
    - Action: Move to `webapp/lib/backend/auth/`.
    - Action: Update API/server consumers only.
    - Action: Confirm no `webapp/src` UI component imports the backend path.
 
-3. Split public auth entry/routing helpers.
+3. [x] Split public auth entry/routing helpers.
    - File: `webapp/lib/auth/public-entry.ts`.
    - Action: Move pure role entry metadata and copy to `webapp/lib/shared/auth/public-entry.ts` if runtime-safe.
    - Action: Move route/search/session decisions to `webapp/lib/frontend/auth/public-entry.ts` or `webapp/lib/backend/auth/public-entry.ts` based on consumers.
    - Action: Keep `SESSION_EXPIRED_REDIRECT_PATH` import from a runtime-compatible module.
 
-4. Split role/session helpers.
+4. [x] Split role/session helpers.
    - Files: `roles.ts`, `session.ts`, `public-routes.ts`, `signup-flow.ts`, `department-user-access.ts`.
    - Action: Move pure role constants, route maps, access-mode types, and signup tier logic to `webapp/lib/shared/auth/`.
    - Action: Move frontend session presentation helpers to `webapp/lib/frontend/auth/session.ts`.
    - Action: Move server enforcement helpers to `webapp/lib/backend/auth/`.
 
-5. Split security helpers.
+5. [x] Split security helpers.
    - Files: `audit.ts`, `bridge.ts`, `input.ts`, `origins.ts`, `policy.ts`, `tenant-isolation.ts`.
    - Action: Move audit event/outcome constants and pure input normalization to `webapp/lib/shared/security/`.
    - Action: Move origin enforcement, bridge utilities, tenant isolation, and backend-only policy execution to `webapp/lib/backend/security/`.
 
-6. Update imports and remove old files.
+6. [x] Update imports and remove old files.
    - Action: Replace `@/lib/auth/...` and `@/lib/security/...` imports with boundary paths.
    - Action: Do not keep root-level re-export shims.
 
-7. Update `webapp/lib/MIGRATION_MAP.md`.
+7. [x] Update `webapp/lib/MIGRATION_MAP.md`.
    - Action: Mark completed auth/security moves under Already Migrated.
    - Action: Keep any unresolved mixed helper under Deferred with the remaining coupling noted.
 
@@ -164,3 +164,9 @@ cmd /c npm test
 ```
 
 Known unrelated blockers may remain: `webapp/convex/functions/plans.ts:543` for build and `webapp/convex/auth.ts(1,28)` for tests.
+
+## Review Notes
+
+- Adversarial review completed inline against the implementation diff.
+- Findings: boundary/import path issues reviewed and fixed where real during implementation, including shared-file relative import misses and generated `.test-dist` cleanup.
+- Resolution approach: auto-fix real findings; remaining verification blockers are the known unrelated build/test blockers listed above.

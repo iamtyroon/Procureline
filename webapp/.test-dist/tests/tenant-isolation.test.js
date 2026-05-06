@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runTenantIsolationTests = void 0;
 const strict_1 = __importDefault(require("node:assert/strict"));
-const tenant_isolation_1 = require("../lib/auth/tenant-isolation");
+const tenant_isolation_1 = require("../lib/backend/auth/tenant-isolation");
 const BASE_ACTOR = {
     actorRole: "tenant_admin",
     actorScope: "tenant",

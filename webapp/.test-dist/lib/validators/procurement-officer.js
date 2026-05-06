@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.procurementOfficerAccessRequestSchema = exports.procurementOfficerInviteSchema = void 0;
 const zod_1 = require("zod");
 const invitations_1 = require("../procurement-officer/invitations");
-const input_1 = require("../security/input");
+const input_1 = require("../shared/security/input");
 function validateWithSharedResult(result, ctx) {
     if (result.ok) {
         return;

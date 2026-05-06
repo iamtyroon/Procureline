@@ -13,7 +13,7 @@ import {
   type AuditOutcome,
   createAnonymousAuditActor,
   createAuthenticatedAuditActor,
-} from "../../lib/security/audit";
+} from "../../lib/shared/security/audit";
 import {
   buildCategoryWorkspaceSummary,
   CATEGORY_DELETE_ITEMS_MESSAGE,

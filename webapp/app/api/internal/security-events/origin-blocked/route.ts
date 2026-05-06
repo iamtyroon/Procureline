@@ -4,7 +4,7 @@ import { api } from "@/convex/_generated/api";
 import {
     DEVELOPMENT_SECURITY_AUDIT_PROXY_TOKEN,
     resolveSecurityAuditProxyToken,
-} from "@/lib/security/bridge";
+} from "@/lib/backend/security/bridge";
 
 export const runtime = "nodejs";
 
