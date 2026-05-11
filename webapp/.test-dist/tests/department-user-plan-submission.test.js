@@ -12,7 +12,7 @@ const submission_1 = require("../lib/plans/submission");
 const pre_submission_validation_1 = require("../lib/plans/pre-submission-validation");
 function createWorkspaceSummary() {
     const budgetState = (0, du_workspace_calculations_1.mapDepartmentUserBudgetMeterState)({
-        totalBudget: 2_000_000,
+        totalBudget: 650_000,
         usedAmount: 650_000,
     });
     return {
@@ -73,7 +73,7 @@ function runDepartmentUserPlanSubmissionTests() {
         issues: [],
         itemCount: 3,
         validationSummary: {
-            budgetStatus: "Within budget",
+            budgetStatus: "Budget fully utilized",
             pendingRequestStatus: "No pending catalog requests",
             validationStatus: "passed",
         },

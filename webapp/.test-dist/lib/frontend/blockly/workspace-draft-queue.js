@@ -72,6 +72,11 @@ function coalesceDepartmentUserWorkspaceSnapshot(currentSnapshot, nextSnapshot) 
 }
 exports.coalesceDepartmentUserWorkspaceSnapshot = coalesceDepartmentUserWorkspaceSnapshot;
 function compareDepartmentUserWorkspaceRecoveryFreshness(args) {
+    if (args.localSnapshot &&
+        args.serverSnapshot &&
+        (0, blockly_serialization_1.areBlocklyWorkspaceJsonEquivalent)(args.localSnapshot.workspaceJson, args.serverSnapshot.workspaceJson)) {
+        return "equal";
+    }
     const comparison = (0, blockly_serialization_1.compareBlocklyWorkspaceRecords)(args.localSnapshot, args.serverSnapshot);
     if (comparison > 0) {
         return "local_newer";

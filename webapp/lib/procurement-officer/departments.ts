@@ -38,6 +38,8 @@ export const DEPARTMENT_DEADLINE_EXTENSION_ORDER_MESSAGE =
     "New expiry date must be after the current department expiry.";
 export const DEPARTMENT_CODE_EMAIL_AFTER_CREATE_MESSAGE =
     "Create the department first, then send the department code.";
+export const DEPARTMENT_CODE_ALREADY_SENT_MESSAGE =
+    "Department code already sent. Create a new department if this user needs a different access path.";
 export const DEPARTMENT_SAVE_GENERIC_ERROR_MESSAGE =
     "We could not save the department right now. Please try again.";
 export const DEPARTMENT_DELETE_GENERIC_ERROR_MESSAGE =
@@ -80,6 +82,7 @@ export interface DepartmentWorkspaceRecord {
     budgetAllocation: number | null;
     code: string;
     hasActiveAccessCode: boolean;
+    hasSentAccessCode: boolean;
     id: string;
     isActive: boolean;
     lastUpdatedAt: number;
@@ -103,6 +106,17 @@ export interface DepartmentWorkspaceSummary {
         message: string;
     };
     rows: DepartmentWorkspaceRow[];
+}
+
+export function getDepartmentUserStateLabel(args: {
+    activeDepartmentUserCount: number;
+    hasSentAccessCode: boolean;
+}): string {
+    if (args.activeDepartmentUserCount > 0) {
+        return "Assigned";
+    }
+
+    return args.hasSentAccessCode ? "Awaiting first sign-in" : "Not invited";
 }
 
 export const DEPARTMENT_NAME_REQUIRED_MESSAGE = "Department name is required";
@@ -265,7 +279,7 @@ export function isDepartmentTierLimitMessage(message: string | null): boolean {
 export function getDepartmentCrudErrorMessage(error: unknown): string {
     const message =
         error instanceof Error && error.message.trim().length > 0
-            ? error.message.trim()
+            ? extractDepartmentCrudErrorMessage(error.message.trim())
             : null;
 
     if (!message) {
@@ -277,6 +291,7 @@ export function getDepartmentCrudErrorMessage(error: unknown): string {
             DEPARTMENT_BUDGET_POSITIVE_MESSAGE,
             DEPARTMENT_CODE_FORMAT_MESSAGE,
             DEPARTMENT_CODE_EXISTS_MESSAGE,
+            DEPARTMENT_CODE_ALREADY_SENT_MESSAGE,
             DEPARTMENT_CODE_REQUIRED_MESSAGE,
             DEPARTMENT_DELETE_DU_MESSAGE,
             DEPARTMENT_DELETE_PLANS_MESSAGE,
@@ -304,7 +319,7 @@ export function getDepartmentCrudErrorMessage(error: unknown): string {
 export function isDepartmentCrudAuthorizationError(error: unknown): boolean {
     const message =
         error instanceof Error && error.message.trim().length > 0
-            ? error.message.trim()
+            ? extractDepartmentCrudErrorMessage(error.message.trim())
             : null;
 
     if (!message) {
@@ -314,6 +329,29 @@ export function isDepartmentCrudAuthorizationError(error: unknown): boolean {
     return DEPARTMENT_CRUD_AUTH_RECOVERY_PATTERNS.some((pattern) =>
         pattern.test(message),
     );
+}
+
+function extractDepartmentCrudErrorMessage(message: string): string {
+    const convexJsonMessage = message.match(/ConvexError:\s*(\{[^\n]*\})/);
+    if (convexJsonMessage?.[1]) {
+        try {
+            const parsed = JSON.parse(convexJsonMessage[1]) as {
+                message?: unknown;
+            };
+            if (typeof parsed.message === "string" && parsed.message.trim()) {
+                return parsed.message.trim();
+            }
+        } catch {
+            // Fall through to plain Error extraction below.
+        }
+    }
+
+    const uncaughtMessage = message.match(/Uncaught Error:\s*([^\n]+)/);
+    if (uncaughtMessage?.[1]?.trim()) {
+        return uncaughtMessage[1].trim();
+    }
+
+    return message;
 }
 
 export function buildDepartmentTierLimitState(args: {
@@ -488,7 +526,11 @@ export function buildDepartmentWorkspaceSummary(args: {
         }),
         rows: activeDepartments.map((department) => ({
             ...department,
-            accessCodeStateLabel: department.hasActiveAccessCode ? "Active code" : "Setup required",
+            accessCodeStateLabel: department.hasSentAccessCode
+                ? "Code sent"
+                : department.hasActiveAccessCode
+                  ? "Active code"
+                  : "Setup required",
             deleteBlockers: buildDepartmentDeletionBlockers({
                 activeDepartmentUserEmails: department.activeDepartmentUserEmails,
                 hasProtectedPlans: department.planStatuses.some(
@@ -496,8 +538,10 @@ export function buildDepartmentWorkspaceSummary(args: {
                 ),
             }),
             departmentUserCount: department.activeDepartmentUserEmails.length,
-            departmentUserStateLabel:
-                department.activeDepartmentUserEmails.length > 0 ? "Assigned" : "Unassigned",
+            departmentUserStateLabel: getDepartmentUserStateLabel({
+                activeDepartmentUserCount: department.activeDepartmentUserEmails.length,
+                hasSentAccessCode: department.hasSentAccessCode,
+            }),
             planningStateLabel: summarizeDepartmentPlanningState(department.planStatuses),
         })),
     };

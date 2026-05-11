@@ -60,6 +60,7 @@ interface DepartmentWorkspaceRow {
     departmentUserCount: number;
     departmentUserStateLabel: string;
     hasActiveAccessCode: boolean;
+    hasSentAccessCode: boolean;
     hasPlanningActivity: boolean;
     id: string;
     isArchived: boolean;
@@ -303,6 +304,7 @@ export function ProcurementOfficerDepartmentsWorkspace(): JSX.Element {
         setFormDepartment({
             budgetAllocation: row.budgetAllocation,
             code: row.code,
+            hasSentAccessCode: row.hasSentAccessCode,
             id: row.id,
             name: row.name,
             planningImpactWarning: row.planningImpactWarning,

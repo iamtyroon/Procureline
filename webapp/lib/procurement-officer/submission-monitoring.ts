@@ -4,7 +4,6 @@ import {
   selectCanonicalPlans,
   type DepartmentUserStatusTrackingPlanLike,
 } from "../department-user/status-tracking";
-import { deriveDepartmentUserEffectiveRevisionDeadline } from "../plans/revision-deadline";
 
 export const PROCUREMENT_OFFICER_MONITORING_STATUSES = [
   "not_started",
@@ -16,17 +15,6 @@ export const PROCUREMENT_OFFICER_MONITORING_STATUSES = [
 
 export type ProcurementOfficerMonitoringStatus =
   (typeof PROCUREMENT_OFFICER_MONITORING_STATUSES)[number];
-
-export type ProcurementOfficerReminderSkipReason =
-  | "already_approved"
-  | "cross_tenant"
-  | "deadline_expired"
-  | "inactive_department"
-  | "missing_contact_email"
-  | "missing_deadline"
-  | "no_safe_du_access"
-  | "not_in_scope"
-  | "not_lagging";
 
 export interface ProcurementOfficerMonitoringTimelineItem {
   description: string;
@@ -67,21 +55,12 @@ export interface ProcurementOfficerMonitoringRow {
   departmentCode: string | null;
   departmentId: string;
   departmentName: string;
-  dueAt: number | null;
-  dueLabel: string | null;
   duContactLabel: string;
   duRecipientCount: number;
-  hasSafeDuAccess: boolean;
   historyState: "complete" | "partial";
   lastUpdatedAt: number | null;
   lastUpdatedLabel: string;
   planId: string | null;
-  recipientEmails: string[];
-  reminderEligibility: {
-    dueAt: number | null;
-    eligible: boolean;
-    reason: ProcurementOfficerReminderSkipReason | null;
-  };
   status: ProcurementOfficerMonitoringStatus;
   statusLabel: string;
   timeline: ProcurementOfficerMonitoringTimelineItem[];
@@ -329,203 +308,30 @@ export function summarizeProcurementOfficerMonitoringRows(
   return summary;
 }
 
-export function deriveProcurementOfficerReminderEligibility(args: {
-  contacts: readonly ProcurementOfficerMonitoringContact[];
-  deadlineAt: number | null;
-  department: ProcurementOfficerMonitoringDepartment;
-  fiscalYearInScope: boolean;
-  hasSafeDuAccess?: boolean;
-  now: number;
-  plan: ProcurementOfficerMonitoringPlanLike | null;
-  tenantMatches: boolean;
-}): {
-  dueAt: number | null;
-  eligible: boolean;
-  reason: ProcurementOfficerReminderSkipReason | null;
-  resolvedContacts: string[];
-  safeAccess: boolean;
-} {
-  if (!args.tenantMatches) {
-    return {
-      dueAt: null,
-      eligible: false,
-      reason: "cross_tenant",
-      resolvedContacts: [],
-      safeAccess: false,
-    };
-  }
-
-  if (!args.department.isActive) {
-    return {
-      dueAt: null,
-      eligible: false,
-      reason: "inactive_department",
-      resolvedContacts: [],
-      safeAccess: false,
-    };
-  }
-
-  if (!args.fiscalYearInScope) {
-    return {
-      dueAt: null,
-      eligible: false,
-      reason: "not_in_scope",
-      resolvedContacts: [],
-      safeAccess: false,
-    };
-  }
-
-  const resolvedContacts = Array.from(
+function resolveProcurementOfficerMonitoringContactEmails(
+  contacts: readonly ProcurementOfficerMonitoringContact[],
+): string[] {
+  return Array.from(
     new Set(
-      args.contacts
+      contacts
         .filter((contact) => contact.isActive)
         .map((contact) => contact.email?.trim().toLowerCase() ?? null)
         .filter((email): email is string => Boolean(email)),
     ),
   ).sort((left, right) => left.localeCompare(right));
-  const safeAccess =
-    typeof args.hasSafeDuAccess === "boolean"
-      ? args.hasSafeDuAccess
-      : args.contacts.some((contact) => contact.isActive);
-
-  if (!safeAccess) {
-    return {
-      dueAt: null,
-      eligible: false,
-      reason: "no_safe_du_access",
-      resolvedContacts,
-      safeAccess,
-    };
-  }
-
-  if (resolvedContacts.length === 0) {
-    return {
-      dueAt: null,
-      eligible: false,
-      reason: "missing_contact_email",
-      resolvedContacts,
-      safeAccess,
-    };
-  }
-
-  const status = deriveProcurementOfficerMonitoringStatus(args.plan);
-  if (status === "approved") {
-    return {
-      dueAt: null,
-      eligible: false,
-      reason: "already_approved",
-      resolvedContacts,
-      safeAccess,
-    };
-  }
-
-  let dueAt = args.deadlineAt;
-  if (!dueAt) {
-    return {
-      dueAt: null,
-      eligible: false,
-      reason: "missing_deadline",
-      resolvedContacts,
-      safeAccess,
-    };
-  }
-
-  const latestDecision = args.plan?.latestDecision ?? null;
-  if (
-    latestDecision &&
-    (latestDecision.decisionType === "rejected" ||
-      latestDecision.decisionType === "revision_requested")
-  ) {
-    const effectiveDeadline = deriveDepartmentUserEffectiveRevisionDeadline({
-      decidedAt: latestDecision.decidedAt,
-      decisionType: latestDecision.decisionType,
-      revisionDeadlineAt: latestDecision.revisionDeadlineAt ?? null,
-      submissionDeadlineAt: args.deadlineAt,
-    }).effectiveDeadlineAt;
-    dueAt = effectiveDeadline ?? dueAt;
-  }
-
-  if (args.now > dueAt) {
-    return {
-      dueAt,
-      eligible: false,
-      reason: "deadline_expired",
-      resolvedContacts,
-      safeAccess,
-    };
-  }
-
-  if (status !== "not_started" && status !== "draft" && status !== "rejected") {
-    return {
-      dueAt,
-      eligible: false,
-      reason: "not_lagging",
-      resolvedContacts,
-      safeAccess,
-    };
-  }
-
-  return {
-    dueAt,
-    eligible: true,
-    reason: null,
-    resolvedContacts,
-    safeAccess,
-  };
-}
-
-export function buildProcurementOfficerSubmissionReminderIdempotencyKey(args: {
-  departmentId: string;
-  dueAt: number;
-  fiscalYear: string;
-  reminderWindow: string;
-  reason: ProcurementOfficerMonitoringStatus;
-  tenantId: string;
-}): string {
-  return [
-    "submission-reminder",
-    args.tenantId,
-    args.fiscalYear,
-    args.departmentId,
-    args.reason,
-    String(args.dueAt),
-    args.reminderWindow,
-  ].join(":");
-}
-
-export function buildProcurementOfficerSubmissionReminderWindow(args: {
-  now: number;
-  windowMs?: number;
-}): string {
-  const windowMs = args.windowMs ?? 5 * 60 * 1000;
-  return String(Math.floor(args.now / windowMs));
 }
 
 export function buildProcurementOfficerMonitoringRow(args: {
   contacts: readonly ProcurementOfficerMonitoringContact[];
-  deadlineAt: number | null;
   department: ProcurementOfficerMonitoringDepartment;
-  fiscalYear: string;
-  hasSafeDuAccess?: boolean;
-  now: number;
   plan: ProcurementOfficerMonitoringPlanLike | null;
-  tenantMatches?: boolean;
   tenantTimeZone?: string | null;
 }): ProcurementOfficerMonitoringRow {
   const timeZone = resolveDeadlineTimeZone({
     tenantTimeZone: args.tenantTimeZone,
   }).timeZone;
   const status = deriveProcurementOfficerMonitoringStatus(args.plan);
-  const reminder = deriveProcurementOfficerReminderEligibility({
-    contacts: args.contacts,
-    deadlineAt: args.deadlineAt,
-    department: args.department,
-    fiscalYearInScope: true,
-    hasSafeDuAccess: args.hasSafeDuAccess,
-    now: args.now,
-    plan: args.plan,
-    tenantMatches: args.tenantMatches ?? true,
-  });
+  const contactEmails = resolveProcurementOfficerMonitoringContactEmails(args.contacts);
   const timeline = buildProcurementOfficerMonitoringTimeline({
     plan: args.plan,
     timeZone,
@@ -536,17 +342,11 @@ export function buildProcurementOfficerMonitoringRow(args: {
     departmentCode: args.department.code,
     departmentId: args.department.id,
     departmentName: args.department.name,
-    dueAt: reminder.dueAt,
-    dueLabel:
-      typeof reminder.dueAt === "number"
-        ? formatDeadlineDateTime(reminder.dueAt, timeZone)
-        : null,
     duContactLabel:
-      reminder.resolvedContacts.length > 0
-        ? reminder.resolvedContacts.join(", ")
+      contactEmails.length > 0
+        ? contactEmails.join(", ")
         : "No active DU contact",
-    duRecipientCount: reminder.resolvedContacts.length,
-    hasSafeDuAccess: reminder.safeAccess,
+    duRecipientCount: contactEmails.length,
     historyState: timeline.some((item) => item.isFallback) ? "partial" : "complete",
     lastUpdatedAt,
     lastUpdatedLabel:
@@ -554,12 +354,6 @@ export function buildProcurementOfficerMonitoringRow(args: {
         ? formatDeadlineDateTime(lastUpdatedAt, timeZone)
         : "Unavailable",
     planId: args.plan?.id ?? null,
-    recipientEmails: reminder.resolvedContacts,
-    reminderEligibility: {
-      dueAt: reminder.dueAt,
-      eligible: reminder.eligible,
-      reason: reminder.reason,
-    },
     status,
     statusLabel: getProcurementOfficerMonitoringStatusLabel(status),
     timeline,

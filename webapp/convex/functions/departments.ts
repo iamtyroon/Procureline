@@ -19,6 +19,7 @@ import {
 import {
     buildDepartmentTierLimitState,
     buildDepartmentWorkspaceSummary,
+    DEPARTMENT_CODE_ALREADY_SENT_MESSAGE,
     DEPARTMENT_CODE_EXISTS_MESSAGE,
     DEPARTMENT_DEADLINE_EXTENSION_ORDER_MESSAGE,
     DEPARTMENT_DEADLINE_EXTENSION_PAST_MESSAGE,
@@ -39,6 +40,7 @@ import {
     buildAbsoluteAccessCodeLoginUrl,
     buildCanonicalDepartmentAccessCode,
 } from "../../lib/procurement-officer/access-codes";
+import { getProcurementFiscalYearForDate } from "../../lib/procurement-officer/dashboard";
 import {
     getDepartmentUserAccessCodeSuffix,
     hashDepartmentUserAccessCode,
@@ -227,15 +229,22 @@ export const getDepartmentsWorkspace = query({
                             : "No email available";
                     });
 
+                const departmentActiveAccessCodes = accessCodes.filter(
+                    (accessCode) =>
+                        accessCode.departmentId === department._id &&
+                        accessCode.isActive &&
+                        accessCode.expiresAt > now,
+                );
+
                 return {
                     activeDepartmentUserEmails,
                     budgetAllocation: department.budgetAllocation ?? null,
                     code: department.code,
-                    hasActiveAccessCode: accessCodes.some(
+                    hasActiveAccessCode: departmentActiveAccessCodes.length > 0,
+                    hasSentAccessCode: departmentActiveAccessCodes.some(
                         (accessCode) =>
-                            accessCode.departmentId === department._id &&
-                            accessCode.isActive &&
-                            accessCode.expiresAt > now,
+                            accessCode.lastDeliveryStatus === "queued" ||
+                            accessCode.lastDeliveryStatus === "sent",
                     ),
                     id: String(department._id),
                     isActive: department.isActive,
@@ -268,6 +277,7 @@ export const getDepartmentsWorkspace = query({
             ).length,
             departmentUserStateLabel: row.departmentUserStateLabel,
             hasActiveAccessCode: row.hasActiveAccessCode,
+            hasSentAccessCode: row.hasSentAccessCode,
             hasPlanningActivity: row.planStatuses.length > 0,
             id: row.id,
             isArchived: false,
@@ -324,6 +334,7 @@ export const getDepartmentsWorkspace = query({
                     departmentUserProfileCount: departmentProfiles.length,
                     departmentUserStateLabel: "Archived",
                     hasActiveAccessCode: false,
+                    hasSentAccessCode: false,
                     hasPlanningActivity: departmentPlans.length > 0,
                     id: String(department._id),
                     isArchived: true,
@@ -462,6 +473,7 @@ export const updateDepartment = mutation({
         });
 
         const budgetChanged = department.budgetAllocation !== parsed.budgetAllocation;
+        const codeChanged = department.normalizedCode !== parsed.normalizedCode;
         const now = Date.now();
         await ctx.db.patch(args.departmentId, {
             budgetAllocation: parsed.budgetAllocation,
@@ -477,6 +489,15 @@ export const updateDepartment = mutation({
             updatedAt: now,
             voteNumber: parsed.voteNumber,
         });
+
+        if (codeChanged) {
+            await syncActiveDepartmentAccessCode(ctx, {
+                code: parsed.code,
+                departmentId: args.departmentId,
+                tenantId: authContext.tenantId,
+                tenantUserId: tenantUser._id,
+            });
+        }
 
         const auditEntries = [
             buildDepartmentAuditEntry({
@@ -711,20 +732,26 @@ export const hardDeleteArchivedDepartment = mutation({
 
 export const getDepartmentCodeGenerationContext = internalQuery({
     args: {
+        selectedFiscalYear: v.optional(v.string()),
         tenantId: v.id("tenants"),
     },
     returns: v.object({
         activeCodes: v.array(v.string()),
+        fiscalYearPrefix: v.string(),
         tenantName: v.string(),
     }),
     handler: async (ctx, args) => {
-        const [tenant, departments] = await Promise.all([
+        const [tenant, departments, submissionDeadlines] = await Promise.all([
             ctx.db.get(args.tenantId),
             ctx.db
                 .query("departments")
                 .withIndex("by_tenantId_isActive", (q) =>
                     q.eq("tenantId", args.tenantId).eq("isActive", true),
                 )
+                .collect(),
+            ctx.db
+                .query("submissionDeadlines")
+                .withIndex("by_tenantId", (q) => q.eq("tenantId", args.tenantId))
                 .collect(),
         ]);
 
@@ -735,10 +762,28 @@ export const getDepartmentCodeGenerationContext = internalQuery({
             });
         }
 
+        const latestDeadlineFiscalYear = submissionDeadlines
+            .slice()
+            .sort(
+                (left, right) =>
+                    right.updatedAt - left.updatedAt ||
+                    right.deadlineVersion - left.deadlineVersion,
+            )
+            .at(0)?.fiscalYearKey;
+        const fallbackFiscalYear = getProcurementFiscalYearForDate(Date.now(), {
+            fiscalYearStartMonth: tenant.fiscalYearStartMonth,
+            timeZone: tenant.timeZone,
+        }).key;
+        const fiscalYearKey =
+            normalizeFiscalYearKey(args.selectedFiscalYear) ??
+            normalizeFiscalYearKey(latestDeadlineFiscalYear) ??
+            fallbackFiscalYear;
+
         return {
             activeCodes: departments
                 .filter(isActiveDepartment)
                 .map((department) => department.normalizedCode),
+            fiscalYearPrefix: getFiscalYearPrefix(fiscalYearKey),
             tenantName: tenant.name,
         };
     },
@@ -747,6 +792,7 @@ export const getDepartmentCodeGenerationContext = internalQuery({
 export const generateDepartmentCode = action({
     args: {
         name: v.string(),
+        selectedFiscalYear: v.optional(v.string()),
     },
     returns: v.object({
         code: v.string(),
@@ -755,10 +801,12 @@ export const generateDepartmentCode = action({
         const tenantUser = await loadDepartmentActionContext(ctx);
         const generationContext: {
             activeCodes: string[];
+            fiscalYearPrefix: string;
             tenantName: string;
         } = await ctx.runQuery(
             "functions/departments:getDepartmentCodeGenerationContext" as any,
             {
+                selectedFiscalYear: args.selectedFiscalYear,
                 tenantId: tenantUser.tenantId,
             },
         );
@@ -767,6 +815,7 @@ export const generateDepartmentCode = action({
         for (let attempt = 0; attempt < 25; attempt += 1) {
             const candidate = buildCanonicalDepartmentAccessCode({
                 departmentName: args.name,
+                fiscalYear: generationContext.fiscalYearPrefix,
             });
 
             if (!existingCodes.has(normalizeDepartmentCode(candidate))) {
@@ -779,6 +828,15 @@ export const generateDepartmentCode = action({
         throw new Error("We could not generate a unique department code right now.");
     },
 });
+
+function normalizeFiscalYearKey(value: string | null | undefined): string | null {
+    const normalized = value?.trim() ?? "";
+    return /^\d{4}-\d{4}$/.test(normalized) ? normalized : null;
+}
+
+function getFiscalYearPrefix(fiscalYearKey: string): string {
+    return fiscalYearKey.split("-")[0] ?? String(new Date().getUTCFullYear());
+}
 
 export const emailDepartmentCode = action({
     args: {
@@ -804,6 +862,7 @@ export const emailDepartmentCode = action({
 
         const normalizedEmail = normalizeAuthEmail(emailResult.value);
         const syncResult: {
+            accessCodeId: Id<"departmentAccessCodes">;
             code: string;
             departmentName: string;
             tenantName: string;
@@ -849,6 +908,15 @@ export const emailDepartmentCode = action({
             });
         }
 
+        await ctx.runMutation(
+            "functions/departments:markDepartmentCodeEmailQueued" as any,
+            {
+                accessCodeId: syncResult.accessCodeId,
+                email: normalizedEmail,
+                idempotencyKey,
+            },
+        );
+
         return {
             deliveryStatus: "queued" as const,
         };
@@ -863,6 +931,7 @@ export const syncDepartmentCodeForDelivery = internalMutation({
         tenantUserId: v.id("tenantUsers"),
     },
     returns: v.object({
+        accessCodeId: v.id("departmentAccessCodes"),
         code: v.string(),
         departmentName: v.string(),
         tenantName: v.string(),
@@ -901,67 +970,134 @@ export const syncDepartmentCodeForDelivery = internalMutation({
             tenantId: args.tenantId,
         });
 
-        const now = Date.now();
-        const codeHash = await hashDepartmentUserAccessCode(normalizedCode);
-        const activeCodes = await ctx.db
-            .query("departmentAccessCodes")
-            .withIndex("by_departmentId_isActive", (q) =>
-                q.eq("departmentId", args.departmentId).eq("isActive", true),
-            )
-            .collect();
-        const matchingActiveCode = activeCodes.find(
-            (accessCode) => accessCode.codeHash === codeHash,
-        );
-
-        for (const accessCode of activeCodes) {
-            if (accessCode.tenantId !== args.tenantId || accessCode._id === matchingActiveCode?._id) {
-                continue;
-            }
-
-            await ctx.db.patch(accessCode._id, {
-                isActive: false,
-                revokedAt: now,
-                revokedByTenantUserId: args.tenantUserId,
-                revocationReason: "rotated",
-                updatedAt: now,
-            });
-        }
-
-        if (matchingActiveCode) {
-            await ctx.db.patch(matchingActiveCode._id, {
-                expiresAt: DEPARTMENT_CODE_LOGIN_EXPIRATION_AT,
-                updatedAt: now,
-            });
-        } else {
-            await ctx.db.insert("departmentAccessCodes", {
-                codeHash,
-                codeSuffix: getDepartmentUserAccessCodeSuffix(normalizedCode),
-                createdAt: now,
-                deliveryAttemptCount: 0,
-                departmentId: args.departmentId,
-                expiresAt: DEPARTMENT_CODE_LOGIN_EXPIRATION_AT,
-                isActive: true,
-                issuedByTenantUserId: args.tenantUserId,
-                tenantId: args.tenantId,
-                updatedAt: now,
-            });
-        }
+        const syncResult = await syncActiveDepartmentAccessCode(ctx, {
+            code: normalizedCode,
+            departmentId: args.departmentId,
+            tenantId: args.tenantId,
+            tenantUserId: args.tenantUserId,
+        });
 
         if (department.code !== normalizedCode || department.normalizedCode !== normalizedCode) {
             await ctx.db.patch(args.departmentId, {
                 code: normalizedCode,
                 normalizedCode,
-                updatedAt: now,
+                updatedAt: syncResult.now,
             });
         }
 
         return {
+            accessCodeId: syncResult.accessCodeId,
             code: normalizedCode,
             departmentName: department.name,
             tenantName: tenant.name,
         };
     },
 });
+
+export const markDepartmentCodeEmailQueued = internalMutation({
+    args: {
+        accessCodeId: v.id("departmentAccessCodes"),
+        email: v.string(),
+        idempotencyKey: v.string(),
+    },
+    returns: v.null(),
+    handler: async (ctx, args) => {
+        const now = Date.now();
+        await ctx.db.patch(args.accessCodeId, {
+            lastDeliveryEmail: args.email,
+            lastDeliveryIdempotencyKey: args.idempotencyKey,
+            lastDeliveryQueuedAt: now,
+            lastDeliveryStatus: "queued",
+            updatedAt: now,
+        });
+
+        return null;
+    },
+});
+
+async function syncActiveDepartmentAccessCode(
+    ctx: DepartmentMutationCtx,
+    args: {
+        code: string;
+        departmentId: Id<"departments">;
+        tenantId: Id<"tenants">;
+        tenantUserId: Id<"tenantUsers">;
+    },
+): Promise<{
+    accessCodeId: Id<"departmentAccessCodes">;
+    now: number;
+}> {
+    const now = Date.now();
+    const codeHash = await hashDepartmentUserAccessCode(args.code);
+    const activeCodes = await ctx.db
+        .query("departmentAccessCodes")
+        .withIndex("by_departmentId_isActive", (q) =>
+            q.eq("departmentId", args.departmentId).eq("isActive", true),
+        )
+        .collect();
+    const matchingActiveCode = activeCodes.find(
+        (accessCode) => accessCode.codeHash === codeHash,
+    );
+    const deliveryLockedActiveCode = activeCodes.find(
+        (accessCode) =>
+            accessCode.tenantId === args.tenantId &&
+            (accessCode.lastDeliveryStatus === "queued" ||
+                accessCode.lastDeliveryStatus === "sent"),
+    );
+    if (deliveryLockedActiveCode) {
+        throw new ConvexError({
+            code: "FORBIDDEN",
+            message: DEPARTMENT_CODE_ALREADY_SENT_MESSAGE,
+        });
+    }
+
+    for (const accessCode of activeCodes) {
+        if (
+            accessCode.tenantId !== args.tenantId ||
+            accessCode._id === matchingActiveCode?._id
+        ) {
+            continue;
+        }
+
+        await ctx.db.patch(accessCode._id, {
+            isActive: false,
+            revokedAt: now,
+            revokedByTenantUserId: args.tenantUserId,
+            revocationReason: "rotated",
+            updatedAt: now,
+        });
+    }
+
+    if (matchingActiveCode) {
+        await ctx.db.patch(matchingActiveCode._id, {
+            expiresAt: DEPARTMENT_CODE_LOGIN_EXPIRATION_AT,
+            updatedAt: now,
+        });
+
+        return {
+            accessCodeId: matchingActiveCode._id,
+            now,
+        };
+    } else {
+        const accessCodeId = await ctx.db.insert("departmentAccessCodes", {
+            codeHash,
+            codeSuffix: getDepartmentUserAccessCodeSuffix(args.code),
+            createdAt: now,
+            deliveryAttemptCount: 0,
+            departmentId: args.departmentId,
+            expiresAt: DEPARTMENT_CODE_LOGIN_EXPIRATION_AT,
+            isActive: true,
+            issuedByTenantUserId: args.tenantUserId,
+            tenantId: args.tenantId,
+            updatedAt: now,
+        });
+
+        return {
+            accessCodeId,
+            now,
+        };
+    }
+}
 
 async function loadDepartmentMutationContext(ctx: DepartmentMutationCtx) {
     const authContext = await requireTenantRole(ctx, ["procurement_officer"]);

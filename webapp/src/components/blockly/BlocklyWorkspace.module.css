@@ -355,6 +355,10 @@
     fill: #d99a13 !important;
 }
 
+:global(.blockly-host .dept-block-budget-under .blocklyPath) {
+    fill: #0284c7 !important;
+}
+
 :global(.blockly-host .dept-block-budget-over .blocklyPath) {
     fill: #dc2626 !important;
 }
@@ -369,6 +373,43 @@
 
 :global(.blockly-host .item-block-expanded .blocklyPath) {
     fill: #dd941f !important;
+}
+
+:global(.blockly-host .timing-block-collapsed .blocklyPath) {
+    fill: #4a90d9 !important;
+}
+
+:global(.blockly-host .timing-block-expanded .blocklyPath) {
+    fill: #2f6fb3 !important;
+}
+
+:global(.blockly-host .blocklyEditableText text.blocklyText) {
+    fill: #0f172a !important;
+}
+
+:global(.blockly-host .blocklyNonEditableText text.blocklyText) {
+    fill: #0f172a !important;
+}
+
+:global(.blockly-host .blocklyEditableText > rect) {
+    fill: #ffffff !important;
+    fill-opacity: 0.95 !important;
+    rx: 3px;
+    ry: 3px;
+    stroke: transparent !important;
+}
+
+:global(.blockly-host .blocklyNonEditableText > rect) {
+    fill: #ffffff !important;
+    fill-opacity: 0.95 !important;
+    rx: 3px;
+    ry: 3px;
+    stroke: transparent !important;
+}
+
+:global(.blockly-host--consolidation .item-block-collapsed .blocklyEditableText),
+:global(.blockly-host--consolidation .item-block-expanded .blocklyEditableText) {
+    pointer-events: none;
 }
 
 :global(.blockly-host .pl-toolbox-category .blocklyTreeRowContentContainer) {

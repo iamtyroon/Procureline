@@ -44,6 +44,7 @@ export interface ConsolidationPlanRecord {
     itemCount: number;
     status: ConsolidationPlanStatus;
     updatedAt: number;
+    workspaceState?: unknown;
 }
 
 export interface ConsolidationSourcePlan {
@@ -55,6 +56,7 @@ export interface ConsolidationSourcePlan {
     itemCount: number;
     planId: string;
     voteNumber: string;
+    workspaceState: unknown;
 }
 
 export interface ConsolidationBlockedDepartment {
@@ -81,6 +83,7 @@ export interface ConsolidationReadinessResult {
 }
 
 export interface ConsolidationFiscalYearOptionsArgs {
+    approvedPlanFiscalYears?: readonly string[];
     departments: readonly ProcurementDepartmentWindowRecord[];
     fiscalYearStartMonth?: number | null;
     now: number;
@@ -100,9 +103,13 @@ export function normalizeConsolidationFiscalYear(
         fiscalYearStartMonth: args.fiscalYearStartMonth,
         timeZone: args.tenantTimeZone,
     }).key;
+    const approvedPlanFiscalYears = new Set(args.approvedPlanFiscalYears ?? []);
     const options = buildAvailableProcurementFiscalYears({
         departments: args.departments,
-        existingFiscalYearKeys: args.submissionDeadlineFiscalYears,
+        existingFiscalYearKeys: [
+            ...(args.submissionDeadlineFiscalYears ?? []),
+            ...(args.approvedPlanFiscalYears ?? []),
+        ],
         fiscalYearStartMonth: args.fiscalYearStartMonth,
         now: args.now,
         requestedFiscalYear: undefined,
@@ -114,6 +121,20 @@ export function normalizeConsolidationFiscalYear(
         options.includes(requestedFiscalYear)
     ) {
         return { currentFiscalYear, options, selectedFiscalYear: requestedFiscalYear };
+    }
+
+    const approvedOptions = options
+        .filter((option) => approvedPlanFiscalYears.has(option))
+        .sort((left, right) => right.localeCompare(left));
+    if (approvedOptions.includes(currentFiscalYear)) {
+        return { currentFiscalYear, options, selectedFiscalYear: currentFiscalYear };
+    }
+    if (approvedOptions[0]) {
+        return {
+            currentFiscalYear,
+            options,
+            selectedFiscalYear: approvedOptions[0],
+        };
     }
 
     if (options.includes(currentFiscalYear)) {
@@ -169,6 +190,7 @@ export function buildConsolidationReadiness(
                 itemCount: canonicalApprovedPlan.itemCount,
                 planId: canonicalApprovedPlan.id,
                 voteNumber: department.voteNumber ?? department.code,
+                workspaceState: canonicalApprovedPlan.workspaceState ?? null,
             });
             continue;
         }
@@ -243,13 +265,6 @@ export function validateConsolidationDraftPayload(args: {
     selectedSourceDepartmentIds: readonly string[];
     workspaceState?: unknown;
 }): { message?: string; ok: true } | { message: string; ok: false } {
-    if (args.selectedSourceDepartmentIds.length > 100) {
-        return {
-            ok: false,
-            message: "A consolidation draft cannot select more than 100 source departments.",
-        };
-    }
-
     const uniqueSourceIds = new Set(args.selectedSourceDepartmentIds);
     if (uniqueSourceIds.size !== args.selectedSourceDepartmentIds.length) {
         return {
@@ -288,11 +303,8 @@ function validateWorkspaceJsonLike(
         };
     }
 
-    if (serialized.length > 200_000) {
-        return {
-            ok: false,
-            message: "Workspace state is too large to save safely.",
-        };
+    if (isPersistedBlocklyWorkspaceRecordLike(value)) {
+        return { ok: true };
     }
 
     const stats = inspectJsonShape(value);
@@ -302,14 +314,21 @@ function validateWorkspaceJsonLike(
             message: "Workspace state is nested too deeply to save safely.",
         };
     }
-    if (stats.blockCount > 500) {
-        return {
-            ok: false,
-            message: "Workspace state contains too many blocks for this draft shell.",
-        };
+    return { ok: true };
+}
+
+function isPersistedBlocklyWorkspaceRecordLike(value: unknown): boolean {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return false;
     }
 
-    return { ok: true };
+    const record = value as Record<string, unknown>;
+    return (
+        record.format === "blockly_json" &&
+        typeof record.workspaceJson === "string" &&
+        typeof record.editorMetadata === "object" &&
+        record.editorMetadata !== null
+    );
 }
 
 function inspectJsonShape(value: unknown): { blockCount: number; depth: number } {

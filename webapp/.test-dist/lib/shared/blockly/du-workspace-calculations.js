@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getDepartmentUserReservedSubmitState = exports.getDepartmentUserWorkspaceAnnouncement = exports.applyDepartmentWorkspaceRollup = exports.extractDepartmentUserWorkspaceCategoriesFromWorkspaceRecord = exports.resolveDepartmentUserDisplayedWorkspaceSummary = exports.workspaceRecordHasMeaningfulDepartmentContent = exports.workspaceRecordHasDepartmentBlock = exports.hasMeaningfulDepartmentUserWorkspaceSummary = exports.hasMeaningfulDepartmentUserPersistedPlanSummary = exports.buildDepartmentUserWorkspaceSummaryFromPersistedPlan = exports.calculateDepartmentUserWorkspaceSummaryFromWorkspaceRecord = exports.mapDepartmentUserBudgetMeterState = exports.calculateDepartmentUserWorkspaceSummary = exports.calculateDepartmentUserDepartmentRollup = exports.calculateDepartmentUserCategoryRollup = exports.calculateDepartmentUserItemRollup = exports.sanitizeNonNegativeNumber = exports.sumQuarterTotals = exports.createEmptyQuarterTotals = exports.DU_BUDGET_WARNING_THRESHOLD_PERCENT = void 0;
+exports.getDepartmentUserReservedSubmitState = exports.getDepartmentUserWorkspaceAnnouncement = exports.applyProcurementOfficerConsolidationRollup = exports.applyDepartmentWorkspaceRollup = exports.extractDepartmentUserWorkspaceCategoriesFromWorkspaceRecord = exports.resolveDepartmentUserDisplayedWorkspaceSummary = exports.workspaceRecordHasMeaningfulDepartmentContent = exports.workspaceRecordHasDepartmentBlock = exports.hasMeaningfulDepartmentUserWorkspaceSummary = exports.hasMeaningfulDepartmentUserPersistedPlanSummary = exports.buildDepartmentUserWorkspaceSummaryFromPersistedPlan = exports.calculateDepartmentUserWorkspaceSummaryFromWorkspaceRecord = exports.mapDepartmentUserBudgetMeterState = exports.calculateDepartmentUserWorkspaceSummary = exports.calculateDepartmentUserDepartmentRollup = exports.calculateDepartmentUserCategoryRollup = exports.calculateDepartmentUserItemRollup = exports.sanitizeNonNegativeNumber = exports.sumQuarterTotals = exports.createEmptyQuarterTotals = exports.DU_BUDGET_WARNING_THRESHOLD_PERCENT = void 0;
 const blockly_serialization_1 = require("./blockly-serialization");
 const workspace_catalog_identity_1 = require("./workspace-catalog-identity");
 const compliance_1 = require("@/lib/shared/procurement/compliance");
@@ -190,7 +190,7 @@ function mapDepartmentUserBudgetMeterState(args) {
     const usedPercent = roundPercent((usedAmount / totalBudget) * 100);
     const remainingBudget = roundCurrency(totalBudget - usedAmount);
     const overBudgetAmount = remainingBudget < 0 ? roundCurrency(Math.abs(remainingBudget)) : 0;
-    if (usedAmount >= totalBudget) {
+    if (overBudgetAmount > 0) {
         const overBudgetMessage = `Budget exceeded by ${formatKenyanCurrency(overBudgetAmount)}.`;
         return {
             advisoryText: "Reduce quantities or remove items before submission can be unlocked.",
@@ -207,16 +207,33 @@ function mapDepartmentUserBudgetMeterState(args) {
             usedPercent,
         };
     }
-    if (usedPercent >= exports.DU_BUDGET_WARNING_THRESHOLD_PERCENT) {
+    if (remainingBudget === 0) {
         return {
-            advisoryText: "Approaching budget limit. Review the next additions carefully before submission.",
-            announcementText: "Approaching budget limit.",
+            advisoryText: "Budget fully utilized. Submission can proceed once the remaining validation checks pass.",
+            announcementText: "Department budget is fully utilized.",
             bannerText: null,
             canSubmitByBudget: true,
             overBudgetAmount: 0,
             remainingBudget,
+            state: "safe",
+            statusLabel: "Budget fully utilized",
+            totalBudget,
+            usageLabel: `${formatPercent(usedPercent)} used`,
+            usedAmount,
+            usedPercent,
+        };
+    }
+    const underBudgetMessage = `Budget not fully utilized. Add items worth ${formatKenyanCurrency(remainingBudget)} before submission can unlock.`;
+    if (usedPercent >= exports.DU_BUDGET_WARNING_THRESHOLD_PERCENT) {
+        return {
+            advisoryText: "Approaching full budget utilization. Submission unlocks only when the remaining budget is KES 0.00.",
+            announcementText: underBudgetMessage,
+            bannerText: underBudgetMessage,
+            canSubmitByBudget: false,
+            overBudgetAmount: 0,
+            remainingBudget,
             state: "warning",
-            statusLabel: "Approaching budget limit",
+            statusLabel: "Budget remaining",
             totalBudget,
             usageLabel: `${formatPercent(usedPercent)} used`,
             usedAmount,
@@ -224,14 +241,14 @@ function mapDepartmentUserBudgetMeterState(args) {
         };
     }
     return {
-        advisoryText: "Within budget. Live totals update as quantities, prices, and catalog metadata change.",
-        announcementText: "Department plan remains within budget.",
-        bannerText: null,
-        canSubmitByBudget: true,
+        advisoryText: "Budget remains under-utilized. Add planned items until the remaining budget is KES 0.00.",
+        announcementText: underBudgetMessage,
+        bannerText: underBudgetMessage,
+        canSubmitByBudget: false,
         overBudgetAmount: 0,
         remainingBudget,
-        state: "safe",
-        statusLabel: "Within budget",
+        state: "under_budget",
+        statusLabel: "Budget remaining",
         totalBudget,
         usageLabel: `${formatPercent(usedPercent)} used`,
         usedAmount,
@@ -395,7 +412,7 @@ function applyDepartmentWorkspaceRollup(args) {
     if (!args.departmentBlock || args.departmentBlock.type !== "department_block") {
         return null;
     }
-    const categories = readCategoriesFromDepartmentBlock(args.departmentBlock, args.items ?? []);
+    const categories = readCategoriesFromDepartmentBlock(args.departmentBlock, args.items ?? [], args.refreshCatalogMetadata ?? true);
     const summary = calculateDepartmentUserWorkspaceSummary({
         categories,
         totalBudget: args.totalBudget,
@@ -405,6 +422,118 @@ function applyDepartmentWorkspaceRollup(args) {
     return summary;
 }
 exports.applyDepartmentWorkspaceRollup = applyDepartmentWorkspaceRollup;
+function applyProcurementOfficerConsolidationRollup(args) {
+    if (!args.aggregateBlock || args.aggregateBlock.type !== "aggregate_plan_block") {
+        return null;
+    }
+    let grandTotal = 0;
+    const quarterTotals = {
+        q1: 0,
+        q2: 0,
+        q3: 0,
+        q4: 0,
+    };
+    let currentBlock = args.aggregateBlock.getInput("DEPARTMENTS")?.connection?.targetBlock() ?? null;
+    const seenDepartmentIds = new Set();
+    const duplicateDepartmentNames = [];
+    while (currentBlock) {
+        if (currentBlock.type === "department_block") {
+            const departmentId = currentBlock.getFieldValue("DEPARTMENT_ID")?.trim();
+            const departmentName = currentBlock.getFieldValue("DEPT_NAME")?.trim() || "Unknown department";
+            if (departmentId && seenDepartmentIds.has(departmentId)) {
+                duplicateDepartmentNames.push(departmentName);
+                currentBlock.setWarningText?.("This department is already connected to the consolidation plan.");
+                currentBlock = currentBlock.getNextBlock();
+                continue;
+            }
+            if (departmentId) {
+                seenDepartmentIds.add(departmentId);
+            }
+            currentBlock.setWarningText?.(null);
+            const submittedBudget = sanitizeNonNegativeNumber(currentBlock.getFieldValue("BUDGET"));
+            const departmentSummary = applyDepartmentWorkspaceRollup({
+                departmentBlock: currentBlock,
+                items: [],
+                refreshCatalogMetadata: false,
+                totalBudget: submittedBudget,
+            });
+            if (departmentSummary) {
+                grandTotal += departmentSummary.departmentTotal;
+                quarterTotals.q1 =
+                    sanitizeNonNegativeNumber(quarterTotals.q1) +
+                        sanitizeNonNegativeNumber(departmentSummary.quarterTotals.q1);
+                quarterTotals.q2 =
+                    sanitizeNonNegativeNumber(quarterTotals.q2) +
+                        sanitizeNonNegativeNumber(departmentSummary.quarterTotals.q2);
+                quarterTotals.q3 =
+                    sanitizeNonNegativeNumber(quarterTotals.q3) +
+                        sanitizeNonNegativeNumber(departmentSummary.quarterTotals.q3);
+                quarterTotals.q4 =
+                    sanitizeNonNegativeNumber(quarterTotals.q4) +
+                        sanitizeNonNegativeNumber(departmentSummary.quarterTotals.q4);
+            }
+        }
+        currentBlock = currentBlock.getNextBlock();
+    }
+    if (duplicateDepartmentNames.length > 0) {
+        args.aggregateBlock.setWarningText?.(`Duplicate department plan ignored: ${duplicateDepartmentNames.join(", ")}.`);
+    }
+    else {
+        args.aggregateBlock.setWarningText?.(null);
+    }
+    const agpoAmount = roundCurrency(grandTotal * 0.3);
+    const pwdAmount = roundCurrency(agpoAmount * 0.02);
+    const localContentAmount = roundCurrency(grandTotal * 0.4);
+    const q1Total = roundCurrency(sanitizeNonNegativeNumber(quarterTotals.q1));
+    const q2Total = roundCurrency(sanitizeNonNegativeNumber(quarterTotals.q2));
+    const q3Total = roundCurrency(sanitizeNonNegativeNumber(quarterTotals.q3));
+    const q4Total = roundCurrency(sanitizeNonNegativeNumber(quarterTotals.q4));
+    args.aggregateBlock.setFieldValue(roundCurrency(grandTotal).toFixed(2), "GRAND_TOTAL");
+    args.aggregateBlock.setFieldValue(agpoAmount.toFixed(2), "AGPO_CALCULATED");
+    args.aggregateBlock.setFieldValue(pwdAmount.toFixed(2), "PWD_CALCULATED");
+    args.aggregateBlock.setFieldValue(localContentAmount.toFixed(2), "LOCAL_CONTENT_CALCULATED");
+    args.aggregateBlock.setFieldValue(q1Total.toFixed(2), "AGG_Q1_TOTAL");
+    args.aggregateBlock.setFieldValue(q2Total.toFixed(2), "AGG_Q2_TOTAL");
+    args.aggregateBlock.setFieldValue(q3Total.toFixed(2), "AGG_Q3_TOTAL");
+    args.aggregateBlock.setFieldValue(q4Total.toFixed(2), "AGG_Q4_TOTAL");
+    writeAggregateQuarterComplianceFields(args.aggregateBlock, "AGPO", 0.3, {
+        q1: q1Total,
+        q2: q2Total,
+        q3: q3Total,
+        q4: q4Total,
+    });
+    writeAggregateQuarterComplianceFields(args.aggregateBlock, "PWD", 0.3 * 0.02, {
+        q1: q1Total,
+        q2: q2Total,
+        q3: q3Total,
+        q4: q4Total,
+    });
+    writeAggregateQuarterComplianceFields(args.aggregateBlock, "LOCAL", 0.4, {
+        q1: q1Total,
+        q2: q2Total,
+        q3: q3Total,
+        q4: q4Total,
+    });
+    return {
+        agpoAmount,
+        grandTotal: roundCurrency(grandTotal),
+        localContentAmount,
+        pwdAmount,
+        quarterTotals: {
+            q1: q1Total,
+            q2: q2Total,
+            q3: q3Total,
+            q4: q4Total,
+        },
+    };
+}
+exports.applyProcurementOfficerConsolidationRollup = applyProcurementOfficerConsolidationRollup;
+function writeAggregateQuarterComplianceFields(aggregateBlock, fieldPrefix, ratio, quarterTotals) {
+    aggregateBlock.setFieldValue(roundCurrency(quarterTotals.q1 * ratio).toFixed(2), `${fieldPrefix}_Q1_TOTAL`);
+    aggregateBlock.setFieldValue(roundCurrency(quarterTotals.q2 * ratio).toFixed(2), `${fieldPrefix}_Q2_TOTAL`);
+    aggregateBlock.setFieldValue(roundCurrency(quarterTotals.q3 * ratio).toFixed(2), `${fieldPrefix}_Q3_TOTAL`);
+    aggregateBlock.setFieldValue(roundCurrency(quarterTotals.q4 * ratio).toFixed(2), `${fieldPrefix}_Q4_TOTAL`);
+}
 function getDepartmentUserWorkspaceAnnouncement(summary) {
     if (!summary) {
         return {
@@ -490,7 +619,7 @@ function synchronizeLiveQuarterQuantityFields(block) {
         }
     }
 }
-function readCategoriesFromDepartmentBlock(departmentBlock, items) {
+function readCategoriesFromDepartmentBlock(departmentBlock, items, refreshCatalogMetadata) {
     const categories = [];
     let categoryBlock = departmentBlock.getInput("CATEGORIES")?.connection?.targetBlock() ?? null;
     while (categoryBlock && categoryBlock.type === "category_block") {
@@ -505,6 +634,7 @@ function readCategoriesFromDepartmentBlock(departmentBlock, items) {
                 categoryId,
                 item: nextItem,
                 items,
+                refreshCatalogMetadata,
             }));
             itemBlock = itemBlock.getNextBlock();
         }
@@ -706,7 +836,7 @@ function writeRollupBackToWorkspace(departmentBlock, summary, totalBudget) {
         writableCategory.setFieldValue(categoryRollup.quarterTotals.q3.toFixed(2), "CAT_Q3_TOTAL");
         writableCategory.setFieldValue(categoryRollup.quarterTotals.q4.toFixed(2), "CAT_Q4_TOTAL");
         writableCategory.setFieldValue(categoryRollup.totalCost.toFixed(2), "CATEGORY_GRAND_TOTAL");
-        writableCategory.setFieldValue(categoryRollup.itemCount === 0 ? "Drag items here" : "", "CATEGORY_EMPTY_STATE");
+        writableCategory.setFieldValue("", "CATEGORY_EMPTY_STATE");
         writableCategory.getInput("EMPTY_STATE")?.setVisible?.(categoryRollup.itemCount === 0);
         let writableItem = writableCategory.getInput("ITEMS")?.connection?.targetBlock() ?? null;
         for (const itemRollup of categoryRollup.items) {
@@ -737,6 +867,7 @@ function updateDepartmentBudgetVisualState(departmentBlock, budgetState) {
         return;
     }
     classList.toggle("dept-block-budget-safe", budgetState.state === "safe");
+    classList.toggle("dept-block-budget-under", budgetState.state === "under_budget");
     classList.toggle("dept-block-budget-warning", budgetState.state === "warning");
     classList.toggle("dept-block-budget-over", budgetState.state === "over_budget");
     classList.toggle("dept-block-budget-unallocated", budgetState.state === "unallocated");

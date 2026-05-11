@@ -140,6 +140,7 @@ exports.planWorkspaceContextValidator = values_1.v.object({
         submittedAt: values_1.v.union(values_1.v.number(), values_1.v.null()),
         status: values_1.v.union(values_1.v.literal("approved"), values_1.v.literal("draft"), values_1.v.literal("rejected"), values_1.v.literal("submitted")),
         workspaceState: exports.workspaceRecordValidator,
+        workspaceVersion: values_1.v.number(),
     }), values_1.v.null()),
     redirectHref: values_1.v.union(values_1.v.string(), values_1.v.null()),
     statusMessage: values_1.v.union(values_1.v.string(), values_1.v.null()),
@@ -409,6 +410,20 @@ async function loadDepartmentUserRevisionContext(ctx, args) {
         reviewDecisions: reviewDecisions.sort((left, right) => right.decidedAt - left.decidedAt),
     };
 }
+function toDepartmentUserPublicRevisionContext(revisionContext) {
+    return {
+        activeDecision: revisionContext.activeDecision,
+        effectiveDeadlineExpired: revisionContext.effectiveDeadlineExpired,
+        history: revisionContext.history,
+        inconsistentStateMessage: revisionContext.inconsistentStateMessage,
+        reviewDecisions: revisionContext.reviewDecisions,
+    };
+}
+function getPlanWorkspaceVersion(plan) {
+    return typeof plan.workspaceVersion === "number" && plan.workspaceVersion > 0
+        ? plan.workspaceVersion
+        : 1;
+}
 async function loadDepartmentUserTenantUser(ctx, args) {
     const tenantUser = await ctx.db
         .query("tenantUsers")
@@ -647,6 +662,7 @@ exports.ensureDepartmentUserDraftPlan = (0, server_1.mutation)({
                 lastSavedByUserId: String(base.authContext.userId),
                 saveSource: "workspace_seed",
             }),
+            workspaceVersion: 1,
             createdAt: now,
             updatedAt: now,
         });
@@ -803,7 +819,7 @@ exports.getDepartmentUserPlanWorkspace = (0, server_1.query)({
                 id: String(plan._id),
                 itemCount: plan.itemCount,
                 reviewStartedAt: plan.reviewStartedAt ?? null,
-                revisionContext,
+                revisionContext: toDepartmentUserPublicRevisionContext(revisionContext),
                 selectedCategoryIds: sanitizedSelection.sanitizedCategoryIds,
                 submissionEmailErrorMessage: plan.submissionEmailErrorMessage ?? null,
                 submissionEmailStatus: plan.submissionEmailStatus ?? null,
@@ -811,6 +827,7 @@ exports.getDepartmentUserPlanWorkspace = (0, server_1.query)({
                 submittedAt: plan.submittedAt ?? null,
                 status: plan.status,
                 workspaceState: toNormalizedWorkspaceRecord(plan, base.authContext.userId),
+                workspaceVersion: getPlanWorkspaceVersion(plan),
             },
             redirectHref: null,
             statusMessage: null,
@@ -821,6 +838,7 @@ exports.saveDepartmentUserWorkspaceDraft = (0, server_1.mutation)({
     args: {
         categorySummaries: values_1.v.array(exports.workspaceCategorySummaryValidator),
         estimatedBudgetUsed: values_1.v.number(),
+        expectedWorkspaceVersion: values_1.v.optional(values_1.v.number()),
         itemCount: values_1.v.number(),
         planId: values_1.v.string(),
         selectedCategoryIds: values_1.v.array(values_1.v.string()),
@@ -828,6 +846,8 @@ exports.saveDepartmentUserWorkspaceDraft = (0, server_1.mutation)({
     },
     returns: values_1.v.object({
         savedAt: values_1.v.number(),
+        workspaceState: exports.workspaceRecordValidator,
+        workspaceVersion: values_1.v.number(),
     }),
     handler: async (ctx, args) => {
         const base = await loadDepartmentUserPlanBase(ctx);
@@ -847,6 +867,14 @@ exports.saveDepartmentUserWorkspaceDraft = (0, server_1.mutation)({
             throw new values_1.ConvexError({
                 code: "PLAN_NOT_FOUND",
                 message: "Plan not found for this department.",
+            });
+        }
+        const currentWorkspaceVersion = getPlanWorkspaceVersion(plan);
+        if (typeof args.expectedWorkspaceVersion !== "number" ||
+            args.expectedWorkspaceVersion !== currentWorkspaceVersion) {
+            throw new values_1.ConvexError({
+                code: "STALE_WORKSPACE_REVISION",
+                message: "The cloud draft changed after this browser loaded it. Refresh or recover the local draft before saving again.",
             });
         }
         if (plan.status === "rejected") {
@@ -900,14 +928,25 @@ exports.saveDepartmentUserWorkspaceDraft = (0, server_1.mutation)({
                 message: persistenceResult.message,
             });
         }
-        await ctx.db.patch(plan._id, persistenceResult.patch);
-        return { savedAt: persistenceResult.patch.updatedAt };
+        const nextWorkspaceVersion = currentWorkspaceVersion + 1;
+        await ctx.db.patch(plan._id, {
+            ...persistenceResult.patch,
+            workspaceVersion: nextWorkspaceVersion,
+        });
+        return {
+            savedAt: persistenceResult.patch.updatedAt,
+            workspaceState: persistenceResult.patch.workspaceState,
+            workspaceVersion: nextWorkspaceVersion,
+        };
     },
 });
 exports.submitDepartmentUserPlan = (0, server_1.mutation)({
     args: {
         expectedDecisionDecidedAt: values_1.v.optional(values_1.v.number()),
         expectedDecisionId: values_1.v.optional(values_1.v.string()),
+        expectedWorkspaceLastSavedAt: values_1.v.optional(values_1.v.number()),
+        expectedWorkspaceRevision: values_1.v.optional(values_1.v.number()),
+        expectedWorkspaceVersion: values_1.v.optional(values_1.v.number()),
         planId: values_1.v.string(),
     },
     returns: submitDepartmentUserPlanResultValidator,
@@ -1078,6 +1117,29 @@ exports.submitDepartmentUserPlan = (0, server_1.mutation)({
             }
         }
         const normalizedWorkspaceState = toNormalizedWorkspaceRecord(plan, base.authContext.userId);
+        if (typeof args.expectedWorkspaceVersion !== "number" ||
+            args.expectedWorkspaceVersion !== getPlanWorkspaceVersion(plan)) {
+            await (0, _audit_1.appendAuditLogRequired)(ctx, buildDepartmentUserPlanAuditEntry({
+                action: "submit",
+                actorUserId: base.authContext.userId,
+                departmentId: department._id,
+                event: audit_1.AUDIT_EVENT_NAMES.planSubmissionBlocked,
+                metadata: {
+                    expectedWorkspaceLastSavedAt: args.expectedWorkspaceLastSavedAt ?? null,
+                    expectedWorkspaceRevision: args.expectedWorkspaceRevision ?? null,
+                    expectedWorkspaceVersion: args.expectedWorkspaceVersion ?? null,
+                    planStatus: plan.status,
+                    reason: "stale_workspace_snapshot",
+                    savedWorkspaceLastSavedAt: normalizedWorkspaceState.editorMetadata.lastSavedAt,
+                    savedWorkspaceRevision: normalizedWorkspaceState.editorMetadata.revision,
+                    savedWorkspaceVersion: getPlanWorkspaceVersion(plan),
+                },
+                outcome: audit_1.AUDIT_OUTCOMES.blockedStateTransition,
+                planId: plan._id,
+                tenantId: base.authContext.tenantId,
+            }));
+            buildBlockedSubmissionError("The cloud draft changed after this submission review was prepared. Save or refresh the workspace before submitting again.");
+        }
         const submissionDraftSummary = (0, workspace_save_1.deriveDepartmentUserWorkspaceDraftPersistenceSummary)({
             categories: catalog.categories.map((category) => ({
                 id: category.id,

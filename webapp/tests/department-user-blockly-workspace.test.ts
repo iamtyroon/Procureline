@@ -145,10 +145,44 @@ export async function runDepartmentUserBlocklyWorkspaceTests(): Promise<string[]
         totalBudget: 1_000_000,
         usedAmount: 1_150_000,
     });
+    const underBudget = mapDepartmentUserBudgetMeterState({
+        totalBudget: 25_000,
+        usedAmount: 19_000,
+    });
+    const nearFullUnderBudget = mapDepartmentUserBudgetMeterState({
+        totalBudget: 25_000,
+        usedAmount: 24_999.99,
+    });
+    const exactBudget = mapDepartmentUserBudgetMeterState({
+        totalBudget: 25_000,
+        usedAmount: 25_000,
+    });
+    const subCentOverBudget = mapDepartmentUserBudgetMeterState({
+        totalBudget: 25_000,
+        usedAmount: 25_000.004,
+    });
+    const oneCentOverBudget = mapDepartmentUserBudgetMeterState({
+        totalBudget: 25_000,
+        usedAmount: 25_000.01,
+    });
     assert.equal(unallocatedBudget.state, "unallocated");
     assert.equal(overBudget.state, "over_budget");
     assert.equal(overBudget.overBudgetAmount, 150_000);
     assert.match(overBudget.bannerText ?? "", /Budget exceeded by/i);
+    assert.equal(underBudget.state, "under_budget");
+    assert.equal(underBudget.canSubmitByBudget, false);
+    assert.equal(underBudget.remainingBudget, 6_000);
+    assert.match(underBudget.bannerText ?? "", /Budget not fully utilized/i);
+    assert.equal(nearFullUnderBudget.state, "warning");
+    assert.equal(nearFullUnderBudget.canSubmitByBudget, false);
+    assert.equal(nearFullUnderBudget.remainingBudget, 0.01);
+    assert.equal(exactBudget.canSubmitByBudget, true);
+    assert.equal(exactBudget.overBudgetAmount, 0);
+    assert.equal(exactBudget.remainingBudget, 0);
+    assert.equal(subCentOverBudget.canSubmitByBudget, true);
+    assert.equal(subCentOverBudget.overBudgetAmount, 0);
+    assert.equal(oneCentOverBudget.state, "over_budget");
+    assert.equal(oneCentOverBudget.overBudgetAmount, 0.01);
     completedTests.push("budget meter state now carries truthful unallocated and over-budget messaging");
 
     const categorySelection = sanitizeDepartmentUserWorkspaceCategorySelection({
@@ -564,7 +598,11 @@ export async function runDepartmentUserBlocklyWorkspaceTests(): Promise<string[]
     });
     assert.ok(liveValidationSummary);
     assert.equal(liveValidationItem.warningText, "Maximum quantity is 6");
-    assert.deepEqual(liveValidationSummary.validationState.submitBlockedReasons, []);
+    assert.equal(liveValidationSummary.validationState.submitBlockedReasons.length, 1);
+    assert.match(
+        liveValidationSummary.validationState.submitBlockedReasons[0] ?? "",
+        /Budget not fully utilized/i,
+    );
     completedTests.push("live Blockly validation feedback now preserves one-cycle inline quantity warnings after the field normalizes bad input");
 
     const emptyCategoryDepartment = new TestBlock("department_block");
@@ -938,20 +976,26 @@ export async function runDepartmentUserBlocklyWorkspaceTests(): Promise<string[]
         ),
         true,
     );
-    assert.deepEqual(
-        invalidSerializedWorkspaceSummary.validationState.submitBlockedReasons,
-        [],
+    assert.equal(
+        invalidSerializedWorkspaceSummary.validationState.submitBlockedReasons.length,
+        1,
+    );
+    assert.match(
+        invalidSerializedWorkspaceSummary.validationState.submitBlockedReasons[0] ?? "",
+        /Budget not fully utilized/i,
     );
     completedTests.push("serialized workspace revalidation now keeps normalization feedback visible after stale quantities are clamped during hydration");
 
     const draftSaveInput = buildDepartmentUserWorkspaceDraftSaveInput({
         categories: [{ id: "cat-it", name: "ICT Equipment" }],
+        expectedWorkspaceVersion: 1,
         planId: "plan-123",
         selectedCategoryIds: ["cat-it"],
         summary: refreshedWorkspaceSummary,
         workspaceState,
     });
     assert.equal(draftSaveInput.estimatedBudgetUsed, 260_000);
+    assert.equal(draftSaveInput.expectedWorkspaceVersion, 1);
     assert.equal(typeof draftSaveInput.workspaceState.workspaceJson, "string");
 
     const derivedPersistenceSummary = deriveDepartmentUserWorkspaceDraftPersistenceSummary({

@@ -83,7 +83,8 @@ function runProcurementOfficerDashboardTests() {
                 departmentId: "department-2",
                 expiresAt: Date.UTC(2026, 11, 31, 12, 0, 0),
                 id: "code-2-inactive",
-                isActive: false,
+                isActive: true,
+                lastDeliveryStatus: "queued",
             },
             {
                 departmentId: "department-3",
@@ -200,7 +201,7 @@ function runProcurementOfficerDashboardTests() {
     });
     strict_1.default.equal(snapshot.meta.selectedFiscalYear, "2026-2027");
     strict_1.default.equal(snapshot.summaryCards.find((card) => card.id === "access_code_coverage")
-        ?.value, "2 / 3");
+        ?.value, "3 / 3");
     strict_1.default.equal(snapshot.summaryCards.find((card) => card.id === "du_assignment_coverage")
         ?.value, "2 / 3");
     strict_1.default.equal(snapshot.summaryCards.find((card) => card.id === "deadline_readiness")
@@ -216,6 +217,8 @@ function runProcurementOfficerDashboardTests() {
     strict_1.default.equal(snapshot.organizationOverview.budget.utilizationPercent, 75);
     strict_1.default.equal(snapshot.departmentReadiness.items.find((item) => item.id === "department-1")?.accessCode.state, "available");
     strict_1.default.equal(snapshot.departmentReadiness.items.find((item) => item.id === "department-2")?.departmentUser.state, "setup_required");
+    strict_1.default.equal(snapshot.departmentReadiness.items.find((item) => item.id === "department-2")?.departmentUser.label, "Awaiting first sign-in");
+    strict_1.default.equal(snapshot.departmentReadiness.items.find((item) => item.id === "department-2")?.blockerSummary, "Awaiting DU first sign-in.");
     strict_1.default.equal(snapshot.departmentReadiness.items.find((item) => item.id === "department-1")?.voteNumber, "FIN-2026-Q1");
     strict_1.default.equal(snapshot.alerts.some((alert) => alert.message ===
         "Submission deadline not set. Configure before DUs can submit."), true);

@@ -463,6 +463,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
     setEditDepartment({
       budgetAllocation: departmentRow.budgetAllocation,
       code: departmentRow.code,
+      hasSentAccessCode: departmentRow.hasSentAccessCode,
       id: departmentRow.id,
       name: departmentRow.name,
       planningImpactWarning: departmentRow.planningImpactWarning,
@@ -510,6 +511,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
     setEditDepartment({
       budgetAllocation: departmentRow.budgetAllocation,
       code: departmentRow.code,
+      hasSentAccessCode: departmentRow.hasSentAccessCode,
       id: departmentRow.id,
       name: departmentRow.name,
       planningImpactWarning: departmentRow.planningImpactWarning,
@@ -1893,6 +1895,8 @@ export function ProcurementOfficerDashboard(): JSX.Element {
           onOpenChange={setIsCreateDepartmentOpen}
           onSubmit={handleDepartmentCreateSubmit}
           open={isCreateDepartmentOpen}
+          selectedFiscalYear={selectedFiscalYear}
+          timeZone={departmentsWorkspace.meta.timeZone}
         />
       ) : null}
 
@@ -1917,6 +1921,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
           }}
           onSubmit={handleDepartmentEditSubmit}
           open={isEditDepartmentOpen}
+          selectedFiscalYear={selectedFiscalYear}
           timeZone={departmentsWorkspace.meta.timeZone}
         />
       ) : null}

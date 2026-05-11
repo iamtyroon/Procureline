@@ -104,6 +104,7 @@ function runProcurementOfficerDepartmentTests() {
                 budgetAllocation: 2_000_000,
                 code: "FIN",
                 hasActiveAccessCode: true,
+                hasSentAccessCode: true,
                 id: "department-1",
                 isActive: true,
                 lastUpdatedAt: Date.UTC(2026, 2, 20, 10, 0, 0),
@@ -116,6 +117,7 @@ function runProcurementOfficerDepartmentTests() {
                 budgetAllocation: 3_000_000,
                 code: "HR",
                 hasActiveAccessCode: false,
+                hasSentAccessCode: false,
                 id: "department-2",
                 isActive: false,
                 lastUpdatedAt: Date.UTC(2026, 2, 21, 10, 0, 0),
@@ -130,7 +132,8 @@ function runProcurementOfficerDepartmentTests() {
     });
     strict_1.default.equal(workspaceSummary.rows.length, 1);
     strict_1.default.equal(workspaceSummary.rows[0]?.planningStateLabel, "Draft in progress");
-    strict_1.default.equal(workspaceSummary.rows[0]?.departmentUserStateLabel, "Unassigned");
+    strict_1.default.equal(workspaceSummary.rows[0]?.departmentUserStateLabel, "Awaiting first sign-in");
+    strict_1.default.equal(workspaceSummary.rows[0]?.accessCodeStateLabel, "Code sent");
     strict_1.default.equal(workspaceSummary.overAllocationWarning, null);
     strict_1.default.equal(workspaceSummary.limit.limit, 30);
     completedTests.push("department workspace summaries exclude archived departments from active views, keep planning-state signals truthful, and avoid fabricating over-allocation warnings without a real tenant budget ceiling");
@@ -178,7 +181,8 @@ function runProcurementOfficerDepartmentTests() {
     strict_1.default.equal((0, departments_1.isDepartmentCrudAuthorizationError)(new Error("Procurement Officer access is required for this resource.")), true);
     strict_1.default.equal((0, departments_1.isDepartmentCrudAuthorizationError)(new Error("Department code already exists")), false);
     strict_1.default.equal((0, departments_1.getDepartmentCrudRecoveryHref)(), (0, roles_1.buildDashboardPath)(roles_1.FORBIDDEN_ACCESS_REASON));
-    completedTests.push("department CRUD auth failures are classified separately from validation errors and reuse the protected dashboard handoff instead of leaving the workspace stranded");
+    strict_1.default.equal((0, departments_1.getDepartmentCrudErrorMessage)(new Error('Uncaught ConvexError: {"code":"FORBIDDEN","message":"Department code already sent. Create a new department if this user needs a different access path."}')), "Department code already sent. Create a new department if this user needs a different access path.");
+    completedTests.push("department CRUD auth failures are classified separately from validation errors, unwrap safe Convex errors, and reuse the protected dashboard handoff instead of leaving the workspace stranded");
     return completedTests;
 }
 exports.runProcurementOfficerDepartmentTests = runProcurementOfficerDepartmentTests;

@@ -211,6 +211,7 @@ function DepartmentUserExistingPlanWorkspace(): JSX.Element {
                 subtitle={workspaceContext.meta.subtitle}
                 unavailableCategories={workspaceContext.meta.unavailableCategories}
                 workspaceState={workspaceContext.plan.workspaceState}
+                workspaceVersion={workspaceContext.plan.workspaceVersion}
             />
         </DepartmentUserWorkspaceScaffold>
     );

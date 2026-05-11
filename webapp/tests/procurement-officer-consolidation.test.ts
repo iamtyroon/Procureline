@@ -63,6 +63,28 @@ export function runProcurementOfficerConsolidationTests(): string[] {
                 itemCount: 6,
                 status: "approved",
                 updatedAt: Date.UTC(2026, 7, 17, 13, 0, 0),
+                workspaceState: {
+                    workspaceJson: {
+                        blocks: {
+                            blocks: [
+                                {
+                                    type: "department_block",
+                                    inputs: {
+                                        CATEGORIES: {
+                                            block: {
+                                                type: "category_block",
+                                                fields: {
+                                                    CATEGORY_NAME: "ICT Equipment",
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            ],
+                            languageVersion: 0,
+                        },
+                    },
+                },
             },
             {
                 departmentId: "department-finance",
@@ -82,6 +104,28 @@ export function runProcurementOfficerConsolidationTests(): string[] {
     assert.deepEqual(readiness.readyDepartmentIds, ["department-ict"]);
     assert.equal(readiness.readyDepartments[0]?.planId, "plan-approved-newer");
     assert.equal(readiness.readyDepartments[0]?.estimatedBudgetUsed, 275_000);
+    assert.deepEqual(readiness.readyDepartments[0]?.workspaceState, {
+        workspaceJson: {
+            blocks: {
+                blocks: [
+                    {
+                        type: "department_block",
+                        inputs: {
+                            CATEGORIES: {
+                                block: {
+                                    type: "category_block",
+                                    fields: {
+                                        CATEGORY_NAME: "ICT Equipment",
+                                    },
+                                },
+                            },
+                        },
+                    },
+                ],
+                languageVersion: 0,
+            },
+        },
+    });
     assert.equal(
         readiness.blockedDepartments.find(
             (department) => department.departmentId === "department-finance",
@@ -95,7 +139,7 @@ export function runProcurementOfficerConsolidationTests(): string[] {
         "missing_plan",
     );
     completedTests.push(
-        "consolidation readiness derives sources only from approved current-year plans, keeps consolidatedAt informational, and deduplicates approved plans by approval recency",
+        "consolidation readiness derives sources only from approved current-year plans, keeps consolidatedAt informational, deduplicates by approval recency, and carries source workspace state for toolbox seeding",
     );
 
     const canonical = selectCanonicalApprovedPlansByDepartment({
@@ -175,9 +219,41 @@ export function runProcurementOfficerConsolidationTests(): string[] {
     );
     assert.equal(
         validateConsolidationDraftPayload({
+            selectedSourceDepartmentIds: ["department-ict"],
+            workspaceState: {
+                editorMetadata: {
+                    lastSavedAt: 1,
+                    lastSavedByUserId: "po-user",
+                    recoveredAt: null,
+                    revision: 1,
+                    saveSource: "workspace_sync",
+                },
+                format: "blockly_json",
+                schemaVersion: 1,
+                workspaceJson: JSON.stringify({
+                    blocks: {
+                        blocks: [{ type: "department_block" }],
+                        languageVersion: 0,
+                    },
+                }),
+            },
+        }).ok,
+        true,
+    );
+    assert.equal(
+        validateConsolidationDraftPayload({
             selectedSourceDepartmentIds: ["department-ict", "department-ict"],
         }).ok,
         false,
+    );
+    assert.equal(
+        validateConsolidationDraftPayload({
+            selectedSourceDepartmentIds: Array.from(
+                { length: 250 },
+                (_, index) => `department-${index}`,
+            ),
+        }).ok,
+        true,
     );
     assert.equal(
         validateConsolidationDraftPayload({
@@ -186,8 +262,25 @@ export function runProcurementOfficerConsolidationTests(): string[] {
         }).ok,
         false,
     );
+    assert.equal(
+        validateConsolidationDraftPayload({
+            selectedSourceDepartmentIds: ["department-ict"],
+            workspaceState: {
+                blocks: {
+                    blocks: Array.from({ length: 1_500 }, (_, index) => ({
+                        type: "item_block",
+                        fields: {
+                            ITEM_DESC: `Line item ${index}`,
+                        },
+                    })),
+                    languageVersion: 0,
+                },
+            },
+        }).ok,
+        true,
+    );
     completedTests.push(
-        "consolidation draft validation rejects duplicate sources and overly deep JSON before persistence",
+        "consolidation draft validation accepts persisted stringified Blockly JSON, large block counts, and institution-scale department counts while rejecting duplicate sources plus overly deep JSON before persistence",
     );
 
     const routeSource = readFileSync(

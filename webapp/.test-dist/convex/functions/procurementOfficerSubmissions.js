@@ -1,16 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendSubmissionMonitoringReminders = exports.getProcurementOfficerSubmissionReviewTarget = exports.getProcurementOfficerSubmissionMonitoringWorkspace = exports.getProcurementOfficerSubmissionQueue = void 0;
+exports.getProcurementOfficerSubmissionReviewTarget = exports.getProcurementOfficerSubmissionMonitoringWorkspace = exports.getProcurementOfficerSubmissionQueue = void 0;
 const values_1 = require("convex/values");
 const server_1 = require("../_generated/server");
 const dashboard_1 = require("../../lib/procurement-officer/dashboard");
-const access_codes_1 = require("../../lib/procurement-officer/access-codes");
 const submission_monitoring_1 = require("../../lib/procurement-officer/submission-monitoring");
 const submissions_1 = require("../../lib/procurement-officer/submissions");
 const revision_deadline_1 = require("../../lib/plans/revision-deadline");
 const _roleGuard_1 = require("./_roleGuard");
-const _helpers_1 = require("../actions/_helpers");
-const audit_1 = require("../../lib/shared/security/audit");
 const reviewTargetStateValidator = values_1.v.union(values_1.v.literal("ready"), values_1.v.literal("redirect"));
 const submissionReviewTargetValidator = values_1.v.object({
     message: values_1.v.union(values_1.v.string(), values_1.v.null()),
@@ -174,7 +171,7 @@ exports.getProcurementOfficerSubmissionMonitoringWorkspace = (0, server_1.query)
             });
         }
         const now = Date.now();
-        const [departments, plans, submissionDeadlines, planReviewDecisions, planSubmissionSnapshots, departmentUserProfiles, tenantUsers, departmentAccessCodes,] = await Promise.all([
+        const [departments, plans, submissionDeadlines, planReviewDecisions, planSubmissionSnapshots, departmentUserProfiles, tenantUsers,] = await Promise.all([
             ctx.db
                 .query("departments")
                 .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
@@ -201,10 +198,6 @@ exports.getProcurementOfficerSubmissionMonitoringWorkspace = (0, server_1.query)
                 .collect(),
             ctx.db
                 .query("tenantUsers")
-                .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
-                .collect(),
-            ctx.db
-                .query("departmentAccessCodes")
                 .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
                 .collect(),
         ]);
@@ -301,11 +294,6 @@ exports.getProcurementOfficerSubmissionMonitoringWorkspace = (0, server_1.query)
             });
             contactsByDepartmentId.set(key, existing);
         }
-        const safeAccessByDepartmentId = new Set(departmentAccessCodes
-            .filter((accessCode) => accessCode.isActive &&
-            accessCode.revokedAt == null &&
-            accessCode.expiresAt > now)
-            .map((accessCode) => String(accessCode.departmentId)));
         const plansByDepartmentId = new Map();
         for (const plan of plans) {
             const key = String(plan.departmentId);
@@ -358,16 +346,12 @@ exports.getProcurementOfficerSubmissionMonitoringWorkspace = (0, server_1.query)
             const canonicalPlan = (0, submission_monitoring_1.selectCanonicalMonitoringPlan)(plansByDepartmentId.get(String(department._id)) ?? [], selectedFiscalYear);
             return (0, submission_monitoring_1.buildProcurementOfficerMonitoringRow)({
                 contacts: contactsByDepartmentId.get(String(department._id)) ?? [],
-                deadlineAt: sharedDeadline.deadlineAt,
                 department: {
                     code: department.code,
                     id: String(department._id),
                     isActive: department.isActive,
                     name: department.name,
                 },
-                fiscalYear: selectedFiscalYear,
-                hasSafeDuAccess: safeAccessByDepartmentId.has(String(department._id)),
-                now,
                 plan: canonicalPlan,
                 tenantTimeZone: tenant.timeZone,
             });
@@ -449,158 +433,6 @@ exports.getProcurementOfficerSubmissionReviewTarget = (0, server_1.query)({
                 tenantTimeZone: tenant.timeZone,
             }),
             state: "ready",
-        };
-    },
-});
-exports.sendSubmissionMonitoringReminders = (0, server_1.action)({
-    args: {
-        appUrl: values_1.v.optional(values_1.v.string()),
-        departmentIds: values_1.v.array(values_1.v.string()),
-        requestKey: values_1.v.optional(values_1.v.string()),
-        selectedFiscalYear: values_1.v.string(),
-    },
-    returns: values_1.v.any(),
-    handler: async (ctx, args) => {
-        const actor = await (0, _helpers_1.getServiceActorContext)(ctx);
-        if (actor.role !== "procurement_officer" || !actor.tenantId) {
-            throw new values_1.ConvexError({
-                code: "UNAUTHORIZED",
-                message: "Procurement Officer access is required for this resource.",
-            });
-        }
-        const workspace = (await ctx.runQuery("functions/procurementOfficerSubmissions:getProcurementOfficerSubmissionMonitoringWorkspace", {
-            selectedFiscalYear: args.selectedFiscalYear,
-        }));
-        const requestedIds = new Set(args.departmentIds);
-        const targetRows = workspace.rows.filter((row) => requestedIds.has(row.departmentId));
-        const targetRowIds = new Set(targetRows.map((row) => row.departmentId));
-        if (requestedIds.size === 0) {
-            throw new values_1.ConvexError({
-                code: "VALIDATION_FAILED",
-                message: "No monitoring departments were selected for reminders.",
-            });
-        }
-        const loginUrl = (0, access_codes_1.buildAbsoluteAccessCodeLoginUrl)({
-            appUrl: args.appUrl,
-            loginPath: access_codes_1.ACCESS_CODE_LOGIN_URL_PATH,
-        });
-        let queuedCount = 0;
-        let skippedCount = 0;
-        let failedCount = 0;
-        const results = [];
-        for (const requestedId of requestedIds) {
-            if (!targetRowIds.has(requestedId)) {
-                skippedCount += 1;
-                results.push({
-                    departmentId: requestedId,
-                    departmentName: null,
-                    outcome: "skipped",
-                    reason: "stale_target",
-                });
-            }
-        }
-        const reminderWindow = (0, submission_monitoring_1.buildProcurementOfficerSubmissionReminderWindow)({
-            now: Date.now(),
-        });
-        for (const row of targetRows) {
-            if (!row.reminderEligibility.eligible || typeof row.dueAt !== "number") {
-                skippedCount += 1;
-                results.push({
-                    departmentId: row.departmentId,
-                    departmentName: row.departmentName,
-                    outcome: "skipped",
-                    reason: row.reminderEligibility.reason ?? "not eligible",
-                });
-                continue;
-            }
-            if (row.recipientEmails.length === 0) {
-                skippedCount += 1;
-                results.push({
-                    departmentId: row.departmentId,
-                    departmentName: row.departmentName,
-                    outcome: "skipped",
-                    reason: "missing_contact_email",
-                });
-                continue;
-            }
-            let departmentQueued = 0;
-            let departmentFailed = 0;
-            for (const recipientEmail of row.recipientEmails) {
-                try {
-                    await ctx.runAction("actions/email:queueTransactionalEmail", {
-                        idempotencyKey: (0, submission_monitoring_1.buildProcurementOfficerSubmissionReminderIdempotencyKey)({
-                            departmentId: row.departmentId,
-                            dueAt: row.dueAt,
-                            fiscalYear: args.selectedFiscalYear,
-                            reminderWindow,
-                            reason: row.status,
-                            tenantId: actor.tenantId,
-                        }) + `:${recipientEmail}`,
-                        subject: `${row.departmentName} submission reminder`,
-                        template: "submission-reminder",
-                        templateProps: {
-                            deadlineLabel: row.dueLabel ?? "Unavailable",
-                            departmentName: row.departmentName,
-                            fiscalYearLabel: args.selectedFiscalYear,
-                            loginUrl,
-                            statusLabel: row.status,
-                        },
-                        to: recipientEmail,
-                    });
-                    departmentQueued += 1;
-                }
-                catch {
-                    departmentFailed += 1;
-                }
-            }
-            if (departmentQueued > 0) {
-                queuedCount += 1;
-                results.push({
-                    departmentId: row.departmentId,
-                    departmentName: row.departmentName,
-                    outcome: departmentFailed > 0 ? "queued" : "queued",
-                    reason: departmentFailed > 0 ? `${departmentFailed} recipient(s) failed` : null,
-                });
-            }
-            else {
-                failedCount += 1;
-                results.push({
-                    departmentId: row.departmentId,
-                    departmentName: row.departmentName,
-                    outcome: "failed",
-                    reason: "queue_failed",
-                });
-            }
-        }
-        await ctx.runMutation("functions/auditLogs:appendAuditLogFromAction", {
-            action: "email_queue",
-            actorRole: actor.role,
-            actorState: (0, audit_1.createAuthenticatedAuditActor)({
-                role: actor.role,
-                userId: actor.userId,
-            }).state,
-            actorUserId: actor.userId,
-            entityType: "submission_monitoring",
-            event: "submission_monitoring.reminders_queued",
-            metadata: {
-                failedCount,
-                fiscalYear: args.selectedFiscalYear,
-                queuedCount,
-                reminderWindow,
-                requestKey: args.requestKey ?? null,
-                skippedCount,
-            },
-            outcome: failedCount > 0 ? audit_1.AUDIT_OUTCOMES.failed : audit_1.AUDIT_OUTCOMES.queued,
-            sourceTenantId: actor.tenantId,
-            tableName: "plans",
-            targetTenantId: actor.tenantId,
-            timestamp: Date.now(),
-        }).catch(() => undefined);
-        return {
-            failedCount,
-            queuedCount,
-            results,
-            skippedCount,
         };
     },
 });

@@ -12,9 +12,13 @@ function normalizeConsolidationFiscalYear(args) {
         fiscalYearStartMonth: args.fiscalYearStartMonth,
         timeZone: args.tenantTimeZone,
     }).key;
+    const approvedPlanFiscalYears = new Set(args.approvedPlanFiscalYears ?? []);
     const options = (0, dashboard_1.buildAvailableProcurementFiscalYears)({
         departments: args.departments,
-        existingFiscalYearKeys: args.submissionDeadlineFiscalYears,
+        existingFiscalYearKeys: [
+            ...(args.submissionDeadlineFiscalYears ?? []),
+            ...(args.approvedPlanFiscalYears ?? []),
+        ],
         fiscalYearStartMonth: args.fiscalYearStartMonth,
         now: args.now,
         requestedFiscalYear: undefined,
@@ -23,6 +27,19 @@ function normalizeConsolidationFiscalYear(args) {
     if (requestedFiscalYear &&
         options.includes(requestedFiscalYear)) {
         return { currentFiscalYear, options, selectedFiscalYear: requestedFiscalYear };
+    }
+    const approvedOptions = options
+        .filter((option) => approvedPlanFiscalYears.has(option))
+        .sort((left, right) => right.localeCompare(left));
+    if (approvedOptions.includes(currentFiscalYear)) {
+        return { currentFiscalYear, options, selectedFiscalYear: currentFiscalYear };
+    }
+    if (approvedOptions[0]) {
+        return {
+            currentFiscalYear,
+            options,
+            selectedFiscalYear: approvedOptions[0],
+        };
     }
     if (options.includes(currentFiscalYear)) {
         return { currentFiscalYear, options, selectedFiscalYear: currentFiscalYear };
@@ -60,6 +77,7 @@ function buildConsolidationReadiness(args) {
                 itemCount: canonicalApprovedPlan.itemCount,
                 planId: canonicalApprovedPlan.id,
                 voteNumber: department.voteNumber ?? department.code,
+                workspaceState: canonicalApprovedPlan.workspaceState ?? null,
             });
             continue;
         }
@@ -113,12 +131,6 @@ function selectCanonicalApprovedPlansByDepartment(args) {
 }
 exports.selectCanonicalApprovedPlansByDepartment = selectCanonicalApprovedPlansByDepartment;
 function validateConsolidationDraftPayload(args) {
-    if (args.selectedSourceDepartmentIds.length > 100) {
-        return {
-            ok: false,
-            message: "A consolidation draft cannot select more than 100 source departments.",
-        };
-    }
     const uniqueSourceIds = new Set(args.selectedSourceDepartmentIds);
     if (uniqueSourceIds.size !== args.selectedSourceDepartmentIds.length) {
         return {
@@ -152,11 +164,8 @@ function validateWorkspaceJsonLike(value) {
             message: "Workspace state must be JSON serializable.",
         };
     }
-    if (serialized.length > 200_000) {
-        return {
-            ok: false,
-            message: "Workspace state is too large to save safely.",
-        };
+    if (isPersistedBlocklyWorkspaceRecordLike(value)) {
+        return { ok: true };
     }
     const stats = inspectJsonShape(value);
     if (stats.depth > 24) {
@@ -165,13 +174,17 @@ function validateWorkspaceJsonLike(value) {
             message: "Workspace state is nested too deeply to save safely.",
         };
     }
-    if (stats.blockCount > 500) {
-        return {
-            ok: false,
-            message: "Workspace state contains too many blocks for this draft shell.",
-        };
-    }
     return { ok: true };
+}
+function isPersistedBlocklyWorkspaceRecordLike(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return false;
+    }
+    const record = value;
+    return (record.format === "blockly_json" &&
+        typeof record.workspaceJson === "string" &&
+        typeof record.editorMetadata === "object" &&
+        record.editorMetadata !== null);
 }
 function inspectJsonShape(value) {
     const stack = [{ depth: 1, value }];

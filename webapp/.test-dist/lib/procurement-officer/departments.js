@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.buildDepartmentWorkspaceSummary = exports.buildDepartmentOverAllocationWarning = exports.summarizeDepartmentPlanningState = exports.buildDepartmentDeletionBlockers = exports.buildDepartmentTierLimitModalContent = exports.buildDepartmentTierLimitState = exports.isDepartmentCrudAuthorizationError = exports.getDepartmentCrudErrorMessage = exports.isDepartmentTierLimitMessage = exports.getDepartmentCrudRecoveryHref = exports.getDepartmentUpgradeHref = exports.formatDepartmentBudget = exports.getDepartmentCodeFieldDescription = exports.departmentFormSchema = exports.validateDepartmentCode = exports.normalizeDepartmentVoteNumber = exports.normalizeDepartmentCode = exports.normalizeDepartmentName = exports.DEPARTMENT_CODE_FORMAT_MESSAGE = exports.DEPARTMENT_VOTE_NUMBER_REQUIRED_MESSAGE = exports.DEPARTMENT_CODE_REQUIRED_MESSAGE = exports.DEPARTMENT_NAME_REQUIRED_MESSAGE = exports.DEPARTMENT_SETUP_REQUIRED_MESSAGE = exports.DEPARTMENT_DELETE_GENERIC_ERROR_MESSAGE = exports.DEPARTMENT_SAVE_GENERIC_ERROR_MESSAGE = exports.DEPARTMENT_CODE_EMAIL_AFTER_CREATE_MESSAGE = exports.DEPARTMENT_DEADLINE_EXTENSION_ORDER_MESSAGE = exports.DEPARTMENT_DEADLINE_EXTENSION_PAST_MESSAGE = exports.DEPARTMENT_DEADLINE_NOT_CONFIGURED_MESSAGE = exports.DEPARTMENT_DELETE_DU_MESSAGE = exports.DEPARTMENT_DELETE_PLANS_MESSAGE = exports.DEPARTMENT_HARD_DELETE_GENERIC_ERROR_MESSAGE = exports.DEPARTMENT_HARD_DELETE_ACTIVE_MESSAGE = exports.DEPARTMENT_NOT_FOUND_MESSAGE = exports.DEPARTMENT_BUDGET_POSITIVE_MESSAGE = exports.DEPARTMENT_VOTE_NUMBER_EXISTS_MESSAGE = exports.DEPARTMENT_NAME_EXISTS_MESSAGE = exports.DEPARTMENT_CODE_EXISTS_MESSAGE = exports.DEPARTMENT_CODE_MAX_LENGTH = void 0;
+exports.buildDepartmentWorkspaceSummary = exports.buildDepartmentOverAllocationWarning = exports.summarizeDepartmentPlanningState = exports.buildDepartmentDeletionBlockers = exports.buildDepartmentTierLimitModalContent = exports.buildDepartmentTierLimitState = exports.isDepartmentCrudAuthorizationError = exports.getDepartmentCrudErrorMessage = exports.isDepartmentTierLimitMessage = exports.getDepartmentCrudRecoveryHref = exports.getDepartmentUpgradeHref = exports.formatDepartmentBudget = exports.getDepartmentCodeFieldDescription = exports.departmentFormSchema = exports.validateDepartmentCode = exports.normalizeDepartmentVoteNumber = exports.normalizeDepartmentCode = exports.normalizeDepartmentName = exports.DEPARTMENT_CODE_FORMAT_MESSAGE = exports.DEPARTMENT_VOTE_NUMBER_REQUIRED_MESSAGE = exports.DEPARTMENT_CODE_REQUIRED_MESSAGE = exports.DEPARTMENT_NAME_REQUIRED_MESSAGE = exports.getDepartmentUserStateLabel = exports.DEPARTMENT_SETUP_REQUIRED_MESSAGE = exports.DEPARTMENT_DELETE_GENERIC_ERROR_MESSAGE = exports.DEPARTMENT_SAVE_GENERIC_ERROR_MESSAGE = exports.DEPARTMENT_CODE_ALREADY_SENT_MESSAGE = exports.DEPARTMENT_CODE_EMAIL_AFTER_CREATE_MESSAGE = exports.DEPARTMENT_DEADLINE_EXTENSION_ORDER_MESSAGE = exports.DEPARTMENT_DEADLINE_EXTENSION_PAST_MESSAGE = exports.DEPARTMENT_DEADLINE_NOT_CONFIGURED_MESSAGE = exports.DEPARTMENT_DELETE_DU_MESSAGE = exports.DEPARTMENT_DELETE_PLANS_MESSAGE = exports.DEPARTMENT_HARD_DELETE_GENERIC_ERROR_MESSAGE = exports.DEPARTMENT_HARD_DELETE_ACTIVE_MESSAGE = exports.DEPARTMENT_NOT_FOUND_MESSAGE = exports.DEPARTMENT_BUDGET_POSITIVE_MESSAGE = exports.DEPARTMENT_VOTE_NUMBER_EXISTS_MESSAGE = exports.DEPARTMENT_NAME_EXISTS_MESSAGE = exports.DEPARTMENT_CODE_EXISTS_MESSAGE = exports.DEPARTMENT_CODE_MAX_LENGTH = void 0;
 const zod_1 = require("zod");
 const roles_1 = require("../shared/auth/roles");
 const input_1 = require("../shared/security/input");
@@ -19,9 +19,17 @@ exports.DEPARTMENT_DEADLINE_NOT_CONFIGURED_MESSAGE = "Configure the shared submi
 exports.DEPARTMENT_DEADLINE_EXTENSION_PAST_MESSAGE = "Choose a new expiry date in the future.";
 exports.DEPARTMENT_DEADLINE_EXTENSION_ORDER_MESSAGE = "New expiry date must be after the current department expiry.";
 exports.DEPARTMENT_CODE_EMAIL_AFTER_CREATE_MESSAGE = "Create the department first, then send the department code.";
+exports.DEPARTMENT_CODE_ALREADY_SENT_MESSAGE = "Department code already sent. Create a new department if this user needs a different access path.";
 exports.DEPARTMENT_SAVE_GENERIC_ERROR_MESSAGE = "We could not save the department right now. Please try again.";
 exports.DEPARTMENT_DELETE_GENERIC_ERROR_MESSAGE = "We could not delete the department right now. Please try again.";
 exports.DEPARTMENT_SETUP_REQUIRED_MESSAGE = "Department setup is incomplete. Contact your Procurement Officer.";
+function getDepartmentUserStateLabel(args) {
+    if (args.activeDepartmentUserCount > 0) {
+        return "Assigned";
+    }
+    return args.hasSentAccessCode ? "Awaiting first sign-in" : "Not invited";
+}
+exports.getDepartmentUserStateLabel = getDepartmentUserStateLabel;
 exports.DEPARTMENT_NAME_REQUIRED_MESSAGE = "Department name is required";
 exports.DEPARTMENT_CODE_REQUIRED_MESSAGE = "Department code is required";
 exports.DEPARTMENT_VOTE_NUMBER_REQUIRED_MESSAGE = "Vote number is required";
@@ -163,7 +171,7 @@ function isDepartmentTierLimitMessage(message) {
 exports.isDepartmentTierLimitMessage = isDepartmentTierLimitMessage;
 function getDepartmentCrudErrorMessage(error) {
     const message = error instanceof Error && error.message.trim().length > 0
-        ? error.message.trim()
+        ? extractDepartmentCrudErrorMessage(error.message.trim())
         : null;
     if (!message) {
         return exports.DEPARTMENT_SAVE_GENERIC_ERROR_MESSAGE;
@@ -172,6 +180,7 @@ function getDepartmentCrudErrorMessage(error) {
         exports.DEPARTMENT_BUDGET_POSITIVE_MESSAGE,
         exports.DEPARTMENT_CODE_FORMAT_MESSAGE,
         exports.DEPARTMENT_CODE_EXISTS_MESSAGE,
+        exports.DEPARTMENT_CODE_ALREADY_SENT_MESSAGE,
         exports.DEPARTMENT_CODE_REQUIRED_MESSAGE,
         exports.DEPARTMENT_DELETE_DU_MESSAGE,
         exports.DEPARTMENT_DELETE_PLANS_MESSAGE,
@@ -195,7 +204,7 @@ function getDepartmentCrudErrorMessage(error) {
 exports.getDepartmentCrudErrorMessage = getDepartmentCrudErrorMessage;
 function isDepartmentCrudAuthorizationError(error) {
     const message = error instanceof Error && error.message.trim().length > 0
-        ? error.message.trim()
+        ? extractDepartmentCrudErrorMessage(error.message.trim())
         : null;
     if (!message) {
         return false;
@@ -203,6 +212,25 @@ function isDepartmentCrudAuthorizationError(error) {
     return DEPARTMENT_CRUD_AUTH_RECOVERY_PATTERNS.some((pattern) => pattern.test(message));
 }
 exports.isDepartmentCrudAuthorizationError = isDepartmentCrudAuthorizationError;
+function extractDepartmentCrudErrorMessage(message) {
+    const convexJsonMessage = message.match(/ConvexError:\s*(\{[^\n]*\})/);
+    if (convexJsonMessage?.[1]) {
+        try {
+            const parsed = JSON.parse(convexJsonMessage[1]);
+            if (typeof parsed.message === "string" && parsed.message.trim()) {
+                return parsed.message.trim();
+            }
+        }
+        catch {
+            // Fall through to plain Error extraction below.
+        }
+    }
+    const uncaughtMessage = message.match(/Uncaught Error:\s*([^\n]+)/);
+    if (uncaughtMessage?.[1]?.trim()) {
+        return uncaughtMessage[1].trim();
+    }
+    return message;
+}
 function buildDepartmentTierLimitState(args) {
     const limit = args.tier === "enterprise" ? null : TIER_LIMITS[args.tier];
     const tierLabel = TIER_LABELS[args.tier];
@@ -323,13 +351,20 @@ function buildDepartmentWorkspaceSummary(args) {
         }),
         rows: activeDepartments.map((department) => ({
             ...department,
-            accessCodeStateLabel: department.hasActiveAccessCode ? "Active code" : "Setup required",
+            accessCodeStateLabel: department.hasSentAccessCode
+                ? "Code sent"
+                : department.hasActiveAccessCode
+                    ? "Active code"
+                    : "Setup required",
             deleteBlockers: buildDepartmentDeletionBlockers({
                 activeDepartmentUserEmails: department.activeDepartmentUserEmails,
                 hasProtectedPlans: department.planStatuses.some((status) => status === "approved" || status === "submitted"),
             }),
             departmentUserCount: department.activeDepartmentUserEmails.length,
-            departmentUserStateLabel: department.activeDepartmentUserEmails.length > 0 ? "Assigned" : "Unassigned",
+            departmentUserStateLabel: getDepartmentUserStateLabel({
+                activeDepartmentUserCount: department.activeDepartmentUserEmails.length,
+                hasSentAccessCode: department.hasSentAccessCode,
+            }),
             planningStateLabel: summarizeDepartmentPlanningState(department.planStatuses),
         })),
     };

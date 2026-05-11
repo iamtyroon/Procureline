@@ -3,12 +3,11 @@
 import { useMemo, useState } from "react";
 import { useAction, useQuery } from "convex/react";
 import {
+  ClipboardCheck,
   Download,
   Filter,
   History,
   Search,
-  Send,
-  TriangleAlert,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -42,6 +41,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ProcurementOfficerPlanReviewSummaryModal } from "./ProcurementOfficerPlanReviewSummaryModal";
 
 const STATUS_FILTER_OPTIONS = [
   { label: "All statuses", value: "all" },
@@ -67,6 +67,10 @@ function getStatusBadgeClassName(status: string): string {
   }
 }
 
+function isReviewableMonitoringStatus(status: string): boolean {
+  return status === "submitted" || status === "approved" || status === "rejected";
+}
+
 export function ProcurementOfficerSubmissionMonitoringWorkspace({
   selectedFiscalYear,
 }: {
@@ -78,16 +82,13 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
     selectedFiscalYear ? { selectedFiscalYear } : {},
   );
   const exportReport = useAction(api.actions.files.exportSubmissionMonitoringReport);
-  const sendReminders = useAction(
-    api.functions.procurementOfficerSubmissions.sendSubmissionMonitoringReminders,
-  );
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchText, setSearchText] = useState("");
   const [updatedFrom, setUpdatedFrom] = useState("");
   const [updatedTo, setUpdatedTo] = useState("");
   const [historyDepartmentId, setHistoryDepartmentId] = useState<string | null>(null);
+  const [reviewPlanId, setReviewPlanId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [isSending, setIsSending] = useState(false);
 
   const activeFilterCount = [
     searchText.trim().length > 0,
@@ -147,9 +148,6 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
   }, [searchText, statusFilter, updatedFrom, updatedTo, workspace]);
 
   const historyRow = rows.find((row: any) => row.departmentId === historyDepartmentId) ?? null;
-  const eligibleReminderDepartmentIds = rows
-    .filter((row: any) => row.reminderEligibility.eligible === true)
-    .map((row: any) => row.departmentId);
 
   function clearFilters(): void {
     setSearchText("");
@@ -175,31 +173,6 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
       toast.error(error instanceof Error ? error.message : "Export failed.");
     } finally {
       setIsExporting(false);
-    }
-  }
-
-  async function onSendReminders(departmentIds: string[]): Promise<void> {
-    if (!workspace || departmentIds.length === 0) {
-      return;
-    }
-
-    setIsSending(true);
-    try {
-      const result = (await sendReminders({
-        departmentIds,
-        selectedFiscalYear: workspace.meta.selectedFiscalYear,
-      })) as {
-        failedCount: number;
-        queuedCount: number;
-        skippedCount: number;
-      };
-      toast.success(
-        `Queued ${result.queuedCount}, skipped ${result.skippedCount}, failed ${result.failedCount}.`,
-      );
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Reminder queueing failed.");
-    } finally {
-      setIsSending(false);
     }
   }
 
@@ -316,19 +289,10 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
             type="button"
             variant="outline"
             disabled={isExporting || rows.length === 0}
-            onClick={onExport}
+            onClick={() => void onExport()}
           >
             <Download className="mr-2 h-3.5 w-3.5" />
             {isExporting ? "Exporting..." : "Export"}
-          </Button>
-          <Button
-            className="h-8 rounded-lg px-3 text-xs"
-            type="button"
-            disabled={isSending || eligibleReminderDepartmentIds.length === 0}
-            onClick={() => onSendReminders(eligibleReminderDepartmentIds)}
-          >
-            <Send className="mr-2 h-3.5 w-3.5" />
-            {isSending ? "Queueing..." : "Send reminders"}
           </Button>
         </div>
       </div>
@@ -362,7 +326,6 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
                 <TableHead>Status</TableHead>
                 <TableHead>Last updated</TableHead>
                 <TableHead>DU contact</TableHead>
-                <TableHead>Reminder due</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -393,19 +356,17 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
                   <TableCell className="text-sm text-muted-foreground">
                     {row.duContactLabel}
                   </TableCell>
-                  <TableCell>
-                    <div className="space-y-1 text-sm text-muted-foreground">
-                      <div>{row.dueLabel ?? "Unavailable"}</div>
-                      {!row.reminderEligibility.eligible ? (
-                        <div className="inline-flex items-center gap-1 text-xs text-amber-700">
-                          <TriangleAlert className="h-3.5 w-3.5" />
-                          {row.reminderEligibility.reason?.replaceAll("_", " ") ?? "blocked"}
-                        </div>
-                      ) : null}
-                    </div>
-                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      {row.planId && isReviewableMonitoringStatus(row.status) ? (
+                        <Button
+                          type="button"
+                          onClick={() => setReviewPlanId(row.planId)}
+                        >
+                          <ClipboardCheck className="mr-2 h-4 w-4" />
+                          Review
+                        </Button>
+                      ) : null}
                       <Button
                         type="button"
                         variant="outline"
@@ -413,13 +374,6 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
                       >
                         <History className="mr-2 h-4 w-4" />
                         Open history
-                      </Button>
-                      <Button
-                        type="button"
-                        disabled={!row.reminderEligibility.eligible || isSending}
-                        onClick={() => onSendReminders([row.departmentId])}
-                      >
-                        Remind
                       </Button>
                     </div>
                   </TableCell>
@@ -473,6 +427,11 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
           </div>
         </DialogContent>
       </Dialog>
+      <ProcurementOfficerPlanReviewSummaryModal
+        onClose={() => setReviewPlanId(null)}
+        open={reviewPlanId !== null}
+        planId={reviewPlanId}
+      />
     </div>
   );
 }

@@ -180,6 +180,14 @@ function getDepartmentUserPlanSubmitState(args) {
             reason: "Budget allocation is unavailable, so submission must remain blocked.",
         };
     }
+    if (args.budgetState.canSubmitByBudget === false) {
+        return {
+            disabled: true,
+            label: "Use Full Budget Before Submit",
+            reason: args.budgetState.bannerText ??
+                "Budget must be fully utilized before submission can unlock.",
+        };
+    }
     const blockerMessages = normalizeSubmissionBlockerMessages({
         supplementalBlockerMessages: args.supplementalBlockerMessages ?? null,
         totalItemCount: args.totalItemCount,

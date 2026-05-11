@@ -539,6 +539,7 @@ export default defineSchema({
       v.union(v.literal("failed"), v.literal("queued")),
     ),
     submissionEmailErrorMessage: v.optional(v.string()),
+    workspaceVersion: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
     submittedAt: v.optional(v.number()),

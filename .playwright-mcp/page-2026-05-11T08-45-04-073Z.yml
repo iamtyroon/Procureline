@@ -1,0 +1,35 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - heading "Welcome back" [level=3] [ref=e10]
+      - paragraph [ref=e11]: Enter your email to sign in to your account
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - alert [ref=e14]: Your session has expired. Please log in again.
+        - generic [ref=e15]:
+          - text: Email address
+          - textbox "Email address" [ref=e16]:
+            - /placeholder: admin@university.ac.ke
+        - generic [ref=e17]:
+          - generic [ref=e18]:
+            - generic [ref=e19]: Password
+            - link "Forgot password?" [ref=e20] [cursor=pointer]:
+              - /url: /forgot-password
+          - textbox "Password" [ref=e21]:
+            - /placeholder: ............
+        - generic [ref=e22]:
+          - checkbox "Remember me" [ref=e23] [cursor=pointer]
+          - checkbox
+          - generic [ref=e24]:
+            - text: Remember me
+            - paragraph [ref=e25]: Keep this browser signed in for up to 30 days.
+      - generic [ref=e26]:
+        - button "Sign in" [ref=e27] [cursor=pointer]
+        - paragraph [ref=e28]:
+          - text: Don't have an account?
+          - link "Sign up" [ref=e29] [cursor=pointer]:
+            - /url: /signup
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e35] [cursor=pointer]:
+    - img [ref=e36]

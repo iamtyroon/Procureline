@@ -1,9 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.buildProcurementOfficerMonitoringExportRows = exports.buildProcurementOfficerMonitoringRow = exports.buildProcurementOfficerSubmissionReminderWindow = exports.buildProcurementOfficerSubmissionReminderIdempotencyKey = exports.deriveProcurementOfficerReminderEligibility = exports.summarizeProcurementOfficerMonitoringRows = exports.buildProcurementOfficerMonitoringTimeline = exports.selectCanonicalMonitoringPlan = exports.getProcurementOfficerMonitoringStatusLabel = exports.deriveProcurementOfficerMonitoringStatus = exports.PROCUREMENT_OFFICER_MONITORING_STATUSES = void 0;
+exports.buildProcurementOfficerMonitoringExportRows = exports.buildProcurementOfficerMonitoringRow = exports.summarizeProcurementOfficerMonitoringRows = exports.buildProcurementOfficerMonitoringTimeline = exports.selectCanonicalMonitoringPlan = exports.getProcurementOfficerMonitoringStatusLabel = exports.deriveProcurementOfficerMonitoringStatus = exports.PROCUREMENT_OFFICER_MONITORING_STATUSES = void 0;
 const deadlines_1 = require("./deadlines");
 const status_tracking_1 = require("../department-user/status-tracking");
-const revision_deadline_1 = require("../plans/revision-deadline");
 exports.PROCUREMENT_OFFICER_MONITORING_STATUSES = [
     "not_started",
     "draft",
@@ -189,150 +188,18 @@ function summarizeProcurementOfficerMonitoringRows(rows) {
     return summary;
 }
 exports.summarizeProcurementOfficerMonitoringRows = summarizeProcurementOfficerMonitoringRows;
-function deriveProcurementOfficerReminderEligibility(args) {
-    if (!args.tenantMatches) {
-        return {
-            dueAt: null,
-            eligible: false,
-            reason: "cross_tenant",
-            resolvedContacts: [],
-            safeAccess: false,
-        };
-    }
-    if (!args.department.isActive) {
-        return {
-            dueAt: null,
-            eligible: false,
-            reason: "inactive_department",
-            resolvedContacts: [],
-            safeAccess: false,
-        };
-    }
-    if (!args.fiscalYearInScope) {
-        return {
-            dueAt: null,
-            eligible: false,
-            reason: "not_in_scope",
-            resolvedContacts: [],
-            safeAccess: false,
-        };
-    }
-    const resolvedContacts = Array.from(new Set(args.contacts
+function resolveProcurementOfficerMonitoringContactEmails(contacts) {
+    return Array.from(new Set(contacts
         .filter((contact) => contact.isActive)
         .map((contact) => contact.email?.trim().toLowerCase() ?? null)
         .filter((email) => Boolean(email)))).sort((left, right) => left.localeCompare(right));
-    const safeAccess = typeof args.hasSafeDuAccess === "boolean"
-        ? args.hasSafeDuAccess
-        : args.contacts.some((contact) => contact.isActive);
-    if (!safeAccess) {
-        return {
-            dueAt: null,
-            eligible: false,
-            reason: "no_safe_du_access",
-            resolvedContacts,
-            safeAccess,
-        };
-    }
-    if (resolvedContacts.length === 0) {
-        return {
-            dueAt: null,
-            eligible: false,
-            reason: "missing_contact_email",
-            resolvedContacts,
-            safeAccess,
-        };
-    }
-    const status = deriveProcurementOfficerMonitoringStatus(args.plan);
-    if (status === "approved") {
-        return {
-            dueAt: null,
-            eligible: false,
-            reason: "already_approved",
-            resolvedContacts,
-            safeAccess,
-        };
-    }
-    let dueAt = args.deadlineAt;
-    if (!dueAt) {
-        return {
-            dueAt: null,
-            eligible: false,
-            reason: "missing_deadline",
-            resolvedContacts,
-            safeAccess,
-        };
-    }
-    const latestDecision = args.plan?.latestDecision ?? null;
-    if (latestDecision &&
-        (latestDecision.decisionType === "rejected" ||
-            latestDecision.decisionType === "revision_requested")) {
-        const effectiveDeadline = (0, revision_deadline_1.deriveDepartmentUserEffectiveRevisionDeadline)({
-            decidedAt: latestDecision.decidedAt,
-            decisionType: latestDecision.decisionType,
-            revisionDeadlineAt: latestDecision.revisionDeadlineAt ?? null,
-            submissionDeadlineAt: args.deadlineAt,
-        }).effectiveDeadlineAt;
-        dueAt = effectiveDeadline ?? dueAt;
-    }
-    if (args.now > dueAt) {
-        return {
-            dueAt,
-            eligible: false,
-            reason: "deadline_expired",
-            resolvedContacts,
-            safeAccess,
-        };
-    }
-    if (status !== "not_started" && status !== "draft" && status !== "rejected") {
-        return {
-            dueAt,
-            eligible: false,
-            reason: "not_lagging",
-            resolvedContacts,
-            safeAccess,
-        };
-    }
-    return {
-        dueAt,
-        eligible: true,
-        reason: null,
-        resolvedContacts,
-        safeAccess,
-    };
 }
-exports.deriveProcurementOfficerReminderEligibility = deriveProcurementOfficerReminderEligibility;
-function buildProcurementOfficerSubmissionReminderIdempotencyKey(args) {
-    return [
-        "submission-reminder",
-        args.tenantId,
-        args.fiscalYear,
-        args.departmentId,
-        args.reason,
-        String(args.dueAt),
-        args.reminderWindow,
-    ].join(":");
-}
-exports.buildProcurementOfficerSubmissionReminderIdempotencyKey = buildProcurementOfficerSubmissionReminderIdempotencyKey;
-function buildProcurementOfficerSubmissionReminderWindow(args) {
-    const windowMs = args.windowMs ?? 5 * 60 * 1000;
-    return String(Math.floor(args.now / windowMs));
-}
-exports.buildProcurementOfficerSubmissionReminderWindow = buildProcurementOfficerSubmissionReminderWindow;
 function buildProcurementOfficerMonitoringRow(args) {
     const timeZone = (0, deadlines_1.resolveDeadlineTimeZone)({
         tenantTimeZone: args.tenantTimeZone,
     }).timeZone;
     const status = deriveProcurementOfficerMonitoringStatus(args.plan);
-    const reminder = deriveProcurementOfficerReminderEligibility({
-        contacts: args.contacts,
-        deadlineAt: args.deadlineAt,
-        department: args.department,
-        fiscalYearInScope: true,
-        hasSafeDuAccess: args.hasSafeDuAccess,
-        now: args.now,
-        plan: args.plan,
-        tenantMatches: args.tenantMatches ?? true,
-    });
+    const contactEmails = resolveProcurementOfficerMonitoringContactEmails(args.contacts);
     const timeline = buildProcurementOfficerMonitoringTimeline({
         plan: args.plan,
         timeZone,
@@ -342,27 +209,16 @@ function buildProcurementOfficerMonitoringRow(args) {
         departmentCode: args.department.code,
         departmentId: args.department.id,
         departmentName: args.department.name,
-        dueAt: reminder.dueAt,
-        dueLabel: typeof reminder.dueAt === "number"
-            ? (0, deadlines_1.formatDeadlineDateTime)(reminder.dueAt, timeZone)
-            : null,
-        duContactLabel: reminder.resolvedContacts.length > 0
-            ? reminder.resolvedContacts.join(", ")
+        duContactLabel: contactEmails.length > 0
+            ? contactEmails.join(", ")
             : "No active DU contact",
-        duRecipientCount: reminder.resolvedContacts.length,
-        hasSafeDuAccess: reminder.safeAccess,
+        duRecipientCount: contactEmails.length,
         historyState: timeline.some((item) => item.isFallback) ? "partial" : "complete",
         lastUpdatedAt,
         lastUpdatedLabel: typeof lastUpdatedAt === "number"
             ? (0, deadlines_1.formatDeadlineDateTime)(lastUpdatedAt, timeZone)
             : "Unavailable",
         planId: args.plan?.id ?? null,
-        recipientEmails: reminder.resolvedContacts,
-        reminderEligibility: {
-            dueAt: reminder.dueAt,
-            eligible: reminder.eligible,
-            reason: reminder.reason,
-        },
         status,
         statusLabel: getProcurementOfficerMonitoringStatusLabel(status),
         timeline,

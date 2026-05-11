@@ -57,8 +57,24 @@ export function runConvexErrorHandlingTests(): string[] {
         ),
         "Invalid verification code. Please try again.",
     );
+    assert.equal(
+        getPublicDepartmentUserAccessErrorMessage(
+            new Error(
+                '[CONVEX A(functions/departmentUserAuth:startAccessChallenge)] [Request ID: abc] Server Error\nUncaught Error: Invalid access code',
+            ),
+        ),
+        "Invalid access code",
+    );
+    assert.equal(
+        getPublicDepartmentUserAccessErrorMessage(
+            new Error(
+                'Uncaught ConvexError: {"code":"UNAUTHORIZED","message":"This email can\'t be used for Department User access. Contact your Procurement Officer."}',
+            ),
+        ),
+        "This email can't be used for Department User access. Contact your Procurement Officer.",
+    );
     completedTests.push(
-        "verification error mapping only rewrites actual code failures and keeps unrelated backend issues generic",
+        "verification error mapping unwraps safe Convex messages, rewrites actual code failures, and keeps unrelated backend issues generic",
     );
 
     assert.equal(

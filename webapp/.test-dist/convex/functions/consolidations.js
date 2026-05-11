@@ -7,6 +7,7 @@ const consolidation_1 = require("../../lib/procurement-officer/consolidation");
 const _audit_1 = require("./_audit");
 const _roleGuard_1 = require("./_roleGuard");
 const audit_1 = require("../../lib/shared/security/audit");
+const blockly_serialization_1 = require("../../lib/shared/blockly/blockly-serialization");
 async function loadProcurementOfficerTenantUser(ctx, args) {
     const tenantUser = await ctx.db
         .query("tenantUsers")
@@ -43,6 +44,9 @@ async function loadConsolidationBase(ctx, args) {
         });
     }
     const fiscalYears = (0, consolidation_1.normalizeConsolidationFiscalYear)({
+        approvedPlanFiscalYears: plans
+            .filter((plan) => plan.status === "approved")
+            .map((plan) => plan.fiscalYear),
         departments: departments.map((department) => ({
             id: String(department._id),
             isActive: department.isActive,
@@ -85,6 +89,7 @@ function mapPlanRecord(plan) {
         itemCount: plan.itemCount,
         status: plan.status,
         updatedAt: plan.updatedAt,
+        workspaceState: plan.workspaceState ?? null,
     };
 }
 async function loadDraft(ctx, args) {
@@ -110,6 +115,101 @@ function mapDraft(draft) {
         updatedAt: draft.updatedAt,
         workspaceState: draft.workspaceState ?? null,
     };
+}
+function asRecord(value) {
+    return value && typeof value === "object" && !Array.isArray(value)
+        ? value
+        : null;
+}
+function getNestedBlock(value) {
+    return asRecord(asRecord(value)?.block);
+}
+function createDepartmentStubChain(selectedSourceDepartmentIds) {
+    let firstBlock = null;
+    let previousBlock = null;
+    for (const departmentId of selectedSourceDepartmentIds) {
+        const block = {
+            fields: {
+                DEPARTMENT_ID: departmentId,
+            },
+            type: "department_block",
+        };
+        if (!firstBlock) {
+            firstBlock = block;
+        }
+        if (previousBlock) {
+            previousBlock.next = { block };
+        }
+        previousBlock = block;
+    }
+    return firstBlock;
+}
+function findAggregateBlock(workspaceJson) {
+    const blocks = asRecord(asRecord(workspaceJson)?.blocks)?.blocks;
+    if (!Array.isArray(blocks)) {
+        return null;
+    }
+    return (blocks
+        .map((block) => asRecord(block))
+        .find((block) => block?.type === "aggregate_plan_block") ?? null);
+}
+function createCompactConsolidationWorkspaceRecord(args) {
+    if (!args.workspaceState) {
+        return undefined;
+    }
+    const normalizedRecord = (0, blockly_serialization_1.normalizeBlocklyWorkspaceRecord)(args.workspaceState);
+    const workspaceJson = (0, blockly_serialization_1.normalizeBlocklyWorkspaceJson)(normalizedRecord.workspaceJson);
+    const aggregateBlock = findAggregateBlock(workspaceJson);
+    const aggregateFields = {
+        FINANCIAL_YEAR: args.fiscalYear,
+        ...(asRecord(aggregateBlock?.fields) ?? {}),
+    };
+    const departmentStubChain = createDepartmentStubChain(args.selectedSourceDepartmentIds);
+    const compactAggregateBlock = {
+        fields: aggregateFields,
+        type: "aggregate_plan_block",
+        x: typeof aggregateBlock?.x === "number" ? aggregateBlock.x : 80,
+        y: typeof aggregateBlock?.y === "number" ? aggregateBlock.y : 60,
+    };
+    if (departmentStubChain) {
+        compactAggregateBlock.inputs = {
+            DEPARTMENTS: {
+                block: departmentStubChain,
+            },
+        };
+    }
+    let compactTopBlocks = [compactAggregateBlock];
+    let currentTrailingBlock = getNestedBlock(aggregateBlock?.next);
+    while (currentTrailingBlock) {
+        const blockType = currentTrailingBlock.type;
+        if (blockType !== "planned_timing_block" &&
+            blockType !== "actual_timing_block" &&
+            blockType !== "variance_timing_block") {
+            break;
+        }
+        compactTopBlocks = [
+            ...compactTopBlocks,
+            {
+                extraState: currentTrailingBlock.extraState,
+                fields: currentTrailingBlock.fields,
+                type: blockType,
+            },
+        ];
+        currentTrailingBlock = getNestedBlock(currentTrailingBlock.next);
+    }
+    return (0, blockly_serialization_1.createPersistedBlocklyWorkspaceRecord)((0, blockly_serialization_1.createBlocklyWorkspaceRecord)({
+        lastSavedAt: normalizedRecord.editorMetadata.lastSavedAt,
+        lastSavedByUserId: normalizedRecord.editorMetadata.lastSavedByUserId,
+        recoveredAt: normalizedRecord.editorMetadata.recoveredAt,
+        revision: normalizedRecord.editorMetadata.revision,
+        saveSource: normalizedRecord.editorMetadata.saveSource,
+        workspaceJson: {
+            blocks: {
+                blocks: compactTopBlocks,
+                languageVersion: 0,
+            },
+        },
+    }));
 }
 function assertSelectedSourcesAreStillApproved(args) {
     const ready = new Set(args.readyDepartmentIds);
@@ -185,10 +285,15 @@ exports.saveProcurementOfficerConsolidationDraft = (0, server_1.mutation)({
             tenantId: authContext.tenantId,
             userId: authContext.userId,
         });
+        const persistedWorkspaceState = createCompactConsolidationWorkspaceRecord({
+            fiscalYear: args.fiscalYear,
+            selectedSourceDepartmentIds: args.selectedSourceDepartmentIds,
+            workspaceState: args.workspaceState,
+        });
         const validation = (0, consolidation_1.validateConsolidationDraftPayload)({
             notes: args.notes,
             selectedSourceDepartmentIds: args.selectedSourceDepartmentIds,
-            workspaceState: args.workspaceState,
+            workspaceState: persistedWorkspaceState,
         });
         if (!validation.ok) {
             throw new values_1.ConvexError({
@@ -243,7 +348,7 @@ exports.saveProcurementOfficerConsolidationDraft = (0, server_1.mutation)({
                 tenantId: authContext.tenantId,
                 updatedAt: now,
                 updatedByTenantUserId: tenantUser._id,
-                workspaceState: args.workspaceState,
+                workspaceState: persistedWorkspaceState,
             });
             await (0, _audit_1.appendAuditLogRequired)(ctx, buildConsolidationAuditEntry({
                 action: "create_draft",
@@ -267,7 +372,7 @@ exports.saveProcurementOfficerConsolidationDraft = (0, server_1.mutation)({
             schemaVersion: consolidation_1.CONSOLIDATION_DRAFT_SCHEMA_VERSION,
             updatedAt: now,
             updatedByTenantUserId: tenantUser._id,
-            workspaceState: args.workspaceState,
+            workspaceState: persistedWorkspaceState,
         });
         await (0, _audit_1.appendAuditLogRequired)(ctx, buildConsolidationAuditEntry({
             action: "update_draft",

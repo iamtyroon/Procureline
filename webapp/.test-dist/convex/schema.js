@@ -413,6 +413,7 @@ exports.default = (0, server_1.defineSchema)({
         submissionSequence: values_1.v.optional(values_1.v.number()),
         submissionEmailStatus: values_1.v.optional(values_1.v.union(values_1.v.literal("failed"), values_1.v.literal("queued"))),
         submissionEmailErrorMessage: values_1.v.optional(values_1.v.string()),
+        workspaceVersion: values_1.v.optional(values_1.v.number()),
         createdAt: values_1.v.number(),
         updatedAt: values_1.v.number(),
         submittedAt: values_1.v.optional(values_1.v.number()),

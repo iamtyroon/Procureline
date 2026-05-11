@@ -86,122 +86,26 @@ function runProcurementOfficerSubmissionMonitoringTests() {
     strict_1.default.equal(timeline.some((item) => item.isFallback), true);
     strict_1.default.equal(timeline.find((item) => item.title === "Submitted")?.timestampLabel, "Unavailable");
     completedTests.push("submission monitoring history keeps metadata-only fallback entries when older records are missing canonical timestamps or snapshots");
-    const eligibleReminder = (0, submission_monitoring_1.deriveProcurementOfficerReminderEligibility)({
-        contacts: [
-            { email: "du@example.com", isActive: true, name: "Finance DU" },
-            { email: "DU@example.com", isActive: true, name: "Finance Backup" },
-        ],
-        deadlineAt: Date.UTC(2026, 7, 20, 12, 0, 0),
-        department: {
-            code: "FIN",
-            id: "department-1",
-            isActive: true,
-            name: "Finance",
-        },
-        fiscalYearInScope: true,
-        hasSafeDuAccess: true,
-        now: Date.UTC(2026, 7, 10, 12, 0, 0),
-        plan: {
-            createdAt: 1,
-            departmentId: "department-1",
-            fiscalYear: "2026-2027",
-            id: "plan-draft",
-            itemCount: 2,
-            status: "draft",
-            updatedAt: 2,
-        },
-        tenantMatches: true,
-    });
-    strict_1.default.equal(eligibleReminder.eligible, true);
-    strict_1.default.deepEqual(eligibleReminder.resolvedContacts, ["du@example.com"]);
-    const rejectedReminder = (0, submission_monitoring_1.deriveProcurementOfficerReminderEligibility)({
-        contacts: [{ email: "du@example.com", isActive: true, name: "Finance DU" }],
-        deadlineAt: Date.UTC(2026, 7, 20, 12, 0, 0),
-        department: {
-            code: "FIN",
-            id: "department-1",
-            isActive: true,
-            name: "Finance",
-        },
-        fiscalYearInScope: true,
-        hasSafeDuAccess: true,
-        now: Date.UTC(2026, 7, 21, 12, 0, 0),
-        plan: {
-            createdAt: 1,
-            departmentId: "department-1",
-            fiscalYear: "2026-2027",
-            id: "plan-rejected",
-            itemCount: 2,
-            latestDecision: {
-                comment: "Revise and resubmit",
-                decidedAt: Date.UTC(2026, 7, 19, 12, 0, 0),
-                decisionType: "revision_requested",
-                revisionDeadlineAt: Date.UTC(2026, 7, 23, 12, 0, 0),
-            },
-            rejectedAt: Date.UTC(2026, 7, 19, 12, 0, 0),
-            reviewStartedAt: Date.UTC(2026, 7, 18, 12, 0, 0),
-            status: "rejected",
-            updatedAt: Date.UTC(2026, 7, 19, 12, 0, 0),
-        },
-        tenantMatches: true,
-    });
-    strict_1.default.equal(rejectedReminder.eligible, true);
-    strict_1.default.equal(rejectedReminder.dueAt, Date.UTC(2026, 7, 23, 12, 0, 0));
-    const blockedReminder = (0, submission_monitoring_1.deriveProcurementOfficerReminderEligibility)({
-        contacts: [{ email: "du@example.com", isActive: true, name: "ICT DU" }],
-        deadlineAt: Date.UTC(2026, 7, 20, 12, 0, 0),
-        department: {
-            code: "ICT",
-            id: "department-2",
-            isActive: true,
-            name: "ICT",
-        },
-        fiscalYearInScope: true,
-        hasSafeDuAccess: false,
-        now: Date.UTC(2026, 7, 10, 12, 0, 0),
-        plan: null,
-        tenantMatches: true,
-    });
-    strict_1.default.equal(blockedReminder.reason, "no_safe_du_access");
-    completedTests.push("submission monitoring reminder eligibility uses the shared deadline for pre-review states, revision deadlines for rejected plans, deduplicates recipients, and fails closed without safe DU coverage");
-    const reminderWindow = (0, submission_monitoring_1.buildProcurementOfficerSubmissionReminderWindow)({
-        now: Date.UTC(2026, 7, 10, 12, 0, 0),
-    });
-    strict_1.default.equal((0, submission_monitoring_1.buildProcurementOfficerSubmissionReminderIdempotencyKey)({
-        departmentId: "department-1",
-        dueAt: Date.UTC(2026, 7, 20, 12, 0, 0),
-        fiscalYear: "2026-2027",
-        reminderWindow,
-        reason: "draft",
-        tenantId: "tenant-1",
-    }), `submission-reminder:tenant-1:2026-2027:department-1:draft:1787227200000:${reminderWindow}`);
-    completedTests.push("submission monitoring manual reminder idempotency keys stay deterministic per tenant, fiscal year, department, due state, and server-side retry window");
     const rows = [
         (0, submission_monitoring_1.buildProcurementOfficerMonitoringRow)({
             contacts: [{ email: "du1@example.com", isActive: true, name: "A" }],
-            deadlineAt: Date.UTC(2026, 7, 20, 12, 0, 0),
             department: {
                 code: "FIN",
                 id: "department-1",
                 isActive: true,
                 name: "Finance",
             },
-            fiscalYear: "2026-2027",
-            now: Date.UTC(2026, 7, 10, 12, 0, 0),
             plan: null,
             tenantTimeZone: "Africa/Nairobi",
         }),
         (0, submission_monitoring_1.buildProcurementOfficerMonitoringRow)({
             contacts: [{ email: "du2@example.com", isActive: true, name: "B" }],
-            deadlineAt: Date.UTC(2026, 7, 20, 12, 0, 0),
             department: {
                 code: "ICT",
                 id: "department-2",
                 isActive: true,
                 name: "ICT",
             },
-            fiscalYear: "2026-2027",
-            now: Date.UTC(2026, 7, 10, 12, 0, 0),
             plan: {
                 createdAt: Date.UTC(2026, 7, 3, 8, 0, 0),
                 departmentId: "department-2",
@@ -215,15 +119,12 @@ function runProcurementOfficerSubmissionMonitoringTests() {
         }),
         (0, submission_monitoring_1.buildProcurementOfficerMonitoringRow)({
             contacts: [{ email: "du3@example.com", isActive: true, name: "C" }],
-            deadlineAt: Date.UTC(2026, 7, 20, 12, 0, 0),
             department: {
                 code: "HR",
                 id: "department-3",
                 isActive: true,
                 name: "HR",
             },
-            fiscalYear: "2026-2027",
-            now: Date.UTC(2026, 7, 10, 12, 0, 0),
             plan: {
                 approvedAt: Date.UTC(2026, 7, 8, 8, 0, 0),
                 createdAt: Date.UTC(2026, 7, 2, 8, 0, 0),

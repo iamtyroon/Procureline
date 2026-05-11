@@ -986,14 +986,24 @@ export const rejectProcurementOfficerPlanReview = mutation({
             });
         }
 
-        const normalizedComment = normalizeProcurementOfficerDecisionComment(args.body);
-        if (!normalizedComment.ok || !normalizedComment.value) {
-            throw new ConvexError({
-                code: "VALIDATION_FAILED",
-                message:
-                    normalizedComment.message ?? "Decision comments cannot be blank.",
-            });
+        const rawComment = args.body.trim();
+        let normalizedOptionalComment = "";
+        if (rawComment.length > 0) {
+            const normalizedComment = normalizeProcurementOfficerDecisionComment(rawComment);
+            if (!normalizedComment.ok || !normalizedComment.value) {
+                throw new ConvexError({
+                    code: "VALIDATION_FAILED",
+                    message:
+                        normalizedComment.message ?? "Decision comments cannot be blank.",
+                });
+            }
+            normalizedOptionalComment = normalizedComment.value;
         }
+        const decisionComment =
+            normalizedOptionalComment ||
+            (args.decisionType === "revision_requested"
+                ? "Revision requested."
+                : "Plan rejected.");
 
         const normalizedBudget = normalizeProcurementOfficerReviewBudgetAdjustment(
             args.nextDepartmentBudgetAllocation ?? null,
@@ -1051,22 +1061,24 @@ export const rejectProcurementOfficerPlanReview = mutation({
         await ctx.db.patch(plan._id, {
             approvedAt: undefined,
             rejectedAt,
-            rejectionComment: normalizedComment.value,
+            rejectionComment: decisionComment,
             status: "rejected",
             updatedAt: rejectedAt,
         });
 
-        await ctx.db.insert("planReviewComments", {
-            authorNameSnapshot: readAuthUserSummary(authUser, "Procurement Officer").name,
-            authorTenantUserId: tenantUser._id,
-            authorUserId: authContext.userId,
-            body: normalizedComment.value,
-            createdAt: rejectedAt,
-            planId: plan._id,
-            tenantId: authContext.tenantId,
-        });
+        if (normalizedOptionalComment.length > 0) {
+            await ctx.db.insert("planReviewComments", {
+                authorNameSnapshot: readAuthUserSummary(authUser, "Procurement Officer").name,
+                authorTenantUserId: tenantUser._id,
+                authorUserId: authContext.userId,
+                body: normalizedOptionalComment,
+                createdAt: rejectedAt,
+                planId: plan._id,
+                tenantId: authContext.tenantId,
+            });
+        }
         const decisionId = await ctx.db.insert("planReviewDecisions", {
-            comment: normalizedComment.value,
+            comment: decisionComment,
             decidedAt: rejectedAt,
             decidedByTenantUserId: tenantUser._id,
             decidedByUserId: authContext.userId,
@@ -1131,7 +1143,7 @@ export const rejectProcurementOfficerPlanReview = mutation({
                         ? AUDIT_EVENT_NAMES.planReviewRevisionRequested
                         : AUDIT_EVENT_NAMES.planReviewRejected,
                 metadata: {
-                    comment: normalizedComment.value,
+                    comment: normalizedOptionalComment || null,
                     decisionId: String(decisionId),
                     flaggedTargetCount: flaggedTargets.targets.length,
                     nextStatus: "rejected",
@@ -1145,7 +1157,7 @@ export const rejectProcurementOfficerPlanReview = mutation({
         );
 
         const notification = await queuePlanReviewDecisionNotification(ctx, {
-            comment: normalizedComment.value,
+            comment: decisionComment,
             decisionId,
             decidedAt: rejectedAt,
             decisionType: args.decisionType,

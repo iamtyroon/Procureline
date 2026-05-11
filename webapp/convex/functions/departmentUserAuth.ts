@@ -461,6 +461,24 @@ async function evaluateAccessAttemptInternal(
             };
         }
 
+        if (activeTenantMemberships.length === 0 && existingDepartmentProfile) {
+            return {
+                ok: false,
+                auditEvent: AUDIT_EVENT_NAMES.departmentUserDataIntegrity,
+                message: INCOMPATIBLE_DEPARTMENT_USER_EMAIL_MESSAGE,
+                metadata: {
+                    accessCodeId: String(accessCode._id),
+                    departmentId: String(department._id),
+                    normalizedEmail: args.normalizedEmail,
+                    integrityReason: "department_profile_without_active_tenant_user",
+                    tenantUserId: String(existingDepartmentProfile.tenantUserId),
+                    userId: String(existingUser._id),
+                },
+                outcome: AUDIT_OUTCOMES.blockedDataIntegrity,
+                tenantId: accessCode.tenantId,
+            };
+        }
+
         if (activeTenantMemberships.length === 1) {
             const activeTenantMembership = activeTenantMemberships.at(0);
             if (activeTenantMembership === undefined) {
@@ -496,10 +514,28 @@ async function evaluateAccessAttemptInternal(
                 ctx,
                 activeTenantMembership._id,
             );
+            if (boundProfile === null && existingDepartmentProfile) {
+                return {
+                    ok: false,
+                    auditEvent: AUDIT_EVENT_NAMES.departmentUserDataIntegrity,
+                    message: INCOMPATIBLE_DEPARTMENT_USER_EMAIL_MESSAGE,
+                    metadata: {
+                        accessCodeId: String(accessCode._id),
+                        departmentId: String(department._id),
+                        normalizedEmail: args.normalizedEmail,
+                        integrityReason: "department_profile_tenant_user_mismatch",
+                        tenantUserId: String(activeTenantMembership._id),
+                        userId: String(existingUser._id),
+                    },
+                    outcome: AUDIT_OUTCOMES.blockedDataIntegrity,
+                    tenantId: accessCode.tenantId,
+                };
+            }
+
             if (
-                !boundProfile ||
-                boundProfile.departmentId !== department._id ||
-                boundProfile.normalizedEmail !== args.normalizedEmail
+                boundProfile &&
+                (boundProfile.departmentId !== department._id ||
+                    boundProfile.normalizedEmail !== args.normalizedEmail)
             ) {
                 return {
                     ok: false,
@@ -509,10 +545,7 @@ async function evaluateAccessAttemptInternal(
                         accessCodeId: String(accessCode._id),
                         departmentId: String(department._id),
                         normalizedEmail: args.normalizedEmail,
-                        integrityReason:
-                            !boundProfile
-                                ? "tenant_user_missing_department_profile"
-                                : "tenant_user_profile_scope_mismatch",
+                        integrityReason: "tenant_user_profile_scope_mismatch",
                         tenantUserId: String(activeTenantMembership._id),
                         userId: String(existingUser._id),
                     },
@@ -521,7 +554,7 @@ async function evaluateAccessAttemptInternal(
                 };
             }
 
-            if (!boundProfile.isActive) {
+            if (boundProfile && !boundProfile.isActive) {
                 return {
                     ok: false,
                     auditEvent: AUDIT_EVENT_NAMES.departmentUserDeactivated,
@@ -892,7 +925,14 @@ export const finalizeSuccessfulAccess = internalMutation({
                 updatedAt: now,
             });
         } else {
-            if (!createdTenantUser) {
+            const existingDepartmentProfile = await ctx.db
+                .query("departmentUserProfiles")
+                .withIndex("by_departmentId_email", (q) =>
+                    q.eq("departmentId", challenge.departmentId).eq("normalizedEmail", challenge.normalizedEmail),
+                )
+                .first();
+
+            if (existingDepartmentProfile) {
                 await appendAuditLogBestEffort(
                     ctx,
                     createAuditEntry({
@@ -901,7 +941,7 @@ export const finalizeSuccessfulAccess = internalMutation({
                         metadata: {
                             challengeId: String(challenge._id),
                             departmentId: String(challenge.departmentId),
-                            integrityReason: "tenant_user_missing_department_profile",
+                            integrityReason: "department_profile_tenant_user_mismatch",
                             normalizedEmail: challenge.normalizedEmail,
                             tenantUserId: String(tenantUserId),
                         },

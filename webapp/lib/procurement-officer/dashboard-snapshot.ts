@@ -11,6 +11,7 @@ import {
     type ProcurementDashboardState,
     type ProcurementDepartmentWindowRecord,
 } from "./dashboard";
+import { getDepartmentUserStateLabel } from "./departments";
 import {
     summarizeProcurementOfficerSubmissionQueue,
     type ProcurementOfficerSubmissionStatus,
@@ -34,6 +35,7 @@ export interface ProcurementOfficerDashboardAccessCodeRecord {
     expiresAt: number;
     id: string;
     isActive: boolean;
+    lastDeliveryStatus?: "failed" | "queued" | "sent" | null;
 }
 
 export interface ProcurementOfficerDashboardDepartmentUserProfileRecord {
@@ -303,6 +305,7 @@ export function buildProcurementOfficerDashboardSnapshot(
             timeZone: sharedDeadline.timeZone,
         },
         departmentReadiness: buildDepartmentReadiness({
+            accessCodes: args.accessCodes,
             accessCodeDepartmentIds: createReadyDepartmentSet({
                 ids: args.accessCodes
                     .filter(
@@ -324,6 +327,7 @@ export function buildProcurementOfficerDashboardSnapshot(
                     )
                     .map((profile) => profile.departmentId),
             }),
+            now: args.now,
             plans: args.plans ?? [],
             selectedFiscalYear,
             sharedDeadline,
@@ -632,9 +636,11 @@ function buildSummaryCards(args: {
 }
 
 function buildDepartmentReadiness(args: {
+    accessCodes: readonly ProcurementOfficerDashboardAccessCodeRecord[];
     accessCodeDepartmentIds: ReadonlySet<string>;
     departments: readonly ProcurementOfficerDashboardDepartmentRecord[];
     departmentUserIds: ReadonlySet<string>;
+    now: number;
     plans: readonly ProcurementOfficerDashboardPlanSummaryRecord[];
     selectedFiscalYear: string;
     sharedDeadline: ReturnType<typeof deriveSharedSubmissionDeadline>;
@@ -658,6 +664,14 @@ function buildDepartmentReadiness(args: {
         .map((department) => {
             const departmentPlan = plansByDepartmentId.get(department.id) ?? null;
             const accessCodeReady = args.accessCodeDepartmentIds.has(department.id);
+            const accessCodeSent = args.accessCodes.some(
+                (accessCode) =>
+                    accessCode.departmentId === department.id &&
+                    accessCode.isActive &&
+                    accessCode.expiresAt > args.now &&
+                    (accessCode.lastDeliveryStatus === "queued" ||
+                        accessCode.lastDeliveryStatus === "sent"),
+            );
             const departmentUserReady = args.departmentUserIds.has(department.id);
             const deadlineReady = isValidDepartmentWindow(department);
             const accessCodeState: ProcurementDashboardState = accessCodeReady
@@ -681,7 +695,11 @@ function buildDepartmentReadiness(args: {
                 blockers.push("Department code not sent.");
             }
             if (!departmentUserReady) {
-                blockers.push("No active DU assigned.");
+                blockers.push(
+                    accessCodeSent
+                        ? "Awaiting DU first sign-in."
+                        : "Send the department code to a DU.",
+                );
             }
             if (!deadlineReady) {
                 blockers.push("Submission window invalid.");
@@ -709,7 +727,10 @@ function buildDepartmentReadiness(args: {
                     state: deadlineState,
                 },
                 departmentUser: {
-                    label: departmentUserReady ? "Assigned" : "Setup required",
+                    label: getDepartmentUserStateLabel({
+                        activeDepartmentUserCount: departmentUserReady ? 1 : 0,
+                        hasSentAccessCode: accessCodeSent,
+                    }),
                     state: departmentUserState,
                 },
                 id: department.id,

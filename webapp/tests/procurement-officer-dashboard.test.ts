@@ -105,7 +105,8 @@ export function runProcurementOfficerDashboardTests(): string[] {
         departmentId: "department-2",
         expiresAt: Date.UTC(2026, 11, 31, 12, 0, 0),
         id: "code-2-inactive",
-        isActive: false,
+        isActive: true,
+        lastDeliveryStatus: "queued",
       },
       {
         departmentId: "department-3",
@@ -224,7 +225,7 @@ export function runProcurementOfficerDashboardTests(): string[] {
   assert.equal(
     snapshot.summaryCards.find((card) => card.id === "access_code_coverage")
       ?.value,
-    "2 / 3",
+    "3 / 3",
   );
   assert.equal(
     snapshot.summaryCards.find((card) => card.id === "du_assignment_coverage")
@@ -259,6 +260,18 @@ export function runProcurementOfficerDashboardTests(): string[] {
       (item) => item.id === "department-2",
     )?.departmentUser.state,
     "setup_required",
+  );
+  assert.equal(
+    snapshot.departmentReadiness.items.find(
+      (item) => item.id === "department-2",
+    )?.departmentUser.label,
+    "Awaiting first sign-in",
+  );
+  assert.equal(
+    snapshot.departmentReadiness.items.find(
+      (item) => item.id === "department-2",
+    )?.blockerSummary,
+    "Awaiting DU first sign-in.",
   );
   assert.equal(
     snapshot.departmentReadiness.items.find(

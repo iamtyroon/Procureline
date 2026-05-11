@@ -762,13 +762,22 @@ exports.rejectProcurementOfficerPlanReview = (0, server_1.mutation)({
                 message: "Only submitted plans can be rejected or sent back for revision.",
             });
         }
-        const normalizedComment = (0, review_decision_1.normalizeProcurementOfficerDecisionComment)(args.body);
-        if (!normalizedComment.ok || !normalizedComment.value) {
-            throw new values_1.ConvexError({
-                code: "VALIDATION_FAILED",
-                message: normalizedComment.message ?? "Decision comments cannot be blank.",
-            });
+        const rawComment = args.body.trim();
+        let normalizedOptionalComment = "";
+        if (rawComment.length > 0) {
+            const normalizedComment = (0, review_decision_1.normalizeProcurementOfficerDecisionComment)(rawComment);
+            if (!normalizedComment.ok || !normalizedComment.value) {
+                throw new values_1.ConvexError({
+                    code: "VALIDATION_FAILED",
+                    message: normalizedComment.message ?? "Decision comments cannot be blank.",
+                });
+            }
+            normalizedOptionalComment = normalizedComment.value;
         }
+        const decisionComment = normalizedOptionalComment ||
+            (args.decisionType === "revision_requested"
+                ? "Revision requested."
+                : "Plan rejected.");
         const normalizedBudget = (0, review_1.normalizeProcurementOfficerReviewBudgetAdjustment)(args.nextDepartmentBudgetAllocation ?? null);
         if (!normalizedBudget.ok) {
             throw new values_1.ConvexError({
@@ -815,21 +824,23 @@ exports.rejectProcurementOfficerPlanReview = (0, server_1.mutation)({
         await ctx.db.patch(plan._id, {
             approvedAt: undefined,
             rejectedAt,
-            rejectionComment: normalizedComment.value,
+            rejectionComment: decisionComment,
             status: "rejected",
             updatedAt: rejectedAt,
         });
-        await ctx.db.insert("planReviewComments", {
-            authorNameSnapshot: readAuthUserSummary(authUser, "Procurement Officer").name,
-            authorTenantUserId: tenantUser._id,
-            authorUserId: authContext.userId,
-            body: normalizedComment.value,
-            createdAt: rejectedAt,
-            planId: plan._id,
-            tenantId: authContext.tenantId,
-        });
+        if (normalizedOptionalComment.length > 0) {
+            await ctx.db.insert("planReviewComments", {
+                authorNameSnapshot: readAuthUserSummary(authUser, "Procurement Officer").name,
+                authorTenantUserId: tenantUser._id,
+                authorUserId: authContext.userId,
+                body: normalizedOptionalComment,
+                createdAt: rejectedAt,
+                planId: plan._id,
+                tenantId: authContext.tenantId,
+            });
+        }
         const decisionId = await ctx.db.insert("planReviewDecisions", {
-            comment: normalizedComment.value,
+            comment: decisionComment,
             decidedAt: rejectedAt,
             decidedByTenantUserId: tenantUser._id,
             decidedByUserId: authContext.userId,
@@ -885,7 +896,7 @@ exports.rejectProcurementOfficerPlanReview = (0, server_1.mutation)({
                 ? audit_1.AUDIT_EVENT_NAMES.planReviewRevisionRequested
                 : audit_1.AUDIT_EVENT_NAMES.planReviewRejected,
             metadata: {
-                comment: normalizedComment.value,
+                comment: normalizedOptionalComment || null,
                 decisionId: String(decisionId),
                 flaggedTargetCount: flaggedTargets.targets.length,
                 nextStatus: "rejected",
@@ -897,7 +908,7 @@ exports.rejectProcurementOfficerPlanReview = (0, server_1.mutation)({
             tenantId: authContext.tenantId,
         }));
         const notification = await queuePlanReviewDecisionNotification(ctx, {
-            comment: normalizedComment.value,
+            comment: decisionComment,
             decisionId,
             decidedAt: rejectedAt,
             decisionType: args.decisionType,

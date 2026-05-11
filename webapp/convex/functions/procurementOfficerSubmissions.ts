@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
-import { action, query } from "../_generated/server";
+import { query } from "../_generated/server";
 import {
   buildAvailableProcurementFiscalYears,
   deriveSharedSubmissionDeadline,
@@ -8,11 +8,8 @@ import {
   getDepartmentFiscalYearKey,
   getProcurementFiscalYearForDate,
 } from "../../lib/procurement-officer/dashboard";
-import { ACCESS_CODE_LOGIN_URL_PATH, buildAbsoluteAccessCodeLoginUrl } from "../../lib/procurement-officer/access-codes";
 import {
   buildProcurementOfficerMonitoringRow,
-  buildProcurementOfficerSubmissionReminderWindow,
-  buildProcurementOfficerSubmissionReminderIdempotencyKey,
   selectCanonicalMonitoringPlan,
   summarizeProcurementOfficerMonitoringRows,
   type ProcurementOfficerMonitoringContact,
@@ -25,8 +22,6 @@ import {
 } from "../../lib/procurement-officer/submissions";
 import { deriveDepartmentUserEffectiveRevisionDeadline } from "../../lib/plans/revision-deadline";
 import { requireTenantRole } from "./_roleGuard";
-import { getServiceActorContext } from "../actions/_helpers";
-import { AUDIT_OUTCOMES, createAuthenticatedAuditActor } from "../../lib/shared/security/audit";
 
 const reviewTargetStateValidator = v.union(
   v.literal("ready"),
@@ -274,7 +269,6 @@ export const getProcurementOfficerSubmissionMonitoringWorkspace = query({
       planSubmissionSnapshots,
       departmentUserProfiles,
       tenantUsers,
-      departmentAccessCodes,
     ] = await Promise.all([
       ctx.db
         .query("departments")
@@ -306,10 +300,6 @@ export const getProcurementOfficerSubmissionMonitoringWorkspace = query({
         .collect(),
       ctx.db
         .query("tenantUsers")
-        .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
-        .collect(),
-      ctx.db
-        .query("departmentAccessCodes")
         .withIndex("by_tenantId", (q) => q.eq("tenantId", authContext.tenantId))
         .collect(),
     ]);
@@ -439,17 +429,6 @@ export const getProcurementOfficerSubmissionMonitoringWorkspace = query({
       contactsByDepartmentId.set(key, existing);
     }
 
-    const safeAccessByDepartmentId = new Set(
-      departmentAccessCodes
-        .filter(
-          (accessCode) =>
-            accessCode.isActive &&
-            accessCode.revokedAt == null &&
-            accessCode.expiresAt > now,
-        )
-        .map((accessCode) => String(accessCode.departmentId)),
-    );
-
     const plansByDepartmentId = new Map<string, ProcurementOfficerMonitoringPlanLike[]>();
     for (const plan of plans) {
       const key = String(plan.departmentId);
@@ -506,16 +485,12 @@ export const getProcurementOfficerSubmissionMonitoringWorkspace = query({
         );
         return buildProcurementOfficerMonitoringRow({
           contacts: contactsByDepartmentId.get(String(department._id)) ?? [],
-          deadlineAt: sharedDeadline.deadlineAt,
           department: {
             code: department.code,
             id: String(department._id),
             isActive: department.isActive,
             name: department.name,
           },
-          fiscalYear: selectedFiscalYear,
-          hasSafeDuAccess: safeAccessByDepartmentId.has(String(department._id)),
-          now,
           plan: canonicalPlan,
           tenantTimeZone: tenant.timeZone,
         });
@@ -611,188 +586,6 @@ export const getProcurementOfficerSubmissionReviewTarget = query({
         tenantTimeZone: tenant.timeZone,
       }),
       state: "ready" as const,
-    };
-  },
-});
-
-export const sendSubmissionMonitoringReminders = action({
-  args: {
-    appUrl: v.optional(v.string()),
-    departmentIds: v.array(v.string()),
-    requestKey: v.optional(v.string()),
-    selectedFiscalYear: v.string(),
-  },
-  returns: v.any(),
-  handler: async (ctx, args) => {
-    const actor = await getServiceActorContext(ctx);
-    if (actor.role !== "procurement_officer" || !actor.tenantId) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Procurement Officer access is required for this resource.",
-      });
-    }
-
-    const workspace = (await ctx.runQuery(
-      "functions/procurementOfficerSubmissions:getProcurementOfficerSubmissionMonitoringWorkspace" as any,
-      {
-        selectedFiscalYear: args.selectedFiscalYear,
-      },
-    )) as {
-      rows: Array<{
-        departmentId: string;
-        departmentName: string;
-        dueAt: number | null;
-        dueLabel: string | null;
-        recipientEmails: string[];
-        reminderEligibility: {
-          eligible: boolean;
-          reason: string | null;
-        };
-        status: "approved" | "draft" | "not_started" | "rejected" | "submitted";
-      }>;
-    };
-
-    const requestedIds = new Set(args.departmentIds);
-    const targetRows = workspace.rows.filter((row) => requestedIds.has(row.departmentId));
-    const targetRowIds = new Set(targetRows.map((row) => row.departmentId));
-    if (requestedIds.size === 0) {
-      throw new ConvexError({
-        code: "VALIDATION_FAILED",
-        message: "No monitoring departments were selected for reminders.",
-      });
-    }
-
-    const loginUrl = buildAbsoluteAccessCodeLoginUrl({
-      appUrl: args.appUrl,
-      loginPath: ACCESS_CODE_LOGIN_URL_PATH,
-    });
-    let queuedCount = 0;
-    let skippedCount = 0;
-    let failedCount = 0;
-    const results: Array<{
-      departmentId: string;
-      departmentName: string | null;
-      outcome: "failed" | "queued" | "skipped";
-      reason: string | null;
-    }> = [];
-    for (const requestedId of requestedIds) {
-      if (!targetRowIds.has(requestedId)) {
-        skippedCount += 1;
-        results.push({
-          departmentId: requestedId,
-          departmentName: null,
-          outcome: "skipped",
-          reason: "stale_target",
-        });
-      }
-    }
-    const reminderWindow = buildProcurementOfficerSubmissionReminderWindow({
-      now: Date.now(),
-    });
-
-    for (const row of targetRows) {
-      if (!row.reminderEligibility.eligible || typeof row.dueAt !== "number") {
-        skippedCount += 1;
-        results.push({
-          departmentId: row.departmentId,
-          departmentName: row.departmentName,
-          outcome: "skipped",
-          reason: row.reminderEligibility.reason ?? "not eligible",
-        });
-        continue;
-      }
-
-      if (row.recipientEmails.length === 0) {
-        skippedCount += 1;
-        results.push({
-          departmentId: row.departmentId,
-          departmentName: row.departmentName,
-          outcome: "skipped",
-          reason: "missing_contact_email",
-        });
-        continue;
-      }
-
-      let departmentQueued = 0;
-      let departmentFailed = 0;
-      for (const recipientEmail of row.recipientEmails) {
-        try {
-          await ctx.runAction("actions/email:queueTransactionalEmail" as any, {
-            idempotencyKey: buildProcurementOfficerSubmissionReminderIdempotencyKey({
-              departmentId: row.departmentId,
-              dueAt: row.dueAt,
-              fiscalYear: args.selectedFiscalYear,
-              reminderWindow,
-              reason: row.status,
-              tenantId: actor.tenantId,
-            }) + `:${recipientEmail}`,
-            subject: `${row.departmentName} submission reminder`,
-            template: "submission-reminder",
-            templateProps: {
-              deadlineLabel: row.dueLabel ?? "Unavailable",
-              departmentName: row.departmentName,
-              fiscalYearLabel: args.selectedFiscalYear,
-              loginUrl,
-              statusLabel: row.status,
-            },
-            to: recipientEmail,
-          });
-          departmentQueued += 1;
-        } catch {
-          departmentFailed += 1;
-        }
-      }
-
-      if (departmentQueued > 0) {
-        queuedCount += 1;
-        results.push({
-          departmentId: row.departmentId,
-          departmentName: row.departmentName,
-          outcome: departmentFailed > 0 ? "queued" : "queued",
-          reason: departmentFailed > 0 ? `${departmentFailed} recipient(s) failed` : null,
-        });
-      } else {
-        failedCount += 1;
-        results.push({
-          departmentId: row.departmentId,
-          departmentName: row.departmentName,
-          outcome: "failed",
-          reason: "queue_failed",
-        });
-      }
-    }
-
-    await ctx.runMutation("functions/auditLogs:appendAuditLogFromAction" as any, {
-      action: "email_queue",
-      actorRole: actor.role,
-      actorState: createAuthenticatedAuditActor({
-        role: actor.role,
-        userId: actor.userId,
-      }).state,
-      actorUserId: actor.userId as any,
-      entityType: "submission_monitoring",
-      event: "submission_monitoring.reminders_queued" as any,
-      metadata: {
-        failedCount,
-        fiscalYear: args.selectedFiscalYear,
-        queuedCount,
-        reminderWindow,
-        requestKey: args.requestKey ?? null,
-        skippedCount,
-      },
-      outcome:
-        failedCount > 0 ? AUDIT_OUTCOMES.failed : AUDIT_OUTCOMES.queued,
-      sourceTenantId: actor.tenantId,
-      tableName: "plans",
-      targetTenantId: actor.tenantId,
-      timestamp: Date.now(),
-    }).catch(() => undefined);
-
-    return {
-      failedCount,
-      queuedCount,
-      results,
-      skippedCount,
     };
   },
 });

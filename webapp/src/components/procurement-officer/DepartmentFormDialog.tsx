@@ -35,6 +35,9 @@ import {
 import { Input } from "@/components/ui/input";
 import {
     buildDepartmentOverAllocationWarning,
+    DEPARTMENT_CODE_ALREADY_SENT_MESSAGE,
+    DEPARTMENT_SAVE_GENERIC_ERROR_MESSAGE,
+    getDepartmentCrudErrorMessage,
     getDepartmentCodeFieldDescription,
 } from "@/lib/procurement-officer/departments";
 import type { ProcurementDashboardState } from "@/lib/procurement-officer/dashboard";
@@ -54,6 +57,7 @@ interface DepartmentFormInput {
 export interface DepartmentFormDialogDepartment {
     budgetAllocation: number | null;
     code: string;
+    hasSentAccessCode?: boolean;
     id: string;
     name: string;
     planningImpactWarning: string | null;
@@ -81,6 +85,7 @@ interface DepartmentFormDialogProps {
     onOpenChange: (open: boolean) => void;
     onSubmit: (values: DepartmentFormData) => Promise<void>;
     open: boolean;
+    selectedFiscalYear?: string;
     timeZone?: string;
 }
 
@@ -94,6 +99,7 @@ export function DepartmentFormDialog({
     onOpenChange,
     onSubmit,
     open,
+    selectedFiscalYear,
     timeZone = "Africa/Nairobi",
 }: DepartmentFormDialogProps): JSX.Element {
     const generateDepartmentCode = useAction(
@@ -104,6 +110,7 @@ export function DepartmentFormDialog({
     );
     const [isGeneratingCode, setIsGeneratingCode] = useState(false);
     const [isSendingCode, setIsSendingCode] = useState(false);
+    const [hasSentDepartmentCode, setHasSentDepartmentCode] = useState(false);
     const [recipientEmail, setRecipientEmail] = useState("");
     const [generatedCodeReadyToSend, setGeneratedCodeReadyToSend] = useState(false);
     const form = useForm<DepartmentFormInput, unknown, DepartmentFormData>({
@@ -129,6 +136,7 @@ export function DepartmentFormDialog({
         });
         setRecipientEmail("");
         setGeneratedCodeReadyToSend(false);
+        setHasSentDepartmentCode(Boolean(department?.hasSentAccessCode));
     }, [department, form, open]);
     const draftBudgetAllocation = form.watch("budgetAllocation");
     const draftName = form.watch("name");
@@ -146,10 +154,16 @@ export function DepartmentFormDialog({
         : "Add a department to anchor DU ownership, budgets, and procurement setup.";
 
     async function handleGenerateCode(): Promise<void> {
+        if (hasSentDepartmentCode) {
+            toast.error(DEPARTMENT_CODE_ALREADY_SENT_MESSAGE);
+            return;
+        }
+
         setIsGeneratingCode(true);
         try {
             const result = await generateDepartmentCode({
                 name: draftName,
+                selectedFiscalYear,
             });
             form.setValue("code", result.code, {
                 shouldDirty: true,
@@ -169,6 +183,11 @@ export function DepartmentFormDialog({
     }
 
     async function handleSendCode(): Promise<void> {
+        if (hasSentDepartmentCode) {
+            toast.error(DEPARTMENT_CODE_ALREADY_SENT_MESSAGE);
+            return;
+        }
+
         if (!department) {
             toast.error("Create the department before sending its department code.");
             return;
@@ -188,19 +207,26 @@ export function DepartmentFormDialog({
                 email: recipientEmail,
             });
             setGeneratedCodeReadyToSend(false);
+            setHasSentDepartmentCode(true);
             toast.success("Department code email queued.");
         } catch (error) {
-            const message =
-                error instanceof Error
-                    ? error.message
-                    : "We could not send that department code right now.";
-            toast.error(message);
+            const message = getDepartmentCrudErrorMessage(error);
+            toast.error(
+                message === DEPARTMENT_SAVE_GENERIC_ERROR_MESSAGE
+                    ? "We could not send that department code right now."
+                    : message,
+            );
         } finally {
             setIsSendingCode(false);
         }
     }
 
     function handleCodeAction(): void {
+        if (hasSentDepartmentCode) {
+            toast.error(DEPARTMENT_CODE_ALREADY_SENT_MESSAGE);
+            return;
+        }
+
         if (generatedCodeReadyToSend) {
             void handleSendCode();
             return;
@@ -319,20 +345,30 @@ export function DepartmentFormDialog({
                                                 {...field}
                                                 onChange={(event) => {
                                                     field.onChange(event);
-                                                    setGeneratedCodeReadyToSend(false);
+                                                    if (!hasSentDepartmentCode) {
+                                                        setGeneratedCodeReadyToSend(false);
+                                                    }
                                                 }}
+                                                readOnly={hasSentDepartmentCode}
                                             />
                                             <Button
                                                 type="button"
                                                 size="sm"
                                                 variant="outline"
                                                 className="absolute right-1 top-1/2 h-7 min-w-28 -translate-y-1/2 rounded-md px-3"
-                                                disabled={isSubmitting || isGeneratingCode || isSendingCode}
+                                                disabled={
+                                                    hasSentDepartmentCode ||
+                                                    isSubmitting ||
+                                                    isGeneratingCode ||
+                                                    isSendingCode
+                                                }
                                                 onClick={() => {
                                                     handleCodeAction();
                                                 }}
                                             >
-                                                {generatedCodeReadyToSend ? (
+                                                {hasSentDepartmentCode ? (
+                                                    "Code sent"
+                                                ) : generatedCodeReadyToSend ? (
                                                     <>
                                                         <Mail className="mr-1.5 h-3.5 w-3.5" />
                                                         {isSendingCode ? "Sending..." : "Send code"}
@@ -346,9 +382,11 @@ export function DepartmentFormDialog({
                                         </div>
                                     </FormControl>
                                     <FormDescription>
-                                        {getDepartmentCodeFieldDescription({
-                                            isCreateMode,
-                                        })}
+                                        {hasSentDepartmentCode
+                                            ? "This department code has already been sent and cannot be regenerated."
+                                            : getDepartmentCodeFieldDescription({
+                                                  isCreateMode,
+                                              })}
                                     </FormDescription>
                                     <FormMessage />
                                 </FormItem>

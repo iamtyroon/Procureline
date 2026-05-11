@@ -3,42 +3,156 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
-import {
-    AlertTriangle,
-    ArrowLeft,
-    Building2,
-    CheckCircle2,
-    Clock3,
-    Loader2,
-    RefreshCw,
-    Save,
-} from "lucide-react";
+import { AlertTriangle, Building2, Loader2, Save } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import type { ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import { CONSOLIDATION_EMPTY_MESSAGE } from "@/lib/procurement-officer/consolidation";
-import { formatProcurementFiscalYearLabel } from "@/lib/procurement-officer/dashboard";
-import type { ConsolidationBlocklyState } from "./ProcurementOfficerConsolidationBlocklyShell";
+import type {
+    ConsolidationBlocklyState,
+    ConsolidationSourceDepartment,
+} from "./ProcurementOfficerConsolidationBlocklyShell";
 
 const BlocklyShell = dynamic(
     () => import("./ProcurementOfficerConsolidationBlocklyShell"),
     {
         ssr: false,
         loading: () => (
-            <div className="flex h-full min-h-[28rem] items-center justify-center rounded-lg border border-border/70 bg-muted/20 text-sm text-muted-foreground">
+            <div className="flex h-full min-h-[30rem] items-center justify-center bg-white text-sm text-slate-500">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Loading Blockly shell...
             </div>
         ),
     },
 );
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+    return value && typeof value === "object" && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : null;
+}
+
+function parseWorkspaceJson(value: unknown): Record<string, unknown> {
+    if (typeof value === "string") {
+        try {
+            return asRecord(JSON.parse(value) as unknown) ?? {
+                blocks: { blocks: [], languageVersion: 0 },
+            };
+        } catch {
+            return { blocks: { blocks: [], languageVersion: 0 } };
+        }
+    }
+
+    return asRecord(value) ?? { blocks: { blocks: [], languageVersion: 0 } };
+}
+
+function getNestedBlock(value: unknown): Record<string, unknown> | null {
+    return asRecord(asRecord(value)?.block);
+}
+
+function findAggregateBlock(workspaceJson: unknown): Record<string, unknown> | null {
+    const blocks = asRecord(asRecord(workspaceJson)?.blocks)?.blocks;
+    if (!Array.isArray(blocks)) {
+        return null;
+    }
+
+    return (
+        blocks
+            .map((block) => asRecord(block))
+            .find((block) => block?.type === "aggregate_plan_block") ?? null
+    );
+}
+
+function collectConnectedDepartmentIds(workspaceState: ConsolidationBlocklyState): string[] {
+    const workspaceJson = parseWorkspaceJson(workspaceState.workspaceJson);
+    const aggregateBlock = findAggregateBlock(workspaceJson);
+    let currentBlock = getNestedBlock(
+        asRecord(aggregateBlock?.inputs)?.DEPARTMENTS,
+    );
+    const connectedDepartmentIds: string[] = [];
+    const seenDepartmentIds = new Set<string>();
+
+    while (currentBlock) {
+        if (currentBlock.type !== "department_block") {
+            currentBlock = getNestedBlock(currentBlock.next);
+            continue;
+        }
+
+        const departmentId = String(
+            asRecord(currentBlock.fields)?.DEPARTMENT_ID ?? "",
+        ).trim();
+        if (departmentId && !seenDepartmentIds.has(departmentId)) {
+            connectedDepartmentIds.push(departmentId);
+            seenDepartmentIds.add(departmentId);
+        }
+        currentBlock = getNestedBlock(currentBlock.next);
+    }
+
+    return connectedDepartmentIds;
+}
+
+function createDepartmentStubChain(
+    selectedSourceDepartmentIds: readonly string[],
+): Record<string, unknown> | null {
+    let firstBlock: Record<string, unknown> | null = null;
+    let previousBlock: Record<string, unknown> | null = null;
+
+    for (const departmentId of selectedSourceDepartmentIds) {
+        const block: Record<string, unknown> = {
+            fields: { DEPARTMENT_ID: departmentId },
+            type: "department_block",
+        };
+        if (!firstBlock) {
+            firstBlock = block;
+        }
+        if (previousBlock) {
+            previousBlock.next = { block };
+        }
+        previousBlock = block;
+    }
+
+    return firstBlock;
+}
+
+function createCompactConsolidationWorkspaceState(args: {
+    fiscalYear: string;
+    selectedSourceDepartmentIds: readonly string[];
+    workspaceState: ConsolidationBlocklyState;
+}): ConsolidationBlocklyState {
+    const workspaceJson = parseWorkspaceJson(args.workspaceState.workspaceJson);
+    const aggregateBlock = findAggregateBlock(workspaceJson);
+    const departmentStubChain = createDepartmentStubChain(
+        args.selectedSourceDepartmentIds,
+    );
+    const compactAggregateBlock: Record<string, unknown> = {
+        fields: {
+            FINANCIAL_YEAR: args.fiscalYear,
+            ...(asRecord(aggregateBlock?.fields) ?? {}),
+        },
+        type: "aggregate_plan_block",
+        x: typeof aggregateBlock?.x === "number" ? aggregateBlock.x : 80,
+        y: typeof aggregateBlock?.y === "number" ? aggregateBlock.y : 60,
+    };
+
+    if (departmentStubChain) {
+        compactAggregateBlock.inputs = {
+            DEPARTMENTS: { block: departmentStubChain },
+        };
+    }
+
+    return {
+        ...args.workspaceState,
+        workspaceJson: {
+            blocks: {
+                blocks: [compactAggregateBlock],
+                languageVersion: 0,
+            },
+        },
+    };
+}
 
 interface ConsolidationWorkspaceData {
     draft: null | {
@@ -48,10 +162,6 @@ interface ConsolidationWorkspaceData {
         };
         revision: number;
         workspaceState: unknown;
-    };
-    fiscalYears: {
-        options: string[];
-        selectedFiscalYear: string;
     };
     readiness: {
         blockedDepartments: Array<{
@@ -70,6 +180,7 @@ interface ConsolidationWorkspaceData {
             itemCount: number;
             planId: string;
             voteNumber: string;
+            workspaceState?: unknown;
         }>;
         selectedFiscalYear: string;
         selectedFiscalYearLabel: string;
@@ -84,25 +195,13 @@ interface ConsolidationWorkspaceData {
 
 function formatKes(amount: number): string {
     return `KES ${amount.toLocaleString("en-US", {
-        maximumFractionDigits: 0,
+        maximumFractionDigits: 2,
+        minimumFractionDigits: 2,
     })}`;
-}
-
-function formatDate(value: number | null): string {
-    if (!value) {
-        return "Approval date unavailable";
-    }
-
-    return new Intl.DateTimeFormat("en-KE", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    }).format(new Date(value));
 }
 
 export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
     const searchParams = useSearchParams();
-    const router = useRouter();
     const requestedFiscalYear = searchParams.get("poFiscalYear") ?? undefined;
     const workspace = useQuery(
         api.functions.consolidations.getProcurementOfficerConsolidationWorkspace,
@@ -111,86 +210,96 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
     const saveDraft = useMutation(
         api.functions.consolidations.saveProcurementOfficerConsolidationDraft,
     );
-    const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
-    const [notes, setNotes] = useState("");
     const [workspaceState, setWorkspaceState] =
         useState<ConsolidationBlocklyState | null>(null);
-    const [isHydrated, setIsHydrated] = useState(false);
+    const [isDirty, setIsDirty] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [lastSavedRevision, setLastSavedRevision] = useState<number | null>(null);
     const autosaveTimerRef = useRef<number | null>(null);
+    const lastInitializedFiscalYearRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (!workspace) {
             return;
         }
-        const savedSourceIds =
-            workspace.draft?.draftData.selectedSourceDepartmentIds?.filter((id) =>
-                workspace.readiness.readyDepartments.some(
-                    (department) => department.departmentId === id,
-                ),
-            ) ?? workspace.readiness.readyDepartments.map((department) => department.departmentId);
-        setSelectedSourceIds(savedSourceIds);
-        setNotes(workspace.draft?.draftData.notes ?? "");
         setLastSavedRevision(workspace.draft?.revision ?? null);
-        setIsHydrated(false);
-        setWorkspaceState(null);
-    }, [workspace?.draft?.revision, workspace?.readiness.selectedFiscalYear]);
+    }, [workspace?.draft?.revision]);
 
-    const selectedSourceSet = useMemo(() => new Set(selectedSourceIds), [selectedSourceIds]);
-    const selectedDepartments =
-        workspace?.readiness.readyDepartments.filter((department) =>
-            selectedSourceSet.has(department.departmentId),
-        ) ?? [];
-    const blockedCount = workspace?.readiness.blockedDepartments.length ?? 0;
-    const readyPercent =
-        workspace && workspace.readiness.totalDepartmentCount > 0
-            ? Math.round(
-                  (workspace.readiness.readyCount /
-                      workspace.readiness.totalDepartmentCount) *
-                      100,
-              )
-            : 0;
-
-    const persistDraft = useCallback(async (mode: "autosave" | "manual") => {
-        if (!workspace || !workspaceState || !isHydrated) {
+    useEffect(() => {
+        if (!workspace) {
+            return;
+        }
+        if (
+            lastInitializedFiscalYearRef.current ===
+            workspace.readiness.selectedFiscalYear
+        ) {
             return;
         }
 
-        setIsSaving(true);
-        try {
-            const result = (await saveDraft({
-                expectedRevision: lastSavedRevision ?? undefined,
-                fiscalYear: workspace.readiness.selectedFiscalYear,
-                notes,
-                selectedSourceDepartmentIds: selectedSourceIds,
-                workspaceState,
-            })) as { draft: { revision: number } | null };
-            setLastSavedRevision(result.draft?.revision ?? lastSavedRevision);
-            if (mode === "manual") {
-                toast.success("Consolidation draft saved.");
+        lastInitializedFiscalYearRef.current = workspace.readiness.selectedFiscalYear;
+        setWorkspaceState(null);
+        setIsDirty(false);
+    }, [workspace?.readiness.selectedFiscalYear]);
+
+    const sourceDepartments: ConsolidationSourceDepartment[] = useMemo(
+        () =>
+            workspace?.readiness.readyDepartments.map((department) => ({
+                departmentId: department.departmentId,
+                departmentName: department.departmentName,
+                estimatedBudgetUsed: department.estimatedBudgetUsed,
+                itemCount: department.itemCount,
+                voteNumber: department.voteNumber,
+                workspaceState: department.workspaceState ?? null,
+            })) ?? [],
+        [workspace?.readiness.readyDepartments],
+    );
+
+    const persistDraft = useCallback(
+        async (mode: "autosave" | "manual") => {
+            if (!workspace || !workspaceState) {
+                return;
             }
-        } catch (error) {
-            const message =
-                error instanceof Error
-                    ? error.message
-                    : "Could not save consolidation draft.";
-            toast.error(message);
-        } finally {
-            setIsSaving(false);
-        }
-    }, [
-        isHydrated,
-        lastSavedRevision,
-        notes,
-        saveDraft,
-        selectedSourceIds,
-        workspace,
-        workspaceState,
-    ]);
+
+            setIsSaving(true);
+            try {
+                const selectedSourceDepartmentIds =
+                    collectConnectedDepartmentIds(workspaceState);
+                const result = (await saveDraft({
+                    expectedRevision: lastSavedRevision ?? undefined,
+                    fiscalYear: workspace.readiness.selectedFiscalYear,
+                    notes: "",
+                    selectedSourceDepartmentIds,
+                    workspaceState: createCompactConsolidationWorkspaceState({
+                        fiscalYear: workspace.readiness.selectedFiscalYear,
+                        selectedSourceDepartmentIds,
+                        workspaceState,
+                    }),
+                })) as { draft: { revision: number } | null };
+                setLastSavedRevision(result.draft?.revision ?? lastSavedRevision);
+                setIsDirty(false);
+                if (mode === "manual") {
+                    toast.success("Consolidation draft saved.");
+                }
+            } catch (error) {
+                const message =
+                    error instanceof Error
+                        ? error.message
+                        : "Could not save consolidation draft.";
+                toast.error(message);
+            } finally {
+                setIsSaving(false);
+            }
+        },
+        [
+            lastSavedRevision,
+            saveDraft,
+            workspace,
+            workspaceState,
+        ],
+    );
 
     useEffect(() => {
-        if (!isHydrated || !workspaceState || !workspace || workspace.readiness.readyCount === 0) {
+        if (!isDirty || !workspaceState || !workspace) {
             return;
         }
 
@@ -208,12 +317,12 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
                 autosaveTimerRef.current = null;
             }
         };
-    }, [isHydrated, notes, persistDraft, selectedSourceIds, workspace, workspaceState]);
+    }, [isDirty, persistDraft, workspace, workspaceState]);
 
     if (!workspace) {
         return (
-            <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-none items-center justify-center px-4 py-8">
-                <div className="flex items-center gap-3 rounded-lg border border-border/70 bg-background px-5 py-4 text-sm text-muted-foreground">
+            <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-white">
+                <div className="flex items-center gap-3 rounded-md border border-slate-200 px-5 py-4 text-sm text-slate-500">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Loading consolidation workspace...
                 </div>
@@ -221,268 +330,105 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
         );
     }
 
-    function replaceFiscalYear(nextFiscalYear: string): void {
-        const next = new URLSearchParams(searchParams.toString());
-        next.set("poFiscalYear", nextFiscalYear);
-        router.replace(`/po/consolidation?${next.toString()}`);
-    }
-
     const noActiveDepartments = !workspace.readiness.hasActiveDepartments;
     const noApprovedPlans =
         workspace.readiness.hasActiveDepartments && workspace.readiness.readyCount === 0;
+    const blockedDepartments = workspace.readiness.blockedDepartments;
+
+    if (noActiveDepartments) {
+        return (
+            <WorkspaceStatePanel
+                icon={<Building2 className="h-7 w-7" />}
+                title="No active departments configured"
+                body="Create departments before opening consolidation. There are no submissions to approve yet."
+                ctaHref="/po/departments"
+                ctaLabel="Open department setup"
+            />
+        );
+    }
+
+    if (noApprovedPlans) {
+        return (
+            <WorkspaceStatePanel
+                icon={<AlertTriangle className="h-7 w-7" />}
+                title="Approved plans required"
+                body={CONSOLIDATION_EMPTY_MESSAGE}
+                ctaHref="/po"
+                ctaLabel="Review submissions"
+            />
+        );
+    }
 
     return (
-        <div className="min-h-[calc(100vh-4rem)] bg-muted/15">
-            <div className="mx-auto flex w-full max-w-none flex-col gap-4 px-4 py-4 xl:px-5">
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/70 bg-background px-4 py-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                        <Button variant="outline" size="sm" asChild>
-                            <Link href="/po">
-                                <ArrowLeft className="mr-2 h-4 w-4" />
-                                Dashboard
-                            </Link>
-                        </Button>
-                        <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <h1 className="text-xl font-semibold tracking-tight text-foreground">
-                                    Consolidation Workspace
-                                </h1>
-                                <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-900">
-                                    Live workspace
-                                </Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                                {workspace.readiness.readyCount} of {workspace.readiness.totalDepartmentCount} departments ready for {workspace.readiness.selectedFiscalYearLabel}
-                            </p>
-                        </div>
+        <div className="flex h-[calc(100vh-4rem)] min-h-[42rem] flex-col overflow-hidden bg-white">
+            <div className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-4">
+                <div className="min-w-0">
+                    <h1 className="text-base font-semibold text-slate-950">
+                        Master Consolidation Plan
+                    </h1>
+                    <p className="text-sm text-slate-500">
+                        Review university-wide plans
+                    </p>
+                </div>
+
+                <div className="text-center">
+                    <div className="text-xs font-semibold uppercase text-slate-500">
+                        Grand Total
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        {workspace.fiscalYears.options.map((fiscalYear) => (
-                            <Button
-                                key={fiscalYear}
-                                type="button"
-                                size="sm"
-                                variant={
-                                    fiscalYear === workspace.readiness.selectedFiscalYear
-                                        ? "default"
-                                        : "outline"
-                                }
-                                onClick={() => replaceFiscalYear(fiscalYear)}
-                            >
-                                {formatProcurementFiscalYearLabel(fiscalYear)}
-                            </Button>
-                        ))}
-                        <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => void persistDraft("manual")}
-                            disabled={
-                                isSaving ||
-                                !isHydrated ||
-                                workspace.readiness.readyCount === 0
-                            }
-                        >
-                            {isSaving ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                                <Save className="mr-2 h-4 w-4" />
-                            )}
-                            Save
-                        </Button>
+                    <div className="text-lg font-bold text-emerald-600">
+                        {formatKes(workspace.readiness.totalBudget)}
                     </div>
                 </div>
 
-                {noActiveDepartments ? (
-                    <WorkspaceStatePanel
-                        icon={<Building2 className="h-7 w-7" />}
-                        title="No active departments configured"
-                        body="Create departments before opening consolidation. There are no submissions to approve yet."
-                        ctaHref="/po/departments"
-                        ctaLabel="Open department setup"
-                    />
-                ) : noApprovedPlans ? (
-                    <WorkspaceStatePanel
-                        icon={<AlertTriangle className="h-7 w-7" />}
-                        title="Approved plans required"
-                        body={CONSOLIDATION_EMPTY_MESSAGE}
-                        ctaHref="/po"
-                        ctaLabel="Review submissions"
-                    />
-                ) : (
-                    <>
-                        {blockedCount > 0 ? (
-                            <div className="rounded-lg border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-                                <div className="font-semibold">
-                                    {blockedCount} department{blockedCount === 1 ? "" : "s"} not approved yet
-                                </div>
-                                <div className="mt-1">
-                                    {workspace.readiness.blockedDepartments
-                                        .slice(0, 4)
-                                        .map((department) => `${department.departmentName}: ${department.reasonLabel}`)
-                                        .join("; ")}
-                                </div>
-                            </div>
-                        ) : null}
-
-                        <div className="grid min-h-[42rem] gap-4 xl:grid-cols-[18rem_minmax(0,1fr)_20rem]">
-                            <aside className="rounded-lg border border-border/70 bg-background p-3">
-                                <div className="mb-3 flex items-center justify-between">
-                                    <div>
-                                        <h2 className="text-sm font-semibold text-foreground">
-                                            Department sources
-                                        </h2>
-                                        <p className="text-xs text-muted-foreground">
-                                            Approved only
-                                        </p>
-                                    </div>
-                                    <Badge variant="outline">
-                                        {workspace.readiness.readyCount}/{workspace.readiness.totalDepartmentCount}
-                                    </Badge>
-                                </div>
-                                <div className="space-y-2">
-                                    {workspace.readiness.readyDepartments.map((department) => {
-                                        const selected = selectedSourceSet.has(department.departmentId);
-                                        return (
-                                            <button
-                                                key={department.departmentId}
-                                                className={cn(
-                                                    "w-full rounded-lg border px-3 py-2 text-left transition",
-                                                    selected
-                                                        ? "border-emerald-400 bg-emerald-50 text-emerald-950"
-                                                        : "border-border/70 bg-background hover:border-primary/30",
-                                                )}
-                                                type="button"
-                                                onClick={() =>
-                                                    setSelectedSourceIds((current) =>
-                                                        selected
-                                                            ? current.filter((id) => id !== department.departmentId)
-                                                            : [...current, department.departmentId],
-                                                    )
-                                                }
-                                            >
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-sm font-semibold">
-                                                        {department.departmentName}
-                                                    </span>
-                                                    {selected ? <CheckCircle2 className="h-4 w-4" /> : null}
-                                                </div>
-                                                <div className="mt-1 text-xs text-muted-foreground">
-                                                    Vote {department.voteNumber} · {department.itemCount} items
-                                                </div>
-                                                <div className="mt-1 text-xs font-medium">
-                                                    {formatKes(department.estimatedBudgetUsed)}
-                                                </div>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                                {blockedCount > 0 ? (
-                                    <div className="mt-4 border-t border-border/70 pt-3">
-                                        <h3 className="text-xs font-semibold uppercase text-muted-foreground">
-                                            Not ready
-                                        </h3>
-                                        <div className="mt-2 space-y-2">
-                                            {workspace.readiness.blockedDepartments.map((department) => (
-                                                <div
-                                                    key={department.departmentId}
-                                                    className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2"
-                                                >
-                                                    <div className="text-xs font-semibold text-foreground">
-                                                        {department.departmentName}
-                                                    </div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {department.reasonLabel}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ) : null}
-                            </aside>
-
-                            <main className="rounded-lg border border-border/70 bg-background p-3">
-                                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                                    <div>
-                                        <h2 className="text-sm font-semibold text-foreground">
-                                            Blockly consolidation canvas
-                                        </h2>
-                                        <p className="text-xs text-muted-foreground">
-                                            Shell only. Item aggregation, finalization, and export remain later stories.
-                                        </p>
-                                    </div>
-                                    <Badge variant="outline" className="gap-1">
-                                        <Clock3 className="h-3.5 w-3.5" />
-                                        {isHydrated ? "Autosave ready" : "Hydrating"}
-                                    </Badge>
-                                </div>
-                                <BlocklyShell
-                                    key={`${workspace.readiness.selectedFiscalYear}-${workspace.draft?.revision ?? "new"}`}
-                                    initialWorkspaceState={workspace.draft?.workspaceState ?? null}
-                                    onHydrated={() => setIsHydrated(true)}
-                                    onWorkspaceChange={setWorkspaceState}
-                                    sourceDepartments={selectedDepartments.map((department) => ({
-                                        departmentId: department.departmentId,
-                                        departmentName: department.departmentName,
-                                    }))}
-                                    userId={workspace.user.userId}
-                                />
-                            </main>
-
-                            <aside className="space-y-4 rounded-lg border border-border/70 bg-background p-3">
-                                <div>
-                                    <h2 className="text-sm font-semibold text-foreground">
-                                        Totals and readiness
-                                    </h2>
-                                    <p className="text-xs text-muted-foreground">
-                                        Source metadata only
-                                    </p>
-                                </div>
-                                <div className="space-y-3">
-                                    <Metric label="Ready departments" value={`${workspace.readiness.readyCount} / ${workspace.readiness.totalDepartmentCount}`} />
-                                    <Progress value={readyPercent} />
-                                    <Metric label="Approved source total" value={formatKes(workspace.readiness.totalBudget)} />
-                                    <Metric label="Approved source items" value={String(workspace.readiness.totalItemCount)} />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-semibold uppercase text-muted-foreground">
-                                        Draft notes
-                                    </label>
-                                    <Textarea
-                                        value={notes}
-                                        onChange={(event) => setNotes(event.target.value)}
-                                        placeholder="Internal consolidation notes"
-                                        className="min-h-28 resize-none"
-                                    />
-                                </div>
-                                <div className="rounded-lg border border-border/70 bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
-                                    Draft revision: {lastSavedRevision ?? "new"}
-                                    <br />
-                                    Selected sources: {selectedSourceIds.length}
-                                    <br />
-                                    Latest approval: {formatDate(
-                                        Math.max(
-                                            0,
-                                            ...workspace.readiness.readyDepartments.map(
-                                                (department) => department.approvedAt ?? 0,
-                                            ),
-                                        ) || null,
-                                    )}
-                                </div>
-                            </aside>
-                        </div>
-                    </>
-                )}
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" asChild>
+                        <Link href="/po">Exit</Link>
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => void persistDraft("manual")}
+                        disabled={isSaving || !workspaceState}
+                    >
+                        {isSaving ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <Save className="mr-2 h-4 w-4" />
+                        )}
+                        Save Draft
+                    </Button>
+                </div>
             </div>
-        </div>
-    );
-}
 
-function Metric(props: { label: string; value: string }) {
-    return (
-        <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
-            <div className="text-xs text-muted-foreground">{props.label}</div>
-            <div className="mt-1 text-lg font-semibold text-foreground">
-                {props.value}
+            {blockedDepartments.length > 0 ? (
+                <div className="border-b border-amber-200 bg-amber-50 px-6 py-2 text-sm text-amber-950">
+                    {blockedDepartments.length} department
+                    {blockedDepartments.length === 1 ? "" : "s"} not approved yet:
+                    {" "}
+                    {blockedDepartments
+                        .slice(0, 4)
+                        .map(
+                            (department) =>
+                                `${department.departmentName} (${department.reasonLabel})`,
+                        )
+                        .join("; ")}
+                </div>
+            ) : null}
+
+            <div className="min-h-0 flex-1">
+                <BlocklyShell
+                    key={workspace.readiness.selectedFiscalYear}
+                    fiscalYear={workspace.readiness.selectedFiscalYear}
+                    initialWorkspaceState={workspace.draft?.workspaceState ?? null}
+                    onWorkspaceChange={(state) => {
+                        setWorkspaceState(state);
+                        if (state.editorMetadata.saveSource !== "workspace_seed") {
+                            setIsDirty(true);
+                        }
+                    }}
+                    sourceDepartments={sourceDepartments}
+                    userId={workspace.user.userId}
+                />
             </div>
         </div>
     );
@@ -496,22 +442,17 @@ function WorkspaceStatePanel(props: {
     title: string;
 }) {
     return (
-        <div className="flex min-h-[32rem] items-center justify-center rounded-lg border border-border/70 bg-background p-6">
+        <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-white p-6">
             <div className="max-w-lg text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-md bg-slate-100 text-slate-500">
                     {props.icon}
                 </div>
-                <h2 className="mt-4 text-xl font-semibold text-foreground">
+                <h2 className="mt-4 text-xl font-semibold text-slate-950">
                     {props.title}
                 </h2>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {props.body}
-                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-500">{props.body}</p>
                 <Button className="mt-5" asChild>
-                    <Link href={props.ctaHref}>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        {props.ctaLabel}
-                    </Link>
+                    <Link href={props.ctaHref}>{props.ctaLabel}</Link>
                 </Button>
             </div>
         </div>

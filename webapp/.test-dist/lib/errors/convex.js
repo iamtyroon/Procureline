@@ -44,9 +44,28 @@ const SAFE_PROCUREMENT_OFFICER_ACCESS_MESSAGES = [
 ];
 function getErrorMessage(error) {
     if (error instanceof Error && error.message.trim().length > 0) {
-        return error.message.trim();
+        return extractPublicErrorMessage(error.message.trim());
     }
     return null;
+}
+function extractPublicErrorMessage(message) {
+    const convexJsonMessage = message.match(/ConvexError:\s*(\{[^\n]*\})/);
+    if (convexJsonMessage?.[1]) {
+        try {
+            const parsed = JSON.parse(convexJsonMessage[1]);
+            if (typeof parsed.message === "string" && parsed.message.trim()) {
+                return parsed.message.trim();
+            }
+        }
+        catch {
+            // Fall through to plain Error extraction below.
+        }
+    }
+    const uncaughtMessage = message.match(/Uncaught Error:\s*([^\n]+)/);
+    if (uncaughtMessage?.[1]?.trim()) {
+        return uncaughtMessage[1].trim();
+    }
+    return message;
 }
 function includesNormalized(message, snippet) {
     return message?.toLowerCase().includes(snippet.toLowerCase()) ?? false;

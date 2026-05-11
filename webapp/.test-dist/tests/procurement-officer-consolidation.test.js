@@ -61,6 +61,28 @@ function runProcurementOfficerConsolidationTests() {
                 itemCount: 6,
                 status: "approved",
                 updatedAt: Date.UTC(2026, 7, 17, 13, 0, 0),
+                workspaceState: {
+                    workspaceJson: {
+                        blocks: {
+                            blocks: [
+                                {
+                                    type: "department_block",
+                                    inputs: {
+                                        CATEGORIES: {
+                                            block: {
+                                                type: "category_block",
+                                                fields: {
+                                                    CATEGORY_NAME: "ICT Equipment",
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            ],
+                            languageVersion: 0,
+                        },
+                    },
+                },
             },
             {
                 departmentId: "department-finance",
@@ -79,9 +101,31 @@ function runProcurementOfficerConsolidationTests() {
     strict_1.default.deepEqual(readiness.readyDepartmentIds, ["department-ict"]);
     strict_1.default.equal(readiness.readyDepartments[0]?.planId, "plan-approved-newer");
     strict_1.default.equal(readiness.readyDepartments[0]?.estimatedBudgetUsed, 275_000);
+    strict_1.default.deepEqual(readiness.readyDepartments[0]?.workspaceState, {
+        workspaceJson: {
+            blocks: {
+                blocks: [
+                    {
+                        type: "department_block",
+                        inputs: {
+                            CATEGORIES: {
+                                block: {
+                                    type: "category_block",
+                                    fields: {
+                                        CATEGORY_NAME: "ICT Equipment",
+                                    },
+                                },
+                            },
+                        },
+                    },
+                ],
+                languageVersion: 0,
+            },
+        },
+    });
     strict_1.default.equal(readiness.blockedDepartments.find((department) => department.departmentId === "department-finance")?.reason, "submitted");
     strict_1.default.equal(readiness.blockedDepartments.find((department) => department.departmentId === "department-hr")?.reason, "missing_plan");
-    completedTests.push("consolidation readiness derives sources only from approved current-year plans, keeps consolidatedAt informational, and deduplicates approved plans by approval recency");
+    completedTests.push("consolidation readiness derives sources only from approved current-year plans, keeps consolidatedAt informational, deduplicates by approval recency, and carries source workspace state for toolbox seeding");
     const canonical = (0, consolidation_1.selectCanonicalApprovedPlansByDepartment)({
         plans: [
             {
@@ -146,13 +190,50 @@ function runProcurementOfficerConsolidationTests() {
         },
     }).ok, true);
     strict_1.default.equal((0, consolidation_1.validateConsolidationDraftPayload)({
+        selectedSourceDepartmentIds: ["department-ict"],
+        workspaceState: {
+            editorMetadata: {
+                lastSavedAt: 1,
+                lastSavedByUserId: "po-user",
+                recoveredAt: null,
+                revision: 1,
+                saveSource: "workspace_sync",
+            },
+            format: "blockly_json",
+            schemaVersion: 1,
+            workspaceJson: JSON.stringify({
+                blocks: {
+                    blocks: [{ type: "department_block" }],
+                    languageVersion: 0,
+                },
+            }),
+        },
+    }).ok, true);
+    strict_1.default.equal((0, consolidation_1.validateConsolidationDraftPayload)({
         selectedSourceDepartmentIds: ["department-ict", "department-ict"],
     }).ok, false);
+    strict_1.default.equal((0, consolidation_1.validateConsolidationDraftPayload)({
+        selectedSourceDepartmentIds: Array.from({ length: 250 }, (_, index) => `department-${index}`),
+    }).ok, true);
     strict_1.default.equal((0, consolidation_1.validateConsolidationDraftPayload)({
         selectedSourceDepartmentIds: [],
         workspaceState: createDeepWorkspaceState(26),
     }).ok, false);
-    completedTests.push("consolidation draft validation rejects duplicate sources and overly deep JSON before persistence");
+    strict_1.default.equal((0, consolidation_1.validateConsolidationDraftPayload)({
+        selectedSourceDepartmentIds: ["department-ict"],
+        workspaceState: {
+            blocks: {
+                blocks: Array.from({ length: 1_500 }, (_, index) => ({
+                    type: "item_block",
+                    fields: {
+                        ITEM_DESC: `Line item ${index}`,
+                    },
+                })),
+                languageVersion: 0,
+            },
+        },
+    }).ok, true);
+    completedTests.push("consolidation draft validation accepts persisted stringified Blockly JSON, large block counts, and institution-scale department counts while rejecting duplicate sources plus overly deep JSON before persistence");
     const routeSource = (0, node_fs_1.readFileSync)((0, node_path_1.join)(process.cwd(), "app/(app)/po/consolidation/page.tsx"), "utf8");
     const workspaceSource = (0, node_fs_1.readFileSync)((0, node_path_1.join)(process.cwd(), "src/components/procurement-officer/ProcurementOfficerConsolidationWorkspace.tsx"), "utf8");
     const shellSource = (0, node_fs_1.readFileSync)((0, node_path_1.join)(process.cwd(), "src/components/procurement-officer/ProcurementOfficerConsolidationBlocklyShell.tsx"), "utf8");

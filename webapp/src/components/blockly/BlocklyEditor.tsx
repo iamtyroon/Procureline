@@ -262,6 +262,7 @@ export function BlocklyEditor(props: {
         reason: string;
     }>;
     workspaceState: BlocklyWorkspaceRecord | null;
+    workspaceVersion: number;
 }) {
     const router = useRouter();
     const saveWorkspaceDraft = useMutation(api.functions.plans.saveDepartmentUserWorkspaceDraft);
@@ -382,6 +383,8 @@ export function BlocklyEditor(props: {
     const previousItemsRef = useRef(props.items);
     const allowEditModePersistedFallbackRef = useRef(true);
     const currentWorkspaceRecordRef = useRef<BlocklyWorkspaceRecord | null>(activeWorkspaceState);
+    const syncedWorkspaceRecordRef = useRef<BlocklyWorkspaceRecord | null>(activeWorkspaceState);
+    const currentWorkspaceVersionRef = useRef(props.workspaceVersion);
     const queuedWorkspaceRef = useRef<BlocklyWorkspaceRecord | null>(null);
     const isSaveInFlightRef = useRef(false);
     const storageWarningMessageRef = useRef<string | null>(null);
@@ -398,18 +401,21 @@ export function BlocklyEditor(props: {
     >(async () => {});
     const clearLocalDraftStateRef = useRef<() => Promise<void>>(async () => {});
     const flushWorkspaceDraftRef = useRef<
-        (snapshot: BlocklyWorkspaceRecord) => Promise<void>
-    >(async () => {});
+        (snapshot: BlocklyWorkspaceRecord) => Promise<boolean>
+    >(async () => false);
     const sessionIdRef = useRef(
-        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-            ? crypto.randomUUID()
-            : `workspace-session-${Date.now()}`,
+        getDepartmentUserWorkspaceBrowserSessionId({
+            planId: props.planId,
+            userId: props.currentUserId,
+        }),
     );
     const [saveAnnouncement, setSaveAnnouncement] = useState("");
     const [storageWarning, setStorageWarning] = useState<string | null>(null);
     const [blockedSyncMessage, setBlockedSyncMessage] = useState<string | null>(null);
     const [recoverySnapshot, setRecoverySnapshot] = useState<BlocklyWorkspaceRecord | null>(null);
     const [hasUnsyncedRisk, setHasUnsyncedRisk] = useState(false);
+    const [hasUnsyncedWorkspaceChanges, setHasUnsyncedWorkspaceChanges] =
+        useState(false);
     const [hasSessionConflict, setHasSessionConflict] = useState(false);
     const [workspaceHistoryState, setWorkspaceHistoryState] =
         useState<BlocklyWorkspaceHistoryState>({
@@ -434,7 +440,7 @@ export function BlocklyEditor(props: {
             ),
         [workspaceSummary],
     );
-    const incomingWorkspaceSyncKey = `${props.planId}:${props.workspaceState?.editorMetadata.revision ?? 0}:${props.workspaceState?.editorMetadata.lastSavedAt ?? 0}`;
+    const incomingWorkspaceSyncKey = `${props.planId}:${props.workspaceVersion}:${props.workspaceState?.editorMetadata.revision ?? 0}:${props.workspaceState?.editorMetadata.lastSavedAt ?? 0}`;
 
     useEffect(() => {
         if (previousIncomingWorkspaceSyncKeyRef.current === incomingWorkspaceSyncKey) {
@@ -463,17 +469,24 @@ export function BlocklyEditor(props: {
                     : props.workspaceState,
             );
             currentWorkspaceRecordRef.current = props.workspaceState;
+            syncedWorkspaceRecordRef.current = props.workspaceState;
+            currentWorkspaceVersionRef.current = props.workspaceVersion;
             queuedWorkspaceRef.current = null;
+            setHasUnsyncedWorkspaceChanges(false);
             return;
         }
 
         setActiveWorkspaceState(props.workspaceState);
         currentWorkspaceRecordRef.current = props.workspaceState;
+        syncedWorkspaceRecordRef.current = props.workspaceState;
+        currentWorkspaceVersionRef.current = props.workspaceVersion;
         queuedWorkspaceRef.current = null;
+        setHasUnsyncedWorkspaceChanges(false);
         setWorkspaceMountKey((current) => current + 1);
     }, [
         incomingWorkspaceSyncKey,
         props.workspaceState,
+        props.workspaceVersion,
     ]);
 
     useEffect(() => {
@@ -805,9 +818,9 @@ export function BlocklyEditor(props: {
 
     async function flushWorkspaceDraft(
         snapshot: BlocklyWorkspaceRecord,
-    ): Promise<void> {
+    ): Promise<boolean> {
         if (props.mode !== "edit") {
-            return;
+            return false;
         }
 
         if (hasSessionConflict) {
@@ -816,19 +829,20 @@ export function BlocklyEditor(props: {
             );
             setSaveState("blocked");
             setHasUnsyncedRisk(true);
-            return;
+            setHasUnsyncedWorkspaceChanges(true);
+            return false;
         }
 
         if (typeof navigator !== "undefined" && navigator.onLine === false) {
             const queuedLocally = await queueSnapshotLocally(snapshot);
             setSaveState(queuedLocally ? "queued" : "error");
-            return;
+            return false;
         }
 
         if (isSaveInFlightRef.current) {
             const queuedLocally = await queueSnapshotLocally(snapshot);
             setSaveState(queuedLocally ? "queued" : "error");
-            return;
+            return false;
         }
 
         isSaveInFlightRef.current = true;
@@ -840,6 +854,7 @@ export function BlocklyEditor(props: {
             const result = await saveWorkspaceDraft(
                 buildDepartmentUserWorkspaceDraftSaveInput({
                     categories: props.categories,
+                    expectedWorkspaceVersion: currentWorkspaceVersionRef.current,
                     planId: props.planId,
                     selectedCategoryIds: toolbox.sanitizedCategoryIds,
                     summary:
@@ -860,13 +875,13 @@ export function BlocklyEditor(props: {
             setLastSavedAt(result.savedAt);
             latestLocalWorkspaceRevisionRef.current = Math.max(
                 latestLocalWorkspaceRevisionRef.current,
-                snapshot.editorMetadata.revision,
+                result.workspaceState.editorMetadata.revision,
             );
 
             if (
                 queuedWorkspaceRef.current &&
                 queuedWorkspaceRef.current.editorMetadata.revision <=
-                    snapshot.editorMetadata.revision
+                    result.workspaceState.editorMetadata.revision
             ) {
                 queuedWorkspaceRef.current = null;
             }
@@ -875,17 +890,34 @@ export function BlocklyEditor(props: {
             if (
                 latestWorkspaceRecord &&
                 latestWorkspaceRecord.editorMetadata.revision >
-                    snapshot.editorMetadata.revision
+                    result.workspaceState.editorMetadata.revision
             ) {
-                const queuedLocally = await queueSnapshotLocally(latestWorkspaceRecord);
-                setSaveState(queuedLocally ? "queued" : "error");
-                return;
+                if (
+                    isSameWorkspaceContent(
+                        latestWorkspaceRecord,
+                        result.workspaceState,
+                    )
+                ) {
+                    currentWorkspaceRecordRef.current = result.workspaceState;
+                } else {
+                    const queuedLocally = await queueSnapshotLocally(
+                        latestWorkspaceRecord,
+                    );
+                    setSaveState(queuedLocally ? "queued" : "error");
+                    return false;
+                }
             }
 
+            currentWorkspaceRecordRef.current = result.workspaceState;
+            syncedWorkspaceRecordRef.current = result.workspaceState;
+            currentWorkspaceVersionRef.current = result.workspaceVersion;
+            setActiveWorkspaceState(result.workspaceState);
             queuedWorkspaceRef.current = null;
             await clearLocalDraftState();
             setSaveState("saved");
             setHasUnsyncedRisk(false);
+            setHasUnsyncedWorkspaceChanges(false);
+            return true;
         } catch (error) {
             const failure = parseDepartmentUserWorkspaceSaveFailure(error);
 
@@ -896,18 +928,21 @@ export function BlocklyEditor(props: {
                 setBlockedSyncMessage(failure.message);
                 setSaveState("blocked");
                 setHasUnsyncedRisk(true);
+                setHasUnsyncedWorkspaceChanges(false);
                 toast.error(failure.message);
-                return;
+                return false;
             }
 
             const queuedLocally = await queueSnapshotLocally(snapshot);
             if (queuedLocally) {
                 setSaveState("queued");
-                return;
+                setHasUnsyncedWorkspaceChanges(true);
+                return false;
             }
 
             setSaveState("error");
             toast.error("Cloud save failed. Your local draft is still available in this browser.");
+            return false;
         } finally {
             isSaveInFlightRef.current = false;
         }
@@ -1023,16 +1058,43 @@ export function BlocklyEditor(props: {
             });
 
             if (freshness === "local_newer" && newestLocalSnapshot) {
-                queuedWorkspaceRef.current = draftState?.queuedSnapshot ?? null;
-                setHasUnsyncedRisk(Boolean(draftState?.queuedSnapshot));
+                const queuedSnapshot = draftState?.queuedSnapshot ?? null;
+                queuedWorkspaceRef.current = queuedSnapshot;
+                currentWorkspaceRecordRef.current = newestLocalSnapshot;
+                setActiveWorkspaceState(newestLocalSnapshot);
+                setWorkspaceMountKey((current) => current + 1);
+
+                const displayedSummary =
+                    resolveDepartmentUserDisplayedWorkspaceSummary({
+                        persistedPlanSummary: null,
+                        totalBudget: props.department.budgetAllocation,
+                        workspaceState: newestLocalSnapshot,
+                        workspaceSummary:
+                            calculateDepartmentUserWorkspaceSummaryFromWorkspaceRecord({
+                                items: props.items,
+                                totalBudget: props.department.budgetAllocation,
+                                workspaceState: newestLocalSnapshot,
+                            }),
+                    });
+                setWorkspaceSummary(displayedSummary);
+                setBudgetState(
+                    displayedSummary?.budgetState ??
+                        mapDepartmentUserBudgetMeterState({
+                            totalBudget: props.department.budgetAllocation,
+                            usedAmount: 0,
+                        }),
+                );
+
+                setHasUnsyncedRisk(Boolean(queuedSnapshot));
+                setHasUnsyncedWorkspaceChanges(Boolean(queuedSnapshot));
                 setSaveState(
-                    draftState?.queuedSnapshot
+                    queuedSnapshot
                         ? hasSessionConflictRef.current
                             ? "blocked"
                             : "queued"
                         : "idle",
                 );
-                setRecoverySnapshot(newestLocalSnapshot);
+                setRecoverySnapshot(queuedSnapshot ? null : newestLocalSnapshot);
                 return;
             }
 
@@ -1043,6 +1105,7 @@ export function BlocklyEditor(props: {
                 await clearLocalDraftStateRef.current();
                 queuedWorkspaceRef.current = null;
                 setHasUnsyncedRisk(false);
+                setHasUnsyncedWorkspaceChanges(false);
                 setSaveState("idle");
             }
         }
@@ -1053,6 +1116,8 @@ export function BlocklyEditor(props: {
         };
     }, [
         props.currentUserId,
+        props.department.budgetAllocation,
+        props.items,
         props.mode,
         props.planId,
         props.workspaceState,
@@ -1266,6 +1331,22 @@ export function BlocklyEditor(props: {
             return;
         }
 
+        if (
+            isSameWorkspaceContent(
+                payload.workspaceState,
+                syncedWorkspaceRecordRef.current,
+            )
+        ) {
+            queuedWorkspaceRef.current = null;
+            setRecoverySnapshot(null);
+            await clearLocalDraftState();
+            setHasUnsyncedRisk(false);
+            setHasUnsyncedWorkspaceChanges(false);
+            setSaveState("saved");
+            return;
+        }
+
+        setHasUnsyncedWorkspaceChanges(true);
         await persistRecoverySnapshot(payload.workspaceState);
         const queuedLocally = await queueSnapshotLocally(payload.workspaceState);
 
@@ -1369,7 +1450,85 @@ export function BlocklyEditor(props: {
         toast(message);
     }
 
-    function handleOpenSubmitReview(): void {
+    async function confirmNoLocalDraftBeforeSubmission(): Promise<boolean> {
+        const localDraftState = await readDepartmentUserWorkspaceDraftState({
+            planId: props.planId,
+            userId: props.currentUserId,
+        });
+
+        if (!localDraftState.ok) {
+            handleStorageFailureRef.current(localDraftState.error);
+            setHasUnsyncedRisk(true);
+            setHasUnsyncedWorkspaceChanges(false);
+            toast.warning(
+                "Local workspace recovery data could not be checked. Save this draft to cloud before submitting.",
+            );
+            return false;
+        }
+
+        const queuedSnapshot = localDraftState.value?.queuedSnapshot ?? null;
+        const localRecoverySnapshot = localDraftState.value?.recoverySnapshot ?? null;
+        const localSnapshotMatchesCloud =
+            (!queuedSnapshot ||
+                isSameWorkspaceContent(
+                    queuedSnapshot,
+                    syncedWorkspaceRecordRef.current,
+                )) &&
+            (!localRecoverySnapshot ||
+                isSameWorkspaceContent(
+                    localRecoverySnapshot,
+                    syncedWorkspaceRecordRef.current,
+                ));
+
+        if ((queuedSnapshot || localRecoverySnapshot) && localSnapshotMatchesCloud) {
+            queuedWorkspaceRef.current = null;
+            setRecoverySnapshot(null);
+            await clearLocalDraftState();
+            setHasUnsyncedRisk(false);
+            setHasUnsyncedWorkspaceChanges(false);
+            setSaveState("saved");
+            return true;
+        }
+
+        if (queuedSnapshot) {
+            queuedWorkspaceRef.current = queuedSnapshot;
+            setRecoverySnapshot(null);
+            setHasUnsyncedRisk(true);
+            setHasUnsyncedWorkspaceChanges(true);
+            setSaveState("queued");
+
+            const savedQueuedDraft =
+                await flushWorkspaceDraftRef.current(queuedSnapshot);
+            if (savedQueuedDraft) {
+                return true;
+            }
+
+            toast.warning(
+                "A local draft is waiting to sync. Save it to cloud before submitting.",
+            );
+            return false;
+        }
+
+        if (localRecoverySnapshot) {
+            queuedWorkspaceRef.current = queuedSnapshot;
+            setRecoverySnapshot(localRecoverySnapshot);
+            setHasUnsyncedRisk(true);
+            setHasUnsyncedWorkspaceChanges(Boolean(queuedSnapshot));
+            setSaveState("error");
+            toast.warning(
+                "A local recovery copy exists. Recover or discard it before submitting.",
+            );
+            return false;
+        }
+
+        return true;
+    }
+
+    async function handleOpenSubmitReview(): Promise<void> {
+        if (!(await confirmNoLocalDraftBeforeSubmission())) {
+            return;
+        }
+
         setIsSubmitReviewOpen(true);
     }
 
@@ -1439,6 +1598,26 @@ export function BlocklyEditor(props: {
             return;
         }
 
+        if (!(await confirmNoLocalDraftBeforeSubmission())) {
+            return;
+        }
+
+        const reviewedWorkspace = currentWorkspaceRecordRef.current ?? activeWorkspaceState;
+        const reviewedWorkspaceRevision =
+            reviewedWorkspace?.editorMetadata.revision ?? null;
+        const reviewedWorkspaceLastSavedAt =
+            reviewedWorkspace?.editorMetadata.lastSavedAt ?? lastSavedAt;
+        const reviewedWorkspaceVersion = currentWorkspaceVersionRef.current;
+        if (
+            typeof reviewedWorkspaceRevision !== "number" ||
+            typeof reviewedWorkspaceLastSavedAt !== "number" ||
+            typeof reviewedWorkspaceVersion !== "number"
+        ) {
+            setHasUnsyncedRisk(true);
+            toast.warning("Save this draft to cloud before submitting.");
+            return;
+        }
+
         setIsSubmitPending(true);
         try {
             const result = await submitDepartmentUserPlan({
@@ -1452,6 +1631,9 @@ export function BlocklyEditor(props: {
                         ? props.planMeta.revisionContext?.activeDecision?.id ??
                           undefined
                         : undefined,
+                expectedWorkspaceLastSavedAt: reviewedWorkspaceLastSavedAt,
+                expectedWorkspaceRevision: reviewedWorkspaceRevision,
+                expectedWorkspaceVersion: reviewedWorkspaceVersion,
                 planId: props.planId,
             });
             setIsSubmitReviewOpen(false);
@@ -1519,6 +1701,7 @@ export function BlocklyEditor(props: {
         setBlockedSyncMessage(null);
         setLastSavedAt(props.workspaceState?.editorMetadata.lastSavedAt ?? null);
         setHasUnsyncedRisk(true);
+        setHasUnsyncedWorkspaceChanges(true);
         const queuedLocally = await queueSnapshotLocally(recoveredWorkspaceState);
         setSaveState(
             queuedLocally ? (hasSessionConflict ? "blocked" : "queued") : "error",
@@ -1532,6 +1715,7 @@ export function BlocklyEditor(props: {
         queuedWorkspaceRef.current = null;
         setBlockedSyncMessage(null);
         setHasUnsyncedRisk(false);
+        setHasUnsyncedWorkspaceChanges(false);
         setSaveState("idle");
     }
 
@@ -1577,6 +1761,7 @@ export function BlocklyEditor(props: {
         const queuedLocally = await queueSnapshotLocally(clearedWorkspaceState);
         setSaveState(queuedLocally ? "queued" : "error");
         setHasUnsyncedRisk(true);
+        setHasUnsyncedWorkspaceChanges(true);
         toast.success("Planning canvas cleared locally. Click Save to sync it to cloud.");
     }
 
@@ -1585,7 +1770,11 @@ export function BlocklyEditor(props: {
             return;
         }
 
-        const snapshot = currentWorkspaceRecordRef.current ?? activeWorkspaceState;
+        const snapshot =
+            queuedWorkspaceRef.current ??
+            recoverySnapshot ??
+            currentWorkspaceRecordRef.current ??
+            activeWorkspaceState;
         if (!snapshot) {
             return;
         }
@@ -1711,9 +1900,9 @@ export function BlocklyEditor(props: {
             }),
         [supplementalSubmissionIssues, workspaceSummary],
     );
-    const submitState = getDepartmentUserPlanSubmitState({
+    const baseSubmitState = getDepartmentUserPlanSubmitState({
         budgetState,
-        hasUnsyncedChanges: hasUnsyncedRisk,
+        hasUnsyncedChanges: hasUnsyncedWorkspaceChanges,
         mode: props.mode,
         saveState,
         supplementalBlockerMessages: supplementalSubmissionIssues.map(
@@ -1722,6 +1911,22 @@ export function BlocklyEditor(props: {
         totalItemCount: submissionReviewSummary.itemCount,
         validationState: workspaceSummary?.validationState ?? null,
     });
+    const canAutoSaveBeforeSubmit =
+        props.mode === "edit" &&
+        saveState === "queued" &&
+        hasUnsyncedWorkspaceChanges &&
+        !hasSessionConflict;
+    const submitState =
+        canAutoSaveBeforeSubmit &&
+        baseSubmitState.label === "Save Draft Before Submit"
+            ? {
+                  ...baseSubmitState,
+                  disabled: false,
+                  label: "Review & Submit",
+                  reason:
+                      "The latest local draft will be saved to cloud before review opens.",
+              }
+            : baseSubmitState;
     const canOpenSubmitReview = canDepartmentUserOpenPlanSubmissionReview(
         props.planMeta.status,
     );
@@ -1892,7 +2097,7 @@ export function BlocklyEditor(props: {
                                     className="bg-emerald-500 text-white hover:bg-emerald-600 disabled:bg-emerald-200 disabled:text-slate-600"
                                     disabled={submitState.disabled || isSubmitPending}
                                     onClick={() => {
-                                        handleOpenSubmitReview();
+                                        void handleOpenSubmitReview();
                                     }}
                                     type="button"
                                     variant="default"
@@ -2552,4 +2757,56 @@ function isSameWorkspaceSnapshotIgnoringSavedAt(
         left.editorMetadata.saveSource === right.editorMetadata.saveSource &&
         areBlocklyWorkspaceJsonEquivalent(left.workspaceJson, right.workspaceJson)
     );
+}
+
+function isSameWorkspaceContent(
+    left: BlocklyWorkspaceRecord | null | undefined,
+    right: BlocklyWorkspaceRecord | null | undefined,
+): boolean {
+    if (!left || !right) {
+        return false;
+    }
+
+    return areBlocklyWorkspaceJsonEquivalent(left.workspaceJson, right.workspaceJson);
+}
+
+function getDepartmentUserWorkspaceBrowserSessionId(args: {
+    planId: string;
+    userId: string;
+}): string {
+    const fallbackSessionId = createDepartmentUserWorkspaceSessionId();
+
+    if (typeof window === "undefined") {
+        return fallbackSessionId;
+    }
+
+    const sessionStorageKey = `procureline:blockly-tab-session:${args.userId}:${args.planId}`;
+
+    try {
+        const existingSessionId = window.sessionStorage.getItem(sessionStorageKey);
+        if (existingSessionId) {
+            return existingSessionId;
+        }
+
+        const navigationEntry = window.performance
+            .getEntriesByType("navigation")
+            .at(0) as PerformanceNavigationTiming | undefined;
+        const isBrowserReload = navigationEntry?.type === "reload";
+        const activeLease = readDepartmentUserWorkspaceSessionLease(args);
+        const sessionId =
+            isBrowserReload && activeLease?.sessionId
+                ? activeLease.sessionId
+                : fallbackSessionId;
+
+        window.sessionStorage.setItem(sessionStorageKey, sessionId);
+        return sessionId;
+    } catch {
+        return fallbackSessionId;
+    }
+}
+
+function createDepartmentUserWorkspaceSessionId(): string {
+    return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `workspace-session-${Date.now()}`;
 }

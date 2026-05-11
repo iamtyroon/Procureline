@@ -24,6 +24,7 @@ import {
 } from "@/lib/frontend/blockly/workspace-serialization";
 import {
     applyDepartmentWorkspaceRollup,
+    applyProcurementOfficerConsolidationRollup,
     mapDepartmentUserBudgetMeterState,
     type DepartmentUserBudgetMeterState,
     type DepartmentUserWorkspaceSummary,
@@ -77,7 +78,9 @@ export function BlocklyWorkspace(props: {
         name: string;
     }>;
     currentUserId: string;
+    closeToolboxOnBlockUse?: boolean;
     editorMode: "edit" | "view";
+    workspaceBehavior?: "consolidation" | "department_user" | "plain";
     items: Array<
         DepartmentUserCatalogItem & {
             lastPriceChangedAt: number | null;
@@ -131,6 +134,13 @@ export function BlocklyWorkspace(props: {
     const [pendingCategoryDeletion, setPendingCategoryDeletion] =
         useState<DepartmentUserCategoryDeletionConfirmation | null>(null);
     const layoutRefreshTimerRef = useRef<number | null>(null);
+    const workspaceBehavior = props.workspaceBehavior ?? "department_user";
+    const hostBehaviorClass =
+        workspaceBehavior === "consolidation"
+            ? "blockly-host--consolidation"
+            : workspaceBehavior === "plain"
+              ? "blockly-host--plain"
+              : "blockly-host--department-user";
 
     useEffect(() => {
         onBudgetStateChangeRef.current = props.onBudgetStateChange;
@@ -212,6 +222,26 @@ export function BlocklyWorkspace(props: {
         });
     }, [props.currentUserId]);
 
+    const lockConsolidationItemFields = useCallback((workspace: BlocklyWorkspaceSvg): void => {
+        if (workspaceBehavior !== "consolidation") {
+            return;
+        }
+
+        for (const block of workspace.getAllBlocks(false) as Array<{
+            getField?: (name: string) => { setEnabled?: (enabled: boolean) => void } | null;
+            type: string;
+        }>) {
+            if (block.type !== "item_block") {
+                continue;
+            }
+
+            block.getField?.("Q1_QTY")?.setEnabled?.(false);
+            block.getField?.("Q2_QTY")?.setEnabled?.(false);
+            block.getField?.("Q3_QTY")?.setEnabled?.(false);
+            block.getField?.("Q4_QTY")?.setEnabled?.(false);
+        }
+    }, [workspaceBehavior]);
+
     const queueWorkspaceSnapshot = useCallback((summary: DepartmentUserWorkspaceSummary | null): void => {
         if (props.editorMode !== "edit") {
             return;
@@ -284,29 +314,45 @@ export function BlocklyWorkspace(props: {
         }, 150);
     }, [props.currentUserId, props.planId]);
 
+    const shouldUseDepartmentUserBehavior = workspaceBehavior === "department_user";
+    const shouldRecalculateWorkspace = workspaceBehavior !== "plain";
+    const structureRefreshInitializationDependency =
+        shouldUseDepartmentUserBehavior ? queueStructureSourceUsageRefresh : null;
+    const viewportPersistenceInitializationDependency =
+        workspaceBehavior === "plain" ? null : queueViewportPersistence;
+
     const recalculateWorkspace = useCallback((
         Blockly: BlocklyModule,
         workspace: BlocklyWorkspaceSvg,
     ): DepartmentUserWorkspaceSummary | null => {
-        const departmentBlock = workspace
-            .getTopBlocks(false)
-            .find((block) => block.type === "department_block") as Parameters<
-                typeof applyDepartmentWorkspaceRollup
-            >[0]["departmentBlock"] | undefined;
+        const topBlocks = workspace.getTopBlocks(false);
+        const departmentBlock = topBlocks.find((block) => block.type === "department_block") as Parameters<
+            typeof applyDepartmentWorkspaceRollup
+        >[0]["departmentBlock"] | undefined;
+        const aggregateBlock = topBlocks.find((block) => block.type === "aggregate_plan_block") as Parameters<
+            typeof applyProcurementOfficerConsolidationRollup
+        >[0]["aggregateBlock"] | undefined;
 
         let summary: DepartmentUserWorkspaceSummary | null = null;
         Blockly.Events.disable();
         try {
-            synchronizeDepartmentUserWorkspaceCatalogIdentity({
-                categories: props.categories,
-                departmentBlock: departmentBlock ?? null,
-                items: props.items,
-            });
-            summary = applyDepartmentWorkspaceRollup({
-                departmentBlock: departmentBlock ?? null,
-                items: props.items,
-                totalBudget: props.budgetAllocation,
-            });
+            if (workspaceBehavior === "consolidation") {
+                applyProcurementOfficerConsolidationRollup({
+                    aggregateBlock: aggregateBlock ?? null,
+                    items: props.items,
+                });
+            } else {
+                synchronizeDepartmentUserWorkspaceCatalogIdentity({
+                    categories: props.categories,
+                    departmentBlock: departmentBlock ?? null,
+                    items: props.items,
+                });
+                summary = applyDepartmentWorkspaceRollup({
+                    departmentBlock: departmentBlock ?? null,
+                    items: props.items,
+                    totalBudget: props.budgetAllocation,
+                });
+            }
         } finally {
             Blockly.Events.enable();
         }
@@ -467,11 +513,30 @@ export function BlocklyWorkspace(props: {
 
                     if (
                         props.editorMode === "edit" &&
+                        props.closeToolboxOnBlockUse !== false &&
                         (event.type === "create" ||
                             (event.type === "drag" && event.isStart === false))
                     ) {
                         scheduleToolboxFlyoutClose();
                     }
+
+                    if (!shouldRecalculateWorkspace) {
+                        const shouldPersistPlainSnapshot =
+                            props.editorMode === "edit" &&
+                            (event.type === "change" ||
+                                event.type === "create" ||
+                                event.type === "delete" ||
+                                event.type === "move");
+
+                        if (shouldPersistPlainSnapshot) {
+                            queueWorkspaceSnapshot(null);
+                        }
+
+                        emitHistoryState(workspace);
+                        return;
+                    }
+
+                    lockConsolidationItemFields(workspace);
 
                     const eventResolution = resolveDepartmentUserWorkspaceEvent({
                         approvedCategoryDeletionIds:
@@ -574,7 +639,10 @@ export function BlocklyWorkspace(props: {
                     state: persistedUiState,
                     workspace,
                 });
-                recalculateWorkspaceRef.current?.(Blockly, workspace);
+                if (shouldRecalculateWorkspace) {
+                    lockConsolidationItemFields(workspace);
+                    recalculateWorkspaceRef.current?.(Blockly, workspace);
+                }
                 emitHistoryState(workspace);
             } catch (error) {
                 if (isDisposed) {
@@ -616,15 +684,24 @@ export function BlocklyWorkspace(props: {
             workspaceRef.current = null;
         };
     }, [
+        props.closeToolboxOnBlockUse,
         props.currentUserId,
         props.editorMode,
         props.planId,
-        queueStructureSourceUsageRefresh,
-        queueViewportPersistence,
+        lockConsolidationItemFields,
+        structureRefreshInitializationDependency,
+        viewportPersistenceInitializationDependency,
+        queueWorkspaceSnapshot,
         retryKey,
+        shouldRecalculateWorkspace,
+        workspaceBehavior,
     ]);
 
     useEffect(() => {
+        if (!shouldUseDepartmentUserBehavior) {
+            return;
+        }
+
         if (!workspaceRef.current) {
             return;
         }
@@ -642,9 +719,13 @@ export function BlocklyWorkspace(props: {
         blocklyRef.current?.svgResize(workspace);
         workspace.resizeContents();
         emitHistoryState(workspace);
-    }, [emitHistoryState, props.toolboxDefinition]);
+    }, [emitHistoryState, props.toolboxDefinition, shouldUseDepartmentUserBehavior]);
 
     useEffect(() => {
+        if (!shouldRecalculateWorkspace) {
+            return;
+        }
+
         if (!blocklyRef.current || !workspaceRef.current) {
             return;
         }
@@ -653,7 +734,9 @@ export function BlocklyWorkspace(props: {
         if (props.editorMode === "edit") {
             queueWorkspaceSnapshot(nextSummary);
         }
-        queueStructureSourceUsageRefresh();
+        if (shouldUseDepartmentUserBehavior) {
+            queueStructureSourceUsageRefresh();
+        }
         emitHistoryState(workspaceRef.current);
     }, [
         props.categories,
@@ -663,6 +746,8 @@ export function BlocklyWorkspace(props: {
         queueWorkspaceSnapshot,
         queueStructureSourceUsageRefresh,
         recalculateWorkspace,
+        shouldRecalculateWorkspace,
+        shouldUseDepartmentUserBehavior,
     ]);
 
     useEffect(() => {
@@ -759,7 +844,7 @@ export function BlocklyWorkspace(props: {
                 </AlertDialogContent>
             </AlertDialog>
 
-            <div className={`${styles.hostShell} blockly-host`}>
+            <div className={`${styles.hostShell} blockly-host ${hostBehaviorClass}`}>
                 <div className={styles.blocklyViewport} ref={hostRef} />
             </div>
         </>

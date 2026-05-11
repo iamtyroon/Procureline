@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildProcurementOfficerDashboardSnapshot = void 0;
 const dashboard_1 = require("./dashboard");
+const departments_1 = require("./departments");
 const submissions_1 = require("./submissions");
 function buildProcurementOfficerDashboardSnapshot(args) {
     const currentFiscalYear = (0, dashboard_1.getProcurementFiscalYearForDate)(args.now, {
@@ -89,6 +90,7 @@ function buildProcurementOfficerDashboardSnapshot(args) {
             timeZone: sharedDeadline.timeZone,
         },
         departmentReadiness: buildDepartmentReadiness({
+            accessCodes: args.accessCodes,
             accessCodeDepartmentIds: createReadyDepartmentSet({
                 ids: args.accessCodes
                     .filter((accessCode) => accessCode.isActive &&
@@ -104,6 +106,7 @@ function buildProcurementOfficerDashboardSnapshot(args) {
                     departmentIdsInScope.has(profile.departmentId))
                     .map((profile) => profile.departmentId),
             }),
+            now: args.now,
             plans: args.plans ?? [],
             selectedFiscalYear,
             sharedDeadline,
@@ -367,6 +370,11 @@ function buildDepartmentReadiness(args) {
         .map((department) => {
         const departmentPlan = plansByDepartmentId.get(department.id) ?? null;
         const accessCodeReady = args.accessCodeDepartmentIds.has(department.id);
+        const accessCodeSent = args.accessCodes.some((accessCode) => accessCode.departmentId === department.id &&
+            accessCode.isActive &&
+            accessCode.expiresAt > args.now &&
+            (accessCode.lastDeliveryStatus === "queued" ||
+                accessCode.lastDeliveryStatus === "sent"));
         const departmentUserReady = args.departmentUserIds.has(department.id);
         const deadlineReady = (0, dashboard_1.isValidDepartmentWindow)(department);
         const accessCodeState = accessCodeReady
@@ -387,7 +395,9 @@ function buildDepartmentReadiness(args) {
             blockers.push("Department code not sent.");
         }
         if (!departmentUserReady) {
-            blockers.push("No active DU assigned.");
+            blockers.push(accessCodeSent
+                ? "Awaiting DU first sign-in."
+                : "Send the department code to a DU.");
         }
         if (!deadlineReady) {
             blockers.push("Submission window invalid.");
@@ -413,7 +423,10 @@ function buildDepartmentReadiness(args) {
                 state: deadlineState,
             },
             departmentUser: {
-                label: departmentUserReady ? "Assigned" : "Setup required",
+                label: (0, departments_1.getDepartmentUserStateLabel)({
+                    activeDepartmentUserCount: departmentUserReady ? 1 : 0,
+                    hasSentAccessCode: accessCodeSent,
+                }),
                 state: departmentUserState,
             },
             id: department.id,

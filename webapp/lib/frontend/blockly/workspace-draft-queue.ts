@@ -1,4 +1,5 @@
 import {
+    areBlocklyWorkspaceJsonEquivalent,
     compareBlocklyWorkspaceRecords,
     createBlocklyWorkspaceRecord,
     createEmptyBlocklyWorkspaceJson,
@@ -180,6 +181,17 @@ export function compareDepartmentUserWorkspaceRecoveryFreshness(args: {
     localSnapshot: BlocklyWorkspaceRecord | null | undefined;
     serverSnapshot: BlocklyWorkspaceRecord | null | undefined;
 }): "equal" | "local_newer" | "server_authoritative" {
+    if (
+        args.localSnapshot &&
+        args.serverSnapshot &&
+        areBlocklyWorkspaceJsonEquivalent(
+            args.localSnapshot.workspaceJson,
+            args.serverSnapshot.workspaceJson,
+        )
+    ) {
+        return "equal";
+    }
+
     const comparison = compareBlocklyWorkspaceRecords(
         args.localSnapshot,
         args.serverSnapshot,

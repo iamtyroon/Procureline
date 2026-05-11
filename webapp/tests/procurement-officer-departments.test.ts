@@ -18,6 +18,7 @@ import {
     departmentFormSchema,
     formatDepartmentBudget,
     getDepartmentCodeFieldDescription,
+    getDepartmentCrudErrorMessage,
     getDepartmentCrudRecoveryHref,
     getDepartmentUpgradeHref,
     isDepartmentCrudAuthorizationError,
@@ -161,6 +162,7 @@ export function runProcurementOfficerDepartmentTests(): string[] {
                 budgetAllocation: 2_000_000,
                 code: "FIN",
                 hasActiveAccessCode: true,
+                hasSentAccessCode: true,
                 id: "department-1",
                 isActive: true,
                 lastUpdatedAt: Date.UTC(2026, 2, 20, 10, 0, 0),
@@ -173,6 +175,7 @@ export function runProcurementOfficerDepartmentTests(): string[] {
                 budgetAllocation: 3_000_000,
                 code: "HR",
                 hasActiveAccessCode: false,
+                hasSentAccessCode: false,
                 id: "department-2",
                 isActive: false,
                 lastUpdatedAt: Date.UTC(2026, 2, 21, 10, 0, 0),
@@ -187,7 +190,11 @@ export function runProcurementOfficerDepartmentTests(): string[] {
     });
     assert.equal(workspaceSummary.rows.length, 1);
     assert.equal(workspaceSummary.rows[0]?.planningStateLabel, "Draft in progress");
-    assert.equal(workspaceSummary.rows[0]?.departmentUserStateLabel, "Unassigned");
+    assert.equal(
+        workspaceSummary.rows[0]?.departmentUserStateLabel,
+        "Awaiting first sign-in",
+    );
+    assert.equal(workspaceSummary.rows[0]?.accessCodeStateLabel, "Code sent");
     assert.equal(workspaceSummary.overAllocationWarning, null);
     assert.equal(workspaceSummary.limit.limit, 30);
     completedTests.push(
@@ -279,8 +286,16 @@ export function runProcurementOfficerDepartmentTests(): string[] {
         getDepartmentCrudRecoveryHref(),
         buildDashboardPath(FORBIDDEN_ACCESS_REASON),
     );
+    assert.equal(
+        getDepartmentCrudErrorMessage(
+            new Error(
+                'Uncaught ConvexError: {"code":"FORBIDDEN","message":"Department code already sent. Create a new department if this user needs a different access path."}',
+            ),
+        ),
+        "Department code already sent. Create a new department if this user needs a different access path.",
+    );
     completedTests.push(
-        "department CRUD auth failures are classified separately from validation errors and reuse the protected dashboard handoff instead of leaving the workspace stranded",
+        "department CRUD auth failures are classified separately from validation errors, unwrap safe Convex errors, and reuse the protected dashboard handoff instead of leaving the workspace stranded",
     );
 
     return completedTests;

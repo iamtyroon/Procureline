@@ -14,7 +14,12 @@ function runProcurementOfficerAccessCodeTests() {
         randomChars: "a7k9",
     }), "2025-CS-A7K9");
     strict_1.default.equal((0, access_codes_1.resolveAccessCodeFiscalYearLabel)(Date.UTC(2026, 6, 1, 12, 0, 0)), "2026");
-    completedTests.push("canonical access-code generation uses the fiscal-year prefix, department initials, and deterministic random suffix");
+    strict_1.default.equal((0, access_codes_1.buildCanonicalDepartmentAccessCode)({
+        departmentName: "Human Resources",
+        fiscalYear: "2026",
+        randomChars: "m2xk",
+    }), "2026-HR-M2XK");
+    completedTests.push("canonical access-code generation uses the selected fiscal-year prefix when supplied, department initials, and deterministic random suffix");
     strict_1.default.equal((0, access_codes_1.validateCanonicalDepartmentAccessCode)("2025-CS-A7K9").ok, true);
     strict_1.default.equal((0, access_codes_1.validateCanonicalDepartmentAccessCode)("CS2T").message, access_codes_1.ACCESS_CODE_FORMAT_MESSAGE);
     strict_1.default.equal((0, access_codes_1.maskCanonicalDepartmentAccessCode)("2025-CS-A7K9"), "2025-CS-**K9");

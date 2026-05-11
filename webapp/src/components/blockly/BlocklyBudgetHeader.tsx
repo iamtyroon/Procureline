@@ -13,6 +13,8 @@ export function BlocklyBudgetHeader({
     const accentClass =
         budgetState.state === "over_budget"
             ? "text-red-700"
+            : budgetState.state === "under_budget"
+              ? "text-sky-700"
             : budgetState.state === "warning"
               ? "text-amber-700"
               : budgetState.state === "safe"
@@ -21,6 +23,8 @@ export function BlocklyBudgetHeader({
     const progressClass =
         budgetState.state === "over_budget"
             ? "bg-red-100 [&>div]:bg-red-600"
+            : budgetState.state === "under_budget"
+              ? "bg-sky-100 [&>div]:bg-sky-500"
             : budgetState.state === "warning"
               ? "bg-amber-100 [&>div]:bg-amber-500"
               : budgetState.state === "safe"
@@ -49,6 +53,8 @@ export function BlocklyBudgetHeader({
                         "flex h-11 w-11 items-center justify-center rounded-2xl",
                         budgetState.state === "over_budget"
                             ? "bg-red-100 text-red-700"
+                            : budgetState.state === "under_budget"
+                              ? "bg-sky-100 text-sky-700"
                             : budgetState.state === "warning"
                               ? "bg-amber-100 text-amber-700"
                               : budgetState.state === "safe"
@@ -58,6 +64,8 @@ export function BlocklyBudgetHeader({
                 >
                     {budgetState.state === "over_budget" ? (
                         <AlertTriangle className="h-5 w-5" />
+                    ) : budgetState.state === "under_budget" ? (
+                        <Wallet className="h-5 w-5" />
                     ) : budgetState.state === "warning" ? (
                         <Wallet className="h-5 w-5" />
                     ) : budgetState.state === "safe" ? (
@@ -70,7 +78,12 @@ export function BlocklyBudgetHeader({
 
             {budgetState.bannerText ? (
                 <div
-                    className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
+                    className={cn(
+                        "mt-4 rounded-2xl border px-4 py-3 text-sm font-medium",
+                        budgetState.state === "over_budget"
+                            ? "border-red-200 bg-red-50 text-red-800"
+                            : "border-amber-200 bg-amber-50 text-amber-900",
+                    )}
                     role="status"
                 >
                     {budgetState.bannerText}

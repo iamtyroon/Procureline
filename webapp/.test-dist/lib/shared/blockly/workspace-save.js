@@ -67,6 +67,7 @@ function buildDepartmentUserWorkspaceDraftSaveInput(args) {
             ];
         }) ?? [],
         estimatedBudgetUsed: args.summary?.departmentTotal ?? 0,
+        expectedWorkspaceVersion: args.expectedWorkspaceVersion,
         itemCount: args.summary?.totalItemCount ?? 0,
         planId: args.planId,
         selectedCategoryIds: args.selectedCategoryIds,

@@ -77,6 +77,7 @@ export const getProcurementOfficerDashboardSnapshot = query({
                 expiresAt: accessCode.expiresAt,
                 id: String(accessCode._id),
                 isActive: accessCode.isActive,
+                lastDeliveryStatus: accessCode.lastDeliveryStatus ?? null,
             })),
             departments: departments.map((department) => ({
                 budgetAllocation: department.budgetAllocation,

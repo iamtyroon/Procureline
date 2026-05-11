@@ -10,6 +10,7 @@ export interface DashboardDepartmentWorkspaceRow {
   canDelete: boolean;
   code: string;
   deleteBlockerMessages: string[];
+  hasSentAccessCode: boolean;
   id: string;
   isArchived: boolean;
   name: string;

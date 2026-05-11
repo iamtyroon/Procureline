@@ -28,7 +28,7 @@ import {
 
 function createWorkspaceSummary(): DepartmentUserWorkspaceSummary {
     const budgetState = mapDepartmentUserBudgetMeterState({
-        totalBudget: 2_000_000,
+        totalBudget: 650_000,
         usedAmount: 650_000,
     });
 
@@ -92,7 +92,7 @@ export function runDepartmentUserPlanSubmissionTests(): string[] {
         issues: [],
         itemCount: 3,
         validationSummary: {
-            budgetStatus: "Within budget",
+            budgetStatus: "Budget fully utilized",
             pendingRequestStatus: "No pending catalog requests",
             validationStatus: "passed",
         },

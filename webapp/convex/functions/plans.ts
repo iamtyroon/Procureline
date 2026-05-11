@@ -230,6 +230,7 @@ export const planWorkspaceContextValidator = v.object({
                 v.literal("submitted"),
             ),
             workspaceState: workspaceRecordValidator,
+            workspaceVersion: v.number(),
         }),
         v.null(),
     ),
@@ -601,6 +602,28 @@ async function loadDepartmentUserRevisionContext(
     };
 }
 
+type DepartmentUserRevisionContext = Awaited<
+    ReturnType<typeof loadDepartmentUserRevisionContext>
+>;
+
+function toDepartmentUserPublicRevisionContext(
+    revisionContext: DepartmentUserRevisionContext,
+) {
+    return {
+        activeDecision: revisionContext.activeDecision,
+        effectiveDeadlineExpired: revisionContext.effectiveDeadlineExpired,
+        history: revisionContext.history,
+        inconsistentStateMessage: revisionContext.inconsistentStateMessage,
+        reviewDecisions: revisionContext.reviewDecisions,
+    };
+}
+
+function getPlanWorkspaceVersion(plan: { workspaceVersion?: number }): number {
+    return typeof plan.workspaceVersion === "number" && plan.workspaceVersion > 0
+        ? plan.workspaceVersion
+        : 1;
+}
+
 async function loadDepartmentUserTenantUser(
     ctx: MutationCtx,
     args: {
@@ -909,6 +932,7 @@ export const ensureDepartmentUserDraftPlan = mutation({
                 lastSavedByUserId: String(base.authContext.userId),
                 saveSource: "workspace_seed",
             }),
+            workspaceVersion: 1,
             createdAt: now,
             updatedAt: now,
         });
@@ -1078,7 +1102,7 @@ export const getDepartmentUserPlanWorkspace = query({
                 id: String(plan._id),
                 itemCount: plan.itemCount,
                 reviewStartedAt: plan.reviewStartedAt ?? null,
-                revisionContext,
+                revisionContext: toDepartmentUserPublicRevisionContext(revisionContext),
                 selectedCategoryIds: sanitizedSelection.sanitizedCategoryIds,
                 submissionEmailErrorMessage: plan.submissionEmailErrorMessage ?? null,
                 submissionEmailStatus: plan.submissionEmailStatus ?? null,
@@ -1086,6 +1110,7 @@ export const getDepartmentUserPlanWorkspace = query({
                 submittedAt: plan.submittedAt ?? null,
                 status: plan.status,
                 workspaceState: toNormalizedWorkspaceRecord(plan, base.authContext.userId),
+                workspaceVersion: getPlanWorkspaceVersion(plan),
             },
             redirectHref: null,
             statusMessage: null,
@@ -1097,6 +1122,7 @@ export const saveDepartmentUserWorkspaceDraft = mutation({
     args: {
         categorySummaries: v.array(workspaceCategorySummaryValidator),
         estimatedBudgetUsed: v.number(),
+        expectedWorkspaceVersion: v.optional(v.number()),
         itemCount: v.number(),
         planId: v.string(),
         selectedCategoryIds: v.array(v.string()),
@@ -1104,6 +1130,8 @@ export const saveDepartmentUserWorkspaceDraft = mutation({
     },
     returns: v.object({
         savedAt: v.number(),
+        workspaceState: workspaceRecordValidator,
+        workspaceVersion: v.number(),
     }),
     handler: async (ctx, args) => {
         const base = await loadDepartmentUserPlanBase(ctx);
@@ -1125,6 +1153,18 @@ export const saveDepartmentUserWorkspaceDraft = mutation({
             throw new ConvexError({
                 code: "PLAN_NOT_FOUND",
                 message: "Plan not found for this department.",
+            });
+        }
+
+        const currentWorkspaceVersion = getPlanWorkspaceVersion(plan);
+        if (
+            typeof args.expectedWorkspaceVersion !== "number" ||
+            args.expectedWorkspaceVersion !== currentWorkspaceVersion
+        ) {
+            throw new ConvexError({
+                code: "STALE_WORKSPACE_REVISION",
+                message:
+                    "The cloud draft changed after this browser loaded it. Refresh or recover the local draft before saving again.",
             });
         }
 
@@ -1189,9 +1229,17 @@ export const saveDepartmentUserWorkspaceDraft = mutation({
             });
         }
 
-        await ctx.db.patch(plan._id, persistenceResult.patch);
+        const nextWorkspaceVersion = currentWorkspaceVersion + 1;
+        await ctx.db.patch(plan._id, {
+            ...persistenceResult.patch,
+            workspaceVersion: nextWorkspaceVersion,
+        });
 
-        return { savedAt: persistenceResult.patch.updatedAt };
+        return {
+            savedAt: persistenceResult.patch.updatedAt,
+            workspaceState: persistenceResult.patch.workspaceState,
+            workspaceVersion: nextWorkspaceVersion,
+        };
     },
 });
 
@@ -1199,6 +1247,9 @@ export const submitDepartmentUserPlan = mutation({
     args: {
         expectedDecisionDecidedAt: v.optional(v.number()),
         expectedDecisionId: v.optional(v.string()),
+        expectedWorkspaceLastSavedAt: v.optional(v.number()),
+        expectedWorkspaceRevision: v.optional(v.number()),
+        expectedWorkspaceVersion: v.optional(v.number()),
         planId: v.string(),
     },
     returns: submitDepartmentUserPlanResultValidator,
@@ -1417,6 +1468,41 @@ export const submitDepartmentUserPlan = mutation({
             plan,
             base.authContext.userId,
         );
+        if (
+            typeof args.expectedWorkspaceVersion !== "number" ||
+            args.expectedWorkspaceVersion !== getPlanWorkspaceVersion(plan)
+        ) {
+            await appendAuditLogRequired(
+                ctx,
+                buildDepartmentUserPlanAuditEntry({
+                    action: "submit",
+                    actorUserId: base.authContext.userId,
+                    departmentId: department._id,
+                    event: AUDIT_EVENT_NAMES.planSubmissionBlocked,
+                    metadata: {
+                        expectedWorkspaceLastSavedAt:
+                            args.expectedWorkspaceLastSavedAt ?? null,
+                        expectedWorkspaceRevision:
+                            args.expectedWorkspaceRevision ?? null,
+                        expectedWorkspaceVersion:
+                            args.expectedWorkspaceVersion ?? null,
+                        planStatus: plan.status,
+                        reason: "stale_workspace_snapshot",
+                        savedWorkspaceLastSavedAt:
+                            normalizedWorkspaceState.editorMetadata.lastSavedAt,
+                        savedWorkspaceRevision:
+                            normalizedWorkspaceState.editorMetadata.revision,
+                        savedWorkspaceVersion: getPlanWorkspaceVersion(plan),
+                    },
+                    outcome: AUDIT_OUTCOMES.blockedStateTransition,
+                    planId: plan._id,
+                    tenantId: base.authContext.tenantId,
+                }),
+            );
+            buildBlockedSubmissionError(
+                "The cloud draft changed after this submission review was prepared. Save or refresh the workspace before submitting again.",
+            );
+        }
         const submissionDraftSummary = deriveDepartmentUserWorkspaceDraftPersistenceSummary({
             categories: catalog.categories.map((category) => ({
                 id: category.id,

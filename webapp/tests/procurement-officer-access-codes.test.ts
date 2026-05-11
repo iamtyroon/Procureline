@@ -29,8 +29,16 @@ export function runProcurementOfficerAccessCodeTests(): string[] {
         resolveAccessCodeFiscalYearLabel(Date.UTC(2026, 6, 1, 12, 0, 0)),
         "2026",
     );
+    assert.equal(
+        buildCanonicalDepartmentAccessCode({
+            departmentName: "Human Resources",
+            fiscalYear: "2026",
+            randomChars: "m2xk",
+        }),
+        "2026-HR-M2XK",
+    );
     completedTests.push(
-        "canonical access-code generation uses the fiscal-year prefix, department initials, and deterministic random suffix",
+        "canonical access-code generation uses the selected fiscal-year prefix when supplied, department initials, and deterministic random suffix",
     );
 
     assert.equal(

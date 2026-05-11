@@ -15,6 +15,12 @@ function runBlocklyWorkspacePersistenceTests() {
         lastSavedByUserId: "du-1",
         revision: 2,
         saveSource: "workspace_sync",
+        workspaceJson: {
+            blocks: {
+                blocks: [{ id: "server-block", type: "department_block" }],
+                languageVersion: 0,
+            },
+        },
     });
     const newerSnapshot = (0, blockly_serialization_1.createBlocklyWorkspaceRecord)({
         lastSavedAt: 200,
@@ -22,6 +28,12 @@ function runBlocklyWorkspacePersistenceTests() {
         recoveredAt: 150,
         revision: 4,
         saveSource: "workspace_recovery",
+        workspaceJson: {
+            blocks: {
+                blocks: [{ id: "local-block", type: "department_block" }],
+                languageVersion: 0,
+            },
+        },
     });
     strict_1.default.equal((0, workspace_draft_queue_1.coalesceDepartmentUserWorkspaceSnapshot)(olderSnapshot, newerSnapshot)
         .editorMetadata.revision, 4);
@@ -30,6 +42,19 @@ function runBlocklyWorkspacePersistenceTests() {
         serverSnapshot: olderSnapshot,
     }), "local_newer");
     completedTests.push("workspace persistence helpers coalesce queued snapshots to the newest durable revision");
+    const sameContentLocalSnapshot = (0, blockly_serialization_1.createBlocklyWorkspaceRecord)({
+        lastSavedAt: 300,
+        lastSavedByUserId: "du-1",
+        recoveredAt: 250,
+        revision: 7,
+        saveSource: "workspace_recovery",
+        workspaceJson: olderSnapshot.workspaceJson,
+    });
+    strict_1.default.equal((0, workspace_draft_queue_1.compareDepartmentUserWorkspaceRecoveryFreshness)({
+        localSnapshot: sameContentLocalSnapshot,
+        serverSnapshot: olderSnapshot,
+    }), "equal");
+    completedTests.push("recovery freshness ignores newer local metadata when Blockly content already matches cloud");
     const recoveredRecord = (0, workspace_draft_queue_1.createRecoveredDepartmentUserWorkspaceRecord)({
         currentUserId: "du-2",
         localSnapshot: olderSnapshot,
@@ -107,6 +132,7 @@ function runBlocklyWorkspacePersistenceTests() {
         recoveredAt: newerSnapshot.editorMetadata.recoveredAt,
         revision: newerSnapshot.editorMetadata.revision,
         saveSource: newerSnapshot.editorMetadata.saveSource,
+        workspaceJson: newerSnapshot.workspaceJson,
     });
     strict_1.default.equal((0, workspace_save_1.isDepartmentUserWorkspaceDraftStale)({
         incomingWorkspaceState: sameRevisionEquivalentSnapshot,

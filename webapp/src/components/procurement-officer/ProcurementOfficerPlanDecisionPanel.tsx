@@ -7,6 +7,14 @@ import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -47,9 +55,11 @@ export function ProcurementOfficerPlanDecisionPanel(props: {
         api.functions.procurementOfficerPlanReview.undoProcurementOfficerPlanApproval,
     );
     const [comment, setComment] = useState("");
+    const [isCommentOpen, setIsCommentOpen] = useState(false);
     const [decisionType, setDecisionType] = useState<DecisionType>("revision_requested");
     const [revisionDeadlineInput, setRevisionDeadlineInput] = useState("");
     const [pendingAction, setPendingAction] = useState<"approve" | "reject" | "undo" | null>(null);
+    const hasComment = comment.trim().length > 0;
 
     async function handleApprove() {
         if (!props.canTakeReviewAction || pendingAction) {
@@ -82,15 +92,11 @@ export function ProcurementOfficerPlanDecisionPanel(props: {
         if (!props.canTakeReviewAction || pendingAction) {
             return;
         }
-        if (comment.trim().length === 0) {
-            toast.error("Decision comments are required.");
-            return;
-        }
 
         setPendingAction("reject");
         try {
             const result = await rejectReview({
-                body: comment,
+                body: hasComment ? comment : "",
                 decisionType,
                 flaggedTargets: props.selectedTargets,
                 planId: props.planId,
@@ -103,6 +109,7 @@ export function ProcurementOfficerPlanDecisionPanel(props: {
                     : `${result.statusLabel} saved, but no email notification was queued.`,
             );
             setComment("");
+            setIsCommentOpen(false);
             setRevisionDeadlineInput("");
             props.onDecisionComplete?.();
         } catch (error) {
@@ -169,60 +176,57 @@ export function ProcurementOfficerPlanDecisionPanel(props: {
 
             {props.canTakeReviewAction ? (
                 <>
-                    <div className="space-y-2">
-                        <div className="text-sm font-medium text-foreground">
-                            Decision comment
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap gap-2">
+                            <Button
+                                className="h-8 px-3 text-xs"
+                                onClick={() => setDecisionType("revision_requested")}
+                                type="button"
+                                variant={decisionType === "revision_requested" ? "default" : "outline"}
+                            >
+                                Request revision
+                            </Button>
+                            <Button
+                                className="h-8 px-3 text-xs"
+                                onClick={() => setDecisionType("rejected")}
+                                type="button"
+                                variant={decisionType === "rejected" ? "destructive" : "outline"}
+                            >
+                                Reject
+                            </Button>
                         </div>
-                        <Textarea
-                            onChange={(event) => setComment(event.target.value)}
-                            placeholder="Explain the approval, rejection, or requested revision."
-                            rows={4}
-                            value={comment}
-                        />
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
                         <Button
-                            onClick={() => setDecisionType("revision_requested")}
+                            className="h-8 px-3 text-xs"
+                            onClick={() => setIsCommentOpen(true)}
                             type="button"
-                            variant={decisionType === "revision_requested" ? "default" : "outline"}
+                            variant="outline"
                         >
-                            Request revision
-                        </Button>
-                        <Button
-                            onClick={() => setDecisionType("rejected")}
-                            type="button"
-                            variant={decisionType === "rejected" ? "destructive" : "outline"}
-                        >
-                            Reject
+                            {hasComment ? "Edit note" : "Add note"}
                         </Button>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                         <div className="flex items-center justify-between gap-3">
-                            <div className="text-sm font-medium text-foreground">
+                            <div className="text-xs font-medium text-foreground">
                                 Revision deadline
                             </div>
                             <div className="text-xs text-muted-foreground">
-                                Optional for rejected or revision-requested plans
+                                Optional
                             </div>
                         </div>
                         <Input
+                            className="h-9"
                             onChange={(event) => setRevisionDeadlineInput(event.target.value)}
                             type="datetime-local"
                             value={revisionDeadlineInput}
                         />
                     </div>
 
-                    <div className="space-y-2">
-                        <div className="text-sm font-medium text-foreground">
-                            Flagged targets
-                        </div>
-                        {props.selectedTargets.length === 0 ? (
-                            <div className="rounded-2xl border border-dashed border-border/70 bg-muted/15 px-4 py-4 text-sm text-muted-foreground">
-                                No specific categories or items selected.
+                    {props.selectedTargets.length > 0 ? (
+                        <div className="space-y-2">
+                            <div className="text-sm font-medium text-foreground">
+                                Flagged targets
                             </div>
-                        ) : (
                             <div className="space-y-2">
                                 {props.selectedTargets.map((target) => (
                                     <div
@@ -233,8 +237,8 @@ export function ProcurementOfficerPlanDecisionPanel(props: {
                                     </div>
                                 ))}
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    ) : null}
 
                     <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                         <Button
@@ -267,6 +271,37 @@ export function ProcurementOfficerPlanDecisionPanel(props: {
                             )}
                         </Button>
                     </div>
+                    <Dialog open={isCommentOpen} onOpenChange={setIsCommentOpen}>
+                        <DialogContent className="sm:max-w-lg">
+                            <DialogHeader>
+                                <DialogTitle>Decision note</DialogTitle>
+                                <DialogDescription>
+                                    Optional context for the department. Leave blank if the decision does not need a note.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <Textarea
+                                onChange={(event) => setComment(event.target.value)}
+                                placeholder="Add an optional note."
+                                rows={5}
+                                value={comment}
+                            />
+                            <DialogFooter>
+                                <Button
+                                    onClick={() => setComment("")}
+                                    type="button"
+                                    variant="outline"
+                                >
+                                    Clear
+                                </Button>
+                                <Button
+                                    onClick={() => setIsCommentOpen(false)}
+                                    type="button"
+                                >
+                                    Done
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                 </>
             ) : props.undoApproval?.canUndo ? (
                 <div className="flex justify-end">

@@ -27,6 +27,12 @@ export function runBlocklyWorkspacePersistenceTests(): string[] {
         lastSavedByUserId: "du-1",
         revision: 2,
         saveSource: "workspace_sync",
+        workspaceJson: {
+            blocks: {
+                blocks: [{ id: "server-block", type: "department_block" }],
+                languageVersion: 0,
+            },
+        },
     });
     const newerSnapshot = createBlocklyWorkspaceRecord({
         lastSavedAt: 200,
@@ -34,6 +40,12 @@ export function runBlocklyWorkspacePersistenceTests(): string[] {
         recoveredAt: 150,
         revision: 4,
         saveSource: "workspace_recovery",
+        workspaceJson: {
+            blocks: {
+                blocks: [{ id: "local-block", type: "department_block" }],
+                languageVersion: 0,
+            },
+        },
     });
     assert.equal(
         coalesceDepartmentUserWorkspaceSnapshot(olderSnapshot, newerSnapshot)
@@ -48,6 +60,23 @@ export function runBlocklyWorkspacePersistenceTests(): string[] {
         "local_newer",
     );
     completedTests.push("workspace persistence helpers coalesce queued snapshots to the newest durable revision");
+
+    const sameContentLocalSnapshot = createBlocklyWorkspaceRecord({
+        lastSavedAt: 300,
+        lastSavedByUserId: "du-1",
+        recoveredAt: 250,
+        revision: 7,
+        saveSource: "workspace_recovery",
+        workspaceJson: olderSnapshot.workspaceJson,
+    });
+    assert.equal(
+        compareDepartmentUserWorkspaceRecoveryFreshness({
+            localSnapshot: sameContentLocalSnapshot,
+            serverSnapshot: olderSnapshot,
+        }),
+        "equal",
+    );
+    completedTests.push("recovery freshness ignores newer local metadata when Blockly content already matches cloud");
 
     const recoveredRecord = createRecoveredDepartmentUserWorkspaceRecord({
         currentUserId: "du-2",
@@ -176,6 +205,7 @@ export function runBlocklyWorkspacePersistenceTests(): string[] {
         recoveredAt: newerSnapshot.editorMetadata.recoveredAt,
         revision: newerSnapshot.editorMetadata.revision,
         saveSource: newerSnapshot.editorMetadata.saveSource,
+        workspaceJson: newerSnapshot.workspaceJson,
     });
     assert.equal(
         isDepartmentUserWorkspaceDraftStale({

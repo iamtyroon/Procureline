@@ -104,10 +104,44 @@ async function runDepartmentUserBlocklyWorkspaceTests() {
         totalBudget: 1_000_000,
         usedAmount: 1_150_000,
     });
+    const underBudget = (0, du_workspace_calculations_1.mapDepartmentUserBudgetMeterState)({
+        totalBudget: 25_000,
+        usedAmount: 19_000,
+    });
+    const nearFullUnderBudget = (0, du_workspace_calculations_1.mapDepartmentUserBudgetMeterState)({
+        totalBudget: 25_000,
+        usedAmount: 24_999.99,
+    });
+    const exactBudget = (0, du_workspace_calculations_1.mapDepartmentUserBudgetMeterState)({
+        totalBudget: 25_000,
+        usedAmount: 25_000,
+    });
+    const subCentOverBudget = (0, du_workspace_calculations_1.mapDepartmentUserBudgetMeterState)({
+        totalBudget: 25_000,
+        usedAmount: 25_000.004,
+    });
+    const oneCentOverBudget = (0, du_workspace_calculations_1.mapDepartmentUserBudgetMeterState)({
+        totalBudget: 25_000,
+        usedAmount: 25_000.01,
+    });
     strict_1.default.equal(unallocatedBudget.state, "unallocated");
     strict_1.default.equal(overBudget.state, "over_budget");
     strict_1.default.equal(overBudget.overBudgetAmount, 150_000);
     strict_1.default.match(overBudget.bannerText ?? "", /Budget exceeded by/i);
+    strict_1.default.equal(underBudget.state, "under_budget");
+    strict_1.default.equal(underBudget.canSubmitByBudget, false);
+    strict_1.default.equal(underBudget.remainingBudget, 6_000);
+    strict_1.default.match(underBudget.bannerText ?? "", /Budget not fully utilized/i);
+    strict_1.default.equal(nearFullUnderBudget.state, "warning");
+    strict_1.default.equal(nearFullUnderBudget.canSubmitByBudget, false);
+    strict_1.default.equal(nearFullUnderBudget.remainingBudget, 0.01);
+    strict_1.default.equal(exactBudget.canSubmitByBudget, true);
+    strict_1.default.equal(exactBudget.overBudgetAmount, 0);
+    strict_1.default.equal(exactBudget.remainingBudget, 0);
+    strict_1.default.equal(subCentOverBudget.canSubmitByBudget, true);
+    strict_1.default.equal(subCentOverBudget.overBudgetAmount, 0);
+    strict_1.default.equal(oneCentOverBudget.state, "over_budget");
+    strict_1.default.equal(oneCentOverBudget.overBudgetAmount, 0.01);
     completedTests.push("budget meter state now carries truthful unallocated and over-budget messaging");
     const categorySelection = (0, du_toolbox_selection_1.sanitizeDepartmentUserWorkspaceCategorySelection)({
         categories: [
@@ -503,7 +537,8 @@ async function runDepartmentUserBlocklyWorkspaceTests() {
     });
     strict_1.default.ok(liveValidationSummary);
     strict_1.default.equal(liveValidationItem.warningText, "Maximum quantity is 6");
-    strict_1.default.deepEqual(liveValidationSummary.validationState.submitBlockedReasons, []);
+    strict_1.default.equal(liveValidationSummary.validationState.submitBlockedReasons.length, 1);
+    strict_1.default.match(liveValidationSummary.validationState.submitBlockedReasons[0] ?? "", /Budget not fully utilized/i);
     completedTests.push("live Blockly validation feedback now preserves one-cycle inline quantity warnings after the field normalizes bad input");
     const emptyCategoryDepartment = new TestBlock("department_block");
     const emptyCategoryBlock = new TestBlock("category_block", {
@@ -842,16 +877,19 @@ async function runDepartmentUserBlocklyWorkspaceTests() {
     strict_1.default.equal(invalidSerializedWorkspaceSummary.departmentTotal, 130_000);
     strict_1.default.equal(invalidSerializedWorkspaceSummary.validationState.issues.some((issue) => issue.code === "maximum_quantity" &&
         issue.message === "Maximum quantity is 2"), true);
-    strict_1.default.deepEqual(invalidSerializedWorkspaceSummary.validationState.submitBlockedReasons, []);
+    strict_1.default.equal(invalidSerializedWorkspaceSummary.validationState.submitBlockedReasons.length, 1);
+    strict_1.default.match(invalidSerializedWorkspaceSummary.validationState.submitBlockedReasons[0] ?? "", /Budget not fully utilized/i);
     completedTests.push("serialized workspace revalidation now keeps normalization feedback visible after stale quantities are clamped during hydration");
     const draftSaveInput = (0, workspace_save_1.buildDepartmentUserWorkspaceDraftSaveInput)({
         categories: [{ id: "cat-it", name: "ICT Equipment" }],
+        expectedWorkspaceVersion: 1,
         planId: "plan-123",
         selectedCategoryIds: ["cat-it"],
         summary: refreshedWorkspaceSummary,
         workspaceState,
     });
     strict_1.default.equal(draftSaveInput.estimatedBudgetUsed, 260_000);
+    strict_1.default.equal(draftSaveInput.expectedWorkspaceVersion, 1);
     strict_1.default.equal(typeof draftSaveInput.workspaceState.workspaceJson, "string");
     const derivedPersistenceSummary = (0, workspace_save_1.deriveDepartmentUserWorkspaceDraftPersistenceSummary)({
         categories: [{ id: "cat-it", name: "ICT Equipment" }],

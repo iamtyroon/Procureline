@@ -222,8 +222,8 @@ export function ProcurementOfficerPlanReviewSummaryModal({
               {reviewWorkspace.message ?? "That plan is no longer available for review."}
             </div>
           ) : (
-            <div className="space-y-5">
-              <div className="grid gap-3 md:grid-cols-5">
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
                 <ReviewStat
                   label="Department code"
                   value={reviewWorkspace.workspace.department.code ?? "--"}
@@ -445,11 +445,9 @@ function ReviewStat({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-muted/10 px-4 py-4">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-2 text-sm font-semibold text-foreground">{value}</div>
+    <div className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border/70 bg-muted/10 px-3 text-xs">
+      <span className="font-medium text-muted-foreground">{label}</span>
+      <span className="font-semibold text-foreground">{value}</span>
     </div>
   );
 }
