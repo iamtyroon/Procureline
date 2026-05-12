@@ -246,7 +246,10 @@ function runProcurementOfficerConsolidationTests() {
     strict_1.default.equal(workspaceSource.includes("Excel"), false);
     strict_1.default.equal(shellSource.includes('await import("blockly")'), true);
     strict_1.default.equal(shellSource.includes("Blockly.Xml"), false);
-    completedTests.push("consolidation UI source replaces the placeholder route, includes setup and no-approved-plan states, lazy-loads Blockly, and excludes export controls");
+    strict_1.default.equal(shellSource.includes("SUMMARY_ONLY"), true);
+    strict_1.default.equal(workspaceSource.includes("ConsolidationDepartmentDetailsPanel"), true);
+    strict_1.default.equal(workspaceSource.includes("visibleItems"), true);
+    completedTests.push("consolidation UI source replaces the placeholder route, includes setup and no-approved-plan states, lazy-loads Blockly, uses summary-only department blocks, provides a virtualized details panel, and excludes export controls");
     return completedTests;
 }
 exports.runProcurementOfficerConsolidationTests = runProcurementOfficerConsolidationTests;

@@ -242,6 +242,104 @@ export function BlocklyWorkspace(props: {
         }
     }, [workspaceBehavior]);
 
+    const syncBlockVisualClasses = useCallback((workspace: BlocklyWorkspaceSvg): void => {
+        const aggregateValueFields = new Set([
+            "AGPO_CALCULATED",
+            "AGPO_Q1_TOTAL",
+            "AGPO_Q2_TOTAL",
+            "AGPO_Q3_TOTAL",
+            "AGPO_Q4_TOTAL",
+            "GRAND_TOTAL",
+            "AGG_Q1_TOTAL",
+            "AGG_Q2_TOTAL",
+            "AGG_Q3_TOTAL",
+            "AGG_Q4_TOTAL",
+            "LOCAL_CONTENT_CALCULATED",
+            "LOCAL_Q1_TOTAL",
+            "LOCAL_Q2_TOTAL",
+            "LOCAL_Q3_TOTAL",
+            "LOCAL_Q4_TOTAL",
+            "PWD_CALCULATED",
+            "PWD_Q1_TOTAL",
+            "PWD_Q2_TOTAL",
+            "PWD_Q3_TOTAL",
+            "PWD_Q4_TOTAL",
+        ]);
+        const departmentValueFields = new Set([
+            "BUDGET",
+            "CATEGORY_COUNT",
+            "DEPT_Q1_TOTAL",
+            "DEPT_Q2_TOTAL",
+            "DEPT_Q3_TOTAL",
+            "DEPT_Q4_TOTAL",
+            "DEPT_TOTAL",
+            "ITEM_COUNT",
+        ]);
+
+        // Tag blocks in a given workspace (main or flyout) with type-specific CSS classes
+        const tagBlocks = (ws: BlocklyWorkspaceSvg) => {
+            for (const block of ws.getAllBlocks(false) as Array<{
+                getField?: (name: string) => { getSvgRoot?: () => SVGElement | null } | null;
+                getSvgRoot?: () => SVGElement | null;
+                type: string;
+            }>) {
+                const svgRoot = block.getSvgRoot?.();
+                if (!svgRoot) continue;
+
+                const isAggregate = block.type === "aggregate_plan_block";
+                svgRoot.classList.toggle("aggregate-plan-block", isAggregate);
+
+                // Square the corners of the aggregate block by replacing its rounded
+                // bezier arc commands in the SVG path with straight L segments.
+                if (isAggregate) {
+                    const blocklyPath = svgRoot.querySelector<SVGPathElement>(".blocklyPath");
+                    if (blocklyPath) {
+                        const d = blocklyPath.getAttribute("d") ?? "";
+                        // Blockly Zelos renders corners as "c dx1,dy1 dx2,dy2 dx,dy" cubic beziers.
+                        // Replace all small cubic bezier segments (corner arcs) with a straight
+                        // line to the endpoint so the block body appears fully rectangular.
+                        const squared = d.replace(
+                            /c\s*[-\d.,\s]+?\s+([-\d.]+),([-\d.]+)/g,
+                            (_match, ex, ey) => `l ${ex},${ey}`,
+                        );
+                        if (squared !== d) {
+                            blocklyPath.setAttribute("d", squared);
+                        }
+                    }
+                }
+
+                svgRoot.classList.toggle("category-plan-block", block.type === "category_block");
+                svgRoot.classList.toggle("department-plan-block", block.type === "department_block");
+                svgRoot.classList.toggle("item-plan-block", block.type === "item_block");
+                svgRoot.classList.toggle(
+                    "timing-plan-block",
+                    block.type === "planned_timing_block" ||
+                        block.type === "actual_timing_block" ||
+                        block.type === "variance_timing_block",
+                );
+                svgRoot.classList.toggle("planned-timing-block", block.type === "planned_timing_block");
+                svgRoot.classList.toggle("actual-timing-block", block.type === "actual_timing_block");
+                svgRoot.classList.toggle("variance-timing-block", block.type === "variance_timing_block");
+
+                for (const fieldName of aggregateValueFields) {
+                    block.getField?.(fieldName)?.getSvgRoot?.()?.classList.add("pl-block-field--financial-value");
+                }
+                for (const fieldName of departmentValueFields) {
+                    block.getField?.(fieldName)?.getSvgRoot?.()?.classList.add("pl-block-field--department-value");
+                }
+            }
+        };
+
+        // Tag main workspace blocks
+        tagBlocks(workspace);
+
+        // Also tag flyout blocks so they inherit the same dark-mode CSS variables
+        const flyoutWs = (workspace.getFlyout?.() as { getWorkspace?: () => BlocklyWorkspaceSvg | null } | null)?.getWorkspace?.();
+        if (flyoutWs) {
+            tagBlocks(flyoutWs);
+        }
+    }, []);
+
     const queueWorkspaceSnapshot = useCallback((summary: DepartmentUserWorkspaceSummary | null): void => {
         if (props.editorMode !== "edit") {
             return;
@@ -499,6 +597,16 @@ export function BlocklyWorkspace(props: {
                         viewTop?: number;
                     },
                 ) => {
+                    syncBlockVisualClasses(workspace);
+
+                    // Flyout blocks are rendered asynchronously after toolbox_item_select fires.
+                    // Re-tag after one animation frame (and again after 80ms as a fallback)
+                    // so flyout preview blocks get their type-specific CSS classes.
+                    if (event.type === "toolbox_item_select") {
+                        requestAnimationFrame(() => syncBlockVisualClasses(workspace));
+                        setTimeout(() => syncBlockVisualClasses(workspace), 80);
+                    }
+
                     if (event.type === "selected") {
                         const nextSelectedBlock =
                             typeof event.newElementId === "string"
@@ -631,6 +739,7 @@ export function BlocklyWorkspace(props: {
                     record: initialWorkspaceStateRef.current,
                     workspace,
                 });
+                syncBlockVisualClasses(workspace);
                 const persistedUiState = readDepartmentUserWorkspaceUiState({
                     planId: props.planId,
                     userId: props.currentUserId,
@@ -643,6 +752,7 @@ export function BlocklyWorkspace(props: {
                     lockConsolidationItemFields(workspace);
                     recalculateWorkspaceRef.current?.(Blockly, workspace);
                 }
+                syncBlockVisualClasses(workspace);
                 emitHistoryState(workspace);
             } catch (error) {
                 if (isDisposed) {
@@ -689,6 +799,7 @@ export function BlocklyWorkspace(props: {
         props.editorMode,
         props.planId,
         lockConsolidationItemFields,
+        syncBlockVisualClasses,
         structureRefreshInitializationDependency,
         viewportPersistenceInitializationDependency,
         queueWorkspaceSnapshot,
@@ -731,6 +842,7 @@ export function BlocklyWorkspace(props: {
         }
 
         const nextSummary = recalculateWorkspace(blocklyRef.current, workspaceRef.current);
+        syncBlockVisualClasses(workspaceRef.current);
         if (props.editorMode === "edit") {
             queueWorkspaceSnapshot(nextSummary);
         }
@@ -748,6 +860,7 @@ export function BlocklyWorkspace(props: {
         recalculateWorkspace,
         shouldRecalculateWorkspace,
         shouldUseDepartmentUserBehavior,
+        syncBlockVisualClasses,
     ]);
 
     useEffect(() => {

@@ -18,10 +18,10 @@ let blocksRegistered = false;
 // Aggregate summary spacing lives here. Tune each row and quarter independently.
 // Example: increase AGGREGATE_SUMMARY_SPACING.AGPO.q3 to push only AGPO Q3 right.
 const AGGREGATE_SUMMARY_SPACING = {
-    AGG: { q1: 11, q2: 5, q3: 5, q4: 5 },
-    AGPO: { q1: 19, q2: 5, q3: 5, q4: 5 },
-    LOCAL: { q1: 11, q2: 5, q3: 5, q4: 5 },
-    PWD: { q1: 28, q2: 21.7, q3: 21.4, q4: 21 },
+    AGG: { q1: 11, q2: 5, q3: 6, q4: 5 },
+    AGPO: { q1: 18, q2: 4.9, q3: 6, q4: 5 },
+    LOCAL: { q1: 11, q2: 5, q3: 6, q4: 5 },
+    PWD: { q1: 24, q2: 18, q3: 19.3, q4: 18.6 },
 } as const;
 // Main amount spacing controls the gap between each row's KES label and its
 // first calculated value field. Tune these to align the main KES value column.
@@ -34,10 +34,10 @@ const AGGREGATE_MAIN_AMOUNT_SPACING = {
 // KES label spacing controls the gap between each row name and the "KES" label.
 // Tune these to align the KES labels into one vertical column.
 const AGGREGATE_KES_LABEL_SPACING = {
-    AGG: 1,
-    AGPO: 18,
-    LOCAL: 13,
-    PWD: 34,
+    AGG: .5,
+    AGPO: 14,
+    LOCAL: 10,
+    PWD: 28,
 } as const;
 // Category width is mostly driven by the width of the item rows nested inside it.
 // To thin the blue empty area inside categories, reduce item row content width
@@ -262,9 +262,34 @@ export function registerDepartmentUserBlocklyBlocks(BlocklyBase: BlocklyModule):
                 )
                 .setVisible(false);
 
+            this.appendDummyInput("SUMMARY_ONLY_INPUT")
+                .appendField(
+                    createReadonlyLabelField(Blockly, "false"),
+                    "SUMMARY_ONLY",
+                )
+                .setVisible(false);
+
             this.appendDummyInput("BUDGET_INPUT")
                 .appendField("Budget: KES")
                 .appendField(createReadonlyTextField(Blockly, "0"), "BUDGET")
+                .setVisible(false);
+
+            this.appendDummyInput("COUNTS_INPUT")
+                .appendField("Categories:")
+                .appendField(createReadonlyTextField(Blockly, "0"), "CATEGORY_COUNT")
+                .appendField("Items:")
+                .appendField(createReadonlyTextField(Blockly, "0"), "ITEM_COUNT")
+                .setVisible(false);
+
+            this.appendDummyInput("QUARTER_TOTALS_INPUT")
+                .appendField("Q1")
+                .appendField(createReadonlyTextField(Blockly, "0.00"), "DEPT_Q1_TOTAL")
+                .appendField("Q2")
+                .appendField(createReadonlyTextField(Blockly, "0.00"), "DEPT_Q2_TOTAL")
+                .appendField("Q3")
+                .appendField(createReadonlyTextField(Blockly, "0.00"), "DEPT_Q3_TOTAL")
+                .appendField("Q4")
+                .appendField(createReadonlyTextField(Blockly, "0.00"), "DEPT_Q4_TOTAL")
                 .setVisible(false);
 
             this.appendStatementInput("CATEGORIES").setCheck("department_category_statement");
@@ -280,17 +305,21 @@ export function registerDepartmentUserBlocklyBlocks(BlocklyBase: BlocklyModule):
             this.setTooltip("Department source block with live vote number, budget, and totals.");
             this.setInputsInline(false);
             this.isCollapsed_ = true;
+            this.isSummaryOnly_ = false;
             this.updateVisualState();
         },
 
-        loadExtraState(this: any, state: { isCollapsed?: boolean }) {
+        loadExtraState(this: any, state: { isCollapsed?: boolean; isSummaryOnly?: boolean }) {
             this.isCollapsed_ = state.isCollapsed ?? true;
+            this.isSummaryOnly_ = state.isSummaryOnly ?? false;
+            this.setFieldValue(this.isSummaryOnly_ ? "true" : "false", "SUMMARY_ONLY");
             this.updateCollapsedInputs();
         },
 
         saveExtraState(this: any) {
             return {
                 isCollapsed: this.isCollapsed_,
+                isSummaryOnly: this.isSummaryOnly_,
             };
         },
 
@@ -305,6 +334,9 @@ export function registerDepartmentUserBlocklyBlocks(BlocklyBase: BlocklyModule):
             toggleField?.setValue(this.isCollapsed_ ? RIGHT_ARROW_ICON : DOWN_ARROW_ICON);
             this.getInput("VOTE_INPUT")?.setVisible(!this.isCollapsed_);
             this.getInput("BUDGET_INPUT")?.setVisible(!this.isCollapsed_);
+            this.getInput("COUNTS_INPUT")?.setVisible(!this.isCollapsed_ && this.isSummaryOnly_);
+            this.getInput("QUARTER_TOTALS_INPUT")?.setVisible(!this.isCollapsed_ && this.isSummaryOnly_);
+            this.getInput("CATEGORIES")?.setVisible(!this.isSummaryOnly_);
             this.updateVisualState();
         },
 

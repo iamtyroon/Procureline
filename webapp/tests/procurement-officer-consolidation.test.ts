@@ -310,8 +310,11 @@ export function runProcurementOfficerConsolidationTests(): string[] {
     assert.equal(workspaceSource.includes("Excel"), false);
     assert.equal(shellSource.includes('await import("blockly")'), true);
     assert.equal(shellSource.includes("Blockly.Xml"), false);
+    assert.equal(shellSource.includes("SUMMARY_ONLY"), true);
+    assert.equal(workspaceSource.includes("ConsolidationDepartmentDetailsPanel"), true);
+    assert.equal(workspaceSource.includes("visibleItems"), true);
     completedTests.push(
-        "consolidation UI source replaces the placeholder route, includes setup and no-approved-plan states, lazy-loads Blockly, and excludes export controls",
+        "consolidation UI source replaces the placeholder route, includes setup and no-approved-plan states, lazy-loads Blockly, uses summary-only department blocks, provides a virtualized details panel, and excludes export controls",
     );
 
     return completedTests;

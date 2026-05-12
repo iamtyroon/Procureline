@@ -779,29 +779,48 @@ export function applyProcurementOfficerConsolidationRollup(args: {
                 seenDepartmentIds.add(departmentId);
             }
             currentBlock.setWarningText?.(null);
-            const submittedBudget = sanitizeNonNegativeNumber(
-                currentBlock.getFieldValue("BUDGET"),
-            );
-            const departmentSummary = applyDepartmentWorkspaceRollup({
-                departmentBlock: currentBlock,
-                items: [],
-                refreshCatalogMetadata: false,
-                totalBudget: submittedBudget,
-            });
-            if (departmentSummary) {
-                grandTotal += departmentSummary.departmentTotal;
+            if (currentBlock.getFieldValue("SUMMARY_ONLY") === "true") {
+                const departmentTotal = sanitizeNonNegativeNumber(
+                    currentBlock.getFieldValue("DEPT_TOTAL"),
+                );
+                grandTotal += departmentTotal;
                 quarterTotals.q1 =
                     sanitizeNonNegativeNumber(quarterTotals.q1) +
-                    sanitizeNonNegativeNumber(departmentSummary.quarterTotals.q1);
+                    sanitizeNonNegativeNumber(currentBlock.getFieldValue("DEPT_Q1_TOTAL"));
                 quarterTotals.q2 =
                     sanitizeNonNegativeNumber(quarterTotals.q2) +
-                    sanitizeNonNegativeNumber(departmentSummary.quarterTotals.q2);
+                    sanitizeNonNegativeNumber(currentBlock.getFieldValue("DEPT_Q2_TOTAL"));
                 quarterTotals.q3 =
                     sanitizeNonNegativeNumber(quarterTotals.q3) +
-                    sanitizeNonNegativeNumber(departmentSummary.quarterTotals.q3);
+                    sanitizeNonNegativeNumber(currentBlock.getFieldValue("DEPT_Q3_TOTAL"));
                 quarterTotals.q4 =
                     sanitizeNonNegativeNumber(quarterTotals.q4) +
-                    sanitizeNonNegativeNumber(departmentSummary.quarterTotals.q4);
+                    sanitizeNonNegativeNumber(currentBlock.getFieldValue("DEPT_Q4_TOTAL"));
+            } else {
+                const submittedBudget = sanitizeNonNegativeNumber(
+                    currentBlock.getFieldValue("BUDGET"),
+                );
+                const departmentSummary = applyDepartmentWorkspaceRollup({
+                    departmentBlock: currentBlock,
+                    items: [],
+                    refreshCatalogMetadata: false,
+                    totalBudget: submittedBudget,
+                });
+                if (departmentSummary) {
+                    grandTotal += departmentSummary.departmentTotal;
+                    quarterTotals.q1 =
+                        sanitizeNonNegativeNumber(quarterTotals.q1) +
+                        sanitizeNonNegativeNumber(departmentSummary.quarterTotals.q1);
+                    quarterTotals.q2 =
+                        sanitizeNonNegativeNumber(quarterTotals.q2) +
+                        sanitizeNonNegativeNumber(departmentSummary.quarterTotals.q2);
+                    quarterTotals.q3 =
+                        sanitizeNonNegativeNumber(quarterTotals.q3) +
+                        sanitizeNonNegativeNumber(departmentSummary.quarterTotals.q3);
+                    quarterTotals.q4 =
+                        sanitizeNonNegativeNumber(quarterTotals.q4) +
+                        sanitizeNonNegativeNumber(departmentSummary.quarterTotals.q4);
+                }
             }
         }
         currentBlock = currentBlock.getNextBlock();

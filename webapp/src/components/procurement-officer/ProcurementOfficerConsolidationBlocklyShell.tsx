@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { BlocklyLoadingSkeleton } from "@/src/components/blockly/BlocklyLoadingSkeleton";
 import type {
     BlocklyWorkspaceChangePayload,
+    BlocklyWorkspaceSelectedBlockLike,
 } from "@/src/components/blockly/BlocklyWorkspace";
 import {
     createBlocklyWorkspaceRecord,
@@ -35,12 +36,53 @@ const noopWorkspaceStructureChange = () => {};
 const noopWorkspaceSummaryChange = () => {};
 
 export interface ConsolidationSourceDepartment {
+    categories?: ConsolidationSourceCategory[];
+    categoryCount?: number;
     departmentId: string;
     departmentName: string;
     estimatedBudgetUsed: number;
+    items?: ConsolidationSourceItem[];
     itemCount: number;
+    quarterTotals?: ConsolidationQuarterTotals;
+    totalCost?: number;
     voteNumber: string;
     workspaceState?: unknown;
+}
+
+export interface ConsolidationQuarterTotals {
+    q1: number;
+    q2: number;
+    q3: number;
+    q4: number;
+}
+
+export interface ConsolidationSourceCategory {
+    categoryId: string;
+    categoryName: string;
+    itemCount: number;
+    quarterTotals: ConsolidationQuarterTotals;
+    totalCost: number;
+}
+
+export interface ConsolidationSourceItem {
+    categoryId: string;
+    categoryName: string;
+    itemDescription: string;
+    itemId: string;
+    procurementMethod: string;
+    q1Qty: number;
+    q1Total: number;
+    q2Qty: number;
+    q2Total: number;
+    q3Qty: number;
+    q3Total: number;
+    q4Qty: number;
+    q4Total: number;
+    sourceOfFunds: string;
+    totalCost: number;
+    totalQty: number;
+    unitOfMeasurement: string;
+    unitPrice: number;
 }
 
 const CURRENT_PO_CONSOLIDATION_BLOCK_TYPES = new Set([
@@ -81,6 +123,38 @@ function workspaceJsonUsesCurrentBlocks(value: unknown): boolean {
     return true;
 }
 
+function workspaceJsonHasAggregateBlock(value: unknown): boolean {
+    const blocks = asRecord(asRecord(value)?.blocks)?.blocks;
+    return Array.isArray(blocks)
+        ? blocks.some((block) => asRecord(block)?.type === "aggregate_plan_block")
+        : false;
+}
+
+function createSeedConsolidationWorkspaceRecord(args: {
+    currentUserId: string;
+    fiscalYear: string;
+}): BlocklyWorkspaceRecord {
+    return createBlocklyWorkspaceRecord({
+        lastSavedByUserId: args.currentUserId,
+        saveSource: "workspace_seed",
+        workspaceJson: {
+            blocks: {
+                blocks: [
+                    {
+                        fields: {
+                            FINANCIAL_YEAR: args.fiscalYear,
+                        },
+                        type: "aggregate_plan_block",
+                        x: 80,
+                        y: 60,
+                    },
+                ],
+                languageVersion: 0,
+            },
+        },
+    });
+}
+
 function normalizeConsolidationWorkspaceRecord(args: {
     currentUserId: string;
     fiscalYear: string;
@@ -92,25 +166,13 @@ function normalizeConsolidationWorkspaceRecord(args: {
         saveSource: "workspace_seed",
     });
 
-    if (!workspaceJsonUsesCurrentBlocks(normalized.workspaceJson)) {
-        return createBlocklyWorkspaceRecord({
-            lastSavedByUserId: args.currentUserId,
-            saveSource: "workspace_seed",
-            workspaceJson: {
-                blocks: {
-                    blocks: [
-                        {
-                            fields: {
-                                FINANCIAL_YEAR: args.fiscalYear,
-                            },
-                            type: "aggregate_plan_block",
-                            x: 80,
-                            y: 60,
-                        },
-                    ],
-                    languageVersion: 0,
-                },
-            },
+    if (
+        !workspaceJsonUsesCurrentBlocks(normalized.workspaceJson) ||
+        !workspaceJsonHasAggregateBlock(normalized.workspaceJson)
+    ) {
+        return createSeedConsolidationWorkspaceRecord({
+            currentUserId: args.currentUserId,
+            fiscalYear: args.fiscalYear,
         });
     }
 
@@ -127,24 +189,6 @@ function normalizeConsolidationWorkspaceRecord(args: {
     });
 }
 
-const COPY_CATEGORY_FIELD_NAMES = [
-    "CATEGORY_ID",
-    "CATEGORY_NAME",
-] as const;
-const COPY_ITEM_FIELD_NAMES = [
-    "ITEM_ID",
-    "ITEM_DESC",
-    "ITEM_DESCRIPTION",
-    "ITEM_IS_ACTIVE",
-    "UNIT_OF_MEASUREMENT",
-    "UNIT_PRICE",
-    "PROC_METHOD",
-    "SOURCE_OF_FUNDS",
-    "Q1_QTY",
-    "Q2_QTY",
-    "Q3_QTY",
-    "Q4_QTY",
-] as const;
 const TIMING_FIELD_NAMES = [
     "FIELD1",
     "FIELD2",
@@ -190,37 +234,6 @@ function parseToolboxAmount(value: unknown): number {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
-function cloneItemChain(sourceItem: Record<string, unknown> | null): Record<string, unknown> | null {
-    if (!sourceItem || sourceItem.type !== "item_block") {
-        return null;
-    }
-
-    const itemFields = copyFields(sourceItem.fields, COPY_ITEM_FIELD_NAMES);
-    const unitPrice = parseToolboxAmount(itemFields.UNIT_PRICE);
-    const q1 = parseToolboxAmount(itemFields.Q1_QTY);
-    const q2 = parseToolboxAmount(itemFields.Q2_QTY);
-    const q3 = parseToolboxAmount(itemFields.Q3_QTY);
-    const q4 = parseToolboxAmount(itemFields.Q4_QTY);
-    const totalQuantity = q1 + q2 + q3 + q4;
-    const totalCost = totalQuantity * unitPrice;
-    const clonedItem: Record<string, unknown> = {
-        fields: {
-            ...itemFields,
-            ITEM_TOTAL_COST: totalCost.toFixed(2),
-            ITEM_TOTAL_QTY: Number.isInteger(totalQuantity)
-                ? String(totalQuantity)
-                : totalQuantity.toFixed(2),
-        },
-        type: "item_block",
-    };
-    const nextItem = cloneItemChain(getNestedBlock(sourceItem.next));
-    if (nextItem) {
-        clonedItem.next = { block: nextItem };
-    }
-
-    return clonedItem;
-}
-
 function calculateToolboxItemTotals(
     sourceItem: Record<string, unknown> | null,
 ): {
@@ -260,45 +273,6 @@ function calculateToolboxItemTotals(
     return totals;
 }
 
-function cloneCategoryChain(
-    sourceCategory: Record<string, unknown> | null,
-): Record<string, unknown> | null {
-    if (!sourceCategory || sourceCategory.type !== "category_block") {
-        return null;
-    }
-
-    const inputs = asRecord(sourceCategory.inputs);
-    const firstSourceItem = getNestedBlock(inputs?.ITEMS);
-    const categoryTotals = calculateToolboxItemTotals(firstSourceItem);
-    const clonedCategory: Record<string, unknown> = {
-        fields: {
-            ...copyFields(sourceCategory.fields, COPY_CATEGORY_FIELD_NAMES),
-            CATEGORY_EMPTY_STATE: "",
-            CATEGORY_GRAND_TOTAL: categoryTotals.totalCost.toFixed(2),
-            CAT_Q1_TOTAL: categoryTotals.q1Total.toFixed(2),
-            CAT_Q2_TOTAL: categoryTotals.q2Total.toFixed(2),
-            CAT_Q3_TOTAL: categoryTotals.q3Total.toFixed(2),
-            CAT_Q4_TOTAL: categoryTotals.q4Total.toFixed(2),
-        },
-        type: "category_block",
-    };
-    const firstItem = cloneItemChain(firstSourceItem);
-    if (firstItem) {
-        clonedCategory.inputs = {
-            ITEMS: {
-                block: firstItem,
-            },
-        };
-    }
-
-    const nextCategory = cloneCategoryChain(getNestedBlock(sourceCategory.next));
-    if (nextCategory) {
-        clonedCategory.next = { block: nextCategory };
-    }
-
-    return clonedCategory;
-}
-
 function calculateToolboxDepartmentTotal(
     sourceDepartment: Record<string, unknown> | null,
 ): number {
@@ -312,6 +286,142 @@ function calculateToolboxDepartmentTotal(
     }
 
     return departmentTotal;
+}
+
+function addQuarterTotals(
+    left: ConsolidationQuarterTotals,
+    right: ConsolidationQuarterTotals,
+): ConsolidationQuarterTotals {
+    return {
+        q1: left.q1 + right.q1,
+        q2: left.q2 + right.q2,
+        q3: left.q3 + right.q3,
+        q4: left.q4 + right.q4,
+    };
+}
+
+function readSourceItemsFromCategory(args: {
+    categoryBlock: Record<string, unknown>;
+    categoryId: string;
+    categoryName: string;
+}): ConsolidationSourceItem[] {
+    const items: ConsolidationSourceItem[] = [];
+    let currentItem = getNestedBlock(asRecord(args.categoryBlock.inputs)?.ITEMS);
+
+    while (currentItem && currentItem.type === "item_block") {
+        const fields = asRecord(currentItem.fields);
+        const unitPrice = parseToolboxAmount(fields?.UNIT_PRICE);
+        const q1Qty = parseToolboxAmount(fields?.Q1_QTY);
+        const q2Qty = parseToolboxAmount(fields?.Q2_QTY);
+        const q3Qty = parseToolboxAmount(fields?.Q3_QTY);
+        const q4Qty = parseToolboxAmount(fields?.Q4_QTY);
+        const totalQty = q1Qty + q2Qty + q3Qty + q4Qty;
+        const q1Total = q1Qty * unitPrice;
+        const q2Total = q2Qty * unitPrice;
+        const q3Total = q3Qty * unitPrice;
+        const q4Total = q4Qty * unitPrice;
+
+        items.push({
+            categoryId: args.categoryId,
+            categoryName: args.categoryName,
+            itemDescription: String(fields?.ITEM_DESC ?? fields?.ITEM_DESCRIPTION ?? "Item"),
+            itemId: String(fields?.ITEM_ID ?? ""),
+            procurementMethod: String(fields?.PROC_METHOD ?? ""),
+            q1Qty,
+            q1Total,
+            q2Qty,
+            q2Total,
+            q3Qty,
+            q3Total,
+            q4Qty,
+            q4Total,
+            sourceOfFunds: String(fields?.SOURCE_OF_FUNDS ?? ""),
+            totalCost: q1Total + q2Total + q3Total + q4Total,
+            totalQty,
+            unitOfMeasurement: String(fields?.UNIT_OF_MEASUREMENT ?? ""),
+            unitPrice,
+        });
+
+        currentItem = getNestedBlock(currentItem.next);
+    }
+
+    return items;
+}
+
+export function enrichConsolidationSourceDepartment(
+    department: ConsolidationSourceDepartment,
+): ConsolidationSourceDepartment {
+    if (department.items && department.categories && department.quarterTotals) {
+        return department;
+    }
+
+    const submittedDepartment = findSubmittedDepartmentBlock(department.workspaceState);
+    const categories: ConsolidationSourceCategory[] = [];
+    const items: ConsolidationSourceItem[] = [];
+    let quarterTotals: ConsolidationQuarterTotals = { q1: 0, q2: 0, q3: 0, q4: 0 };
+    let currentCategory = getNestedBlock(asRecord(submittedDepartment?.inputs)?.CATEGORIES);
+
+    while (currentCategory && currentCategory.type === "category_block") {
+        const categoryFields = asRecord(currentCategory.fields);
+        const sourceCategoryId = String(categoryFields?.CATEGORY_ID ?? "").trim();
+        const categoryName = String(categoryFields?.CATEGORY_NAME ?? "Category");
+        const categoryId =
+            sourceCategoryId || `category-${categories.length}-${categoryName}`;
+        const categoryItems = readSourceItemsFromCategory({
+            categoryBlock: currentCategory,
+            categoryId,
+            categoryName,
+        });
+        const categoryQuarterTotals = categoryItems.reduce<ConsolidationQuarterTotals>(
+            (totals, item) => ({
+                q1: totals.q1 + item.q1Total,
+                q2: totals.q2 + item.q2Total,
+                q3: totals.q3 + item.q3Total,
+                q4: totals.q4 + item.q4Total,
+            }),
+            { q1: 0, q2: 0, q3: 0, q4: 0 },
+        );
+        const categoryTotalCost =
+            categoryQuarterTotals.q1 +
+            categoryQuarterTotals.q2 +
+            categoryQuarterTotals.q3 +
+            categoryQuarterTotals.q4;
+
+        categories.push({
+            categoryId,
+            categoryName,
+            itemCount: categoryItems.length,
+            quarterTotals: categoryQuarterTotals,
+            totalCost: categoryTotalCost,
+        });
+        items.push(...categoryItems);
+        quarterTotals = addQuarterTotals(quarterTotals, categoryQuarterTotals);
+        currentCategory = getNestedBlock(currentCategory.next);
+    }
+
+    const submittedFields = asRecord(submittedDepartment?.fields);
+    const submittedVoteNumber = submittedFields?.VOTE_NUMBER;
+    const submittedBudget = submittedFields?.BUDGET;
+    const totalCost =
+        quarterTotals.q1 + quarterTotals.q2 + quarterTotals.q3 + quarterTotals.q4;
+
+    return {
+        ...department,
+        categoryCount: categories.length,
+        categories,
+        estimatedBudgetUsed:
+            submittedBudget !== undefined && submittedBudget !== null
+                ? parseToolboxAmount(submittedBudget)
+                : department.estimatedBudgetUsed,
+        itemCount: items.length || department.itemCount,
+        items,
+        quarterTotals,
+        totalCost,
+        voteNumber:
+            submittedVoteNumber !== undefined && submittedVoteNumber !== null
+                ? String(submittedVoteNumber)
+                : department.voteNumber,
+    };
 }
 
 function findSubmittedDepartmentBlock(workspaceState: unknown): Record<string, unknown> | null {
@@ -333,46 +443,33 @@ function findSubmittedDepartmentBlock(workspaceState: unknown): Record<string, u
 function buildSubmittedDepartmentToolboxBlock(
     department: ConsolidationSourceDepartment,
 ): Record<string, unknown> {
+    const summary = enrichConsolidationSourceDepartment(department);
+    const quarterTotals = summary.quarterTotals ?? { q1: 0, q2: 0, q3: 0, q4: 0 };
+    const totalCost = summary.totalCost ?? calculateToolboxDepartmentTotal(
+        findSubmittedDepartmentBlock(summary.workspaceState),
+    );
     const block: Record<string, unknown> = {
+        extraState: {
+            isCollapsed: true,
+            isSummaryOnly: true,
+        },
         fields: {
-            BUDGET: String(department.estimatedBudgetUsed),
-            DEPARTMENT_ID: department.departmentId,
-            DEPT_NAME: department.departmentName,
-            DEPT_TOTAL: "0.00",
-            VOTE_NUMBER: department.voteNumber,
+            BUDGET: String(summary.estimatedBudgetUsed),
+            CATEGORY_COUNT: String(summary.categoryCount ?? 0),
+            DEPARTMENT_ID: summary.departmentId,
+            DEPT_NAME: summary.departmentName,
+            DEPT_Q1_TOTAL: quarterTotals.q1.toFixed(2),
+            DEPT_Q2_TOTAL: quarterTotals.q2.toFixed(2),
+            DEPT_Q3_TOTAL: quarterTotals.q3.toFixed(2),
+            DEPT_Q4_TOTAL: quarterTotals.q4.toFixed(2),
+            DEPT_TOTAL: totalCost.toFixed(2),
+            ITEM_COUNT: String(summary.itemCount),
+            SUMMARY_ONLY: "true",
+            VOTE_NUMBER: summary.voteNumber,
         },
         kind: "block",
         type: "department_block",
     };
-    const submittedDepartment = findSubmittedDepartmentBlock(department.workspaceState);
-    const submittedFields = asRecord(submittedDepartment?.fields);
-    const submittedVoteNumber = submittedFields?.VOTE_NUMBER;
-    const submittedBudget = submittedFields?.BUDGET;
-    const calculatedDepartmentTotal = calculateToolboxDepartmentTotal(submittedDepartment);
-
-    if (submittedVoteNumber !== undefined && submittedVoteNumber !== null) {
-        (block.fields as Record<string, string>).VOTE_NUMBER = String(submittedVoteNumber);
-    }
-    if (submittedBudget !== undefined && submittedBudget !== null) {
-        (block.fields as Record<string, string>).BUDGET = String(submittedBudget);
-    }
-    if (calculatedDepartmentTotal > 0) {
-        (block.fields as Record<string, string>).DEPT_TOTAL =
-            calculatedDepartmentTotal.toFixed(2);
-    }
-
-    const firstCategory = cloneCategoryChain(
-        getNestedBlock(asRecord(submittedDepartment?.inputs)?.CATEGORIES),
-    );
-    if (firstCategory) {
-        block.inputs = {
-            CATEGORIES: {
-                block: firstCategory,
-            },
-        };
-    }
-
-    block.next = { block: buildTimingBlockChain(submittedDepartment) };
 
     return block;
 }
@@ -563,9 +660,24 @@ function buildConsolidationToolbox(args: {
     };
 }
 
+function findSelectedDepartmentId(
+    block: BlocklyWorkspaceSelectedBlockLike | null,
+): string | null {
+    let currentBlock = block;
+    while (currentBlock) {
+        if (currentBlock.type === "department_block") {
+            const departmentId = currentBlock.getFieldValue("DEPARTMENT_ID").trim();
+            return departmentId || null;
+        }
+        currentBlock = currentBlock.getParent?.() ?? null;
+    }
+    return null;
+}
+
 export default function ProcurementOfficerConsolidationBlocklyShell(props: {
     fiscalYear: string;
     initialWorkspaceState: unknown;
+    onSelectedDepartmentChange?: (departmentId: string | null) => void;
     onWorkspaceChange: (state: BlocklyWorkspaceRecord) => void;
     sourceDepartments: ConsolidationSourceDepartment[];
     userId: string;
@@ -578,6 +690,7 @@ export default function ProcurementOfficerConsolidationBlocklyShell(props: {
             }),
         [props.fiscalYear, props.sourceDepartments],
     );
+
     const workspaceState = useMemo(
         () =>
             normalizeConsolidationWorkspaceRecord({
@@ -603,6 +716,12 @@ export default function ProcurementOfficerConsolidationBlocklyShell(props: {
             editorMode="edit"
             items={EMPTY_WORKSPACE_ITEMS}
             onBudgetStateChange={noopBudgetStateChange}
+            onSelectedBlockChange={(block) => {
+                if (!block) {
+                    return;
+                }
+                props.onSelectedDepartmentChange?.(findSelectedDepartmentId(block));
+            }}
             onWorkspaceChange={(payload: BlocklyWorkspaceChangePayload) => {
                 props.onWorkspaceChange(payload.workspaceState);
             }}

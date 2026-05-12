@@ -1,0 +1,473 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blockly Dark Theme Editor</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0e1117;color:#c8d4e4;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1.25rem;background:#161e2a;border-bottom:1px solid rgba(148,163,184,.12);flex-shrink:0}
+header h1{font-size:1rem;font-weight:700;letter-spacing:.06em;color:#e2eaf6}
+.btn{padding:.45rem 1rem;border-radius:.4rem;border:none;cursor:pointer;font-size:.8rem;font-weight:600;transition:all .15s}
+.btn-primary{background:#10b981;color:#0e1117}.btn-primary:hover{background:#34d399}
+.btn-secondary{background:rgba(148,163,184,.12);color:#c8d4e4;border:1px solid rgba(148,163,184,.18)}.btn-secondary:hover{background:rgba(148,163,184,.2)}
+.layout{display:flex;flex:1;overflow:hidden}
+.sidebar{width:310px;flex-shrink:0;overflow-y:auto;background:#111820;border-right:1px solid rgba(148,163,184,.1);padding:.75rem}
+.sidebar::-webkit-scrollbar{width:5px}
+.sidebar::-webkit-scrollbar-thumb{background:rgba(148,163,184,.2);border-radius:3px}
+.section{margin-bottom:.6rem;border:1px solid rgba(148,163,184,.1);border-radius:.5rem;overflow:hidden}
+.section-header{padding:.5rem .75rem;font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;gap:.5rem}
+.section-header:hover{background:rgba(255,255,255,.04)}
+.section-arrow{transition:transform .2s;flex-shrink:0}
+.section-body{padding:.6rem .75rem;display:flex;flex-direction:column;gap:.45rem}
+.section-body.collapsed{display:none}
+.row{display:flex;align-items:center;gap:.5rem}
+.row label{font-size:.72rem;color:#8899b0;flex:1;white-space:nowrap}
+.row input[type=color]{width:36px;height:22px;border:none;border-radius:.25rem;background:none;cursor:pointer;padding:0}
+.row input[type=range]{flex:1;accent-color:#10b981;height:4px}
+.row .val{font-size:.68rem;color:#6b7a90;width:34px;text-align:right;font-variant-numeric:tabular-nums}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.preview-area{flex:1;overflow:auto;padding:1.25rem}
+.canvas-mock{border-radius:.5rem;padding:1.5rem 1.25rem 1.5rem 160px;position:relative;min-height:500px;display:flex;flex-direction:column;gap:1rem}
+.toolbox-mock{position:absolute;left:0;top:0;bottom:0;width:148px;padding:.5rem .4rem;display:flex;flex-direction:column;gap:.22rem;border-right:1px solid rgba(148,163,184,.1)}
+.toolbox-item{border-radius:.4rem;padding:.32rem .55rem;font-size:.67rem;font-weight:600;cursor:default;color:#c8d4e4}
+.toolbox-item.selected{box-shadow:inset 3px 0 0 #34d399}
+/* --- Block mocks --- */
+.block{border-radius:.4rem;padding:.55rem .7rem;border-width:1px;border-style:solid;display:inline-flex;flex-direction:column;min-width:180px}
+.block-label{font-size:.6rem;font-weight:700;letter-spacing:.1em;margin-bottom:.3rem;opacity:.6;text-transform:uppercase}
+.block-title{font-size:.73rem;font-weight:600;margin-bottom:.4rem}
+.cells{display:flex;flex-wrap:wrap;gap:.28rem;margin-top:.2rem}
+.cell{border-radius:.28rem;padding:.15rem .38rem;font-size:.63rem;font-weight:600;border:1px solid rgba(148,163,184,.1)}
+.cell-label{opacity:.6;margin-right:.18rem}
+/* --- Timing block mocks --- */
+.timing-block{border-radius:.4rem;border-width:1px;border-style:solid;overflow:hidden;display:inline-flex;flex-direction:column;min-width:200px;cursor:pointer;user-select:none}
+.timing-header{padding:.38rem .65rem;font-size:.72rem;font-weight:700;display:flex;align-items:center;gap:.45rem}
+.timing-arrow{font-size:.65rem;transition:transform .2s}
+.timing-body{padding:.38rem .65rem .5rem;display:flex;flex-direction:column;gap:.28rem}
+.timing-body.collapsed{display:none}
+.timing-row-data{display:flex;flex-wrap:wrap;gap:.25rem}
+.timing-label{font-size:.6rem;font-weight:700;letter-spacing:.08em;opacity:.6;margin-bottom:.15rem;text-transform:uppercase}
+/* --- Dept block --- */
+.dept-block{border-radius:.4rem;padding:.4rem .65rem;border-width:1px;border-style:solid;display:inline-flex;align-items:center;gap:.5rem;font-size:.72rem;font-weight:600}
+.output-bar{border-top:1px solid rgba(148,163,184,.1);padding:.55rem 1rem;background:#0e1117;display:flex;align-items:center;gap:.75rem;flex-shrink:0}
+.status-txt{font-size:.72rem;color:#6b7a90;flex:1}
+textarea#cssout{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>⬡ Blockly Dark Theme Editor</h1>
+  <div style="display:flex;gap:.5rem;align-items:center">
+    <button class="btn btn-secondary" onclick="resetDefaults()">Reset</button>
+    <button class="btn btn-primary" onclick="copyCss()">Copy CSS</button>
+  </div>
+</header>
+<div class="layout">
+<div class="sidebar" id="sidebar"></div>
+<div class="main">
+  <div class="preview-area">
+    <div class="canvas-mock" id="canvasMock">
+      <!-- Toolbox -->
+      <div class="toolbox-mock" id="toolboxMock">
+        <div class="toolbox-item selected" id="tb0">Annual Plan</div>
+        <div class="toolbox-item" id="tb1">Department</div>
+        <div class="toolbox-item" id="tb2">Category</div>
+        <div class="toolbox-item" id="tb3">Item</div>
+        <div class="toolbox-item" id="tb4">Planned Timing</div>
+        <div class="toolbox-item" id="tb5">Actual Timing</div>
+        <div class="toolbox-item" id="tb6">Variance Timing</div>
+      </div>
+      <!-- Aggregate -->
+      <div class="block" id="aggBlock">
+        <div class="block-label">Aggregate</div>
+        <div class="block-title">ANNUAL PROCUREMENT PLAN F/Y <span id="aggCell0" class="cell">2025-2026</span></div>
+        <div class="cells">
+          <span id="aggCell1" class="cell"><span class="cell-label">GRAND TOTAL KES</span>25,000.00</span>
+          <span id="aggCell2" class="cell"><span class="cell-label">Q1</span>4,620.00</span>
+          <span id="aggCell3" class="cell"><span class="cell-label">Q2</span>6,746.00</span>
+          <span id="aggCell4" class="cell"><span class="cell-label">Q3</span>7,954.00</span>
+          <span id="aggCell5" class="cell"><span class="cell-label">Q4</span>5,680.00</span>
+        </div>
+      </div>
+      <!-- Dept -->
+      <div class="dept-block" id="deptBlock">
+        ▶ Dept: Botanical Garden &nbsp; Total: KES <span id="deptCell" class="cell">25,000.00</span>
+      </div>
+      <!-- Timing blocks row -->
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:flex-start">
+        <!-- Planned -->
+        <div class="timing-block" id="plannedBlock" onclick="toggleTiming('planned')">
+          <div class="timing-header" id="plannedHeader">
+            <span class="timing-arrow" id="plannedArrow">▶</span>
+            <span>PLANNED TIMING</span>
+          </div>
+          <div class="timing-body collapsed" id="plannedBody">
+            <div class="timing-row-data">
+              <span id="plannedCell1" class="cell"><span class="cell-label">Time process days:</span>14</span>
+              <span id="plannedCell2" class="cell"><span class="cell-label">Invite/Advert:</span>7</span>
+              <span id="plannedCell3" class="cell"><span class="cell-label">Bid Opening:</span>3</span>
+              <span id="plannedCell4" class="cell"><span class="cell-label">Bid Evaluation:</span>10</span>
+              <span id="plannedCell5" class="cell"><span class="cell-label">Tender Award:</span>5</span>
+              <span id="plannedCell6" class="cell"><span class="cell-label">Notif. of Award:</span>3</span>
+              <span id="plannedCell7" class="cell"><span class="cell-label">Contract Signing:</span>2</span>
+              <span id="plannedCell8" class="cell"><span class="cell-label">Total days:</span>44</span>
+            </div>
+          </div>
+        </div>
+        <!-- Actual -->
+        <div class="timing-block" id="actualBlock" onclick="toggleTiming('actual')">
+          <div class="timing-header" id="actualHeader">
+            <span class="timing-arrow" id="actualArrow">▶</span>
+            <span>ACTUAL TIMING</span>
+          </div>
+          <div class="timing-body collapsed" id="actualBody">
+            <div class="timing-row-data">
+              <span id="actualCell1" class="cell"><span class="cell-label">Time process days:</span>16</span>
+              <span id="actualCell2" class="cell"><span class="cell-label">Invite/Advert:</span>9</span>
+              <span id="actualCell3" class="cell"><span class="cell-label">Bid Opening:</span>3</span>
+              <span id="actualCell4" class="cell"><span class="cell-label">Bid Evaluation:</span>12</span>
+              <span id="actualCell5" class="cell"><span class="cell-label">Tender Award:</span>5</span>
+              <span id="actualCell6" class="cell"><span class="cell-label">Notif. of Award:</span>4</span>
+              <span id="actualCell7" class="cell"><span class="cell-label">Contract Signing:</span>3</span>
+              <span id="actualCell8" class="cell"><span class="cell-label">Total days:</span>52</span>
+            </div>
+          </div>
+        </div>
+        <!-- Variance -->
+        <div class="timing-block" id="varianceBlock" onclick="toggleTiming('variance')">
+          <div class="timing-header" id="varianceHeader">
+            <span class="timing-arrow" id="varianceArrow">▶</span>
+            <span>VARIANCE TIMING</span>
+          </div>
+          <div class="timing-body collapsed" id="varianceBody">
+            <div class="timing-row-data">
+              <span id="varianceCell1" class="cell"><span class="cell-label">Time process days:</span>+2</span>
+              <span id="varianceCell2" class="cell"><span class="cell-label">Invite/Advert:</span>+2</span>
+              <span id="varianceCell3" class="cell"><span class="cell-label">Bid Opening:</span>0</span>
+              <span id="varianceCell4" class="cell"><span class="cell-label">Bid Evaluation:</span>+2</span>
+              <span id="varianceCell5" class="cell"><span class="cell-label">Tender Award:</span>0</span>
+              <span id="varianceCell6" class="cell"><span class="cell-label">Notif. of Award:</span>+1</span>
+              <span id="varianceCell7" class="cell"><span class="cell-label">Contract Signing:</span>+1</span>
+              <span id="varianceCell8" class="cell"><span class="cell-label">Total days:</span>+8</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Category + Item row -->
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+        <div class="block" id="catBlock" style="min-width:160px">
+          <div class="block-label">Category</div>
+          <div class="block-title">Office Supplies</div>
+          <div class="cells"><span id="catCell" class="cell"><span class="cell-label">Items</span>4</span></div>
+        </div>
+        <div class="block" id="itemBlock" style="min-width:160px">
+          <div class="block-label">Item</div>
+          <div class="block-title">Printer Paper A4</div>
+          <div class="cells">
+            <span id="itemCell1" class="cell"><span class="cell-label">Qty</span>10</span>
+            <span id="itemCell2" class="cell"><span class="cell-label">Unit</span>Ream</span>
+            <span id="itemCell3" class="cell"><span class="cell-label">KES</span>5,000</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="output-bar">
+    <span class="status-txt" id="statusBar">Click timing chips to toggle expanded · Adjust controls → Copy CSS when done</span>
+    <button class="btn btn-primary" onclick="copyCss()">📋 Copy CSS</button>
+  </div>
+</div>
+</div>
+<textarea id="cssout"></textarea><script>
+const S={
+  canvasBg:'#111820',dotColor:'#94a3b8',dotOpacity:.18,
+  toolboxBg:'#161e2a',toolboxBorder:.10,toolboxText:'#c8d4e4',
+  toolboxSelBg:'#10b981',toolboxSelOpacity:.10,
+  aggFill:'#131a0d',aggBorderColor:'#6e7d3c',aggBorderOpacity:.50,
+  aggText:'#c8d4a8',aggCellBg:'#141a0e',aggCellOpacity:.95,aggCellText:'#d4ddb0',aggShadow:.50,
+  deptFill:'#132a1a',deptBorderColor:'#329650',deptBorderOpacity:.42,
+  deptText:'#a8d4b4',deptCellBg:'#101e16',deptCellOpacity:.95,deptCellText:'#86c996',deptShadow:.40,
+  catFill:'#101828',catBorderColor:'#4664b4',catBorderOpacity:.42,
+  catText:'#a8b8d8',catCellBg:'#0e1628',catCellOpacity:.95,catCellText:'#8aaad0',catShadow:.40,
+  itemFill:'#1e1508',itemBorderColor:'#a07828',itemBorderOpacity:.42,
+  itemText:'#d4c090',itemCellBg:'#1c1408',itemCellOpacity:.95,itemCellText:'#c8b070',itemShadow:.40,
+  // Planned — steel blue
+  plannedFill:'#0d1230',plannedBorderColor:'#6378d2',plannedBorderOpacity:.55,
+  plannedText:'#b0bef0',plannedCellBg:'#0e1230',plannedCellOpacity:.95,plannedCellText:'#8aaae8',plannedShadow:.40,
+  // Actual — warm amber
+  actualFill:'#082010',actualBorderColor:'#30a050',actualBorderOpacity:.55,
+  actualText:'#90d4a8',actualCellBg:'#082010',actualCellOpacity:.95,actualCellText:'#6ec890',actualShadow:.40,
+  // Variance — violet
+  varianceFill:'#1e1a04',varianceBorderColor:'#be961e',varianceBorderOpacity:.55,
+  varianceText:'#d4c070',varianceCellBg:'#160820',varianceCellOpacity:.95,varianceCellText:'#c8b048',varianceShadow:.40,
+};
+
+function hexToRgb(h){const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);return`${r},${g},${b}`}
+function rgba(h,a){return`rgba(${hexToRgb(h)},${a})`}
+function shad(a){return`drop-shadow(0 4px 14px rgba(0,0,0,${a}))`}
+
+// Timing expand/collapse
+const timingState={planned:false,actual:false,variance:false};
+function toggleTiming(type){
+  timingState[type]=!timingState[type];
+  const body=document.getElementById(type+'Body');
+  const arrow=document.getElementById(type+'Arrow');
+  body.classList.toggle('collapsed',!timingState[type]);
+  arrow.textContent=timingState[type]?'▼':'▶';
+}
+
+function applyCells(ids,bg,op,text){
+  ids.forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.style.background=rgba(bg,op);
+    el.style.color=text;
+  });
+}
+
+function render(){
+  const cm=document.getElementById('canvasMock');
+  const dotC=rgba(S.dotColor,S.dotOpacity);
+  cm.style.background=`radial-gradient(circle,${dotC} 1px,transparent 1.5px) 0 0/22px 22px,${S.canvasBg}`;
+  // Toolbox
+  document.getElementById('toolboxMock').style.background=S.toolboxBg;
+  const selBg=rgba(S.toolboxSelBg,S.toolboxSelOpacity);
+  document.querySelectorAll('.toolbox-item').forEach(el=>{
+    el.style.color=S.toolboxText;
+    el.style.background=el.classList.contains('selected')?selBg:'transparent';
+    el.style.boxShadow=el.classList.contains('selected')?`inset 3px 0 0 ${S.toolboxSelBg}`:'none';
+  });
+  // Aggregate
+  const ab=document.getElementById('aggBlock');
+  ab.style.background=S.aggFill;ab.style.borderColor=rgba(S.aggBorderColor,S.aggBorderOpacity);
+  ab.style.color=S.aggText;ab.style.filter=shad(S.aggShadow);
+  applyCells(['aggCell0','aggCell1','aggCell2','aggCell3','aggCell4','aggCell5'],S.aggCellBg,S.aggCellOpacity,S.aggCellText);
+  // Dept
+  const db=document.getElementById('deptBlock');
+  db.style.background=S.deptFill;db.style.borderColor=rgba(S.deptBorderColor,S.deptBorderOpacity);
+  db.style.color=S.deptText;db.style.filter=shad(S.deptShadow);
+  applyCells(['deptCell'],S.deptCellBg,S.deptCellOpacity,S.deptCellText);
+  // Cat
+  const cb=document.getElementById('catBlock');
+  cb.style.background=S.catFill;cb.style.borderColor=rgba(S.catBorderColor,S.catBorderOpacity);
+  cb.style.color=S.catText;cb.style.filter=shad(S.catShadow);
+  applyCells(['catCell'],S.catCellBg,S.catCellOpacity,S.catCellText);
+  // Item
+  const ib=document.getElementById('itemBlock');
+  ib.style.background=S.itemFill;ib.style.borderColor=rgba(S.itemBorderColor,S.itemBorderOpacity);
+  ib.style.color=S.itemText;ib.style.filter=shad(S.itemShadow);
+  applyCells(['itemCell1','itemCell2','itemCell3'],S.itemCellBg,S.itemCellOpacity,S.itemCellText);
+  // Planned timing
+  const pb=document.getElementById('plannedBlock');
+  pb.style.background=S.plannedFill;pb.style.borderColor=rgba(S.plannedBorderColor,S.plannedBorderOpacity);
+  pb.style.filter=shad(S.plannedShadow);
+  document.getElementById('plannedHeader').style.color=S.plannedText;
+  applyCells(['plannedCell1','plannedCell2','plannedCell3','plannedCell4','plannedCell5','plannedCell6','plannedCell7','plannedCell8'],S.plannedCellBg,S.plannedCellOpacity,S.plannedCellText);
+  document.querySelectorAll('#plannedBody .timing-label').forEach(el=>el.style.color=S.plannedText);
+  // Actual timing
+  const acb=document.getElementById('actualBlock');
+  acb.style.background=S.actualFill;acb.style.borderColor=rgba(S.actualBorderColor,S.actualBorderOpacity);
+  acb.style.filter=shad(S.actualShadow);
+  document.getElementById('actualHeader').style.color=S.actualText;
+  applyCells(['actualCell1','actualCell2','actualCell3','actualCell4','actualCell5','actualCell6','actualCell7','actualCell8'],S.actualCellBg,S.actualCellOpacity,S.actualCellText);
+  document.querySelectorAll('#actualBody .timing-label').forEach(el=>el.style.color=S.actualText);
+  // Variance timing
+  const vb=document.getElementById('varianceBlock');
+  vb.style.background=S.varianceFill;vb.style.borderColor=rgba(S.varianceBorderColor,S.varianceBorderOpacity);
+  vb.style.filter=shad(S.varianceShadow);
+  document.getElementById('varianceHeader').style.color=S.varianceText;
+  applyCells(['varianceCell1','varianceCell2','varianceCell3','varianceCell4','varianceCell5','varianceCell6','varianceCell7','varianceCell8'],S.varianceCellBg,S.varianceCellOpacity,S.varianceCellText);
+  document.querySelectorAll('#varianceBody .timing-label').forEach(el=>el.style.color=S.varianceText);
+}
+
+// ── Sidebar ─────────────────────────────────────────────────────────────────
+const SECTIONS=[
+{id:'canvas',label:'🖼 Canvas',color:'#10b981',rows:[
+  {label:'Background',key:'canvasBg',type:'color'},
+  {label:'Dot color',key:'dotColor',type:'color'},
+  {label:'Dot opacity',key:'dotOpacity',type:'range',min:0,max:.5,step:.01},
+]},
+{id:'toolbox',label:'📂 Toolbox',color:'#8899b0',rows:[
+  {label:'Background',key:'toolboxBg',type:'color'},
+  {label:'Text color',key:'toolboxText',type:'color'},
+  {label:'Selected accent',key:'toolboxSelBg',type:'color'},
+  {label:'Selected bg opacity',key:'toolboxSelOpacity',type:'range',min:0,max:.4,step:.01},
+  {label:'Border opacity',key:'toolboxBorder',type:'range',min:0,max:.4,step:.01},
+]},
+{id:'agg',label:'📊 Aggregate',color:'#c8d4a8',rows:[
+  {label:'Block fill',key:'aggFill',type:'color'},
+  {label:'Border color',key:'aggBorderColor',type:'color'},
+  {label:'Border opacity',key:'aggBorderOpacity',type:'range',min:0,max:1,step:.01},
+  {label:'Text color',key:'aggText',type:'color'},
+  {label:'Cell bg',key:'aggCellBg',type:'color'},
+  {label:'Cell opacity',key:'aggCellOpacity',type:'range',min:.5,max:1,step:.01},
+  {label:'Cell text',key:'aggCellText',type:'color'},
+  {label:'Shadow',key:'aggShadow',type:'range',min:0,max:1,step:.01},
+]},
+{id:'dept',label:'🏢 Department',color:'#a8d4b4',rows:[
+  {label:'Block fill',key:'deptFill',type:'color'},
+  {label:'Border color',key:'deptBorderColor',type:'color'},
+  {label:'Border opacity',key:'deptBorderOpacity',type:'range',min:0,max:1,step:.01},
+  {label:'Text color',key:'deptText',type:'color'},
+  {label:'Cell bg',key:'deptCellBg',type:'color'},
+  {label:'Cell opacity',key:'deptCellOpacity',type:'range',min:.5,max:1,step:.01},
+  {label:'Cell text',key:'deptCellText',type:'color'},
+  {label:'Shadow',key:'deptShadow',type:'range',min:0,max:1,step:.01},
+]},
+{id:'cat',label:'📁 Category',color:'#a8b8d8',rows:[
+  {label:'Block fill',key:'catFill',type:'color'},
+  {label:'Border color',key:'catBorderColor',type:'color'},
+  {label:'Border opacity',key:'catBorderOpacity',type:'range',min:0,max:1,step:.01},
+  {label:'Text color',key:'catText',type:'color'},
+  {label:'Cell bg',key:'catCellBg',type:'color'},
+  {label:'Cell opacity',key:'catCellOpacity',type:'range',min:.5,max:1,step:.01},
+  {label:'Cell text',key:'catCellText',type:'color'},
+  {label:'Shadow',key:'catShadow',type:'range',min:0,max:1,step:.01},
+]},
+{id:'item',label:'📦 Item',color:'#d4c090',rows:[
+  {label:'Block fill',key:'itemFill',type:'color'},
+  {label:'Border color',key:'itemBorderColor',type:'color'},
+  {label:'Border opacity',key:'itemBorderOpacity',type:'range',min:0,max:1,step:.01},
+  {label:'Text color',key:'itemText',type:'color'},
+  {label:'Cell bg',key:'itemCellBg',type:'color'},
+  {label:'Cell opacity',key:'itemCellOpacity',type:'range',min:.5,max:1,step:.01},
+  {label:'Cell text',key:'itemCellText',type:'color'},
+  {label:'Shadow',key:'itemShadow',type:'range',min:0,max:1,step:.01},
+]},
+{id:'planned',label:'🕐 Planned Timing',color:'#8aaae8',rows:[
+  {label:'Block fill',key:'plannedFill',type:'color'},
+  {label:'Border color',key:'plannedBorderColor',type:'color'},
+  {label:'Border opacity',key:'plannedBorderOpacity',type:'range',min:0,max:1,step:.01},
+  {label:'Text color',key:'plannedText',type:'color'},
+  {label:'Cell bg',key:'plannedCellBg',type:'color'},
+  {label:'Cell opacity',key:'plannedCellOpacity',type:'range',min:.5,max:1,step:.01},
+  {label:'Cell text',key:'plannedCellText',type:'color'},
+  {label:'Shadow',key:'plannedShadow',type:'range',min:0,max:1,step:.01},
+]},
+{id:'actual',label:'⏱ Actual Timing',color:'#6ec890',rows:[
+  {label:'Block fill',key:'actualFill',type:'color'},
+  {label:'Border color',key:'actualBorderColor',type:'color'},
+  {label:'Border opacity',key:'actualBorderOpacity',type:'range',min:0,max:1,step:.01},
+  {label:'Text color',key:'actualText',type:'color'},
+  {label:'Cell bg',key:'actualCellBg',type:'color'},
+  {label:'Cell opacity',key:'actualCellOpacity',type:'range',min:.5,max:1,step:.01},
+  {label:'Cell text',key:'actualCellText',type:'color'},
+  {label:'Shadow',key:'actualShadow',type:'range',min:0,max:1,step:.01},
+]},
+{id:'variance',label:'📈 Variance Timing',color:'#d4c070',rows:[
+  {label:'Block fill',key:'varianceFill',type:'color'},
+  {label:'Border color',key:'varianceBorderColor',type:'color'},
+  {label:'Border opacity',key:'varianceBorderOpacity',type:'range',min:0,max:1,step:.01},
+  {label:'Text color',key:'varianceText',type:'color'},
+  {label:'Cell bg',key:'varianceCellBg',type:'color'},
+  {label:'Cell opacity',key:'varianceCellOpacity',type:'range',min:.5,max:1,step:.01},
+  {label:'Cell text',key:'varianceCellText',type:'color'},
+  {label:'Shadow',key:'varianceShadow',type:'range',min:0,max:1,step:.01},
+]},
+];
+
+function buildSidebar(){
+  const sb=document.getElementById('sidebar');sb.innerHTML='';
+  SECTIONS.forEach(sec=>{
+    const wrap=document.createElement('div');wrap.className='section';
+    const hdr=document.createElement('div');hdr.className='section-header';
+    hdr.style.color=sec.color;
+    const arrowEl=document.createElement('span');arrowEl.className='section-arrow';arrowEl.textContent='▾';
+    hdr.innerHTML=`<span>${sec.label}</span>`;hdr.appendChild(arrowEl);
+    const body=document.createElement('div');body.className='section-body collapsed';
+    hdr.onclick=()=>{body.classList.toggle('collapsed');arrowEl.style.transform=body.classList.contains('collapsed')?'':'rotate(180deg)';};
+    sec.rows.forEach(r=>{
+      const row=document.createElement('div');row.className='row';
+      const lbl=document.createElement('label');lbl.textContent=r.label;row.appendChild(lbl);
+      if(r.type==='color'){
+        const inp=document.createElement('input');inp.type='color';inp.value=S[r.key];
+        inp.addEventListener('input',e=>{S[r.key]=e.target.value;render();});
+        row.appendChild(inp);
+      } else {
+        const inp=document.createElement('input');inp.type='range';
+        inp.min=r.min;inp.max=r.max;inp.step=r.step;inp.value=S[r.key];
+        const val=document.createElement('span');val.className='val';val.textContent=parseFloat(S[r.key]).toFixed(2);
+        inp.addEventListener('input',e=>{S[r.key]=parseFloat(e.target.value);val.textContent=parseFloat(e.target.value).toFixed(2);render();});
+        row.appendChild(inp);row.appendChild(val);
+      }
+      body.appendChild(row);
+    });
+    wrap.appendChild(hdr);wrap.appendChild(body);sb.appendChild(wrap);
+  });
+}
+
+function generateCss(){
+  return`:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host) {
+    --pl-dk-bg:              ${S.canvasBg};
+    --pl-dk-surface:         ${S.toolboxBg};
+    --pl-dk-surface2:        ${S.toolboxBg};
+    --pl-dk-border:          rgba(148, 163, 184, ${S.toolboxBorder.toFixed(2)});
+    --pl-dk-text:            ${S.toolboxText};
+    --pl-dk-muted:           #6b7a90;
+    --pl-dk-emerald:         ${S.toolboxSelBg};
+    --pl-dk-emerald-bright:  #34d399;
+    --pl-dk-emerald-glow:    rgba(16, 185, 129, 0.22);
+    --pl-dk-emerald-soft:    ${rgba(S.toolboxSelBg,S.toolboxSelOpacity)};
+    /* Aggregate */
+    --pl-dk-agg-fill:        ${S.aggFill};
+    --pl-dk-agg-stroke:      ${rgba(S.aggBorderColor,S.aggBorderOpacity)};
+    --pl-dk-agg-cell:        ${rgba(S.aggCellBg,S.aggCellOpacity)};
+    --pl-dk-agg-text:        ${S.aggText};
+    --pl-dk-agg-value:       ${S.aggCellText};
+    /* Department */
+    --pl-dk-dept-fill:       ${S.deptFill};
+    --pl-dk-dept-stroke:     ${rgba(S.deptBorderColor,S.deptBorderOpacity)};
+    --pl-dk-dept-cell:       ${rgba(S.deptCellBg,S.deptCellOpacity)};
+    --pl-dk-dept-text:       ${S.deptText};
+    --pl-dk-dept-value:      ${S.deptCellText};
+    /* Category */
+    --pl-dk-cat-fill:        ${S.catFill};
+    --pl-dk-cat-stroke:      ${rgba(S.catBorderColor,S.catBorderOpacity)};
+    --pl-dk-cat-cell:        ${rgba(S.catCellBg,S.catCellOpacity)};
+    --pl-dk-cat-text:        ${S.catText};
+    --pl-dk-cat-value:       ${S.catCellText};
+    /* Item */
+    --pl-dk-item-fill:       ${S.itemFill};
+    --pl-dk-item-stroke:     ${rgba(S.itemBorderColor,S.itemBorderOpacity)};
+    --pl-dk-item-cell:       ${rgba(S.itemCellBg,S.itemCellOpacity)};
+    --pl-dk-item-text:       ${S.itemText};
+    --pl-dk-item-value:      ${S.itemCellText};
+    /* Planned Timing */
+    --pl-dk-planned-fill:    ${S.plannedFill};
+    --pl-dk-planned-stroke:  ${rgba(S.plannedBorderColor,S.plannedBorderOpacity)};
+    --pl-dk-planned-cell:    ${rgba(S.plannedCellBg,S.plannedCellOpacity)};
+    --pl-dk-planned-text:    ${S.plannedText};
+    --pl-dk-planned-value:   ${S.plannedCellText};
+    /* Actual Timing */
+    --pl-dk-actual-fill:     ${S.actualFill};
+    --pl-dk-actual-stroke:   ${rgba(S.actualBorderColor,S.actualBorderOpacity)};
+    --pl-dk-actual-cell:     ${rgba(S.actualCellBg,S.actualCellOpacity)};
+    --pl-dk-actual-text:     ${S.actualText};
+    --pl-dk-actual-value:    ${S.actualCellText};
+    /* Variance Timing */
+    --pl-dk-variance-fill:   ${S.varianceFill};
+    --pl-dk-variance-stroke: ${rgba(S.varianceBorderColor,S.varianceBorderOpacity)};
+    --pl-dk-variance-cell:   ${rgba(S.varianceCellBg,S.varianceCellOpacity)};
+    --pl-dk-variance-text:   ${S.varianceText};
+    --pl-dk-variance-value:  ${S.varianceCellText};
+    --pl-blockly-workspace-dot: rgba(148, 163, 184, ${S.dotOpacity.toFixed(2)});
+}
+/* Shadow strengths: agg=${S.aggShadow.toFixed(2)} dept=${S.deptShadow.toFixed(2)} cat=${S.catShadow.toFixed(2)} item=${S.itemShadow.toFixed(2)} planned=${S.plannedShadow.toFixed(2)} actual=${S.actualShadow.toFixed(2)} variance=${S.varianceShadow.toFixed(2)} */`;
+}
+
+function copyCss(){
+  const css=generateCss();
+  navigator.clipboard.writeText(css).then(()=>{
+    document.getElementById('statusBar').textContent='✅ CSS copied! Paste into BlocklyWorkspace.module.css variable block.';
+    setTimeout(()=>document.getElementById('statusBar').textContent='Click timing chips to expand · Adjust controls → Copy CSS when done',3000);
+  }).catch(()=>{const ta=document.getElementById('cssout');ta.style.display='block';ta.value=css;ta.select();document.execCommand('copy');ta.style.display='none';});
+}
+
+function resetDefaults(){if(confirm('Reset all values to defaults?')){location.reload();}}
+
+buildSidebar();
+render();
+</script>
+</body>
+</html>

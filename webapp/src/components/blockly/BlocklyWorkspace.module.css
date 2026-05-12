@@ -1,4 +1,4 @@
-.workspaceShell {
+﻿.workspaceShell {
     --pl-blockly-toolbox-width: 220px;
     flex: 1;
     height: 100%;
@@ -86,6 +86,11 @@
     min-height: 0;
     overflow: hidden;
     position: relative;
+}
+
+:global(.dark) .workspacePrototype,
+:global(html.dark) .workspacePrototype {
+    background: #1a202c;
 }
 
 .workspacePrototypeHeader {
@@ -201,6 +206,11 @@
     height: 100%;
     min-height: 0;
     overflow: hidden;
+}
+
+:global(.dark) .hostShell,
+:global(html.dark) .hostShell {
+    background: #1a202c;
 }
 
 .blocklyViewport {
@@ -337,6 +347,30 @@
 
 :global(.blockly-host .blocklyText) {
     fill: #0f172a;
+}
+
+:global(.blockly-host .blocklyBlockCanvas .blocklyText) {
+    font-size: 9pt !important;
+}
+
+:global(.blockly-host .blocklySelected .blocklyText) {
+    font-size: 9pt !important;
+}
+
+:global(.blocklyWidgetDiv .blocklyHtmlInput),
+:global(.blocklyDropDownDiv .blocklyHtmlInput) {
+    box-sizing: border-box !important;
+    font-family: var(--font-inter, "Inter", system-ui, -apple-system, sans-serif) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    height: 20px !important;
+    line-height: 18px !important;
+    min-height: 20px !important;
+    padding: 0 4px !important;
+}
+
+:global(.blockly-host .blocklySelected .blocklyPath) {
+    stroke-width: 1.5px !important;
 }
 
 :global(.blockly-host .dept-block-collapsed .blocklyPath) {
@@ -478,3 +512,398 @@
     opacity: 0 !important;
     pointer-events: none !important;
 }
+
+/* ==========================================================================
+   DARK MODE — Procureline Blockly Workspace
+   Premium palette keyed to the emerald green app theme.
+   --------------------------------------------------------------------------
+   Variable system:
+   --pl-dk-bg          Base canvas background (darkest surface)
+   --pl-dk-surface     Elevated surface (toolbox/flyout/panels)
+   --pl-dk-surface2    Subtly elevated (table header, section bands)
+   --pl-dk-border      Hairline separator
+   --pl-dk-text        Primary text
+   --pl-dk-muted       Secondary / label text
+   --pl-dk-emerald     Brand primary — emerald
+   --pl-dk-emerald-glow Brand glow
+   Block accent palette:
+   --pl-dk-agg-*       Aggregate block (amber/gold)
+   --pl-dk-dept-*      Department block (emerald green)
+   --pl-dk-cat-*       Category block (violet/indigo)
+   --pl-dk-item-*      Item block (warm amber/orange)
+   --pl-dk-time-*      Timing block (steel cyan)
+   ========================================================================== */
+
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host) {
+    --pl-dk-bg:              #1a202c;
+    --pl-dk-surface:         #161e2a;
+    --pl-dk-surface2:        #161e2a;
+    --pl-dk-border:          rgba(148, 163, 184, 0.00);
+    --pl-dk-text:            #ffffff;
+    --pl-dk-muted:           #6b7a90;
+
+    --pl-dk-emerald:         #10b981;
+    --pl-dk-emerald-bright:  #34d399;
+    --pl-dk-emerald-glow:    rgba(16, 185, 129, 0.22);
+    --pl-dk-emerald-soft:    rgba(16,185,129,0.31);
+
+    /* Aggregate — dark olive/army-green feel */
+    --pl-dk-agg-fill:        #2d483e;
+    --pl-dk-agg-stroke:      rgba(3,3,3,1);
+    --pl-dk-agg-glow:        rgba(110, 125, 60, 0.08);
+    --pl-dk-agg-cell:        rgba(40,58,60,0.5);
+    --pl-dk-agg-text:        #ffffff;
+    --pl-dk-agg-value:       #f7f7f7;
+
+    /* Department — dark forest green */
+    --pl-dk-dept-fill:       #0e4e2f;
+    --pl-dk-dept-stroke:     rgba(239,236,236,0.22);
+    --pl-dk-dept-glow:       rgba(50, 150, 80, 0.08);
+    --pl-dk-dept-cell:       rgba(13,57,35,0.6);
+    --pl-dk-dept-text:       #ffffff;
+    --pl-dk-dept-value:      #b7e6c2;
+
+    /* Category — dark slate blue */
+    --pl-dk-cat-fill:        #41578d;
+    --pl-dk-cat-stroke:      rgba(255,255,255,0);
+    --pl-dk-cat-glow:        rgba(70, 100, 180, 0.08);
+    --pl-dk-cat-cell:        rgba(88,109,152,0.7);
+    --pl-dk-cat-text:        #ffffff;
+    --pl-dk-cat-value:       #f5f5f5;
+
+    /* Item — dark warm amber */
+    --pl-dk-item-fill:       #b78034;
+    --pl-dk-item-stroke:     rgba(255,255,255,0);
+    --pl-dk-item-glow:       rgba(160, 120, 40, 0.08);
+    --pl-dk-item-cell:       rgba(200,158,99,0.65);
+    --pl-dk-item-text:       #ffffff;
+    --pl-dk-item-value:      #e6e6e5;
+
+    /* Timing — dark slate cyan (shared base) */
+    --pl-dk-time-fill:       #0e1c2a;
+    --pl-dk-time-stroke:     rgba(50, 140, 160, 0.42);
+    --pl-dk-time-glow:       rgba(50, 140, 160, 0.08);
+    --pl-dk-time-cell:       rgba(12, 24, 36, 0.95);
+    --pl-dk-time-text:       #90c0d0;
+    --pl-dk-time-value:      #70b0c8;
+
+    /* Planned Timing — steel blue */
+    --pl-dk-planned-fill:    #3b4265;
+    --pl-dk-planned-stroke:  rgba(255,255,255,0);
+    --pl-dk-planned-cell:    rgba(126,133,196,0.5);
+    --pl-dk-planned-text:    #ffffff;
+    --pl-dk-planned-value:   #9bbaf8;
+
+    /* Actual Timing — warm amber */
+    --pl-dk-actual-fill:     #516048;
+    --pl-dk-actual-stroke:   rgba(245,245,245,0);
+    --pl-dk-actual-cell:     rgba(99,136,110,0.51);
+    --pl-dk-actual-text:     #ffffff;
+    --pl-dk-actual-value:    #b3f0b2;
+
+    /* Variance Timing — violet */
+    --pl-dk-variance-fill:   #64563d;
+    --pl-dk-variance-stroke: rgba(255,255,255,0);
+    --pl-dk-variance-cell:   rgba(44,38,32,0.5);
+    --pl-dk-variance-text:   #ffffff;
+    --pl-dk-variance-value:  #dfc272;
+
+    --pl-blockly-workspace-dot: rgba(148, 163, 184, 0.40);
+}
+
+/* --------------------------------------------------------------------------
+   Canvas background & SVG surface
+   -------------------------------------------------------------------------- */
+
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host) {
+    background:
+        radial-gradient(circle, var(--pl-blockly-workspace-dot) 1px, transparent 1.5px)
+            0 0 / 22px 22px,
+        var(--pl-dk-bg) !important;
+}
+
+/* Dark mode section replacement - lines 594 onwards */
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklySvg) {
+    background: radial-gradient(circle, var(--pl-blockly-workspace-dot) 1px, transparent 1.5px) 0 0 / 22px 22px, var(--pl-dk-bg) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyMainBackground) {
+    fill: transparent !important; stroke: var(--pl-dk-border) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyWorkspace) { background: transparent !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyGridPattern line),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyGridPattern path),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host pattern[id*="blocklyGridPattern"] line),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host pattern[id*="blocklyGridPattern"] path) {
+    stroke: var(--pl-blockly-workspace-dot) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyToolboxDiv),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyToolbox) {
+    background: var(--pl-dk-surface) !important;
+    border-right: 1px solid var(--pl-dk-border) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout) { fill: var(--pl-dk-surface) !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyoutBackground) {
+    fill: var(--pl-dk-surface) !important; stroke: var(--pl-dk-border) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .blocklyDraggable .blocklyPath) {
+    fill: var(--pl-dk-surface2) !important; stroke: var(--pl-dk-border) !important; stroke-width: 1px !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .blocklyDraggable .blocklyText) {
+    fill: var(--pl-dk-text) !important; font-size: 8.25pt !important; font-weight: 600 !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .blocklyDraggable .blocklyPathDark),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .blocklyDraggable .blocklyPathLight) { display: none !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .aggregate-plan-block .blocklyPath) {
+    fill: var(--pl-dk-agg-fill) !important; stroke: none !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .aggregate-plan-block .blocklyText) { fill: var(--pl-dk-agg-text) !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .department-plan-block .blocklyPath) {
+    fill: var(--pl-dk-dept-fill) !important; stroke: var(--pl-dk-dept-stroke) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .department-plan-block .blocklyText) { fill: var(--pl-dk-dept-text) !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .category-plan-block .blocklyPath) {
+    fill: var(--pl-dk-cat-fill) !important; stroke: var(--pl-dk-cat-stroke) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .category-plan-block .blocklyText) { fill: var(--pl-dk-cat-text) !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .item-plan-block .blocklyPath) {
+    fill: var(--pl-dk-item-fill) !important; stroke: var(--pl-dk-item-stroke) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .item-plan-block .blocklyText) { fill: var(--pl-dk-item-text) !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .timing-plan-block .blocklyPath) {
+    fill: var(--pl-dk-time-fill) !important; stroke: var(--pl-dk-time-stroke) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .timing-plan-block .blocklyText) { fill: var(--pl-dk-time-text) !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyScrollbarBackground) { fill: rgba(8,15,28,0.5) !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyScrollbarHandle) { fill: rgba(148,163,184,0.55) !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyTreeRow) { color: var(--pl-dk-text) !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyTreeRow:hover) { background: rgba(255,255,255,0.05) !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyTreeSelected) {
+    background: var(--pl-dk-emerald-soft) !important;
+    box-shadow: inset 3px 0 0 var(--pl-dk-emerald-bright) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyTreeLabel),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .pl-toolbox-category__label),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyTreeSelected .pl-toolbox-category__label),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyoutLabelText),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyText) {
+    color: var(--pl-dk-text) !important; fill: var(--pl-dk-text) !important; opacity: 1 !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .pl-toolbox-category--dept-info) { background: var(--pl-dk-emerald-soft) !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .pl-toolbox-category--dept-info:hover) { background: rgba(16,185,129,0.22) !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .pl-toolbox-category--dept-info.blocklyTreeSelected) { background: rgba(16,185,129,0.30) !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .pl-toolbox-category--dept-info .blocklyTreeRowContentContainer),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .pl-toolbox-category--dept-info .blocklyTreeLabel),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .pl-toolbox-category--dept-info .pl-toolbox-category__label),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .pl-toolbox-category--dept-info *) {
+    color: var(--pl-dk-dept-text) !important; fill: var(--pl-dk-dept-text) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyEditableText > rect),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyNonEditableText > rect) {
+    fill: rgba(10,16,28,0.82) !important; stroke: rgba(148,163,184,0.18) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyEditableText text.blocklyText),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyNonEditableText text.blocklyText) { fill: var(--pl-dk-text) !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyBlockCanvas > .blocklyDraggable) {
+    filter: none;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyPathDark),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyPathLight) { display: none !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyZoom > image),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyTrash > image) {
+    filter: invert(1) brightness(1.2) contrast(0.85); opacity: 0.78;
+}
+/* Aggregate block */
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .aggregate-plan-block) {}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .aggregate-plan-block .blocklyPath) {
+    fill: var(--pl-dk-agg-fill) !important; fill-opacity: 1 !important;
+    stroke: none !important; stroke-width: 0 !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .aggregate-plan-block .blocklyPathDark),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .aggregate-plan-block .blocklyPathLight) {
+    fill: var(--pl-dk-agg-fill) !important; fill-opacity: 1 !important; stroke: transparent !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .aggregate-plan-block .blocklyText) {
+    fill: var(--pl-dk-agg-text) !important; font-size: 8.25pt !important; font-weight: 500 !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .aggregate-plan-block .blocklyEditableText > rect),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .aggregate-plan-block .blocklyNonEditableText > rect) {
+    fill: var(--pl-dk-agg-cell) !important; fill-opacity: 0.92 !important;
+    stroke: rgba(251,191,36,0.20) !important; stroke-width: 0.6px !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .aggregate-plan-block .blocklyEditableText text.blocklyText),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .aggregate-plan-block .blocklyNonEditableText text.blocklyText) {
+    fill: var(--pl-dk-agg-text) !important; font-size: 8.25pt !important; font-weight: 700 !important;
+}
+/* Department block */
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .department-plan-block) {}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .department-plan-block .blocklyPath) {
+    fill: var(--pl-dk-dept-fill) !important; stroke: var(--pl-dk-dept-stroke) !important; stroke-width: 1.1px !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .department-plan-block .blocklyPathDark),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .department-plan-block .blocklyPathLight) { display: none !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .department-plan-block .blocklyText) {
+    fill: var(--pl-dk-dept-text) !important; font-size: 8.25pt !important; font-weight: 600 !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .department-plan-block .blocklyEditableText > rect),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .department-plan-block .blocklyNonEditableText > rect) {
+    fill: var(--pl-dk-dept-cell) !important; stroke: rgba(52,211,153,0.20) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .department-plan-block .blocklyEditableText text.blocklyText),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .department-plan-block .blocklyNonEditableText text.blocklyText) {
+    fill: var(--pl-dk-dept-text) !important; font-size: 8.25pt !important;
+}
+/* Category block */
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .category-plan-block) {}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .category-plan-block .blocklyPath) {
+    fill: var(--pl-dk-cat-fill) !important; stroke: var(--pl-dk-cat-stroke) !important; stroke-width: 1px !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .category-plan-block .blocklyPathDark),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .category-plan-block .blocklyPathLight) { display: none !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .category-plan-block .blocklyText) {
+    fill: var(--pl-dk-cat-text) !important; font-size: 8.25pt !important; font-weight: 600 !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .category-plan-block .blocklyEditableText > rect),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .category-plan-block .blocklyNonEditableText > rect) {
+    fill: var(--pl-dk-cat-cell) !important; stroke: rgba(139,92,246,0.22) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .category-plan-block .blocklyEditableText text.blocklyText),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .category-plan-block .blocklyNonEditableText text.blocklyText) {
+    fill: var(--pl-dk-cat-text) !important; font-size: 8.25pt !important;
+}
+/* Item block */
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .item-plan-block) {}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .item-plan-block .blocklyPath) {
+    fill: var(--pl-dk-item-fill) !important; stroke: var(--pl-dk-item-stroke) !important; stroke-width: 1px !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .item-plan-block .blocklyPathDark),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .item-plan-block .blocklyPathLight) { display: none !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .item-plan-block .blocklyText) {
+    fill: var(--pl-dk-item-text) !important; font-size: 8.25pt !important; font-weight: 600 !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .item-plan-block .blocklyEditableText > rect),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .item-plan-block .blocklyNonEditableText > rect) {
+    fill: var(--pl-dk-item-cell) !important; stroke: rgba(245,158,11,0.22) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .item-plan-block .blocklyEditableText text.blocklyText),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .item-plan-block .blocklyNonEditableText text.blocklyText) {
+    fill: var(--pl-dk-item-text) !important; font-size: 8.25pt !important;
+}
+/* Timing block */
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .timing-plan-block) {}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .timing-plan-block .blocklyPath) {
+    fill: var(--pl-dk-time-fill) !important; stroke: var(--pl-dk-time-stroke) !important; stroke-width: 1px !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .timing-plan-block .blocklyPathDark),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .timing-plan-block .blocklyPathLight) { display: none !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .timing-plan-block .blocklyText) {
+    fill: var(--pl-dk-time-text) !important; font-size: 8.25pt !important; font-weight: 600 !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .timing-plan-block .blocklyEditableText > rect),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .timing-plan-block .blocklyNonEditableText > rect) {
+    fill: var(--pl-dk-time-cell) !important; stroke: rgba(34,211,238,0.20) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .timing-plan-block .blocklyEditableText text.blocklyText),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .timing-plan-block .blocklyNonEditableText text.blocklyText) {
+    fill: var(--pl-dk-time-text) !important; font-size: 8.25pt !important;
+}
+/* Financial value fields */
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .pl-block-field--financial-value > rect) {
+    fill: rgba(8,12,22,0.78) !important; stroke: rgba(52,211,153,0.22) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .pl-block-field--financial-value text.blocklyText) {
+    fill: var(--pl-dk-agg-value) !important; font-weight: 700 !important;
+}
+/* Department summary value fields */
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .pl-block-field--department-value > rect) {
+    fill: rgba(6,20,12,0.55) !important; stroke: rgba(52,211,153,0.22) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .pl-block-field--department-value text.blocklyText) {
+    fill: var(--pl-dk-dept-value) !important; font-weight: 800 !important;
+}
+/* Node CSS variable compat */
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host) {
+    --node-bg: var(--pl-dk-bg);
+    --node-bg-elevated: var(--pl-dk-surface);
+    --node-cell: var(--pl-dk-agg-cell);
+    --node-cell-muted: rgba(15,22,40,0.76);
+    --node-border: var(--pl-dk-border);
+    --node-text: var(--pl-dk-text);
+    --node-muted: var(--pl-dk-muted);
+    --node-amber: rgba(217,154,19,0.68);
+    --node-amber-soft: rgba(217,154,19,0.12);
+    --node-emerald: var(--pl-dk-emerald);
+    --node-emerald-bright: var(--pl-dk-emerald-bright);
+    --node-emerald-soft: var(--pl-dk-emerald-soft);
+    --node-blue: #0c0f22;
+    --node-blue-soft: rgba(139,92,246,0.16);
+}
+
+/* ==========================================================================
+   PER-TYPE TIMING BLOCK OVERRIDES
+   ========================================================================== */
+
+/* Planned Timing */
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .planned-timing-block .blocklyPath) {
+    fill: var(--pl-dk-planned-fill) !important;
+    stroke: var(--pl-dk-planned-stroke) !important;
+    stroke-width: 1px !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .planned-timing-block .blocklyText) {
+    fill: var(--pl-dk-planned-text) !important;
+    font-size: 8.25pt !important; font-weight: 600 !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .planned-timing-block .blocklyEditableText > rect),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .planned-timing-block .blocklyNonEditableText > rect) {
+    fill: var(--pl-dk-planned-cell) !important;
+    stroke: rgba(50, 140, 160, 0.20) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .planned-timing-block .blocklyEditableText text.blocklyText),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .planned-timing-block .blocklyNonEditableText text.blocklyText) {
+    fill: var(--pl-dk-planned-text) !important; font-size: 8.25pt !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .planned-timing-block .blocklyPathDark),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .planned-timing-block .blocklyPathLight) { display: none !important; }
+
+/* Actual Timing */
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .actual-timing-block .blocklyPath) {
+    fill: var(--pl-dk-actual-fill) !important;
+    stroke: var(--pl-dk-actual-stroke) !important;
+    stroke-width: 1px !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .actual-timing-block .blocklyText) {
+    fill: var(--pl-dk-actual-text) !important;
+    font-size: 8.25pt !important; font-weight: 600 !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .actual-timing-block .blocklyEditableText > rect),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .actual-timing-block .blocklyNonEditableText > rect) {
+    fill: var(--pl-dk-actual-cell) !important;
+    stroke: rgba(160, 104, 40, 0.20) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .actual-timing-block .blocklyEditableText text.blocklyText),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .actual-timing-block .blocklyNonEditableText text.blocklyText) {
+    fill: var(--pl-dk-actual-text) !important; font-size: 8.25pt !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .actual-timing-block .blocklyPathDark),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .actual-timing-block .blocklyPathLight) { display: none !important; }
+
+/* Variance Timing */
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .variance-timing-block .blocklyPath) {
+    fill: var(--pl-dk-variance-fill) !important;
+    stroke: var(--pl-dk-variance-stroke) !important;
+    stroke-width: 1px !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .variance-timing-block .blocklyText) {
+    fill: var(--pl-dk-variance-text) !important;
+    font-size: 8.25pt !important; font-weight: 600 !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .variance-timing-block .blocklyEditableText > rect),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .variance-timing-block .blocklyNonEditableText > rect) {
+    fill: var(--pl-dk-variance-cell) !important;
+    stroke: rgba(136, 80, 168, 0.20) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .variance-timing-block .blocklyEditableText text.blocklyText),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .variance-timing-block .blocklyNonEditableText text.blocklyText) {
+    fill: var(--pl-dk-variance-text) !important; font-size: 8.25pt !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .variance-timing-block .blocklyPathDark),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .variance-timing-block .blocklyPathLight) { display: none !important; }
