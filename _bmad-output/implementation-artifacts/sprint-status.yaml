@@ -103,9 +103,9 @@ development_status:
   3-9-cross-institutional-visibility: done # implementation reviewed, fixed, and verified with known repo-wide test gate limitations
 
   7-1-consolidation-workspace-access: done
-  7-4-finalization-versioning: in-progress
-  7-5-excel-export: backlog
-  7-6-excel-formatting-content: backlog
+  7-4-finalization-versioning: done
+  7-5-excel-export: review
+  7-6-excel-formatting-content: ready-for-dev
   3-8-report-generation-system: backlog # frontend-complete
 
   8-1-free-tier-provisioning-usage-monitoring: backlog

@@ -282,6 +282,9 @@ function runProcurementOfficerConsolidationTests() {
     const routeSource = (0, node_fs_1.readFileSync)((0, node_path_1.join)(process.cwd(), "app/(app)/po/consolidation/page.tsx"), "utf8");
     const workspaceSource = (0, node_fs_1.readFileSync)((0, node_path_1.join)(process.cwd(), "src/components/procurement-officer/ProcurementOfficerConsolidationWorkspace.tsx"), "utf8");
     const shellSource = (0, node_fs_1.readFileSync)((0, node_path_1.join)(process.cwd(), "src/components/procurement-officer/ProcurementOfficerConsolidationBlocklyShell.tsx"), "utf8");
+    const exportFunctionSource = (0, node_fs_1.readFileSync)((0, node_path_1.join)(process.cwd(), "convex/functions/consolidationExports.ts"), "utf8");
+    const fileActionsSource = (0, node_fs_1.readFileSync)((0, node_path_1.join)(process.cwd(), "convex/actions/files.ts"), "utf8");
+    const schemaSource = (0, node_fs_1.readFileSync)((0, node_path_1.join)(process.cwd(), "convex/schema.ts"), "utf8");
     strict_1.default.equal(routeSource.includes("ProcurementOfficerRoutePlaceholder"), false);
     strict_1.default.equal(routeSource.includes("ProcurementOfficerConsolidationWorkspace"), true);
     strict_1.default.equal(consolidation_1.CONSOLIDATION_EMPTY_MESSAGE.includes("No approved plans"), true);
@@ -291,6 +294,9 @@ function runProcurementOfficerConsolidationTests() {
     strict_1.default.equal(workspaceSource.includes("Finalize Plan"), true);
     strict_1.default.equal(workspaceSource.includes("Edit Draft"), true);
     strict_1.default.equal(workspaceSource.includes("Export ready"), true);
+    strict_1.default.equal(workspaceSource.includes("queueConsolidatedPlanExcelExport"), true);
+    strict_1.default.equal(workspaceSource.includes("Excel Preview"), true);
+    strict_1.default.equal(workspaceSource.includes("Export History"), true);
     strict_1.default.equal(workspaceSource.includes("readOnly={isFinalized}"), true);
     strict_1.default.equal(workspaceSource.includes("Finalized on"), true);
     strict_1.default.equal(shellSource.includes('await import("blockly")'), true);
@@ -308,6 +314,20 @@ function runProcurementOfficerConsolidationTests() {
     strict_1.default.equal(workspaceSource.includes("ConsolidationDepartmentDetailsPanel"), true);
     strict_1.default.equal(workspaceSource.includes("visibleItems"), true);
     completedTests.push("consolidation UI source replaces the placeholder route, includes setup and no-approved-plan states, lazy-loads Blockly, uses compact summary-only department blocks, moves timing inspection into the details panel, provides virtualized item rows, and excludes export controls");
+    strict_1.default.equal(schemaSource.includes("consolidationExports"), true);
+    strict_1.default.equal(schemaSource.includes('v.literal("audit_xlsx")'), true);
+    strict_1.default.equal(schemaSource.includes("by_snapshotId"), true);
+    strict_1.default.equal(schemaSource.includes("by_idempotencyKey"), true);
+    strict_1.default.equal(exportFunctionSource.includes("Finalize the consolidation before exporting"), true);
+    strict_1.default.equal(exportFunctionSource.includes("prepareConsolidatedPlanExcelExport"), true);
+    strict_1.default.equal(exportFunctionSource.includes("loadCurrentFinalizedSnapshot"), true);
+    strict_1.default.equal(exportFunctionSource.includes("recordConsolidatedPlanExportDownload"), true);
+    strict_1.default.equal(exportFunctionSource.includes("downloadCount: exportRow.downloadCount + 1"), true);
+    strict_1.default.equal(exportFunctionSource.includes("markStaleConsolidatedPlanExportsFailed"), true);
+    strict_1.default.equal(fileActionsSource.includes("/api/services/files/exports/consolidated-plan/queue"), true);
+    strict_1.default.equal(fileActionsSource.includes("formatterPayload"), true);
+    strict_1.default.equal(exportFunctionSource.includes("workbookBase64"), false);
+    completedTests.push("consolidation export orchestration is finalized-only, stores tenant-scoped export history by current snapshot id, tracks download counts and stale failures, and queues a server-side formatter handoff without browser workbook generation");
     return completedTests;
 }
 exports.runProcurementOfficerConsolidationTests = runProcurementOfficerConsolidationTests;

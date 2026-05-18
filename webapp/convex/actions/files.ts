@@ -441,6 +441,96 @@ export const queueTenantAdminInstitutionalExport = action({
   },
 });
 
+export const queueConsolidatedPlanExcelExport = action({
+  args: {
+    consolidationId: v.id("consolidations"),
+    fiscalYear: v.string(),
+    format: v.optional(v.union(v.literal("xlsx"), v.literal("audit_xlsx"))),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const actor = await getServiceActorContext(ctx);
+    if (actor.role !== "procurement_officer" || !actor.tenantId) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "Procurement Officer access is required for this export.",
+      });
+    }
+
+    const idempotencyKey = [
+      "consolidated-plan-export",
+      actor.tenantId,
+      args.fiscalYear,
+      args.consolidationId,
+      actor.userId,
+      String(Date.now()),
+    ].join(":");
+    const prepared = (await ctx.runMutation(
+      internal.functions.consolidationExports.prepareConsolidatedPlanExcelExport,
+      {
+        consolidationId: args.consolidationId,
+        fiscalYear: args.fiscalYear,
+        format: args.format ?? "xlsx",
+        idempotencyKey,
+        tenantId: actor.tenantId as Id<"tenants">,
+        userId: actor.userId as Id<"users">,
+      },
+    )) as {
+      export: { exportId: string };
+      formatterPayload: Record<string, unknown> | null;
+      status: "created" | "duplicate";
+    };
+
+    if (prepared.status === "duplicate" || !prepared.formatterPayload) {
+      return prepared.export;
+    }
+
+    try {
+      const queued = await callNestService<{
+        eventKey: string;
+        jobId?: string;
+        queued: boolean;
+      }>(ctx, {
+        actor,
+        body: {
+          exportId: prepared.export.exportId,
+          formatterPayload: prepared.formatterPayload,
+          idempotencyKey,
+          reportName: `Consolidated Plan ${args.fiscalYear}`,
+        },
+        path: "/api/services/files/exports/consolidated-plan/queue",
+      });
+      await ctx.runMutation(
+        internal.functions.consolidationExports.attachQueuedConsolidatedPlanExportJob,
+        {
+          eventKey: queued.eventKey,
+          exportId: prepared.export.exportId as Id<"consolidationExports">,
+          jobId: queued.jobId,
+        },
+      );
+      return {
+        ...prepared.export,
+        eventKey: queued.eventKey,
+        jobId: queued.jobId ?? null,
+        status: "processing",
+      };
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message.trim().length > 0
+          ? error.message.trim().slice(0, 240)
+          : "Export generation failed.";
+      await ctx.runMutation(
+        internal.functions.consolidationExports.failConsolidatedPlanExport,
+        {
+          errorMessage: message,
+          exportId: prepared.export.exportId as Id<"consolidationExports">,
+        },
+      );
+      throw error;
+    }
+  },
+});
+
 async function appendTenantAdminInstitutionalExportAudit(
   ctx: ActionCtx,
   actor: Awaited<ReturnType<typeof getServiceActorContext>>,

@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsArray, IsOptional, IsString, IsUUID } from "class-validator";
+import { IsArray, IsObject, IsOptional, IsString, IsUUID } from "class-validator";
 
 export class CreateExcelExportDto {
   @ApiProperty()
@@ -14,4 +14,23 @@ export class CreateExcelExportDto {
   @IsOptional()
   @IsUUID()
   idempotencyKey?: string;
+}
+
+export class QueueConsolidatedPlanExportDto {
+  @ApiProperty()
+  @IsString()
+  exportId!: string;
+
+  @ApiProperty()
+  @IsString()
+  reportName!: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  idempotencyKey?: string;
+
+  @ApiProperty({ type: Object })
+  @IsObject()
+  formatterPayload!: Record<string, unknown>;
 }

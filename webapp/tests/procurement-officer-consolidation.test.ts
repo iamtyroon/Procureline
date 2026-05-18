@@ -356,6 +356,15 @@ export function runProcurementOfficerConsolidationTests(): string[] {
         ),
         "utf8",
     );
+    const exportFunctionSource = readFileSync(
+        join(process.cwd(), "convex/functions/consolidationExports.ts"),
+        "utf8",
+    );
+    const fileActionsSource = readFileSync(
+        join(process.cwd(), "convex/actions/files.ts"),
+        "utf8",
+    );
+    const schemaSource = readFileSync(join(process.cwd(), "convex/schema.ts"), "utf8");
     assert.equal(routeSource.includes("ProcurementOfficerRoutePlaceholder"), false);
     assert.equal(routeSource.includes("ProcurementOfficerConsolidationWorkspace"), true);
     assert.equal(CONSOLIDATION_EMPTY_MESSAGE.includes("No approved plans"), true);
@@ -365,6 +374,13 @@ export function runProcurementOfficerConsolidationTests(): string[] {
     assert.equal(workspaceSource.includes("Finalize Plan"), true);
     assert.equal(workspaceSource.includes("Edit Draft"), true);
     assert.equal(workspaceSource.includes("Export ready"), true);
+    assert.equal(workspaceSource.includes("queueConsolidatedPlanExcelExport"), true);
+    assert.equal(workspaceSource.includes("Excel Preview"), true);
+    assert.equal(workspaceSource.includes("Consolidated Plan Preview"), true);
+    assert.equal(workspaceSource.includes("Consolidated Procurement Plan Template"), true);
+    assert.equal(workspaceSource.includes("Download .xlsx"), true);
+    assert.equal(workspaceSource.includes("PreviewCategoryRows"), true);
+    assert.equal(workspaceSource.includes("Export History"), true);
     assert.equal(workspaceSource.includes("readOnly={isFinalized}"), true);
     assert.equal(workspaceSource.includes("Finalized on"), true);
     assert.equal(shellSource.includes('await import("blockly")'), true);
@@ -386,6 +402,23 @@ export function runProcurementOfficerConsolidationTests(): string[] {
     assert.equal(workspaceSource.includes("visibleItems"), true);
     completedTests.push(
         "consolidation UI source replaces the placeholder route, includes setup and no-approved-plan states, lazy-loads Blockly, uses compact summary-only department blocks, moves timing inspection into the details panel, provides virtualized item rows, and excludes export controls",
+    );
+
+    assert.equal(schemaSource.includes("consolidationExports"), true);
+    assert.equal(schemaSource.includes('v.literal("audit_xlsx")'), true);
+    assert.equal(schemaSource.includes("by_snapshotId"), true);
+    assert.equal(schemaSource.includes("by_idempotencyKey"), true);
+    assert.equal(exportFunctionSource.includes("Finalize the consolidation before exporting"), true);
+    assert.equal(exportFunctionSource.includes("prepareConsolidatedPlanExcelExport"), true);
+    assert.equal(exportFunctionSource.includes("loadCurrentFinalizedSnapshot"), true);
+    assert.equal(exportFunctionSource.includes("recordConsolidatedPlanExportDownload"), true);
+    assert.equal(exportFunctionSource.includes("downloadCount: exportRow.downloadCount + 1"), true);
+    assert.equal(exportFunctionSource.includes("markStaleConsolidatedPlanExportsFailed"), true);
+    assert.equal(fileActionsSource.includes("/api/services/files/exports/consolidated-plan/queue"), true);
+    assert.equal(fileActionsSource.includes("formatterPayload"), true);
+    assert.equal(exportFunctionSource.includes("workbookBase64"), false);
+    completedTests.push(
+        "consolidation export orchestration is finalized-only, stores tenant-scoped export history by current snapshot id, tracks download counts and stale failures, and queues a server-side formatter handoff without browser workbook generation",
     );
 
     return completedTests;

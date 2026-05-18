@@ -1,7 +1,7 @@
 "use node";
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.queueTenantAdminInstitutionalExport = exports.exportSubmissionMonitoringReport = exports.exportCatalogItems = exports.createPdf = exports.importWorkbook = exports.queueExcelExport = exports.createExcelExport = void 0;
+exports.queueConsolidatedPlanExcelExport = exports.queueTenantAdminInstitutionalExport = exports.exportSubmissionMonitoringReport = exports.exportCatalogItems = exports.createPdf = exports.importWorkbook = exports.queueExcelExport = exports.createExcelExport = void 0;
 const values_1 = require("convex/values");
 const api_1 = require("../_generated/api");
 const server_1 = require("../_generated/server");
@@ -332,6 +332,75 @@ exports.queueTenantAdminInstitutionalExport = (0, server_1.action)({
                 summary: error instanceof Error && error.message.trim().length > 0
                     ? error.message.trim()
                     : "Institutional export generation failed.",
+            });
+            throw error;
+        }
+    },
+});
+exports.queueConsolidatedPlanExcelExport = (0, server_1.action)({
+    args: {
+        consolidationId: values_1.v.id("consolidations"),
+        fiscalYear: values_1.v.string(),
+        format: values_1.v.optional(values_1.v.union(values_1.v.literal("xlsx"), values_1.v.literal("audit_xlsx"))),
+    },
+    returns: values_1.v.any(),
+    handler: async (ctx, args) => {
+        const actor = await (0, _helpers_1.getServiceActorContext)(ctx);
+        if (actor.role !== "procurement_officer" || !actor.tenantId) {
+            throw new values_1.ConvexError({
+                code: "UNAUTHORIZED",
+                message: "Procurement Officer access is required for this export.",
+            });
+        }
+        const idempotencyKey = [
+            "consolidated-plan-export",
+            actor.tenantId,
+            args.fiscalYear,
+            args.consolidationId,
+            actor.userId,
+            String(Date.now()),
+        ].join(":");
+        const prepared = (await ctx.runMutation(api_1.internal.functions.consolidationExports.prepareConsolidatedPlanExcelExport, {
+            consolidationId: args.consolidationId,
+            fiscalYear: args.fiscalYear,
+            format: args.format ?? "xlsx",
+            idempotencyKey,
+            tenantId: actor.tenantId,
+            userId: actor.userId,
+        }));
+        if (prepared.status === "duplicate" || !prepared.formatterPayload) {
+            return prepared.export;
+        }
+        try {
+            const queued = await (0, _helpers_1.callNestService)(ctx, {
+                actor,
+                body: {
+                    exportId: prepared.export.exportId,
+                    formatterPayload: prepared.formatterPayload,
+                    idempotencyKey,
+                    reportName: `Consolidated Plan ${args.fiscalYear}`,
+                },
+                path: "/api/services/files/exports/consolidated-plan/queue",
+            });
+            await ctx.runMutation(api_1.internal.functions.consolidationExports.attachQueuedConsolidatedPlanExportJob, {
+                eventKey: queued.eventKey,
+                exportId: prepared.export.exportId,
+                jobId: queued.jobId,
+            });
+            return {
+                ...prepared.export,
+                eventKey: queued.eventKey,
+                jobId: queued.jobId ?? null,
+                status: "processing",
+            };
+        }
+        catch (error) {
+            const message = error instanceof Error && error.message.trim().length > 0
+                ? error.message.trim().slice(0, 240)
+                : "Export generation failed.";
+            await ctx.runMutation(api_1.internal.functions.consolidationExports.failConsolidatedPlanExport, {
+                errorMessage: message,
+                exportId: prepared.export.exportId,
             });
             throw error;
         }

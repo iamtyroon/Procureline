@@ -4,7 +4,7 @@ import type { RequestUser } from "@/common/types/request-user";
 import { QueueService } from "@/queue/queue.service";
 import { FILE_EXPORT_JOB, FILE_IMPORT_JOB } from "@/queue/queue.constants";
 import { ConvexSyncService } from "@/sync/convex-sync.service";
-import { CreateExcelExportDto } from "@/files/dto/create-excel-export.dto";
+import { CreateExcelExportDto, QueueConsolidatedPlanExportDto } from "@/files/dto/create-excel-export.dto";
 import { CreatePdfDto } from "@/files/dto/create-pdf.dto";
 import { ImportExcelDto } from "@/files/dto/import-excel.dto";
 import { ExcelService } from "@/files/excel.service";
@@ -21,6 +21,10 @@ export class FilesService {
 
   private buildExportEventKey(dto: CreateExcelExportDto): string {
     return `files-export:${dto.idempotencyKey ?? randomUUID()}`;
+  }
+
+  private buildConsolidatedPlanExportEventKey(dto: QueueConsolidatedPlanExportDto): string {
+    return `consolidated-plan-export:${dto.idempotencyKey ?? dto.exportId}`;
   }
 
   private buildImportEventKey(dto: ImportExcelDto): string {
@@ -79,6 +83,80 @@ export class FilesService {
       eventKey,
       jobId: queuedJob.id,
       queued: true,
+    };
+  }
+
+  async queueConsolidatedPlanExcelExport(
+    dto: QueueConsolidatedPlanExportDto,
+    actor: RequestUser,
+  ): Promise<{ duplicate?: boolean; eventKey: string; jobId: string | undefined; queued: boolean }> {
+    const eventKey = this.buildConsolidatedPlanExportEventKey(dto);
+    const claim = await this.convexSyncService.claimSync({
+      actor: {
+        role: actor.role,
+        tenantId: actor.tenantId,
+        userId: actor.sub,
+      },
+      eventKey,
+      eventType: "files.consolidated_plan_export.requested",
+      payload: {
+        exportId: dto.exportId,
+        reportName: dto.reportName,
+        snapshotId: dto.formatterPayload.snapshotId,
+      },
+      provider: "files",
+    });
+
+    if (claim.status === "duplicate") {
+      return {
+        duplicate: true,
+        eventKey,
+        jobId: undefined,
+        queued: false,
+      };
+    }
+
+    let queuedJob: { id: string | undefined };
+    try {
+      queuedJob = await this.queueService.enqueue(FILE_EXPORT_JOB, {
+        actor,
+        dto,
+        eventKey,
+        exportKind: "consolidated_plan",
+      });
+    } catch (error) {
+      await this.convexSyncService.failSync({
+        error: {
+          code: "QUEUE_ENQUEUE_FAILED",
+          message: error instanceof Error ? error.message : "Consolidated plan export queueing failed",
+        },
+        eventKey,
+      }).catch(() => undefined);
+      throw error;
+    }
+
+    return {
+      eventKey,
+      jobId: queuedJob.id,
+      queued: true,
+    };
+  }
+
+  async createConsolidatedPlanExcelExport(
+    dto: QueueConsolidatedPlanExportDto,
+  ): Promise<{
+    checksum: string;
+    downloadUrl: string;
+    fileName: string;
+    fileSizeBytes: number;
+    storageId: string;
+  }> {
+    return {
+      checksum: `pending-story-7-6:${dto.exportId}`,
+      downloadUrl: `/api/services/files/exports/consolidated-plan/${encodeURIComponent(dto.exportId)}/download`,
+      fileName: `${dto.reportName}.xlsx`,
+      fileSizeBytes: 0,
+      storageId: `consolidated-plan:${dto.exportId}`,
     };
   }
 

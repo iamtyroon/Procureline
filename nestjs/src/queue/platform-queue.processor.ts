@@ -4,7 +4,7 @@ import type { Job } from "bullmq";
 import { EmailDispatchService } from "@/email/email-dispatch.service";
 import type { SendEmailDto } from "@/email/dto/send-email.dto";
 import { FilesService } from "@/files/files.service";
-import type { CreateExcelExportDto } from "@/files/dto/create-excel-export.dto";
+import type { CreateExcelExportDto, QueueConsolidatedPlanExportDto } from "@/files/dto/create-excel-export.dto";
 import type { ImportExcelDto } from "@/files/dto/import-excel.dto";
 import { AppLogger } from "@/common/logging/app.logger";
 import { EMAIL_SEND_JOB, FILE_EXPORT_JOB, FILE_IMPORT_JOB, PLATFORM_QUEUE } from "@/queue/queue.constants";
@@ -46,12 +46,26 @@ export class PlatformQueueProcessor extends WorkerHost {
       }
 
       case FILE_EXPORT_JOB: {
-        const { dto, eventKey } = job.data as { dto: CreateExcelExportDto; eventKey: string };
-        const result = await this.filesService.createExcelExport(dto);
+        const { dto, eventKey, exportKind } = job.data as {
+          dto: CreateExcelExportDto | QueueConsolidatedPlanExportDto;
+          eventKey: string;
+          exportKind?: "consolidated_plan";
+        };
+        const result =
+          exportKind === "consolidated_plan"
+            ? await this.filesService.createConsolidatedPlanExcelExport(dto as QueueConsolidatedPlanExportDto)
+            : await this.filesService.createExcelExport(dto as CreateExcelExportDto);
         await this.convexSyncService.completeSync({
           durableChanges: [
             {
-              changeType: "files.export.completed",
+              changeType:
+                exportKind === "consolidated_plan"
+                  ? "files.consolidated_plan_export.completed"
+                  : "files.export.completed",
+              exportId:
+                exportKind === "consolidated_plan"
+                  ? (dto as QueueConsolidatedPlanExportDto).exportId
+                  : undefined,
               fileName: result.fileName,
             },
           ],

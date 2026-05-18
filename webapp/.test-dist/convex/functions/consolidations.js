@@ -21,6 +21,27 @@ async function loadProcurementOfficerTenantUser(ctx, args) {
     }
     return tenantUser;
 }
+async function readTenantUserActorSummary(ctx, tenantUserId) {
+    if (!tenantUserId) {
+        return null;
+    }
+    const tenantUser = await ctx.db.get(tenantUserId);
+    if (!tenantUser) {
+        return null;
+    }
+    const user = await ctx.db.get(tenantUser.userId);
+    const email = typeof user?.email === "string" && user.email.trim().length > 0
+        ? user.email.trim()
+        : null;
+    const name = typeof user?.name === "string" && user.name.trim().length > 0
+        ? user.name.trim()
+        : null;
+    return {
+        email,
+        name,
+        tenantUserId: String(tenantUser._id),
+    };
+}
 async function loadConsolidationBase(ctx, args) {
     const [tenant, departments, deadlines, plans] = await Promise.all([
         ctx.db.get(args.tenantId),
@@ -326,7 +347,15 @@ exports.getProcurementOfficerConsolidationWorkspace = (0, server_1.query)({
                 consolidationId: consolidation._id,
             })
             : null;
+        const [finalizedByActor, snapshotCapturedByActor] = await Promise.all([
+            readTenantUserActorSummary(ctx, consolidation?.finalizedByTenantUserId ?? null),
+            readTenantUserActorSummary(ctx, snapshot?.capturedByTenantUserId ?? null),
+        ]);
         return {
+            actors: {
+                finalizedBy: finalizedByActor,
+                snapshotCapturedBy: snapshotCapturedByActor,
+            },
             draft: mapDraft(consolidation),
             fiscalYears: base.fiscalYears,
             readiness: base.readiness,

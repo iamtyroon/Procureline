@@ -494,6 +494,9 @@ export const getProcurementOfficerConsolidationWorkspace = query({
             fiscalYears: base.fiscalYears,
             readiness: base.readiness,
             snapshot: mapSnapshot(snapshot),
+            tenant: {
+                name: base.tenant.name,
+            },
             user: {
                 tenantUserId: null,
                 userId: String(authContext.userId),

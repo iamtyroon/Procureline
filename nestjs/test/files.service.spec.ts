@@ -76,4 +76,40 @@ describe("FilesService", () => {
     expect(claimArgs.eventKey).toMatch(/^files-export:/);
     expect(claimArgs.eventKey).not.toBe("files-export:Monthly Report");
   });
+
+  it("queues consolidated plan exports with snapshot-only formatter metadata", async () => {
+    await filesService.queueConsolidatedPlanExcelExport(
+      {
+        exportId: "export_1",
+        formatterPayload: {
+          consolidationId: "consolidation_1",
+          snapshotId: "snapshot_1",
+        },
+        idempotencyKey: "idempotency-1",
+        reportName: "Consolidated Plan 2026-2027",
+      },
+      {
+        role: "procurement_officer",
+        sub: "user_1",
+        tenantId: "tenant_1",
+      } as never,
+    );
+
+    expect(convexSyncService.claimSync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventKey: "consolidated-plan-export:idempotency-1",
+        eventType: "files.consolidated_plan_export.requested",
+        payload: expect.objectContaining({
+          exportId: "export_1",
+          snapshotId: "snapshot_1",
+        }),
+      }),
+    );
+    expect(queueService.enqueue).toHaveBeenCalledWith(
+      "files.export",
+      expect.objectContaining({
+        exportKind: "consolidated_plan",
+      }),
+    );
+  });
 });

@@ -30,6 +30,7 @@ const planReviewFlaggedTargetValidator = values_1.v.object({
     type: values_1.v.union(values_1.v.literal("category"), values_1.v.literal("item")),
 });
 const consolidationStatusValidator = values_1.v.union(values_1.v.literal("draft"), values_1.v.literal("finalized"), values_1.v.literal("archived"));
+const consolidationExportStatusValidator = values_1.v.union(values_1.v.literal("queued"), values_1.v.literal("processing"), values_1.v.literal("completed"), values_1.v.literal("failed"), values_1.v.literal("expired"));
 exports.default = (0, server_1.defineSchema)({
     ...server_2.authTables,
     tenants: (0, server_1.defineTable)({
@@ -584,6 +585,47 @@ exports.default = (0, server_1.defineSchema)({
     })
         .index("by_consolidationId", ["consolidationId", "capturedAt"])
         .index("by_tenantId_fiscalYear", ["tenantId", "fiscalYear", "capturedAt"]),
+    consolidationExports: (0, server_1.defineTable)({
+        tenantId: values_1.v.id("tenants"),
+        consolidationId: values_1.v.id("consolidations"),
+        snapshotId: values_1.v.id("consolidationSnapshots"),
+        fiscalYear: values_1.v.string(),
+        format: values_1.v.union(values_1.v.literal("xlsx"), values_1.v.literal("audit_xlsx")),
+        status: consolidationExportStatusValidator,
+        progress: values_1.v.optional(values_1.v.number()),
+        generatedByTenantUserId: values_1.v.id("tenantUsers"),
+        generatedByUserId: values_1.v.id("users"),
+        generatedAt: values_1.v.optional(values_1.v.number()),
+        queuedAt: values_1.v.number(),
+        processingStartedAt: values_1.v.optional(values_1.v.number()),
+        completedAt: values_1.v.optional(values_1.v.number()),
+        failedAt: values_1.v.optional(values_1.v.number()),
+        storageId: values_1.v.optional(values_1.v.string()),
+        downloadUrl: values_1.v.optional(values_1.v.string()),
+        safeFileName: values_1.v.string(),
+        fileSizeBytes: values_1.v.optional(values_1.v.number()),
+        checksum: values_1.v.optional(values_1.v.string()),
+        errorMessage: values_1.v.optional(values_1.v.string()),
+        downloadCount: values_1.v.number(),
+        lastDownloadedAt: values_1.v.optional(values_1.v.number()),
+        lastDownloadedByTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
+        staleTimeoutAt: values_1.v.number(),
+        fileExpiresAt: values_1.v.optional(values_1.v.number()),
+        idempotencyKey: values_1.v.string(),
+        serviceEventKey: values_1.v.optional(values_1.v.string()),
+        serviceJobId: values_1.v.optional(values_1.v.string()),
+        createdAt: values_1.v.number(),
+        updatedAt: values_1.v.number(),
+    })
+        .index("by_tenantId_fiscalYear", ["tenantId", "fiscalYear", "createdAt"])
+        .index("by_consolidationId", ["consolidationId", "createdAt"])
+        .index("by_snapshotId", ["snapshotId", "createdAt"])
+        .index("by_idempotencyKey", ["idempotencyKey"])
+        .index("by_tenantId_status_staleTimeoutAt", [
+        "tenantId",
+        "status",
+        "staleTimeoutAt",
+    ]),
     departmentAccessCodes: (0, server_1.defineTable)({
         tenantId: values_1.v.id("tenants"),
         departmentId: values_1.v.id("departments"),

@@ -1,6 +1,6 @@
 # Story 7.4: Finalization
 
-Status: in-progress
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -25,34 +25,34 @@ so that I can lock the official record and make it ready for export.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Extend consolidation data model for finalization and immutable snapshots (AC: 1, 3, 4, 5, 6, 7, 8)
-  - [ ] Extend `webapp/convex/schema.ts` without breaking existing Story 7.1 drafts.
-  - [ ] Add fields needed on `consolidations`: `finalizedAt`, `finalizedByTenantUserId`, and status transition from `draft` to `finalized`.
-  - [ ] Add a tenant-scoped immutable `consolidationSnapshots` table or equivalent append-only schema for finalized records.
-  - [ ] Store snapshot source plan ids, selected source department ids, draft data, compact Blockly workspace state, calculated totals/compliance values from Blockly, finalization notes, schema version, and actor/timestamps.
-  - [ ] Preserve the product rule that each tenant has one PO and one active consolidation for a fiscal year; do not add named versions, sibling versions, or comparison groups.
+- [x] Task 1: Extend consolidation data model for finalization and immutable snapshots (AC: 1, 3, 4, 5, 6, 7, 8)
+  - [x] Extend `webapp/convex/schema.ts` without breaking existing Story 7.1 drafts.
+  - [x] Add fields needed on `consolidations`: `finalizedAt`, `finalizedByTenantUserId`, and status transition from `draft` to `finalized`.
+  - [x] Add a tenant-scoped immutable `consolidationSnapshots` table or equivalent append-only schema for finalized records.
+  - [x] Store snapshot source plan ids, selected source department ids, draft data, compact Blockly workspace state, calculated totals/compliance values from Blockly, finalization notes, schema version, and actor/timestamps.
+  - [x] Preserve the product rule that each tenant has one PO and one active consolidation for a fiscal year; do not add named versions, sibling versions, or comparison groups.
 
-- [ ] Task 2: Add guarded Convex mutations and queries for finalization (AC: 1-8)
-  - [ ] Extend `webapp/convex/functions/consolidations.ts` with focused functions such as `finalizeProcurementOfficerConsolidation` plus read queries that return draft or finalized consolidation state.
-  - [ ] Reuse `requireTenantRole(ctx, ["procurement_officer"])`; derive tenant and actor server-side.
-  - [ ] Reuse `loadConsolidationBase`, `buildConsolidationReadiness`, and stale-source validation patterns from Story 7.1.
-  - [ ] Reject finalization if the draft revision changed, if no approved source departments are selected, or if selected sources no longer match canonical approved plans.
-  - [ ] Prevent duplicate snapshots when finalization is submitted twice by checking current consolidation status and snapshot existence inside the same mutation.
-  - [ ] Ensure snapshot creation and consolidation status update happen in one Convex mutation so partial finalization state cannot be created.
-  - [ ] Ensure draft save mutations cannot patch finalized records.
+- [x] Task 2: Add guarded Convex mutations and queries for finalization (AC: 1-8)
+  - [x] Extend `webapp/convex/functions/consolidations.ts` with focused functions such as `finalizeProcurementOfficerConsolidation` plus read queries that return draft or finalized consolidation state.
+  - [x] Reuse `requireTenantRole(ctx, ["procurement_officer"])`; derive tenant and actor server-side.
+  - [x] Reuse `loadConsolidationBase`, `buildConsolidationReadiness`, and stale-source validation patterns from Story 7.1.
+  - [x] Reject finalization if the draft revision changed, if no approved source departments are selected, or if selected sources no longer match canonical approved plans.
+  - [x] Prevent duplicate snapshots when finalization is submitted twice by checking current consolidation status and snapshot existence inside the same mutation.
+  - [x] Ensure snapshot creation and consolidation status update happen in one Convex mutation so partial finalization state cannot be created.
+  - [x] Ensure draft save mutations cannot patch finalized records.
 
-- [ ] Task 3: Preserve calculated Blockly totals and compliance values (AC: 3, 8)
-  - [ ] Read the calculated totals and compliance values already produced by the consolidation Blockly workspace/state.
-  - [ ] Persist those calculated values in the finalized snapshot for later export.
-  - [ ] Do not add compliance targets, blocking validation, override policy, override reason fields, or pass/fail gates in Story 7.4.
-  - [ ] Do not duplicate AGPO/PWD/local-content formulas in finalization code; finalization only snapshots the calculated values already present in the consolidation state.
+- [x] Task 3: Preserve calculated Blockly totals and compliance values (AC: 3, 8)
+  - [x] Read the calculated totals and compliance values already produced by the consolidation Blockly workspace/state.
+  - [x] Persist those calculated values in the finalized snapshot for later export.
+  - [x] Do not add compliance targets, blocking validation, override policy, override reason fields, or pass/fail gates in Story 7.4.
+  - [x] Do not duplicate AGPO/PWD/local-content formulas in finalization code; finalization only snapshots the calculated values already present in the consolidation state.
 
-- [ ] Task 4: Update consolidation workspace UI for finalization and read-only state (AC: 1, 3, 4, 5, 6)
-  - [ ] Update `webapp/src/components/procurement-officer/ProcurementOfficerConsolidationWorkspace.tsx` to show finalized status banner, finalization action, calculated totals/compliance snapshot, and read-only finalized view.
-  - [ ] Keep the existing three-zone operator layout from Story 7.1; do not create a second consolidation page or modal-only workflow.
-  - [ ] Disable autosave and editing controls for finalized records.
-  - [ ] Show export-ready state after finalization so Story 7.5 can attach export behavior; do not implement Excel generation in Story 7.4.
-  - [ ] Use `sonner` toasts and shadcn/ui dialogs; no `alert()` or browser confirm dialogs.
+- [x] Task 4: Update consolidation workspace UI for finalization and read-only state (AC: 1, 3, 4, 5, 6)
+  - [x] Update `webapp/src/components/procurement-officer/ProcurementOfficerConsolidationWorkspace.tsx` to show finalized status banner, finalization action, calculated totals/compliance snapshot, and read-only finalized view.
+  - [x] Keep the existing three-zone operator layout from Story 7.1; do not create a second consolidation page or modal-only workflow.
+  - [x] Disable autosave and editing controls for finalized records.
+  - [x] Show export-ready state after finalization so Story 7.5 can attach export behavior; do not implement Excel generation in Story 7.4.
+  - [x] Use `sonner` toasts and shadcn/ui dialogs; no `alert()` or browser confirm dialogs.
 
 ## Dev Notes
 
@@ -193,6 +193,7 @@ GPT-5
 - 2026-05-18: Implemented Story 7.4 finalization path in code: consolidation schema fields, immutable `consolidationSnapshots`, guarded finalization mutation, finalized read model, read-only UI, export-ready affordance, aggregate value snapshot preservation, audit event, and source-level tests.
 - 2026-05-18: Kept story in-progress because the mandatory full `npm test` regression gate is currently blocked by pre-existing repository-wide Convex generated type and CJS/ESM errors; targeted Story 7.4 TypeScript scan returned no matching errors and targeted ESLint returned warnings only.
 - 2026-05-18: Added product correction from Tyroon: finalized consolidations now have an explicit Edit Draft flow, backend reopen mutation, and audit event so POs can edit and finalize again without creating named versions.
+- 2026-05-18: Marked Story 7.4 done after finalization, read-only state, edit-draft flow, export-ready affordance, actor email display, and targeted verification were completed.
 
 ### File List
 
@@ -213,11 +214,12 @@ GPT-5
 - 2026-05-18: Removed compliance target validation and override flow from Story 7.4 because compliance values are automatically calculated in Blockly.
 - 2026-05-18: Added finalization implementation and validation notes; story remains in-progress pending resolution of the repo-wide full test gate.
 - 2026-05-18: Added finalized-to-draft edit flow and latest-snapshot lookup for refinalization cycles.
+- 2026-05-18: Marked Story 7.4 done by request; documented remaining repo-wide `npm test` gate limitation separately from Story 7.4 completion.
 
 ## Story Completion Status
 
 - Story ID: `7.4`
 - Story Key: `7-4-finalization-versioning`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic7/stories/7-4-finalization-versioning.md`
-- Final Status: `in-progress`
-- Completion Note: `Implementation added; full review handoff is blocked until the repo-wide npm test typecheck gate is repaired.`
+- Final Status: `done`
+- Completion Note: `Story marked done after targeted Story 7.4 verification and browser validation; repo-wide npm test still has unrelated existing typecheck blockers.`

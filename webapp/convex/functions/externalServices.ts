@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import type { Id } from "../_generated/dataModel";
 import { internalMutation } from "../_generated/server";
 
 export const claimSyncEvent = internalMutation({
@@ -70,6 +71,47 @@ export const completeSyncEvent = internalMutation({
       status: "completed",
       updatedAt: Date.now(),
     });
+
+    for (const change of args.durableChanges) {
+      if (
+        change &&
+        typeof change === "object" &&
+        (change as { changeType?: unknown }).changeType ===
+          "files.consolidated_plan_export.completed" &&
+        typeof (change as { exportId?: unknown }).exportId === "string"
+      ) {
+        const result = args.result as {
+          checksum?: unknown;
+          downloadUrl?: unknown;
+          fileSizeBytes?: unknown;
+          storageId?: unknown;
+        };
+        const now = Date.now();
+        await ctx.db.patch(
+          (change as { exportId: string }).exportId as Id<"consolidationExports">,
+          {
+            checksum:
+              typeof result.checksum === "string" ? result.checksum : undefined,
+            completedAt: now,
+            downloadUrl:
+              typeof result.downloadUrl === "string"
+                ? result.downloadUrl
+                : undefined,
+            fileExpiresAt: now + 30 * 24 * 60 * 60 * 1000,
+            fileSizeBytes:
+              typeof result.fileSizeBytes === "number"
+                ? result.fileSizeBytes
+                : undefined,
+            generatedAt: now,
+            progress: 100,
+            status: "completed",
+            storageId:
+              typeof result.storageId === "string" ? result.storageId : undefined,
+            updatedAt: now,
+          },
+        );
+      }
+    }
 
     return { status: "completed" as const };
   },

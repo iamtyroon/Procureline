@@ -78,6 +78,14 @@ const consolidationStatusValidator = v.union(
   v.literal("archived"),
 );
 
+const consolidationExportStatusValidator = v.union(
+  v.literal("queued"),
+  v.literal("processing"),
+  v.literal("completed"),
+  v.literal("failed"),
+  v.literal("expired"),
+);
+
 export default defineSchema({
   ...authTables,
 
@@ -720,6 +728,48 @@ export default defineSchema({
   })
     .index("by_consolidationId", ["consolidationId", "capturedAt"])
     .index("by_tenantId_fiscalYear", ["tenantId", "fiscalYear", "capturedAt"]),
+
+  consolidationExports: defineTable({
+    tenantId: v.id("tenants"),
+    consolidationId: v.id("consolidations"),
+    snapshotId: v.id("consolidationSnapshots"),
+    fiscalYear: v.string(),
+    format: v.union(v.literal("xlsx"), v.literal("audit_xlsx")),
+    status: consolidationExportStatusValidator,
+    progress: v.optional(v.number()),
+    generatedByTenantUserId: v.id("tenantUsers"),
+    generatedByUserId: v.id("users"),
+    generatedAt: v.optional(v.number()),
+    queuedAt: v.number(),
+    processingStartedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    failedAt: v.optional(v.number()),
+    storageId: v.optional(v.string()),
+    downloadUrl: v.optional(v.string()),
+    safeFileName: v.string(),
+    fileSizeBytes: v.optional(v.number()),
+    checksum: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+    downloadCount: v.number(),
+    lastDownloadedAt: v.optional(v.number()),
+    lastDownloadedByTenantUserId: v.optional(v.id("tenantUsers")),
+    staleTimeoutAt: v.number(),
+    fileExpiresAt: v.optional(v.number()),
+    idempotencyKey: v.string(),
+    serviceEventKey: v.optional(v.string()),
+    serviceJobId: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_tenantId_fiscalYear", ["tenantId", "fiscalYear", "createdAt"])
+    .index("by_consolidationId", ["consolidationId", "createdAt"])
+    .index("by_snapshotId", ["snapshotId", "createdAt"])
+    .index("by_idempotencyKey", ["idempotencyKey"])
+    .index("by_tenantId_status_staleTimeoutAt", [
+      "tenantId",
+      "status",
+      "staleTimeoutAt",
+    ]),
 
   departmentAccessCodes: defineTable({
     tenantId: v.id("tenants"),

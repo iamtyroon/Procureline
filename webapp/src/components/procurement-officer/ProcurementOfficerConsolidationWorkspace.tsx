@@ -2,8 +2,8 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useMutation, useQuery } from "convex/react";
-import { AlertTriangle, Building2, CheckCircle2, FileSpreadsheet, Loader2, Lock, PencilLine, Save, Search } from "lucide-react";
+import { useAction, useMutation, useQuery } from "convex/react";
+import { AlertTriangle, Building2, CheckCircle2, Download, FileSpreadsheet, Loader2, Lock, Minus, PencilLine, Plus, RotateCcw, Save, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -220,6 +220,7 @@ interface ConsolidationWorkspaceData {
         };
         finalizedAt?: number | null;
         finalizedByTenantUserId?: string | null;
+        id: string;
         revision: number;
         status: "draft" | "finalized";
         workspaceState: unknown;
@@ -260,7 +261,15 @@ interface ConsolidationWorkspaceData {
         };
         capturedAt: number;
         capturedByTenantUserId: string;
+        complianceSummary?: unknown;
         notes: string;
+        id: string;
+        selectedSourceDepartmentIds?: string[];
+        sourcePlanIds?: string[];
+        workspaceState?: unknown;
+    };
+    tenant?: {
+        name: string;
     };
     user: {
         userId: string;
@@ -301,11 +310,18 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
     const reopenForEditing = useMutation(
         api.functions.consolidations.reopenProcurementOfficerConsolidationForEditing,
     );
+    const queueExport = useAction(api.actions.files.queueConsolidatedPlanExcelExport);
+    const recordDownload = useMutation(
+        api.functions.consolidationExports.recordConsolidatedPlanExportDownload,
+    );
     const [workspaceState, setWorkspaceState] =
         useState<ConsolidationBlocklyState | null>(null);
     const [isDirty, setIsDirty] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isFinalizing, setIsFinalizing] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const [previewZoom, setPreviewZoom] = useState(1);
     const [isReopening, setIsReopening] = useState(false);
     const [lastSavedRevision, setLastSavedRevision] = useState<number | null>(null);
     const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
@@ -351,6 +367,42 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
         [workspace?.readiness.readyDepartments],
     );
     const isFinalized = workspace?.draft?.status === "finalized";
+    const exportHistory = useQuery(
+        api.functions.consolidationExports.getProcurementOfficerConsolidationExportHistory,
+        workspace?.draft?.id
+            ? {
+                  consolidationId: workspace.draft.id as never,
+                  fiscalYear: workspace.readiness.selectedFiscalYear,
+              }
+            : "skip",
+    ) as
+        | Array<{
+              downloadCount: number;
+              downloadUrl: string | null;
+              errorMessage: string | null;
+              exportId: string;
+              generatedAt: number | null;
+              progress: number | null;
+              safeFileName: string;
+              snapshotId: string;
+              status: "completed" | "expired" | "failed" | "processing" | "queued";
+          }>
+        | undefined;
+    const preview = useQuery(
+        api.functions.consolidationExports.getProcurementOfficerConsolidationExcelPreview,
+        isFinalized && workspace.draft?.id
+            ? {
+                  consolidationId: workspace.draft.id as never,
+                  fiscalYear: workspace.readiness.selectedFiscalYear,
+              }
+            : "skip",
+    ) as
+        | {
+              columns: string[];
+              rows: Array<Array<number | string>>;
+              snapshotId: string;
+          }
+        | undefined;
     const selectedDepartment = useMemo(
         () =>
             sourceDepartments.find(
@@ -458,6 +510,50 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
         }
     }, [isFinalized, reopenForEditing, workspace]);
 
+    const requestExport = useCallback(async () => {
+        if (!workspace?.draft?.id || !isFinalized || !workspace.snapshot) {
+            toast.error("Finalize the consolidation before exporting");
+            return;
+        }
+
+        setIsExporting(true);
+        try {
+            await queueExport({
+                consolidationId: workspace.draft.id as never,
+                fiscalYear: workspace.readiness.selectedFiscalYear,
+                format: "xlsx",
+            });
+            setIsPreviewOpen(false);
+            toast.success("Excel export queued.");
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "Could not queue Excel export.";
+            toast.error(message);
+        } finally {
+            setIsExporting(false);
+        }
+    }, [isFinalized, queueExport, workspace]);
+
+    const downloadExport = useCallback(
+        async (exportId: string) => {
+            try {
+                const result = (await recordDownload({
+                    exportId: exportId as never,
+                })) as { downloadUrl: string };
+                window.location.assign(result.downloadUrl);
+            } catch (error) {
+                const message =
+                    error instanceof Error
+                        ? error.message
+                        : "Export download is not available.";
+                toast.error(message);
+            }
+        },
+        [recordDownload],
+    );
+
     useEffect(() => {
         if (!isDirty || !workspaceState || !workspace || isFinalized) {
             return;
@@ -530,11 +626,20 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
                     <h1 className="text-base font-semibold text-foreground">
                         Master Consolidation Plan
                     </h1>
-                    <p className="text-sm text-muted-foreground">
-                        {isFinalized
-                            ? "Official record locked for export"
-                            : "Review university-wide plans"}
-                    </p>
+                    {!isFinalized ? (
+                        <p className="text-sm text-muted-foreground">
+                            Review university-wide plans
+                        </p>
+                    ) : null}
+                    {isFinalized ? (
+                        <div className="mt-2 flex items-center gap-2 text-xs text-emerald-300">
+                            <Lock className="h-3.5 w-3.5" />
+                            <span>
+                                Finalized on {formatDateTime(workspace.draft?.finalizedAt ?? workspace.snapshot?.capturedAt)} by{" "}
+                                {finalizedByLabel}
+                            </span>
+                        </div>
+                    ) : null}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -594,6 +699,19 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
                             </AlertDialogContent>
                         </AlertDialog>
                     ) : null}
+                    {isFinalized ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-950/60"
+                            disabled={isExporting || !workspace.snapshot}
+                            onClick={() => setIsPreviewOpen(true)}
+                        >
+                            <FileSpreadsheet className="mr-2 h-4 w-4" />
+                            Export ready
+                        </Button>
+                    ) : null}
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button
@@ -637,37 +755,12 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
                 </div>
             </div>
 
-            {isFinalized ? (
-                <div className="border-b border-emerald-200 bg-emerald-50 px-6 py-3 text-sm text-emerald-950 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                            <Lock className="h-4 w-4" />
-                            <span>
-                                Finalized on {formatDateTime(workspace.draft?.finalizedAt ?? workspace.snapshot?.capturedAt)} by{" "}
-                                {finalizedByLabel}
-                            </span>
-                        </div>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-8 border-emerald-300 bg-emerald-100/70 text-emerald-950 hover:bg-emerald-100 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-950/60"
-                        >
-                            <FileSpreadsheet className="h-4 w-4" />
-                            Export ready
-                        </Button>
-                    </div>
-                </div>
-            ) : null}
-
-            {isFinalized && workspace.snapshot ? (
-                <div className="grid grid-cols-5 gap-2 border-b border-border bg-card px-6 py-3 text-xs dark:border-[#243041] dark:bg-[#111827]">
-                    <SummaryMetric label="Snapshot total" value={formatKes(workspace.snapshot.calculatedTotals.totalCost ?? 0)} />
-                    <SummaryMetric label="Items" value={formatQty(workspace.snapshot.calculatedTotals.itemCount ?? 0)} />
-                    <SummaryMetric label="Q1" value={formatKes(workspace.snapshot.calculatedTotals.q1Total ?? 0)} />
-                    <SummaryMetric label="Q2" value={formatKes(workspace.snapshot.calculatedTotals.q2Total ?? 0)} />
-                    <SummaryMetric label="Q3/Q4" value={`${formatKes(workspace.snapshot.calculatedTotals.q3Total ?? 0)} / ${formatKes(workspace.snapshot.calculatedTotals.q4Total ?? 0)}`} />
-                </div>
+            {isFinalized && exportHistory ? (
+                <ExportHistoryPanel
+                    exports={exportHistory}
+                    onDownload={(exportId) => void downloadExport(exportId)}
+                    onRetry={() => void requestExport()}
+                />
             ) : null}
 
             {blockedDepartments.length > 0 ? (
@@ -708,6 +801,748 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
                     />
                 </div>
                 <ConsolidationDepartmentDetailsPanel department={selectedDepartment} />
+            </div>
+            {isFinalized && workspace.snapshot ? (
+                <ConsolidatedPlanPreviewModal
+                    departments={sourceDepartments}
+                    fiscalYear={workspace.readiness.selectedFiscalYear}
+                    institutionName={workspace.tenant?.name ?? "Institution"}
+                    isExporting={isExporting}
+                    isOpen={isPreviewOpen}
+                    previewSnapshotId={preview?.snapshotId ?? workspace.snapshot.id}
+                    snapshot={workspace.snapshot}
+                    zoom={previewZoom}
+                    selectedSourceDepartmentIds={
+                        workspace.snapshot.selectedSourceDepartmentIds ?? []
+                    }
+                    onClose={() => setIsPreviewOpen(false)}
+                    onDownload={() => void requestExport()}
+                    onZoomChange={setPreviewZoom}
+                />
+            ) : null}
+        </div>
+    );
+}
+
+function ConsolidatedPlanPreviewModal(props: {
+    departments: ConsolidationSourceDepartment[];
+    fiscalYear: string;
+    institutionName: string;
+    isExporting: boolean;
+    isOpen: boolean;
+    onClose: () => void;
+    onDownload: () => void;
+    onZoomChange: (zoom: number) => void;
+    previewSnapshotId: string;
+    selectedSourceDepartmentIds: string[];
+    snapshot: NonNullable<ConsolidationWorkspaceData["snapshot"]>;
+    zoom: number;
+}) {
+    const selectedDepartmentIds = new Set(props.selectedSourceDepartmentIds);
+    const departments =
+        props.selectedSourceDepartmentIds.length > 0
+            ? props.departments.filter((department) =>
+                  selectedDepartmentIds.has(department.departmentId),
+              )
+            : props.departments;
+    const previewRows = buildPreviewRows(departments, props.snapshot);
+
+    if (!props.isOpen) {
+        return null;
+    }
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-5">
+            <div className="flex max-h-[90vh] w-full max-w-[86rem] flex-col rounded-md bg-background shadow-2xl dark:bg-[#111827]">
+                <div className="flex items-center justify-between gap-4 border-b border-border px-9 py-6 dark:border-[#243041]">
+                    <div>
+                        <h2 className="text-lg font-semibold text-foreground">
+                            Consolidated Plan Preview
+                        </h2>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            {props.institutionName} {props.fiscalYear}
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center rounded-md border border-border bg-background p-1 dark:border-[#243041] dark:bg-[#0B1220]">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0"
+                                disabled={props.zoom <= 0.7}
+                                onClick={() =>
+                                    props.onZoomChange(Math.max(0.7, props.zoom - 0.1))
+                                }
+                                title="Zoom out"
+                            >
+                                <Minus className="h-4 w-4" />
+                            </Button>
+                            <div className="w-12 text-center text-xs tabular-nums text-muted-foreground">
+                                {Math.round(props.zoom * 100)}%
+                            </div>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0"
+                                disabled={props.zoom >= 1.4}
+                                onClick={() =>
+                                    props.onZoomChange(Math.min(1.4, props.zoom + 0.1))
+                                }
+                                title="Zoom in"
+                            >
+                                <Plus className="h-4 w-4" />
+                            </Button>
+                        </div>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-muted-foreground"
+                            onClick={props.onClose}
+                            title="Close preview"
+                        >
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-auto px-9 py-8">
+                    <div
+                        className="origin-top-left border-[3px] border-slate-700 bg-white text-[0.72rem] text-slate-950 shadow-sm dark:border-[#334155]"
+                        style={{
+                            transform: `scale(${props.zoom})`,
+                            width: `${100 / props.zoom}%`,
+                        }}
+                    >
+                        <table className="w-full border-collapse">
+                            <thead>
+                                <tr>
+                                    <th className="sticky left-0 z-20 w-10 border-2 border-slate-600 bg-slate-200 px-1 py-1 text-center font-bold text-slate-700"></th>
+                                    {EXCEL_COLUMN_LABELS.map((label) => (
+                                        <th
+                                            className="border-2 border-slate-600 bg-slate-200 px-2 py-1 text-center font-bold text-slate-700"
+                                            key={label}
+                                        >
+                                            {label}
+                                        </th>
+                                    ))}
+                                </tr>
+                                <tr>
+                                    <ExcelRowHeader rowNumber={1} />
+                                    <th className="border-2 border-slate-600 bg-white px-2 py-3 text-center text-sm font-bold" colSpan={16}>
+                                        Consolidated Procurement Plan Template
+                                    </th>
+                                </tr>
+                                <tr className="bg-slate-100 text-left font-bold">
+                                    <ExcelRowHeader rowNumber={2} />
+                                    <th className="border-2 border-slate-600 px-2 py-2">Vote Number</th>
+                                    <th className="border-2 border-slate-600 px-2 py-2">Item/Service Description</th>
+                                    <th className="border-2 border-slate-600 px-2 py-2">Unit Of Measurement</th>
+                                    <th className="border-2 border-slate-600 px-2 py-2 text-right">Qty</th>
+                                    <th className="border-2 border-slate-600 px-2 py-2 text-right">Unit Price</th>
+                                    <th className="border-2 border-slate-600 px-2 py-2">Proc Method</th>
+                                    <th className="border-2 border-slate-600 px-2 py-2">Source Of Funds</th>
+                                    <th className="border-2 border-slate-600 px-2 py-2 text-right">Estimated Unit Cost (Kes)</th>
+                                    <th className="border-2 border-slate-600 px-2 py-2 text-center" colSpan={8}>
+                                        Timing of Activities (Quarterly Basis)
+                                    </th>
+                                </tr>
+                                <tr className="bg-slate-100 font-bold">
+                                    <ExcelRowHeader rowNumber={3} />
+                                    <th className="border-2 border-slate-600 px-2 py-2" colSpan={8}></th>
+                                    <th className="border-2 border-slate-600 px-2 py-2 text-right">Qty</th>
+                                    <th className="border-2 border-slate-600 px-2 py-2 text-right">Total Cost</th>
+                                    <th className="border-2 border-slate-600 px-2 py-2 text-right">Qty</th>
+                                    <th className="border-2 border-slate-600 px-2 py-2 text-right">Total Cost</th>
+                                    <th className="border-2 border-slate-600 px-2 py-2 text-right">Qty</th>
+                                    <th className="border-2 border-slate-600 px-2 py-2 text-right">Total Cost</th>
+                                    <th className="border-2 border-slate-600 px-2 py-2 text-right">Qty</th>
+                                    <th className="border-2 border-slate-600 px-2 py-2 text-right">Total Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {previewRows.map((row, index) => (
+                                    <PreviewRowRenderer
+                                        key={`${row.kind}-${index}`}
+                                        row={row}
+                                        rowNumber={index + 4}
+                                    />
+                                ))}
+                            </tbody>
+                        </table>
+                        {departments.length === 0 ? (
+                            <div className="px-4 py-8 text-center text-sm text-slate-500">
+                                No finalized source departments are available for preview.
+                            </div>
+                        ) : null}
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 border-t border-border px-9 py-5 dark:border-[#243041]">
+                    <Button type="button" variant="outline" onClick={props.onClose}>
+                        Cancel
+                    </Button>
+                    <Button
+                        type="button"
+                        className="bg-emerald-600 text-white hover:bg-emerald-700"
+                        disabled={props.isExporting || departments.length === 0}
+                        onClick={props.onDownload}
+                    >
+                        {props.isExporting ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <Download className="mr-2 h-4 w-4" />
+                        )}
+                        Download .xlsx
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+const EXCEL_COLUMN_LABELS = Array.from({ length: 16 }, (_, index) =>
+    String.fromCharCode(65 + index),
+);
+
+type PreviewRow =
+    | {
+          kind: "aggregate";
+          amount: number;
+          label: string;
+          percent: string;
+          q1: number;
+          q2: number;
+          q3: number;
+          q4: number;
+      }
+    | {
+          kind: "category";
+          categoryName: string;
+      }
+    | {
+          kind: "category-total";
+          totalCost: number;
+          q1: number;
+          q2: number;
+          q3: number;
+          q4: number;
+      }
+    | {
+          kind: "department";
+          departmentName: string;
+          departmentNumber: number;
+      }
+    | {
+          kind: "department-total";
+          q1: number;
+          q2: number;
+          q3: number;
+          q4: number;
+          totalCost: number;
+      }
+    | {
+          kind: "empty-category";
+      }
+    | {
+          item: ConsolidationSourceItem;
+          kind: "item";
+          voteNumber: string;
+      }
+    | {
+          kind: "timing-header";
+      }
+    | {
+          kind: "timing-labels";
+          labels: string[];
+      }
+    | {
+          kind: "timing-row";
+          section: ConsolidationTimingSection;
+      };
+
+function ExcelRowHeader(props: { rowNumber: number }) {
+    return (
+        <th className="sticky left-0 z-10 w-10 border-2 border-slate-600 bg-slate-200 px-1 py-2 text-center font-bold text-slate-700">
+            {props.rowNumber}
+        </th>
+    );
+}
+
+function buildPreviewRows(
+    departments: ConsolidationSourceDepartment[],
+    snapshot: NonNullable<ConsolidationWorkspaceData["snapshot"]>,
+): PreviewRow[] {
+    const rows: PreviewRow[] = [];
+    departments.forEach((department, departmentIndex) => {
+        rows.push({
+            departmentName: department.departmentName,
+            departmentNumber: departmentIndex + 1,
+            kind: "department",
+        });
+
+        const categories = department.categories ?? [];
+        const itemsByCategory = new Map<string, ConsolidationSourceItem[]>();
+        for (const item of department.items ?? []) {
+            const existing = itemsByCategory.get(item.categoryId) ?? [];
+            existing.push(item);
+            itemsByCategory.set(item.categoryId, existing);
+        }
+
+        for (const category of categories) {
+            const items = itemsByCategory.get(category.categoryId) ?? [];
+            rows.push({ categoryName: category.categoryName, kind: "category" });
+            for (const item of items) {
+                rows.push({
+                    item,
+                    kind: "item",
+                    voteNumber: department.voteNumber,
+                });
+            }
+            rows.push({
+                kind: "category-total",
+                q1: category.quarterTotals.q1,
+                q2: category.quarterTotals.q2,
+                q3: category.quarterTotals.q3,
+                q4: category.quarterTotals.q4,
+                totalCost: category.totalCost,
+            });
+        }
+
+        if (categories.length === 0) {
+            rows.push({ kind: "empty-category" });
+        }
+
+        rows.push({
+            kind: "department-total",
+            q1: department.quarterTotals?.q1 ?? 0,
+            q2: department.quarterTotals?.q2 ?? 0,
+            q3: department.quarterTotals?.q3 ?? 0,
+            q4: department.quarterTotals?.q4 ?? 0,
+            totalCost: department.totalCost ?? 0,
+        });
+        rows.push(...buildDepartmentTimingPreviewRows(department.timingSections ?? []));
+    });
+    rows.push(...buildAggregatePreviewRows(snapshot));
+    return rows;
+}
+
+function parsePreviewAmount(value: unknown): number {
+    const parsed = Number(String(value ?? "").replace(/,/g, ""));
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getAggregateField(
+    snapshot: NonNullable<ConsolidationWorkspaceData["snapshot"]>,
+    fieldName: string,
+): number {
+    const aggregateFields = asRecord(
+        asRecord(snapshot.complianceSummary)?.aggregateFields,
+    );
+    return parsePreviewAmount(aggregateFields?.[fieldName]);
+}
+
+function buildAggregatePreviewRows(
+    snapshot: NonNullable<ConsolidationWorkspaceData["snapshot"]>,
+): Array<Extract<PreviewRow, { kind: "aggregate" }>> {
+    return [
+        {
+            amount:
+                snapshot.calculatedTotals.totalCost ??
+                getAggregateField(snapshot, "GRAND_TOTAL"),
+            kind: "aggregate" as const,
+            label: "ANNUAL GRAND Total",
+            percent: "100%",
+            q1:
+                snapshot.calculatedTotals.q1Total ??
+                getAggregateField(snapshot, "AGG_Q1_TOTAL"),
+            q2:
+                snapshot.calculatedTotals.q2Total ??
+                getAggregateField(snapshot, "AGG_Q2_TOTAL"),
+            q3:
+                snapshot.calculatedTotals.q3Total ??
+                getAggregateField(snapshot, "AGG_Q3_TOTAL"),
+            q4:
+                snapshot.calculatedTotals.q4Total ??
+                getAggregateField(snapshot, "AGG_Q4_TOTAL"),
+        },
+        {
+            amount: getAggregateField(snapshot, "AGPO_CALCULATED"),
+            kind: "aggregate" as const,
+            label: "AGPO",
+            percent: "30%",
+            q1: getAggregateField(snapshot, "AGPO_Q1_TOTAL"),
+            q2: getAggregateField(snapshot, "AGPO_Q2_TOTAL"),
+            q3: getAggregateField(snapshot, "AGPO_Q3_TOTAL"),
+            q4: getAggregateField(snapshot, "AGPO_Q4_TOTAL"),
+        },
+        {
+            amount: getAggregateField(snapshot, "PWD_CALCULATED"),
+            kind: "aggregate" as const,
+            label: "PWD",
+            percent: "2%",
+            q1: getAggregateField(snapshot, "PWD_Q1_TOTAL"),
+            q2: getAggregateField(snapshot, "PWD_Q2_TOTAL"),
+            q3: getAggregateField(snapshot, "PWD_Q3_TOTAL"),
+            q4: getAggregateField(snapshot, "PWD_Q4_TOTAL"),
+        },
+        {
+            amount: getAggregateField(snapshot, "LOCAL_CONTENT_CALCULATED"),
+            kind: "aggregate" as const,
+            label: "LOCAL CONTENT",
+            percent: "40%",
+            q1: getAggregateField(snapshot, "LOCAL_Q1_TOTAL"),
+            q2: getAggregateField(snapshot, "LOCAL_Q2_TOTAL"),
+            q3: getAggregateField(snapshot, "LOCAL_Q3_TOTAL"),
+            q4: getAggregateField(snapshot, "LOCAL_Q4_TOTAL"),
+        },
+    ];
+}
+
+function renderAggregateCells(row: Extract<PreviewRow, { kind: "aggregate" }>) {
+    return (
+        <>
+            <td className="border-2 border-slate-500 px-2 py-2 text-right">{row.percent}</td>
+            <td className="border-2 border-slate-500 px-2 py-2">{row.label}</td>
+            <td className="border-2 border-slate-500 px-2 py-2" colSpan={5}></td>
+            <td className="border-2 border-slate-500 px-2 py-2 text-right tabular-nums">
+                KES {formatAmount(row.amount)}
+            </td>
+            <td className="border-2 border-slate-500 px-2 py-2"></td>
+            <td className="border-2 border-slate-500 px-2 py-2 text-right tabular-nums">
+                {formatAmount(row.q1)}
+            </td>
+            <td className="border-2 border-slate-500 px-2 py-2"></td>
+            <td className="border-2 border-slate-500 px-2 py-2 text-right tabular-nums">
+                {formatAmount(row.q2)}
+            </td>
+            <td className="border-2 border-slate-500 px-2 py-2"></td>
+            <td className="border-2 border-slate-500 px-2 py-2 text-right tabular-nums">
+                {formatAmount(row.q3)}
+            </td>
+            <td className="border-2 border-slate-500 px-2 py-2"></td>
+            <td className="border-2 border-slate-500 px-2 py-2 text-right tabular-nums">
+                {formatAmount(row.q4)}
+            </td>
+        </>
+    );
+}
+
+function PreviewRowRenderer(props: { row: PreviewRow; rowNumber: number }) {
+    switch (props.row.kind) {
+        case "aggregate":
+            return (
+                <tr className="bg-[#fce4d6] font-semibold">
+                    <ExcelRowHeader rowNumber={props.rowNumber} />
+                    {renderAggregateCells(props.row)}
+                </tr>
+            );
+        case "category":
+            return (
+                <tr>
+                    <ExcelRowHeader rowNumber={props.rowNumber} />
+                    <td className="border-2 border-[#375623] bg-[#70ad47] px-2 py-2 text-center font-bold italic text-slate-950" colSpan={16}>
+                        Item Category {props.row.categoryName}
+                    </td>
+                </tr>
+            );
+        case "category-total":
+            return (
+                <tr className="font-bold">
+                    <ExcelRowHeader rowNumber={props.rowNumber} />
+                    <td className="border-2 border-[#375623] bg-[#70ad47] px-2 py-2 text-right" colSpan={7}>
+                        Total
+                    </td>
+                    <PreviewTotalCell>{props.row.totalCost}</PreviewTotalCell>
+                    <td className="border-2 border-[#375623] bg-[#70ad47] px-2 py-2"></td>
+                    <PreviewTotalCell>{props.row.q1}</PreviewTotalCell>
+                    <td className="border-2 border-[#375623] bg-[#70ad47] px-2 py-2"></td>
+                    <PreviewTotalCell>{props.row.q2}</PreviewTotalCell>
+                    <td className="border-2 border-[#375623] bg-[#70ad47] px-2 py-2"></td>
+                    <PreviewTotalCell>{props.row.q3}</PreviewTotalCell>
+                    <td className="border-2 border-[#375623] bg-[#70ad47] px-2 py-2"></td>
+                    <PreviewTotalCell>{props.row.q4}</PreviewTotalCell>
+                </tr>
+            );
+        case "department":
+            return (
+                <tr>
+                    <ExcelRowHeader rowNumber={props.rowNumber} />
+                    <td className="border-2 border-[#1f4e79] bg-[#4472c4] px-2 py-2 text-center font-bold text-white" colSpan={16}>
+                        Department {props.row.departmentNumber}: {props.row.departmentName}
+                    </td>
+                </tr>
+            );
+        case "department-total":
+            return (
+                <tr className="font-bold">
+                    <ExcelRowHeader rowNumber={props.rowNumber} />
+                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2 text-right text-slate-950" colSpan={7}>
+                        Department Total
+                    </td>
+                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2 text-right tabular-nums text-slate-950">
+                        {formatAmount(props.row.totalCost)}
+                    </td>
+                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2"></td>
+                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2 text-right tabular-nums text-slate-950">
+                        {formatAmount(props.row.q1)}
+                    </td>
+                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2"></td>
+                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2 text-right tabular-nums text-slate-950">
+                        {formatAmount(props.row.q2)}
+                    </td>
+                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2"></td>
+                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2 text-right tabular-nums text-slate-950">
+                        {formatAmount(props.row.q3)}
+                    </td>
+                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2"></td>
+                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2 text-right tabular-nums text-slate-950">
+                        {formatAmount(props.row.q4)}
+                    </td>
+                </tr>
+            );
+        case "empty-category":
+            return (
+                <tr>
+                    <ExcelRowHeader rowNumber={props.rowNumber} />
+                    <td className="border-2 border-slate-500 px-2 py-3 text-center text-slate-500" colSpan={16}>
+                        No item categories in this finalized source department.
+                    </td>
+                </tr>
+            );
+        case "item":
+            return (
+                <tr>
+                    <ExcelRowHeader rowNumber={props.rowNumber} />
+                    <PreviewCell>{props.row.voteNumber}</PreviewCell>
+                    <PreviewCell>{props.row.item.itemDescription}</PreviewCell>
+                    <PreviewCell>{props.row.item.unitOfMeasurement}</PreviewCell>
+                    <PreviewNumberCell>{props.row.item.totalQty}</PreviewNumberCell>
+                    <PreviewNumberCell>{props.row.item.unitPrice}</PreviewNumberCell>
+                    <PreviewCell>{props.row.item.procurementMethod || "-"}</PreviewCell>
+                    <PreviewCell>{props.row.item.sourceOfFunds || "-"}</PreviewCell>
+                    <PreviewNumberCell>{props.row.item.totalCost}</PreviewNumberCell>
+                    <PreviewNumberCell>{props.row.item.q1Qty}</PreviewNumberCell>
+                    <PreviewNumberCell>{props.row.item.q1Total}</PreviewNumberCell>
+                    <PreviewNumberCell>{props.row.item.q2Qty}</PreviewNumberCell>
+                    <PreviewNumberCell>{props.row.item.q2Total}</PreviewNumberCell>
+                    <PreviewNumberCell>{props.row.item.q3Qty}</PreviewNumberCell>
+                    <PreviewNumberCell>{props.row.item.q3Total}</PreviewNumberCell>
+                    <PreviewNumberCell>{props.row.item.q4Qty}</PreviewNumberCell>
+                    <PreviewNumberCell>{props.row.item.q4Total}</PreviewNumberCell>
+                </tr>
+            );
+        case "timing-header":
+            return (
+                <tr>
+                    <ExcelRowHeader rowNumber={props.rowNumber} />
+                    <td className="border-2 border-[#7f6000] bg-[#f6c35b] px-2 py-2 text-center font-bold text-slate-950" colSpan={16}>
+                        Department Timing Blocks
+                    </td>
+                </tr>
+            );
+        case "timing-labels": {
+            const timingLabels = props.row.labels;
+            return (
+                <tr className="bg-[#fff2cc] font-bold">
+                    <ExcelRowHeader rowNumber={props.rowNumber} />
+                    <td className="border-2 border-[#b8860b] px-2 py-2">Timing Type</td>
+                    {timingLabels.slice(0, 9).map((label) => (
+                        <td
+                            className="border-2 border-[#b8860b] px-2 py-2"
+                            colSpan={label === timingLabels[timingLabels.length - 1] ? 7 : 1}
+                            key={label}
+                        >
+                            {label}
+                        </td>
+                    ))}
+                </tr>
+            );
+        }
+        case "timing-row": {
+            const timingSection = props.row.section;
+            const labels = timingSection.fields.map((field) => field.label);
+            const cellColorClass =
+                timingSection.type === "planned_timing_block"
+                    ? "bg-[#d8c8ff]"
+                    : timingSection.type === "actual_timing_block"
+                      ? "bg-[#ffc7dc]"
+                      : "bg-[#ffd0a8]";
+            return (
+                <tr>
+                    <ExcelRowHeader rowNumber={props.rowNumber} />
+                    <td className={`border-2 border-[#b8860b] px-2 py-2 font-semibold ${cellColorClass}`}>
+                        {timingSection.label}
+                    </td>
+                    {timingSection.fields.slice(0, 9).map((field) => (
+                        <td
+                            className={`border-2 border-[#b8860b] px-2 py-2 ${cellColorClass}`}
+                            colSpan={field.label === labels[labels.length - 1] ? 7 : 1}
+                            key={`${timingSection.type}-${field.label}`}
+                        >
+                            {field.value.trim() && field.value.trim() !== "_"
+                                ? field.value
+                                : "-"}
+                        </td>
+                    ))}
+                </tr>
+            );
+        }
+    }
+}
+
+function buildDepartmentTimingPreviewRows(
+    sections: ConsolidationTimingSection[],
+): PreviewRow[] {
+    const defaultFieldLabels = [
+        "Time process days",
+        "Invite/Advertisement",
+        "Bid Opening",
+        "Bid Evaluation",
+        "Tender Award",
+        "Notification of Award",
+        "Contract Signing",
+        "Total Time for Contract",
+        "Date of Completion",
+    ];
+    const defaultSections: ConsolidationTimingSection[] = [
+        {
+            fields: defaultFieldLabels.map((label) => ({ label, value: "_" })),
+            label: "Planned timing",
+            type: "planned_timing_block",
+        },
+        {
+            fields: defaultFieldLabels.map((label) => ({ label, value: "_" })),
+            label: "Actual timing",
+            type: "actual_timing_block",
+        },
+        {
+            fields: defaultFieldLabels.map((label) => ({ label, value: "_" })),
+            label: "Variance timing",
+            type: "variance_timing_block",
+        },
+    ];
+    const resolvedSections = sections.length > 0 ? sections : defaultSections;
+    const labels =
+        resolvedSections[0]?.fields.map((field) => field.label) ?? defaultFieldLabels;
+
+    return [
+        { kind: "timing-header" },
+        { kind: "timing-labels", labels },
+        ...resolvedSections.map((section) => ({
+            kind: "timing-row" as const,
+            section,
+        })),
+    ];
+}
+
+function PreviewCell(props: { children: ReactNode }) {
+    return (
+        <td className="border-2 border-slate-500 px-2 py-2 align-top">
+            {props.children}
+        </td>
+    );
+}
+
+function PreviewNumberCell(props: { children: number }) {
+    return (
+        <td className="border-2 border-slate-500 px-2 py-2 text-right tabular-nums">
+            {props.children === 0 ? "-" : formatAmount(props.children)}
+        </td>
+    );
+}
+
+function PreviewTotalCell(props: { children: number }) {
+    return (
+        <td className="border-2 border-[#375623] bg-[#70ad47] px-2 py-2 text-right tabular-nums">
+            {formatAmount(props.children)}
+        </td>
+    );
+}
+
+function ExportHistoryPanel(props: {
+    exports: Array<{
+        downloadCount: number;
+        downloadUrl: string | null;
+        errorMessage: string | null;
+        exportId: string;
+        generatedAt: number | null;
+        progress: number | null;
+        safeFileName: string;
+        snapshotId: string;
+        status: "completed" | "expired" | "failed" | "processing" | "queued";
+    }>;
+    onDownload: (exportId: string) => void;
+    onRetry: () => void;
+}) {
+    if (props.exports.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="border-b border-border bg-card px-6 py-3 dark:border-[#243041] dark:bg-[#111827]">
+            <div className="mb-2 text-sm font-semibold text-foreground">Export History</div>
+            <div className="grid gap-2">
+                {props.exports.slice(0, 4).map((row) => {
+                    const canDownload = row.status === "completed" && row.downloadUrl;
+                    const canRetry = row.status === "completed" || row.status === "failed" || row.status === "expired";
+                    return (
+                        <div
+                            className="grid grid-cols-[1.4fr_7rem_8rem_8rem_auto] items-center gap-3 rounded-md border border-border/80 bg-background px-3 py-2 text-xs shadow-sm dark:border-[#243041] dark:bg-[#0B1220]"
+                            key={row.exportId}
+                        >
+                            <div className="min-w-0">
+                                <div className="truncate font-medium text-foreground">{row.safeFileName}</div>
+                                <div className="truncate text-muted-foreground">
+                                    {row.exportId} - snapshot {row.snapshotId}
+                                </div>
+                            </div>
+                            <div className="capitalize text-muted-foreground">
+                                {row.status}
+                                {typeof row.progress === "number" && row.status !== "completed"
+                                    ? ` ${row.progress}%`
+                                    : ""}
+                            </div>
+                            <div className="text-muted-foreground">
+                                {row.generatedAt ? formatDateTime(row.generatedAt) : "Not generated"}
+                            </div>
+                            <div className="text-muted-foreground">
+                                Downloads {row.downloadCount}
+                            </div>
+                            <div className="flex items-center justify-end gap-1">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 px-2"
+                                    disabled={!canDownload}
+                                    onClick={() => props.onDownload(row.exportId)}
+                                    title="Download export"
+                                >
+                                    <Download className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 px-2"
+                                    disabled={!canRetry}
+                                    onClick={props.onRetry}
+                                    title="Retry export"
+                                >
+                                    <RotateCcw className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            {row.errorMessage ? (
+                                <div className="col-span-5 text-xs text-destructive">
+                                    {row.errorMessage}
+                                </div>
+                            ) : null}
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
@@ -1153,3 +1988,4 @@ function WorkspaceStatePanel(props: {
         </div>
     );
 }
+

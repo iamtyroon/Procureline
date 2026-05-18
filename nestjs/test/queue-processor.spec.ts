@@ -14,6 +14,13 @@ describe("PlatformQueueProcessor", () => {
     send: jest.fn().mockResolvedValue({ accepted: true, to: "user@example.com" }),
   };
   const filesService = {
+    createConsolidatedPlanExcelExport: jest.fn().mockResolvedValue({
+      checksum: "sha256",
+      downloadUrl: "/download/export_1",
+      fileName: "consolidated.xlsx",
+      fileSizeBytes: 1024,
+      storageId: "storage_1",
+    }),
     createExcelExport: jest.fn().mockResolvedValue({
       fileName: "report.xlsx",
       workbookBase64: "base64data",
@@ -120,6 +127,44 @@ describe("PlatformQueueProcessor", () => {
     expect(convexSyncService.completeSync).toHaveBeenCalledWith(
       expect.objectContaining({
         eventKey: "files-export:vendors",
+      }),
+    );
+  });
+
+  it("processes consolidated plan export jobs without returning browser workbook payloads", async () => {
+    const job = {
+      name: "files.export",
+      data: {
+        dto: {
+          exportId: "export_1",
+          formatterPayload: {
+            snapshotId: "snapshot_1",
+          },
+          reportName: "Consolidated Plan 2026-2027",
+        },
+        eventKey: "consolidated-plan-export:key-1",
+        exportKind: "consolidated_plan",
+      },
+      updateProgress: jest.fn(),
+    };
+
+    await processor.process(job as never);
+
+    expect(filesService.createConsolidatedPlanExcelExport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        exportId: "export_1",
+      }),
+    );
+    expect(convexSyncService.completeSync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        durableChanges: [
+          expect.objectContaining({
+            changeType: "files.consolidated_plan_export.completed",
+          }),
+        ],
+        result: expect.not.objectContaining({
+          workbookBase64: expect.any(String),
+        }),
       }),
     );
   });

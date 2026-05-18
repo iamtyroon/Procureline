@@ -4,7 +4,7 @@ import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 import { ServiceAuthGuard } from "@/auth/service-auth.guard";
 import { CurrentUser } from "@/common/decorators/current-user.decorator";
 import type { RequestUser } from "@/common/types/request-user";
-import { CreateExcelExportDto } from "@/files/dto/create-excel-export.dto";
+import { CreateExcelExportDto, QueueConsolidatedPlanExportDto } from "@/files/dto/create-excel-export.dto";
 import { CreatePdfDto } from "@/files/dto/create-pdf.dto";
 import { ImportExcelDto } from "@/files/dto/import-excel.dto";
 import { FilesService } from "@/files/files.service";
@@ -29,6 +29,14 @@ export class FilesController {
     @CurrentUser() user: RequestUser,
   ): Promise<{ duplicate?: boolean; eventKey: string; jobId: string | undefined; queued: boolean }> {
     return this.filesService.queueExcelExport(dto, user);
+  }
+
+  @Post("exports/consolidated-plan/queue")
+  queueConsolidatedPlanExcelExport(
+    @Body() dto: QueueConsolidatedPlanExportDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<{ duplicate?: boolean; eventKey: string; jobId: string | undefined; queued: boolean }> {
+    return this.filesService.queueConsolidatedPlanExcelExport(dto, user);
   }
 
   @Post("imports/excel")
