@@ -494,11 +494,24 @@ export function BlocklyWorkspace(props: {
                         return;
                     }
 
+                    const workspaceFlyout = workspace.getFlyout?.() as
+                        | {
+                              getWorkspace?: () => BlocklyWorkspaceSvg | null;
+                              isVisible?: () => boolean;
+                          }
+                        | null
+                        | undefined;
+                    const flyoutWorkspace = workspaceFlyout?.getWorkspace?.() ?? null;
+                    const hasFlyoutBlocks =
+                        (flyoutWorkspace?.getTopBlocks(false).length ?? 0) > 0;
+                    const flyoutApiVisible = workspaceFlyout?.isVisible?.() ?? true;
                     const hasVisibleFlyout = Array.from(
                         hostRef.current.querySelectorAll(".blocklyFlyout"),
                     ).some((flyout) => {
                         const rect = flyout.getBoundingClientRect();
                         return (
+                            flyoutApiVisible &&
+                            hasFlyoutBlocks &&
                             window.getComputedStyle(flyout).display !== "none" &&
                             rect.width > 0 &&
                             rect.height > 0
@@ -512,8 +525,12 @@ export function BlocklyWorkspace(props: {
                     )) {
                         if (hasVisibleFlyout) {
                             scrollbar.style.removeProperty("display");
+                            scrollbar.style.removeProperty("opacity");
+                            scrollbar.style.removeProperty("pointer-events");
                         } else {
                             scrollbar.style.setProperty("display", "none", "important");
+                            scrollbar.style.setProperty("opacity", "0", "important");
+                            scrollbar.style.setProperty("pointer-events", "none", "important");
                         }
                     }
                 };
@@ -626,6 +643,13 @@ export function BlocklyWorkspace(props: {
                             (event.type === "drag" && event.isStart === false))
                     ) {
                         scheduleToolboxFlyoutClose();
+                    }
+
+                    if (
+                        event.type === "create" ||
+                        (event.type === "drag" && event.isStart === false)
+                    ) {
+                        scheduleWorkspaceLayoutRefresh();
                     }
 
                     if (!shouldRecalculateWorkspace) {

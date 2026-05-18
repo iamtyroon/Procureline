@@ -1,8 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getConsolidationBlockedReasonLabel = exports.validateConsolidationDraftPayload = exports.selectCanonicalApprovedPlansByDepartment = exports.buildConsolidationReadiness = exports.normalizeConsolidationFiscalYear = exports.CONSOLIDATION_EMPTY_MESSAGE = exports.CONSOLIDATION_DRAFT_SCHEMA_VERSION = void 0;
+exports.getConsolidationBlockedReasonLabel = exports.extractConsolidationFinalizationSnapshotValues = exports.validateConsolidationDraftPayload = exports.selectCanonicalApprovedPlansByDepartment = exports.buildConsolidationReadiness = exports.normalizeConsolidationFiscalYear = exports.CONSOLIDATION_EMPTY_MESSAGE = exports.CONSOLIDATION_SNAPSHOT_SCHEMA_VERSION = exports.CONSOLIDATION_DRAFT_SCHEMA_VERSION = void 0;
 const dashboard_1 = require("./dashboard");
 exports.CONSOLIDATION_DRAFT_SCHEMA_VERSION = 1;
+exports.CONSOLIDATION_SNAPSHOT_SCHEMA_VERSION = 1;
 exports.CONSOLIDATION_EMPTY_MESSAGE = "No approved plans available for consolidation. Approve department submissions first.";
 function normalizeConsolidationFiscalYear(args) {
     const requestedFiscalYear = args.requestedFiscalYear && /^\d{4}-\d{4}$/.test(args.requestedFiscalYear)
@@ -28,6 +29,9 @@ function normalizeConsolidationFiscalYear(args) {
         options.includes(requestedFiscalYear)) {
         return { currentFiscalYear, options, selectedFiscalYear: requestedFiscalYear };
     }
+    if (options.includes(currentFiscalYear)) {
+        return { currentFiscalYear, options, selectedFiscalYear: currentFiscalYear };
+    }
     const approvedOptions = options
         .filter((option) => approvedPlanFiscalYears.has(option))
         .sort((left, right) => right.localeCompare(left));
@@ -40,9 +44,6 @@ function normalizeConsolidationFiscalYear(args) {
             options,
             selectedFiscalYear: approvedOptions[0],
         };
-    }
-    if (options.includes(currentFiscalYear)) {
-        return { currentFiscalYear, options, selectedFiscalYear: currentFiscalYear };
     }
     return {
         currentFiscalYear,
@@ -153,10 +154,70 @@ function validateConsolidationDraftPayload(args) {
     return { ok: true };
 }
 exports.validateConsolidationDraftPayload = validateConsolidationDraftPayload;
+function extractConsolidationFinalizationSnapshotValues(workspaceState) {
+    let workspaceRecord = workspaceState;
+    if (isPersistedBlocklyWorkspaceRecordLike(workspaceState)) {
+        try {
+            workspaceRecord = JSON.parse(String(workspaceState.workspaceJson));
+        }
+        catch {
+            workspaceRecord = null;
+        }
+    }
+    const aggregateBlock = findWorkspaceBlock(workspaceRecord, "aggregate_plan_block");
+    const fields = coerceStringRecord(aggregateBlock && typeof aggregateBlock === "object" && !Array.isArray(aggregateBlock)
+        ? aggregateBlock.fields
+        : null);
+    return {
+        calculatedTotals: {
+            departmentCount: parseSnapshotNumber(fields.DEPARTMENT_COUNT),
+            itemCount: parseSnapshotNumber(fields.ITEM_COUNT),
+            q1Total: parseSnapshotNumber(fields.Q1_TOTAL),
+            q2Total: parseSnapshotNumber(fields.Q2_TOTAL),
+            q3Total: parseSnapshotNumber(fields.Q3_TOTAL),
+            q4Total: parseSnapshotNumber(fields.Q4_TOTAL),
+            totalCost: parseSnapshotNumber(fields.GRAND_TOTAL ?? fields.TOTAL_COST),
+        },
+        complianceSummary: {
+            aggregateFields: fields,
+            source: "aggregate_block_fields",
+        },
+    };
+}
+exports.extractConsolidationFinalizationSnapshotValues = extractConsolidationFinalizationSnapshotValues;
+function findWorkspaceBlock(value, type) {
+    const stack = [value];
+    while (stack.length > 0) {
+        const current = stack.pop();
+        if (!current || typeof current !== "object") {
+            continue;
+        }
+        if (!Array.isArray(current) && current.type === type) {
+            return current;
+        }
+        stack.push(...(Array.isArray(current)
+            ? current
+            : Object.values(current)));
+    }
+    return null;
+}
+function coerceStringRecord(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return {};
+    }
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [
+        key,
+        String(entry ?? ""),
+    ]));
+}
+function parseSnapshotNumber(value) {
+    const parsed = Number(String(value ?? "0").replace(/,/g, ""));
+    return Number.isFinite(parsed) ? parsed : 0;
+}
 function validateWorkspaceJsonLike(value) {
-    let serialized = "";
+    let _serialized = "";
     try {
-        serialized = JSON.stringify(value);
+        _serialized = JSON.stringify(value);
     }
     catch {
         return {

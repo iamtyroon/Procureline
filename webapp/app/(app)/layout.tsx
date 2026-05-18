@@ -286,28 +286,30 @@ export default function AppLayout({
                                 </div>
                             </div>
 
-                            <div className="hidden shrink-0 items-center gap-3 rounded-full border border-border/70 bg-muted/20 px-3 py-2 lg:flex">
+                            <div className="hidden max-w-[340px] shrink-0 items-center gap-3 rounded-full border border-border/70 bg-muted/20 px-3 py-2 lg:flex">
                                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
                                     {departmentUserHeroSupport.support.initials}
                                 </div>
-                                <div className="leading-tight">
-                                    <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                                <div className="min-w-0 leading-tight">
+                                    <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                                        <span
+                                            className={cn(
+                                                "h-1.5 w-1.5 rounded-full",
+                                                departmentUserHeroSupport.support.state === "available"
+                                                    ? "bg-primary"
+                                                    : "bg-muted-foreground",
+                                            )}
+                                            aria-hidden="true"
+                                        />
                                         Procurement Officer
                                     </div>
-                                    <div className="text-sm font-medium text-foreground">
+                                    <div className="truncate text-sm font-medium text-foreground">
                                         {departmentUserHeroSupport.support.name}
                                     </div>
+                                    <div className="truncate text-xs text-muted-foreground">
+                                        {departmentUserHeroSupport.support.email}
+                                    </div>
                                 </div>
-                                <Badge
-                                    className={cn(
-                                        "rounded-full",
-                                        departmentUserHeroSupport.support.state === "available"
-                                            ? "bg-primary text-primary-foreground hover:bg-primary"
-                                            : "bg-muted text-muted-foreground hover:bg-muted",
-                                    )}
-                                >
-                                    {departmentUserHeroSupport.support.pillLabel}
-                                </Badge>
                             </div>
 
                             <div className="ml-auto flex shrink-0 items-center gap-2">

@@ -693,11 +693,33 @@ export default defineSchema({
     revision: v.number(),
     createdByTenantUserId: v.id("tenantUsers"),
     updatedByTenantUserId: v.id("tenantUsers"),
+    finalizedAt: v.optional(v.number()),
+    finalizedByTenantUserId: v.optional(v.id("tenantUsers")),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_tenantId_fiscalYear", ["tenantId", "fiscalYear"])
     .index("by_tenantId_status_fiscalYear", ["tenantId", "status", "fiscalYear"]),
+
+  consolidationSnapshots: defineTable({
+    tenantId: v.id("tenants"),
+    consolidationId: v.id("consolidations"),
+    fiscalYear: v.string(),
+    status: v.literal("finalized"),
+    schemaVersion: v.number(),
+    sourcePlanIds: v.array(v.string()),
+    selectedSourceDepartmentIds: v.array(v.string()),
+    draftData: v.any(),
+    workspaceState: v.optional(v.any()),
+    calculatedTotals: v.any(),
+    complianceSummary: v.any(),
+    notes: v.string(),
+    capturedAt: v.number(),
+    capturedByTenantUserId: v.id("tenantUsers"),
+    capturedByUserId: v.id("users"),
+  })
+    .index("by_consolidationId", ["consolidationId", "capturedAt"])
+    .index("by_tenantId_fiscalYear", ["tenantId", "fiscalYear", "capturedAt"]),
 
   departmentAccessCodes: defineTable({
     tenantId: v.id("tenants"),

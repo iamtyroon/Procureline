@@ -44,6 +44,7 @@ export interface ConsolidationSourceDepartment {
     items?: ConsolidationSourceItem[];
     itemCount: number;
     quarterTotals?: ConsolidationQuarterTotals;
+    timingSections?: ConsolidationTimingSection[];
     totalCost?: number;
     voteNumber: string;
     workspaceState?: unknown;
@@ -83,6 +84,15 @@ export interface ConsolidationSourceItem {
     totalQty: number;
     unitOfMeasurement: string;
     unitPrice: number;
+}
+
+export interface ConsolidationTimingSection {
+    fields: Array<{
+        label: string;
+        value: string;
+    }>;
+    label: string;
+    type: ConsolidationTimingBlockType;
 }
 
 const CURRENT_PO_CONSOLIDATION_BLOCK_TYPES = new Set([
@@ -183,6 +193,7 @@ function normalizeConsolidationWorkspaceRecord(args: {
         revision: normalized.editorMetadata.revision,
         saveSource: normalized.editorMetadata.saveSource,
         workspaceJson: hydrateCompactConsolidationWorkspaceJson({
+            fiscalYear: args.fiscalYear,
             sourceDepartments: args.sourceDepartments,
             workspaceJson: normalized.workspaceJson,
         }),
@@ -200,6 +211,26 @@ const TIMING_FIELD_NAMES = [
     "FIELD8",
     "FIELD9",
 ] as const;
+const TIMING_FIELD_LABELS = [
+    "Time process days",
+    "Invite/Advertisement",
+    "Bid Opening",
+    "Bid Evaluation",
+    "Tender Award",
+    "Notification of Award",
+    "Contract Signing",
+    "Total Time for Contract",
+    "Date of Completion",
+] as const;
+const TIMING_BLOCK_LABELS: Record<ConsolidationTimingBlockType, string> = {
+    actual_timing_block: "Actual timing",
+    planned_timing_block: "Planned timing",
+    variance_timing_block: "Variance timing",
+};
+type ConsolidationTimingBlockType =
+    | "actual_timing_block"
+    | "planned_timing_block"
+    | "variance_timing_block";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
     return value && typeof value === "object" && !Array.isArray(value)
@@ -210,23 +241,6 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 function getNestedBlock(value: unknown): Record<string, unknown> | null {
     const record = asRecord(value);
     return asRecord(record?.block);
-}
-
-function copyFields(
-    sourceFields: unknown,
-    fieldNames: readonly string[],
-): Record<string, string> {
-    const fields = asRecord(sourceFields);
-    const copied: Record<string, string> = {};
-
-    for (const fieldName of fieldNames) {
-        const value = fields?.[fieldName];
-        if (value !== undefined && value !== null) {
-            copied[fieldName] = String(value);
-        }
-    }
-
-    return copied;
 }
 
 function parseToolboxAmount(value: unknown): number {
@@ -348,10 +362,41 @@ function readSourceItemsFromCategory(args: {
     return items;
 }
 
+function readTimingSections(
+    sourceDepartmentBlock: Record<string, unknown> | null,
+): ConsolidationTimingSection[] {
+    const sections: ConsolidationTimingSection[] = [];
+    const blockTypes: ConsolidationTimingBlockType[] = [
+        "planned_timing_block",
+        "actual_timing_block",
+        "variance_timing_block",
+    ];
+
+    for (const blockType of blockTypes) {
+        const timingBlock = findTimingBlock(sourceDepartmentBlock, blockType);
+        const fields = asRecord(timingBlock?.fields);
+        sections.push({
+            fields: TIMING_FIELD_NAMES.map((fieldName, index) => ({
+                label: TIMING_FIELD_LABELS[index] ?? fieldName,
+                value: String(fields?.[fieldName] ?? "_"),
+            })),
+            label: TIMING_BLOCK_LABELS[blockType],
+            type: blockType,
+        });
+    }
+
+    return sections;
+}
+
 export function enrichConsolidationSourceDepartment(
     department: ConsolidationSourceDepartment,
 ): ConsolidationSourceDepartment {
-    if (department.items && department.categories && department.quarterTotals) {
+    if (
+        department.items &&
+        department.categories &&
+        department.quarterTotals &&
+        department.timingSections
+    ) {
         return department;
     }
 
@@ -416,6 +461,7 @@ export function enrichConsolidationSourceDepartment(
         itemCount: items.length || department.itemCount,
         items,
         quarterTotals,
+        timingSections: readTimingSections(submittedDepartment),
         totalCost,
         voteNumber:
             submittedVoteNumber !== undefined && submittedVoteNumber !== null
@@ -444,9 +490,10 @@ function buildSubmittedDepartmentToolboxBlock(
     department: ConsolidationSourceDepartment,
 ): Record<string, unknown> {
     const summary = enrichConsolidationSourceDepartment(department);
+    const submittedDepartment = findSubmittedDepartmentBlock(summary.workspaceState);
     const quarterTotals = summary.quarterTotals ?? { q1: 0, q2: 0, q3: 0, q4: 0 };
     const totalCost = summary.totalCost ?? calculateToolboxDepartmentTotal(
-        findSubmittedDepartmentBlock(summary.workspaceState),
+        submittedDepartment,
     );
     const block: Record<string, unknown> = {
         extraState: {
@@ -513,6 +560,7 @@ function hydrateDepartmentStubChain(args: {
 }
 
 function hydrateCompactConsolidationWorkspaceJson(args: {
+    fiscalYear: string;
     sourceDepartments: ConsolidationSourceDepartment[];
     workspaceJson: unknown;
 }): Record<string, unknown> {
@@ -536,6 +584,10 @@ function hydrateCompactConsolidationWorkspaceJson(args: {
                 }
 
                 const inputs = asRecord(aggregateBlock.inputs);
+                const fields = {
+                    ...(asRecord(aggregateBlock.fields) ?? {}),
+                    FINANCIAL_YEAR: args.fiscalYear,
+                };
                 const firstDepartmentStub = getNestedBlock(inputs?.DEPARTMENTS);
                 const hydratedDepartmentChain = hydrateDepartmentStubChain({
                     sourceDepartmentBlock: firstDepartmentStub,
@@ -543,11 +595,15 @@ function hydrateCompactConsolidationWorkspaceJson(args: {
                 });
 
                 if (!hydratedDepartmentChain) {
-                    return block;
+                    return {
+                        ...aggregateBlock,
+                        fields,
+                    };
                 }
 
                 return {
                     ...aggregateBlock,
+                    fields,
                     inputs: {
                         ...inputs,
                         DEPARTMENTS: {
@@ -564,7 +620,15 @@ function findTimingBlock(
     departmentBlock: Record<string, unknown> | null,
     blockType: string,
 ): Record<string, unknown> | null {
-    let currentBlock = getNestedBlock(departmentBlock?.next);
+    let currentBlock = getNestedBlock(asRecord(departmentBlock?.inputs)?.TIMING);
+    while (currentBlock) {
+        if (currentBlock.type === blockType) {
+            return currentBlock;
+        }
+        currentBlock = getNestedBlock(currentBlock.next);
+    }
+
+    currentBlock = getNestedBlock(departmentBlock?.next);
     while (currentBlock) {
         if (currentBlock.type === blockType) {
             return currentBlock;
@@ -575,42 +639,6 @@ function findTimingBlock(
         currentBlock = getNestedBlock(currentBlock.next);
     }
     return null;
-}
-
-function createToolboxTimingBlock(args: {
-    sourceBlock: Record<string, unknown> | null;
-    type: "actual_timing_block" | "planned_timing_block" | "variance_timing_block";
-}): Record<string, unknown> {
-    return {
-        extraState: { isCollapsed: true },
-        fields: {
-            ...Object.fromEntries(TIMING_FIELD_NAMES.map((fieldName) => [fieldName, "_"])),
-            ...copyFields(args.sourceBlock?.fields, TIMING_FIELD_NAMES),
-        },
-        type: args.type,
-    };
-}
-
-function buildTimingBlockChain(
-    sourceDepartmentBlock: Record<string, unknown> | null,
-): Record<string, unknown> {
-    const varianceBlock = createToolboxTimingBlock({
-        sourceBlock: findTimingBlock(sourceDepartmentBlock, "variance_timing_block"),
-        type: "variance_timing_block",
-    });
-    const actualBlock = createToolboxTimingBlock({
-        sourceBlock: findTimingBlock(sourceDepartmentBlock, "actual_timing_block"),
-        type: "actual_timing_block",
-    });
-    actualBlock.next = { block: varianceBlock };
-
-    const plannedBlock = createToolboxTimingBlock({
-        sourceBlock: findTimingBlock(sourceDepartmentBlock, "planned_timing_block"),
-        type: "planned_timing_block",
-    });
-    plannedBlock.next = { block: actualBlock };
-
-    return plannedBlock;
 }
 
 function buildConsolidationToolbox(args: {
@@ -644,17 +672,6 @@ function buildConsolidationToolbox(args: {
                 kind: "category",
                 name: "Consolidation",
             },
-            {
-                colour: "#4a90d9",
-                contents: [
-                    {
-                        kind: "block",
-                        ...buildTimingBlockChain(null),
-                    },
-                ],
-                kind: "category",
-                name: "Timing",
-            },
         ],
         kind: "categoryToolbox",
     };
@@ -679,6 +696,7 @@ export default function ProcurementOfficerConsolidationBlocklyShell(props: {
     initialWorkspaceState: unknown;
     onSelectedDepartmentChange?: (departmentId: string | null) => void;
     onWorkspaceChange: (state: BlocklyWorkspaceRecord) => void;
+    readOnly?: boolean;
     sourceDepartments: ConsolidationSourceDepartment[];
     userId: string;
 }): JSX.Element {
@@ -713,7 +731,7 @@ export default function ProcurementOfficerConsolidationBlocklyShell(props: {
             categories={EMPTY_WORKSPACE_CATEGORIES}
             closeToolboxOnBlockUse={false}
             currentUserId={props.userId}
-            editorMode="edit"
+            editorMode={props.readOnly ? "view" : "edit"}
             items={EMPTY_WORKSPACE_ITEMS}
             onBudgetStateChange={noopBudgetStateChange}
             onSelectedBlockChange={(block) => {

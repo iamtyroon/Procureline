@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.saveProcurementOfficerConsolidationDraft = exports.getProcurementOfficerConsolidationWorkspace = void 0;
+exports.reopenProcurementOfficerConsolidationForEditing = exports.finalizeProcurementOfficerConsolidation = exports.saveProcurementOfficerConsolidationDraft = exports.getProcurementOfficerConsolidationWorkspace = void 0;
 const values_1 = require("convex/values");
 const server_1 = require("../_generated/server");
 const consolidation_1 = require("../../lib/procurement-officer/consolidation");
@@ -100,6 +100,19 @@ async function loadDraft(ctx, args) {
         .eq("fiscalYear", args.fiscalYear))
         .first();
 }
+async function loadConsolidationForFiscalYear(ctx, args) {
+    return ctx.db
+        .query("consolidations")
+        .withIndex("by_tenantId_fiscalYear", (q) => q.eq("tenantId", args.tenantId).eq("fiscalYear", args.fiscalYear))
+        .first();
+}
+async function loadSnapshotForConsolidation(ctx, args) {
+    return ctx.db
+        .query("consolidationSnapshots")
+        .withIndex("by_consolidationId", (q) => q.eq("consolidationId", args.consolidationId))
+        .order("desc")
+        .first();
+}
 function mapDraft(draft) {
     if (!draft) {
         return null;
@@ -109,11 +122,35 @@ function mapDraft(draft) {
         draftData: draft.draftData,
         fiscalYear: draft.fiscalYear,
         id: String(draft._id),
+        finalizedAt: draft.finalizedAt ?? null,
+        finalizedByTenantUserId: draft.finalizedByTenantUserId
+            ? String(draft.finalizedByTenantUserId)
+            : null,
         revision: draft.revision,
         schemaVersion: draft.schemaVersion,
         status: draft.status,
         updatedAt: draft.updatedAt,
         workspaceState: draft.workspaceState ?? null,
+    };
+}
+function mapSnapshot(snapshot) {
+    if (!snapshot) {
+        return null;
+    }
+    return {
+        calculatedTotals: snapshot.calculatedTotals,
+        capturedAt: snapshot.capturedAt,
+        capturedByTenantUserId: String(snapshot.capturedByTenantUserId),
+        complianceSummary: snapshot.complianceSummary,
+        draftData: snapshot.draftData,
+        fiscalYear: snapshot.fiscalYear,
+        id: String(snapshot._id),
+        notes: snapshot.notes,
+        schemaVersion: snapshot.schemaVersion,
+        selectedSourceDepartmentIds: snapshot.selectedSourceDepartmentIds,
+        sourcePlanIds: snapshot.sourcePlanIds,
+        status: snapshot.status,
+        workspaceState: snapshot.workspaceState ?? null,
     };
 }
 function asRecord(value) {
@@ -144,6 +181,33 @@ function createDepartmentStubChain(selectedSourceDepartmentIds) {
     }
     return firstBlock;
 }
+function createDepartmentStubChainFromAggregate(aggregateBlock) {
+    let currentBlock = getNestedBlock(asRecord(aggregateBlock?.inputs)?.DEPARTMENTS);
+    let firstBlock = null;
+    let previousBlock = null;
+    while (currentBlock) {
+        if (currentBlock.type === "department_block") {
+            const departmentId = String(asRecord(currentBlock.fields)?.DEPARTMENT_ID ?? "").trim();
+            if (departmentId) {
+                const block = {
+                    fields: {
+                        DEPARTMENT_ID: departmentId,
+                    },
+                    type: "department_block",
+                };
+                if (!firstBlock) {
+                    firstBlock = block;
+                }
+                if (previousBlock) {
+                    previousBlock.next = { block };
+                }
+                previousBlock = block;
+            }
+        }
+        currentBlock = getNestedBlock(currentBlock.next);
+    }
+    return firstBlock;
+}
 function findAggregateBlock(workspaceJson) {
     const blocks = asRecord(asRecord(workspaceJson)?.blocks)?.blocks;
     if (!Array.isArray(blocks)) {
@@ -161,10 +225,11 @@ function createCompactConsolidationWorkspaceRecord(args) {
     const workspaceJson = (0, blockly_serialization_1.normalizeBlocklyWorkspaceJson)(normalizedRecord.workspaceJson);
     const aggregateBlock = findAggregateBlock(workspaceJson);
     const aggregateFields = {
-        FINANCIAL_YEAR: args.fiscalYear,
         ...(asRecord(aggregateBlock?.fields) ?? {}),
+        FINANCIAL_YEAR: args.fiscalYear,
     };
-    const departmentStubChain = createDepartmentStubChain(args.selectedSourceDepartmentIds);
+    const departmentStubChain = createDepartmentStubChainFromAggregate(aggregateBlock) ??
+        createDepartmentStubChain(args.selectedSourceDepartmentIds);
     const compactAggregateBlock = {
         fields: aggregateFields,
         type: "aggregate_plan_block",
@@ -178,25 +243,6 @@ function createCompactConsolidationWorkspaceRecord(args) {
             },
         };
     }
-    let compactTopBlocks = [compactAggregateBlock];
-    let currentTrailingBlock = getNestedBlock(aggregateBlock?.next);
-    while (currentTrailingBlock) {
-        const blockType = currentTrailingBlock.type;
-        if (blockType !== "planned_timing_block" &&
-            blockType !== "actual_timing_block" &&
-            blockType !== "variance_timing_block") {
-            break;
-        }
-        compactTopBlocks = [
-            ...compactTopBlocks,
-            {
-                extraState: currentTrailingBlock.extraState,
-                fields: currentTrailingBlock.fields,
-                type: blockType,
-            },
-        ];
-        currentTrailingBlock = getNestedBlock(currentTrailingBlock.next);
-    }
     return (0, blockly_serialization_1.createPersistedBlocklyWorkspaceRecord)((0, blockly_serialization_1.createBlocklyWorkspaceRecord)({
         lastSavedAt: normalizedRecord.editorMetadata.lastSavedAt,
         lastSavedByUserId: normalizedRecord.editorMetadata.lastSavedByUserId,
@@ -205,7 +251,7 @@ function createCompactConsolidationWorkspaceRecord(args) {
         saveSource: normalizedRecord.editorMetadata.saveSource,
         workspaceJson: {
             blocks: {
-                blocks: compactTopBlocks,
+                blocks: [compactAggregateBlock],
                 languageVersion: 0,
             },
         },
@@ -222,6 +268,16 @@ function assertSelectedSourcesAreStillApproved(args) {
         });
     }
 }
+function getSelectedSourceDepartmentIds(draftData) {
+    const selectedSourceDepartmentIds = asRecord(draftData)?.selectedSourceDepartmentIds;
+    return Array.isArray(selectedSourceDepartmentIds)
+        ? selectedSourceDepartmentIds.map((departmentId) => String(departmentId))
+        : [];
+}
+function getNotes(draftData) {
+    const notes = asRecord(draftData)?.notes;
+    return typeof notes === "string" ? notes : "";
+}
 function buildConsolidationAuditEntry(args) {
     return {
         action: args.action,
@@ -233,6 +289,7 @@ function buildConsolidationAuditEntry(args) {
         event: args.event,
         metadata: {
             fiscalYear: args.fiscalYear,
+            ...(args.metadata ?? {}),
             selectedSourceDepartmentIds: [...args.selectedSourceDepartmentIds],
             selectedSourceDepartmentCount: args.selectedSourceDepartmentIds.length,
         },
@@ -259,10 +316,21 @@ exports.getProcurementOfficerConsolidationWorkspace = (0, server_1.query)({
             fiscalYear: base.readiness.selectedFiscalYear,
             tenantId: authContext.tenantId,
         });
+        const consolidation = draft ??
+            await loadConsolidationForFiscalYear(ctx, {
+                fiscalYear: base.readiness.selectedFiscalYear,
+                tenantId: authContext.tenantId,
+            });
+        const snapshot = consolidation?.status === "finalized"
+            ? await loadSnapshotForConsolidation(ctx, {
+                consolidationId: consolidation._id,
+            })
+            : null;
         return {
-            draft: mapDraft(draft),
+            draft: mapDraft(consolidation),
             fiscalYears: base.fiscalYears,
             readiness: base.readiness,
+            snapshot: mapSnapshot(snapshot),
             user: {
                 tenantUserId: null,
                 userId: String(authContext.userId),
@@ -313,6 +381,16 @@ exports.saveProcurementOfficerConsolidationDraft = (0, server_1.mutation)({
             fiscalYear: base.readiness.selectedFiscalYear,
             tenantId: authContext.tenantId,
         });
+        const existingConsolidation = existingDraft ?? await loadConsolidationForFiscalYear(ctx, {
+            fiscalYear: base.readiness.selectedFiscalYear,
+            tenantId: authContext.tenantId,
+        });
+        if (existingConsolidation?.status === "finalized") {
+            throw new values_1.ConvexError({
+                code: "ALREADY_FINALIZED",
+                message: "Use Edit Draft before saving changes to a finalized consolidation.",
+            });
+        }
         if (existingDraft && typeof args.expectedRevision !== "number") {
             throw new values_1.ConvexError({
                 code: "REVISION_CONFLICT",
@@ -387,6 +465,192 @@ exports.saveProcurementOfficerConsolidationDraft = (0, server_1.mutation)({
         return {
             draft: mapDraft(savedDraft),
             readiness: base.readiness,
+        };
+    },
+});
+exports.finalizeProcurementOfficerConsolidation = (0, server_1.mutation)({
+    args: {
+        expectedRevision: values_1.v.number(),
+        fiscalYear: values_1.v.string(),
+    },
+    returns: values_1.v.any(),
+    handler: async (ctx, args) => {
+        const authContext = await (0, _roleGuard_1.requireTenantRole)(ctx, ["procurement_officer"]);
+        const tenantUser = await loadProcurementOfficerTenantUser(ctx, {
+            tenantId: authContext.tenantId,
+            userId: authContext.userId,
+        });
+        const base = await loadConsolidationBase(ctx, {
+            requestedFiscalYear: args.fiscalYear,
+            tenantId: authContext.tenantId,
+        });
+        const consolidation = await loadConsolidationForFiscalYear(ctx, {
+            fiscalYear: base.readiness.selectedFiscalYear,
+            tenantId: authContext.tenantId,
+        });
+        if (!consolidation) {
+            throw new values_1.ConvexError({
+                code: "NOT_FOUND",
+                message: "Save a consolidation draft before finalizing it.",
+            });
+        }
+        const existingSnapshot = await loadSnapshotForConsolidation(ctx, {
+            consolidationId: consolidation._id,
+        });
+        if (consolidation.status === "finalized") {
+            if (existingSnapshot) {
+                return {
+                    draft: mapDraft(consolidation),
+                    readiness: base.readiness,
+                    snapshot: mapSnapshot(existingSnapshot),
+                };
+            }
+            throw new values_1.ConvexError({
+                code: "ALREADY_FINALIZED",
+                message: "This consolidation has already been finalized.",
+            });
+        }
+        if (consolidation.revision !== args.expectedRevision) {
+            throw new values_1.ConvexError({
+                code: "REVISION_CONFLICT",
+                currentRevision: consolidation.revision,
+                message: "This consolidation draft changed in another tab or device. Refresh before finalizing.",
+            });
+        }
+        const selectedSourceDepartmentIds = getSelectedSourceDepartmentIds(consolidation.draftData);
+        if (selectedSourceDepartmentIds.length === 0) {
+            throw new values_1.ConvexError({
+                code: "VALIDATION_FAILED",
+                message: "Connect at least one approved source department before finalizing.",
+            });
+        }
+        assertSelectedSourcesAreStillApproved({
+            readyDepartmentIds: base.readiness.readyDepartmentIds,
+            selectedSourceDepartmentIds,
+        });
+        const selectedSourcePlanIds = base.readiness.readyDepartments
+            .filter((department) => selectedSourceDepartmentIds.includes(department.departmentId))
+            .map((department) => department.planId);
+        const snapshotValues = (0, consolidation_1.extractConsolidationFinalizationSnapshotValues)(consolidation.workspaceState);
+        const now = Date.now();
+        const snapshotId = await ctx.db.insert("consolidationSnapshots", {
+            calculatedTotals: snapshotValues.calculatedTotals,
+            capturedAt: now,
+            capturedByTenantUserId: tenantUser._id,
+            capturedByUserId: authContext.userId,
+            complianceSummary: snapshotValues.complianceSummary,
+            consolidationId: consolidation._id,
+            draftData: consolidation.draftData,
+            fiscalYear: base.readiness.selectedFiscalYear,
+            notes: getNotes(consolidation.draftData),
+            schemaVersion: consolidation_1.CONSOLIDATION_SNAPSHOT_SCHEMA_VERSION,
+            selectedSourceDepartmentIds,
+            sourcePlanIds: selectedSourcePlanIds,
+            status: "finalized",
+            tenantId: authContext.tenantId,
+            workspaceState: consolidation.workspaceState,
+        });
+        await ctx.db.patch(consolidation._id, {
+            finalizedAt: now,
+            finalizedByTenantUserId: tenantUser._id,
+            revision: consolidation.revision + 1,
+            status: "finalized",
+            updatedAt: now,
+            updatedByTenantUserId: tenantUser._id,
+        });
+        await (0, _audit_1.appendAuditLogRequired)(ctx, buildConsolidationAuditEntry({
+            action: "finalize",
+            actorUserId: authContext.userId,
+            consolidationId: consolidation._id,
+            event: audit_1.AUDIT_EVENT_NAMES.consolidationFinalized,
+            fiscalYear: base.readiness.selectedFiscalYear,
+            metadata: {
+                calculatedTotalsSnapshotPresent: true,
+                complianceSnapshotPresent: true,
+                sourcePlanIds: selectedSourcePlanIds,
+                snapshotId: String(snapshotId),
+                statusTransition: "draft:finalized",
+            },
+            selectedSourceDepartmentIds,
+            tenantId: authContext.tenantId,
+        }));
+        const finalizedConsolidation = await ctx.db.get(consolidation._id);
+        const snapshot = await ctx.db.get(snapshotId);
+        return {
+            draft: mapDraft(finalizedConsolidation),
+            readiness: base.readiness,
+            snapshot: mapSnapshot(snapshot),
+        };
+    },
+});
+exports.reopenProcurementOfficerConsolidationForEditing = (0, server_1.mutation)({
+    args: {
+        expectedRevision: values_1.v.number(),
+        fiscalYear: values_1.v.string(),
+    },
+    returns: values_1.v.any(),
+    handler: async (ctx, args) => {
+        const authContext = await (0, _roleGuard_1.requireTenantRole)(ctx, ["procurement_officer"]);
+        const tenantUser = await loadProcurementOfficerTenantUser(ctx, {
+            tenantId: authContext.tenantId,
+            userId: authContext.userId,
+        });
+        const base = await loadConsolidationBase(ctx, {
+            requestedFiscalYear: args.fiscalYear,
+            tenantId: authContext.tenantId,
+        });
+        const consolidation = await loadConsolidationForFiscalYear(ctx, {
+            fiscalYear: base.readiness.selectedFiscalYear,
+            tenantId: authContext.tenantId,
+        });
+        if (!consolidation) {
+            throw new values_1.ConvexError({
+                code: "NOT_FOUND",
+                message: "No consolidation was found for this fiscal year.",
+            });
+        }
+        if (consolidation.status !== "finalized") {
+            return {
+                draft: mapDraft(consolidation),
+                readiness: base.readiness,
+                snapshot: null,
+            };
+        }
+        if (consolidation.revision !== args.expectedRevision) {
+            throw new values_1.ConvexError({
+                code: "REVISION_CONFLICT",
+                currentRevision: consolidation.revision,
+                message: "This consolidation changed in another tab or device. Refresh before editing.",
+            });
+        }
+        const selectedSourceDepartmentIds = getSelectedSourceDepartmentIds(consolidation.draftData);
+        const now = Date.now();
+        await ctx.db.patch(consolidation._id, {
+            finalizedAt: undefined,
+            finalizedByTenantUserId: undefined,
+            revision: consolidation.revision + 1,
+            status: "draft",
+            updatedAt: now,
+            updatedByTenantUserId: tenantUser._id,
+        });
+        await (0, _audit_1.appendAuditLogRequired)(ctx, buildConsolidationAuditEntry({
+            action: "reopen",
+            actorUserId: authContext.userId,
+            consolidationId: consolidation._id,
+            event: audit_1.AUDIT_EVENT_NAMES.consolidationReopened,
+            fiscalYear: base.readiness.selectedFiscalYear,
+            metadata: {
+                previousFinalizedAt: consolidation.finalizedAt ?? null,
+                statusTransition: "finalized:draft",
+            },
+            selectedSourceDepartmentIds,
+            tenantId: authContext.tenantId,
+        }));
+        const reopenedConsolidation = await ctx.db.get(consolidation._id);
+        return {
+            draft: mapDraft(reopenedConsolidation),
+            readiness: base.readiness,
+            snapshot: null,
         };
     },
 });

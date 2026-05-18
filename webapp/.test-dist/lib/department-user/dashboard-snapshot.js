@@ -96,6 +96,7 @@ function buildDepartmentUserDashboardSnapshot(args) {
         .slice()
         .sort((left, right) => right.amount - left.amount)
         .map((summary) => ({
+        amount: summary.amount,
         amountLabel: (0, dashboard_1.formatDepartmentUserCurrency)(summary.amount),
         categoryName: summary.categoryName,
         id: summary.categoryId,

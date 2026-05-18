@@ -114,6 +114,7 @@ const dashboardSnapshotValidator = values_1.v.object({
             breakdown: values_1.v.object({
                 emptyMessage: values_1.v.string(),
                 items: values_1.v.array(values_1.v.object({
+                    amount: values_1.v.number(),
                     amountLabel: values_1.v.string(),
                     categoryName: values_1.v.string(),
                     id: values_1.v.string(),

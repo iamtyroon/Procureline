@@ -154,6 +154,7 @@ const dashboardSnapshotValidator = v.object({
                 emptyMessage: v.string(),
                 items: v.array(
                     v.object({
+                        amount: v.number(),
                         amountLabel: v.string(),
                         categoryName: v.string(),
                         id: v.string(),

@@ -23,6 +23,8 @@ export const AUDIT_EVENT_NAMES = {
   categoryUpdated: "category.updated",
   consolidationDraftCreated: "consolidation.draft_created",
   consolidationDraftUpdated: "consolidation.draft_updated",
+  consolidationFinalized: "consolidation.finalized",
+  consolidationReopened: "consolidation.reopened",
   itemArchived: "item.archived",
   itemCreated: "item.created",
   itemRequestCancelled: "item_request.cancelled",

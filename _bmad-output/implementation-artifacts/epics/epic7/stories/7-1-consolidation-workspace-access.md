@@ -1,6 +1,6 @@
 # Story 7.1: Consolidation Workspace Access
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -17,7 +17,7 @@ so that I can begin building the institutional Annual Procurement Plan from only
 3. [Given] a department has no plan, a draft plan, a submitted plan, or a rejected plan [When] the PO opens consolidation [Then] that department is listed as not ready [And] it cannot be placed into or opened inside the consolidation workspace canvas [And] the ready count says `X of Y departments ready`.
 4. [Given] no approved plans exist for the selected fiscal year [When] the PO opens `/po/consolidation` [Then] the page blocks the workspace canvas and shows the message `No approved plans available for consolidation. Approve department submissions first.` [And] the PO can navigate back to the review/submission surfaces from that empty state (FR58a).
 5. [Given] some departments are not approved but at least one approved plan exists [When] the workspace opens [Then] the approved plans are available in the workspace [And] a warning lists departments not yet approved [And] non-approved departments remain blocked from canvas insertion or detail opening (FR58b).
-6. [Given] approved plans exist [When] the workspace initializes [Then] the system loads the approved department plan records and enough safe source metadata to display department names, vote numbers, plan totals, item counts, and approval timestamps [And] deeper automatic aggregation of item blocks remains scoped to Story 7.2 unless needed to render the shell truthfully (FR59 boundary).
+6. [Given] approved plans exist [When] the workspace initializes [Then] the system loads the approved department plan records and enough safe source metadata to display department names, vote numbers, plan totals, item counts, and approval timestamps [And] any deeper automatic aggregation needed beyond the implemented shell is treated as existing implementation detail rather than a separate pending story (FR59 boundary).
 7. [Given] the PO changes draft workspace state such as layout, selected approved departments, active fiscal year, notes, or Blockly shell state [When] autosave runs or the PO saves manually [Then] the system persists a durable draft consolidation record [And] the same draft is available after refresh or next login (FR60a).
 8. [Given] consolidation draft persistence is implemented [When] the backend writes draft data [Then] it uses a tenant-scoped `consolidations` table or equivalent durable schema with `tenantId`, `fiscalYear`, `createdByTenantUserId`, `updatedByTenantUserId`, `status: "draft"`, `draftData`, `workspaceState`, timestamps, and indexes for tenant plus fiscal-year lookup [And] state-changing operations write append-only audit entries.
 9. [Given] plan eligibility is evaluated [When] queries and mutations load consolidation inputs [Then] readiness is always derived from `plans.status === "approved"` for the selected fiscal year [And] client-provided tenant IDs or department IDs cannot widen scope [And] submitted, rejected, draft, missing, archived, or cross-tenant plans are rejected or omitted server-side.
@@ -61,7 +61,7 @@ so that I can begin building the institutional Annual Procurement Plan from only
   - [x] If multiple approved plans exist for one department in the selected fiscal year, choose exactly one canonical source plan by latest `approvedAt`, then `updatedAt`, then stable id tie-breaker.
   - [x] Treat `consolidatedAt` as informational only in Story 7.1; do not exclude an approved plan because it has been touched by a draft.
   - [x] Return blocked department reasons for no active department, missing plan, draft, submitted, rejected, inactive, stale fiscal year, or out-of-fiscal-year plans.
-  - [x] Shape approved-plan source metadata for the UI without doing full item-level aggregation owned by Story 7.2.
+  - [x] Shape approved-plan source metadata for the UI without creating a separate pending aggregation story.
   - [x] Ensure non-approved departments cannot be selected into the canvas even if a client submits their IDs, and revalidate source IDs on every save because plan state may change while the workspace is open.
 
 - [x] Task 4: Implement the full-page workspace UI with prototype-aligned structure (AC: 2, 3, 4, 5, 6, 11, 12)
@@ -81,7 +81,7 @@ so that I can begin building the institutional Annual Procurement Plan from only
   - [x] Autosave draft state on a bounded debounce or interval, and provide a manual save affordance for deterministic testing.
   - [x] Disable autosave until the server draft query has resolved and the Blockly workspace has hydrated from that draft. Initial empty workspace render must not be treated as user intent.
   - [x] Include the current draft revision in save calls so stale tabs/devices cannot overwrite newer server state.
-  - [x] Keep block-level item aggregation minimal until Story 7.2; this story should prove access, shell, eligibility, and draft persistence.
+  - [x] Keep block-level item aggregation scoped to what the completed workspace needs; this story proves access, shell, eligibility, and draft persistence.
 
 - [x] Task 6: Preserve dashboard and route integration without modal regressions (AC: 1, 3, 4, 5, 13)
   - [x] Update `webapp/lib/procurement-officer/dashboard-snapshot.ts` so the consolidation future panel and hero secondary action point to a live workspace state.
@@ -145,10 +145,10 @@ so that I can begin building the institutional Annual Procurement Plan from only
 - Autosave must not run during initial server-draft or Blockly hydration. The first empty client shell must never overwrite an existing durable draft.
 - Store Blockly workspace data in JSON-compatible structure, following the existing `blocklyWorkspaceStateValidator` style where possible.
 - Validate draft payload shape before persistence, including serialized size, object depth, note length, selected-source count, block count, schema version, and unsupported fields.
-- Keep draft data versioned enough to support later Stories 7.2-7.4 without a destructive migration, but do not implement finalization, version comparison, export, or compliance calculations here.
+- Keep draft data versioned enough to support later Epic 7 work without a destructive migration, but do not implement finalization, version comparison, or export here.
 - Any draft mutation must check that submitted source department IDs still resolve to approved plans in the same tenant/fiscal year. If a source plan becomes non-approved while editing, the save must reject or remove that source and return actionable stale-source feedback.
 - Use server-side readiness enforcement. Client filtering is only a UI convenience.
-- Avoid duplicate compliance calculations in this story. Story 7.3 owns trustworthy compliance and financial totals.
+- Avoid duplicate compliance calculations in this story. Trust the manually completed compliance/totals implementation as the source for that behavior.
 
 ### Architecture Compliance
 
@@ -398,6 +398,6 @@ GPT-5
 - Story ID: `7.1`
 - Story Key: `7-1-consolidation-workspace-access`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic7/stories/7-1-consolidation-workspace-access.md`
-- Final Status: `review`
+- Final Status: `done`
 - Completion Note: `Implemented and validated locally with focused consolidation tests; repo-wide gates remain blocked by unrelated existing TypeScript issues.`
 

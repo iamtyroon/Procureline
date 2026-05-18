@@ -11,6 +11,7 @@ import {
   ChevronRight,
   FileStack,
   FolderTree,
+  History,
   KeyRound,
   Layers3,
   MapPin,
@@ -18,6 +19,7 @@ import {
   Users2,
   Zap,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { startTransition, useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -104,7 +106,6 @@ import {
   OrganizationStatPill,
   OverviewActionButton,
   OverviewMetric,
-  OverviewSignalRow,
   ProcurementOfficerDashboardSkeleton,
   StateBadge,
   WorkflowPanelButton,
@@ -125,6 +126,50 @@ import {
 import { WorkspaceModal } from "./dashboard/workspace-modal";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+function DashboardStatusPill({
+  icon,
+  label,
+}: {
+  icon: ReactNode;
+  label: string;
+}) {
+  return (
+    <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-border/60 bg-card/90 px-3 py-1.5 text-[11px] font-semibold text-foreground shadow-sm">
+      <span className="text-primary">{icon}</span>
+      <span className="truncate">{label}</span>
+    </div>
+  );
+}
+
+function ActivityRow({
+  label,
+  meta,
+  timestamp,
+}: {
+  label: string;
+  meta: string;
+  timestamp: string;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3 border-b border-border/50 px-1 py-3 last:border-b-0">
+      <div className="flex min-w-0 items-start gap-3">
+        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+        <div className="min-w-0">
+          <div className="truncate text-[13px] font-medium text-foreground">
+            {label}
+          </div>
+          <div className="mt-0.5 truncate text-[12px] text-muted-foreground">
+            {meta}
+          </div>
+        </div>
+      </div>
+      <div className="max-w-[12rem] shrink-0 truncate text-right text-[11px] text-muted-foreground">
+        {timestamp}
+      </div>
+    </div>
+  );
+}
 
 /* ─── Main component ──────────────────────────────────────────────── */
 
@@ -1172,7 +1217,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                     </IconBox>
                     <div>
                       <div className="text-[14px] font-bold text-foreground">
-                        Department Management
+                        Department Readiness
                       </div>
                       <div className="text-[11px] text-muted-foreground">
                         {snapshot.departmentReadiness.summary}
@@ -1420,38 +1465,67 @@ export function ProcurementOfficerDashboard(): JSX.Element {
 
       <div className="hidden lg:block">
         <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-none flex-col gap-4 px-4 py-4 xl:px-5">
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-foreground">
+                Overview
+              </h1>
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                Monitor procurement readiness, department performance, and upcoming deadlines.
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
+              <DashboardStatusPill
+                icon={<CalendarClock className="h-3.5 w-3.5" />}
+                label={fiscalYearLabel}
+              />
+              <DashboardStatusPill
+                icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+                label={`${approvedDepartmentCount}/${submittedDepartmentScope} approved`}
+              />
+              <DashboardStatusPill
+                icon={<AlertTriangle className="h-3.5 w-3.5" />}
+                label={requestPanel?.statusLabel ?? "No pending"}
+              />
+              <DashboardStatusPill
+                icon={<Building2 className="h-3.5 w-3.5" />}
+                label={snapshot.fiscalYears.state === "available" ? "Online" : "Setup required"}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(0,2fr)]">
             <BentoCard glowColor="primary">
-              <div className="flex h-full flex-col gap-6 p-6">
+              <div className="flex h-full flex-col justify-between gap-5 p-5">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
                     <IconBox tone="primary">
                       <Layers3 className="h-4 w-4" />
                     </IconBox>
                     <span className="text-[15px] font-bold text-foreground">
-                      Consolidation Hub
+                      Master Plan Progress
                     </span>
                   </div>
                   <StateBadge state={snapshot.hero.state} />
                 </div>
 
-                <div className="rounded-xl border border-border/60 bg-muted/20 p-6">
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="space-y-2">
                       <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
                         Current fiscal year
                       </div>
-                      <div className="text-2xl font-black tracking-[-0.05em] text-foreground">
+                      <div className="text-[15px] font-black tracking-[-0.03em] text-foreground">
                         {fiscalYearLabel} Master Plan
                       </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-[12px] text-muted-foreground">
                         {submittedDepartmentCount} submitted •{" "}
                         {approvedDepartmentCount} approved out of{" "}
                         {submittedDepartmentScope} departments
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-4xl font-black tracking-[-0.07em] text-foreground">
+                      <div className="text-4xl font-black tracking-[-0.07em] text-primary">
                         {submissionPercent}%
                       </div>
                       <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
@@ -1468,15 +1542,15 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                 </div>
 
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <p className="max-w-2xl text-sm leading-7 text-muted-foreground">
+                  <p className="max-w-sm text-[12px] leading-5 text-muted-foreground">
                     {submissionHelperText}
                   </p>
                   <Button
-                    className="h-10 rounded-lg px-4 text-xs font-semibold"
+                    className="h-8 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700"
                     onClick={() => handleWorkspaceAction("/po/consolidation")}
                     type="button"
                   >
-                    Open workspace
+                    Open consolidation hub
                     <ArrowRight className="ml-2 h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -1518,57 +1592,41 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                       Organization Overview
                     </span>
                   </div>
-                  <StateBadge
-                    state={snapshot.fiscalYears.state}
-                    label={
-                      snapshot.fiscalYears.state === "available"
-                        ? fiscalYearLabel
-                        : "Not configured"
-                    }
-                      />
+                  <div className="flex min-w-0 flex-nowrap items-center justify-end gap-2">
+                    {departmentsConfiguredCard ? (
+                      <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/60 bg-muted/25 px-2.5 py-1 text-[10px] font-semibold text-foreground">
+                        <Building2 className="h-3 w-3 text-primary" />
+                        <span className="text-muted-foreground">Departments</span>
+                        <span>{departmentsConfiguredCard.value}</span>
+                      </div>
+                    ) : null}
+                    {accessCodeCard ? (
+                      <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/60 bg-muted/25 px-2.5 py-1 text-[10px] font-semibold text-foreground">
+                        <KeyRound className="h-3 w-3 text-amber-500" />
+                        <span className="text-muted-foreground">Codes</span>
+                        <span>{accessCodeCard.value}</span>
+                      </div>
+                    ) : null}
+                    {deadlineCard ? (
+                      <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/60 bg-muted/25 px-2.5 py-1 text-[10px] font-semibold text-foreground">
+                        <CalendarClock className="h-3 w-3 text-emerald-500" />
+                        <span className="text-muted-foreground">Deadline</span>
+                        <span>{(liveDeadlineCard ?? deadlineCard).value}</span>
+                      </div>
+                    ) : null}
+                    <StateBadge
+                      state={snapshot.fiscalYears.state}
+                      label={
+                        snapshot.fiscalYears.state === "available"
+                          ? fiscalYearLabel
+                          : "Not configured"
+                      }
+                    />
+                  </div>
                 </div>
 
-                <div className="rounded-2xl border border-border/60 bg-muted/15 p-4">
-                  <div className="flex flex-col gap-5">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="flex min-w-0 items-center gap-3.5">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-base font-black tracking-[-0.05em] text-primary shadow-sm shadow-primary/10">
-                          {getInitials(snapshot.meta.tenantName)}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="truncate text-[20px] font-black tracking-[-0.04em] text-foreground">
-                            {snapshot.meta.tenantName}
-                          </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
-                            <span>Procurement workspace</span>
-                            <span className="h-1 w-1 rounded-full bg-muted-foreground/50" />
-                            <span>{organizationDepartmentLabel}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="w-full rounded-2xl border border-border/60 bg-background/80 p-3.5 lg:max-w-[18rem]">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                            Budget utilization
-                          </span>
-                          <span className="text-[22px] font-black tracking-[-0.05em] text-primary">
-                            {organizationBudget.state === "available"
-                              ? `${organizationBudget.utilizationPercent}%`
-                              : "--"}
-                          </span>
-                        </div>
-                        <Progress
-                          className="mt-3 h-2.5 bg-muted/80"
-                          value={Math.min(100, organizationBudget.utilizationPercent)}
-                        />
-                        <div className="mt-3 flex items-center justify-between gap-4 text-[12px] text-muted-foreground">
-                          <span>Used: {organizationBudget.usedBudgetLabel}</span>
-                          <span>Total: {organizationBudget.totalBudgetLabel}</span>
-                        </div>
-                      </div>
-                    </div>
-
+                <div className="grid gap-4 rounded-2xl border border-border/60 bg-muted/15 p-4">
+                  <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
                     <div className="grid gap-3 sm:grid-cols-3">
                       <OverviewMetric
                         label="Departments"
@@ -1586,89 +1644,59 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                         meta={organizationItemLabel}
                       />
                     </div>
-                  </div>
-                </div>
 
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(15rem,0.9fr)]">
-                  <div className="rounded-2xl border border-border/60 bg-muted/10 p-4">
-                    <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                      Operational signals
-                    </div>
-                    <div className="grid gap-2.5">
-                    {departmentsConfiguredCard ? (
-                      <OverviewSignalRow
-                        card={departmentsConfiguredCard}
-                        icon={<Building2 className="h-3.5 w-3.5" />}
-                        tone="primary"
+                    <div className="rounded-2xl border border-border/60 bg-background/80 p-3.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                          Budget utilization
+                        </span>
+                        <span className="text-[22px] font-black tracking-[-0.05em] text-primary">
+                          {organizationBudget.state === "available"
+                            ? `${organizationBudget.utilizationPercent}%`
+                            : "--"}
+                        </span>
+                      </div>
+                      <Progress
+                        className="mt-3 h-2.5 bg-muted/80"
+                        value={Math.min(100, organizationBudget.utilizationPercent)}
                       />
-                    ) : null}
-                    {accessCodeCard ? (
-                      <OverviewSignalRow
-                        card={accessCodeCard}
-                        icon={<KeyRound className="h-3.5 w-3.5" />}
-                        tone="amber"
-                      />
-                    ) : null}
-                    {deadlineCard ? (
-                      <OverviewSignalRow
-                        card={liveDeadlineCard ?? deadlineCard}
-                        icon={<CalendarClock className="h-3.5 w-3.5" />}
-                        tone="emerald"
-                      />
-                    ) : null}
-                    {!departmentsConfiguredCard &&
-                    !accessCodeCard &&
-                    !deadlineCard ? (
-                      <OverviewMetric
-                        label="DU Coverage"
-                        value={duCoverageCard?.value ?? "--"}
-                        meta={
-                          duCoverageCard?.helperText ??
-                          "Department-user assignment coverage."
-                        }
-                      />
-                    ) : null}
+                      <div className="mt-3 flex items-center justify-between gap-4 text-[12px] text-muted-foreground">
+                        <span>Used: {organizationBudget.usedBudgetLabel}</span>
+                        <span>Total: {organizationBudget.totalBudgetLabel}</span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-border/60 bg-muted/10 p-4">
-                    <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                      Quick actions
-                    </div>
-                    <div className="grid gap-3">
-                      <OverviewActionButton
-                        icon={
-                          <IconBox tone="amber">
-                            <KeyRound className="h-4 w-4" />
-                          </IconBox>
-                        }
-                        label="Department Codes"
-                        meta="Manage in Departments"
-                        onClick={() => handleWorkspaceAction("/po/departments")}
-                      />
-                      <OverviewActionButton
-                        icon={
-                          <IconBox
-                            tone={
-                              snapshot.alerts.some((alert) => alert.id === "deadline")
-                                ? "amber"
-                                : "emerald"
-                            }
-                          >
-                            <CalendarClock className="h-4 w-4" />
-                          </IconBox>
-                        }
-                        label="Deadlines"
-                        meta={
-                          liveDeadlineCard?.statusLabel ??
-                          deadlineCard?.statusLabel ??
-                          "Review"
-                        }
-                        onClick={() => handleWorkspaceAction("/po/deadlines")}
-                      />
-                    </div>
+                  <div className="grid gap-3 border-t border-border/60 pt-4 md:grid-cols-2">
+                    <OverviewActionButton
+                      icon={
+                        <IconBox tone="amber">
+                          <KeyRound className="h-4 w-4" />
+                        </IconBox>
+                      }
+                      label="Department Management"
+                      meta="Manage department codes and settings"
+                      onClick={() => handleWorkspaceAction("/po/departments")}
+                    />
+                    <OverviewActionButton
+                      icon={
+                        <IconBox
+                          tone={
+                            snapshot.alerts.some((alert) => alert.id === "deadline")
+                              ? "amber"
+                              : "emerald"
+                          }
+                        >
+                          <CalendarClock className="h-4 w-4" />
+                        </IconBox>
+                      }
+                      label="Manage Deadlines"
+                      meta="View and update shared deadlines"
+                      onClick={() => handleWorkspaceAction("/po/deadlines")}
+                    />
                   </div>
                 </div>
+
               </div>
             </BentoCard>
           </div>
@@ -1681,8 +1709,8 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                     <Users2 className="h-4 w-4" />
                   </IconBox>
                   <div>
-                    <div className="text-[15px] font-bold text-foreground">
-                      Department Management
+                      <div className="text-[15px] font-bold text-foreground">
+                        Department Readiness
                     </div>
                     <div className="text-[12px] text-muted-foreground">
                       {snapshot.departmentReadiness.summary}
@@ -1714,7 +1742,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                   <table className="min-w-full border-separate border-spacing-0">
                     <thead>
                       <tr>
-                        {["Department", "Vote #", "Budget status", "Actions"].map(
+                        {["Department", "Code", "Budget status", "Coverage", "Actions"].map(
                           (heading, index) => (
                             <th
                               key={heading}
@@ -1723,7 +1751,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                                 index === 0 && "text-left",
                                 index === 1 && "text-left",
                                 index === 2 && "text-left",
-                                index === 3 && "text-right",
+                                index === 4 && "text-right",
                               )}
                             >
                               {heading}
@@ -1738,6 +1766,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                             key={department?.id ?? readiness?.id ?? index}
                             department={department}
                             item={readiness}
+                            showCoverage
                             onArchiveDepartment={
                               department
                                 ? () => openDashboardDepartmentArchiveDialog(department)
@@ -1791,7 +1820,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
             </BentoCard>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.78fr)_minmax(0,1.22fr)]">
+          <div className="grid gap-4 xl:grid-cols-[minmax(300px,0.95fr)_minmax(300px,0.95fr)_minmax(300px,1.05fr)]">
             <BentoCard>
               <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
                 <div className="flex items-center gap-2.5">
@@ -1799,7 +1828,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                     <AlertTriangle className="h-4 w-4" />
                   </IconBox>
                   <span className="text-[15px] font-bold text-foreground">
-                    Pending Requests
+                    Requests
                   </span>
                 </div>
                 {requestPanel ? (
@@ -1809,24 +1838,42 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                   />
                 ) : null}
               </div>
-              <div className="p-5">
-                <div className="flex min-h-[10rem] flex-col justify-between rounded-xl border border-dashed border-border/60 bg-muted/10 p-4">
-                  <div className="text-sm leading-6 text-muted-foreground">
+              <div className="grid gap-2.5 p-4">
+                {snapshot.alerts.length > 0 ? (
+                  snapshot.alerts.slice(0, 3).map((alert) => (
+                    <div
+                      key={alert.id}
+                      className="grid grid-cols-[minmax(0,1.25fr)_minmax(0,0.95fr)_auto] items-center gap-3 border-b border-border/50 px-1 py-2.5 text-[12px] last:border-b-0"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold text-foreground">
+                          {alert.title}
+                        </div>
+                        <div className="truncate text-muted-foreground">
+                          {alert.message}
+                        </div>
+                      </div>
+                      <div className="truncate text-muted-foreground">
+                        {alert.cta.label}
+                      </div>
+                      <StateBadge state={alert.cta.state} label="Open" />
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-xl border border-dashed border-border/60 bg-muted/10 px-4 py-7 text-sm text-muted-foreground">
                     {requestPanel?.description ??
                       "No request activity is available yet for the selected fiscal year."}
                   </div>
-                  <div className="flex justify-end">
-                    <Button
-                      variant="outline"
-                      className="h-9 rounded-lg text-xs"
-                      onClick={() => handleWorkspaceAction("/po/requests")}
-                      type="button"
-                    >
-                      Open request inbox
-                      <ArrowRight className="ml-2 h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
+                )}
+                <Button
+                  variant="outline"
+                  className="h-9 rounded-lg text-xs"
+                  onClick={() => handleWorkspaceAction("/po/requests")}
+                  type="button"
+                >
+                  View all requests
+                  <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                </Button>
               </div>
             </BentoCard>
 
@@ -1849,10 +1896,10 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                   New
                 </Button>
               </div>
-              <div className="p-5">
-                <div className="border-t border-border/60 pt-8">
+              <div className="p-4">
+                <div>
                   {hasCategories ? (
-                    <div className="space-y-3">
+                    <div className="space-y-2.5">
                       {availableCategories.slice(0, 6).map((category) => (
                         <CategoryManagementRow
                           key={category.id}
@@ -1875,6 +1922,64 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                     </div>
                   )}
                 </div>
+                <Button
+                  className="mt-3 h-9 w-full rounded-lg text-xs"
+                  onClick={() => handleWorkspaceAction("/po/items")}
+                  type="button"
+                  variant="outline"
+                >
+                  View all categories
+                  <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </BentoCard>
+
+            <BentoCard>
+              <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
+                <div className="flex items-center gap-2.5">
+                  <IconBox tone="emerald">
+                    <History className="h-4 w-4" />
+                  </IconBox>
+                  <span className="text-[15px] font-bold text-foreground">
+                    Recent Activity
+                  </span>
+                </div>
+                <Button
+                  className="h-8 rounded-lg text-xs"
+                  disabled
+                  type="button"
+                  variant="outline"
+                >
+                  View all
+                </Button>
+              </div>
+              <div className="grid gap-1 p-4">
+                <ActivityRow
+                  label="Master plan progress updated"
+                  meta={fiscalYearLabel}
+                  timestamp={snapshot.submissionProgress.helperText}
+                />
+                <ActivityRow
+                  label={`${approvedDepartmentCount} departments approved`}
+                  meta={`${submittedDepartmentCount} submitted`}
+                  timestamp={snapshot.deadlineOverview.countdownLabel}
+                />
+                {snapshot.alerts.length > 0 ? (
+                  snapshot.alerts.slice(0, 2).map((alert) => (
+                    <ActivityRow
+                      key={alert.id}
+                      label={alert.title}
+                      meta={alert.cta.label}
+                      timestamp={alert.message}
+                    />
+                  ))
+                ) : (
+                  <ActivityRow
+                    label="No pending operational alerts"
+                    meta="System status"
+                    timestamp="Online"
+                  />
+                )}
               </div>
             </BentoCard>
           </div>

@@ -23,7 +23,7 @@ export function DepartmentReadinessRow({
 }) {
   const isArchived = department?.isArchived === true;
   const name = department?.name ?? item?.name ?? "Department";
-  const voteNumber = department?.voteNumber ?? item?.voteNumber ?? "--";
+  const voteNumber = department?.code ?? item?.code ?? department?.voteNumber ?? item?.voteNumber ?? "--";
   const blockerSummary = isArchived
     ? "Archived department"
     : item?.blockerSummary ?? "Readiness details are loading.";

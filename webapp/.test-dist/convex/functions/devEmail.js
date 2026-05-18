@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.listRecentMessages = exports.captureMessage = void 0;
+exports.deleteMessages = exports.deleteMessage = exports.listRecentMessages = exports.captureMessage = void 0;
 const values_1 = require("convex/values");
 const server_1 = require("../_generated/server");
 const transport_1 = require("../../lib/email/transport");
@@ -8,6 +8,14 @@ const emailTagValidator = values_1.v.object({
     name: values_1.v.string(),
     value: values_1.v.string(),
 });
+function ensureDevInboxEnabled() {
+    if ((0, transport_1.resolveEmailTransportMode)(process.env.AUTH_EMAIL_TRANSPORT) !== "dev_inbox") {
+        throw new values_1.ConvexError({
+            code: "DEV_INBOX_DISABLED",
+            message: "The development inbox is only available in dev_inbox mode.",
+        });
+    }
+}
 exports.captureMessage = (0, server_1.internalMutation)({
     args: {
         debugCode: values_1.v.optional(values_1.v.string()),
@@ -90,12 +98,7 @@ exports.listRecentMessages = (0, server_1.query)({
         to: values_1.v.array(values_1.v.string()),
     })),
     handler: async (ctx) => {
-        if ((0, transport_1.resolveEmailTransportMode)(process.env.AUTH_EMAIL_TRANSPORT) !== "dev_inbox") {
-            throw new values_1.ConvexError({
-                code: "DEV_INBOX_DISABLED",
-                message: "The development inbox is only available in dev_inbox mode.",
-            });
-        }
+        ensureDevInboxEnabled();
         const messages = await ctx.db
             .query("devEmailMessages")
             .withIndex("by_createdAt")
@@ -116,5 +119,50 @@ exports.listRecentMessages = (0, server_1.query)({
             text: message.text,
             to: message.to,
         }));
+    },
+});
+exports.deleteMessage = (0, server_1.mutation)({
+    args: {
+        messageId: values_1.v.id("devEmailMessages"),
+    },
+    returns: values_1.v.object({
+        deletedCount: values_1.v.number(),
+    }),
+    handler: async (ctx, args) => {
+        ensureDevInboxEnabled();
+        const message = await ctx.db.get(args.messageId);
+        if (!message) {
+            return {
+                deletedCount: 0,
+            };
+        }
+        await ctx.db.delete(args.messageId);
+        return {
+            deletedCount: 1,
+        };
+    },
+});
+exports.deleteMessages = (0, server_1.mutation)({
+    args: {
+        messageIds: values_1.v.array(values_1.v.id("devEmailMessages")),
+    },
+    returns: values_1.v.object({
+        deletedCount: values_1.v.number(),
+    }),
+    handler: async (ctx, args) => {
+        ensureDevInboxEnabled();
+        const uniqueMessageIds = Array.from(new Set(args.messageIds));
+        let deletedCount = 0;
+        for (const messageId of uniqueMessageIds) {
+            const message = await ctx.db.get(messageId);
+            if (!message) {
+                continue;
+            }
+            await ctx.db.delete(messageId);
+            deletedCount += 1;
+        }
+        return {
+            deletedCount,
+        };
     },
 });

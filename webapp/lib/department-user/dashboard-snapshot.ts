@@ -216,6 +216,7 @@ export interface DepartmentUserDashboardSnapshot {
             breakdown: {
                 emptyMessage: string;
                 items: Array<{
+                    amount: number;
                     amountLabel: string;
                     categoryName: string;
                     id: string;
@@ -411,6 +412,7 @@ export function buildDepartmentUserDashboardSnapshot(
         .slice()
         .sort((left, right) => right.amount - left.amount)
         .map((summary) => ({
+            amount: summary.amount,
             amountLabel: formatDepartmentUserCurrency(summary.amount),
             categoryName: summary.categoryName,
             id: summary.categoryId,

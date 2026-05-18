@@ -85,7 +85,6 @@
     height: 100%;
     min-height: 0;
     overflow: hidden;
-    position: relative;
 }
 
 :global(.dark) .workspacePrototype,
@@ -95,8 +94,8 @@
 
 .workspacePrototypeHeader {
     align-items: center;
-    background: #ffffff;
-    border-bottom: 1px solid rgba(51, 65, 85, 0.12);
+    background: hsl(var(--card));
+    border-bottom: 1px solid hsl(var(--border));
     display: grid;
     gap: 1rem;
     grid-template-columns: minmax(0, 1fr) minmax(260px, 360px) auto;
@@ -111,7 +110,7 @@
 }
 
 .workspacePrototypeEyebrow {
-    color: rgb(100 116 139);
+    color: hsl(var(--muted-foreground));
     font-size: 0.78rem;
     font-weight: 700;
     letter-spacing: 0.12em;
@@ -119,7 +118,7 @@
 }
 
 .workspacePrototypeTitle {
-    color: rgb(15 23 42);
+    color: hsl(var(--foreground));
     font-size: clamp(1.05rem, 1.8vw, 1.3rem);
     font-weight: 600;
     line-height: 1.2;
@@ -127,7 +126,7 @@
 }
 
 .workspacePrototypeSubtitle {
-    color: rgb(71 85 105);
+    color: hsl(var(--muted-foreground));
     font-size: 0.95rem;
     line-height: 1.6;
     max-width: 48rem;
@@ -146,7 +145,7 @@
 }
 
 .prototypeBudgetLabel {
-    color: rgb(51 65 85);
+    color: hsl(var(--muted-foreground));
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.14em;
@@ -154,7 +153,7 @@
 }
 
 .prototypeBudgetBar {
-    background: rgb(148 163 184);
+    background: hsl(var(--muted));
     border-radius: 9999px;
     height: 0.55rem;
     overflow: hidden;
@@ -169,7 +168,7 @@
 }
 
 .prototypeBudgetText {
-    color: rgb(15 23 42);
+    color: hsl(var(--foreground));
     display: flex;
     flex-wrap: wrap;
     font-size: 0.82rem;
@@ -186,7 +185,66 @@
 }
 
 .workspacePrototypeToolbar :global(button) {
-    border-color: rgba(71, 85, 105, 0.28);
+    border-color: hsl(var(--border));
+}
+
+.workspacePrototypeStatus {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-right: 0.5rem;
+}
+
+.workspacePrototypeActionButton {
+    background: hsl(var(--card));
+    border-color: hsl(var(--border));
+    color: hsl(var(--foreground));
+}
+
+.workspacePrototypeActionButton:hover {
+    background: hsl(var(--muted));
+    color: hsl(var(--foreground));
+}
+
+.workspacePrototypeActionButton:disabled {
+    border-color: hsl(var(--border));
+    color: hsl(var(--muted-foreground));
+    opacity: 0.55;
+}
+
+.workspacePrototypeSaveButton {
+    background: hsl(var(--card));
+    border-color: hsl(var(--primary));
+    color: hsl(var(--primary));
+}
+
+.workspacePrototypeSaveButton:hover {
+    background: hsl(var(--primary) / 0.1);
+    color: hsl(var(--primary));
+}
+
+.workspacePrototypeSubmitButton {
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+}
+
+.workspacePrototypeSubmitButton:hover {
+    background: hsl(var(--primary) / 0.9);
+}
+
+.workspacePrototypeWithdrawButton {
+    background: rgb(217 119 6);
+    color: #ffffff;
+}
+
+.workspacePrototypeWithdrawButton:hover {
+    background: rgb(180 83 9);
+}
+
+.workspacePrototypeDisabledButton,
+.workspacePrototypeDisabledButton:hover {
+    background: hsl(var(--muted));
+    color: hsl(var(--muted-foreground));
 }
 
 .workspacePrototypeCanvas {
@@ -206,6 +264,7 @@
     height: 100%;
     min-height: 0;
     overflow: hidden;
+    position: relative;
 }
 
 :global(.dark) .hostShell,
@@ -645,14 +704,14 @@
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyoutBackground) {
     fill: var(--pl-dk-surface) !important; stroke: var(--pl-dk-border) !important;
 }
-:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .blocklyDraggable .blocklyPath) {
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .blocklyDraggable:not(.aggregate-plan-block):not(.department-plan-block):not(.category-plan-block):not(.item-plan-block):not(.timing-plan-block):not(.planned-timing-block):not(.actual-timing-block):not(.variance-timing-block) .blocklyPath) {
     fill: var(--pl-dk-surface2) !important; stroke: var(--pl-dk-border) !important; stroke-width: 1px !important;
 }
-:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .blocklyDraggable .blocklyText) {
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .blocklyDraggable:not(.aggregate-plan-block):not(.department-plan-block):not(.category-plan-block):not(.item-plan-block):not(.timing-plan-block):not(.planned-timing-block):not(.actual-timing-block):not(.variance-timing-block) .blocklyText) {
     fill: var(--pl-dk-text) !important; font-size: 8.25pt !important; font-weight: 600 !important;
 }
-:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .blocklyDraggable .blocklyPathDark),
-:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .blocklyDraggable .blocklyPathLight) { display: none !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .blocklyDraggable:not(.aggregate-plan-block):not(.department-plan-block):not(.category-plan-block):not(.item-plan-block):not(.timing-plan-block):not(.planned-timing-block):not(.actual-timing-block):not(.variance-timing-block) .blocklyPathDark),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .blocklyDraggable:not(.aggregate-plan-block):not(.department-plan-block):not(.category-plan-block):not(.item-plan-block):not(.timing-plan-block):not(.planned-timing-block):not(.actual-timing-block):not(.variance-timing-block) .blocklyPathLight) { display: none !important; }
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .aggregate-plan-block .blocklyPath) {
     fill: var(--pl-dk-agg-fill) !important; stroke: none !important;
 }
@@ -673,6 +732,18 @@
     fill: var(--pl-dk-time-fill) !important; stroke: var(--pl-dk-time-stroke) !important;
 }
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .timing-plan-block .blocklyText) { fill: var(--pl-dk-time-text) !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .planned-timing-block .blocklyPath) {
+    fill: var(--pl-dk-planned-fill) !important; stroke: var(--pl-dk-planned-stroke) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .planned-timing-block .blocklyText) { fill: var(--pl-dk-planned-text) !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .actual-timing-block .blocklyPath) {
+    fill: var(--pl-dk-actual-fill) !important; stroke: var(--pl-dk-actual-stroke) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .actual-timing-block .blocklyText) { fill: var(--pl-dk-actual-text) !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .variance-timing-block .blocklyPath) {
+    fill: var(--pl-dk-variance-fill) !important; stroke: var(--pl-dk-variance-stroke) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyFlyout .variance-timing-block .blocklyText) { fill: var(--pl-dk-variance-text) !important; }
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyScrollbarBackground) { fill: rgba(8,15,28,0.5) !important; }
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyScrollbarHandle) { fill: rgba(148,163,184,0.55) !important; }
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyTreeRow) { color: var(--pl-dk-text) !important; }
@@ -680,6 +751,14 @@
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyTreeSelected) {
     background: var(--pl-dk-emerald-soft) !important;
     box-shadow: inset 3px 0 0 var(--pl-dk-emerald-bright) !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyToolboxCategoryContainer),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyToolboxCategory),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyToolboxSelected) {
+    border-bottom: 0 !important;
+    border-top: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
 }
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyTreeLabel),
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .pl-toolbox-category__label),

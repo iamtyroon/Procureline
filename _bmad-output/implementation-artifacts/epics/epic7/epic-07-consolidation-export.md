@@ -3,7 +3,7 @@ epic: 7
 title: "PO Consolidation & Excel Export"
 status: ready
 priority: P0
-totalStories: 6
+totalStories: 4
 frsConvered: ["FR58-FR66e", "FR67-FR70"]
 nfrsAddressed: ["NFR-S1", "NFR-S7", "NFR-P1", "NFR-P4"]
 dependencies: ["Epic 5", "Epic 6"]
@@ -58,11 +58,14 @@ POs (like Sarah Mwangi from the user journey) can complete consolidation in hour
 ## Story Delivery Map
 
 - `Story 7.1` achieves controlled entry into the consolidation phase. Delivery should ensure only the right PO and the right plan states can open the consolidation workspace, with enough context to understand what is ready.
-- `Story 7.2` achieves the actual assembly of approved departmental plans into one institutional view. Delivery should support automated aggregation of approved plans within the workspace while preserving traceability back to source plans.
-- `Story 7.3` achieves trustworthy compliance and financial totals during consolidation. Delivery should centralize calculations, surface threshold breaches immediately, and avoid duplicating business logic across UI and export layers.
 - `Story 7.4` achieves a formal handoff from editable consolidation to frozen versioned output. Delivery should introduce explicit finalization rules, revision history, and safeguards against silent post-finalization changes.
 - `Story 7.5` achieves exportability of the consolidated plan. Delivery should orchestrate export jobs, progress feedback, and secure retrieval of generated files without blocking the main user workflow.
 - `Story 7.6` achieves standards-compliant Excel output instead of a raw data dump. Delivery should shape workbook structure, formatting, formulas, and required content so the output is acceptable to downstream government processes.
+
+Removed stories:
+
+- `Story 7.2` was removed from the planned backlog because automated aggregation is no longer needed as a separate delivery slice.
+- `Story 7.3` was removed from the planned backlog because compliance calculations and totals were already completed manually.
 
 ---
 
@@ -105,93 +108,6 @@ So that I can begin aggregating approved department plans.
 - Available departments from `plans` where `status: 'approved'`
 - Warning list from departments without approved plans
 - Draft auto-save every 60 seconds
-
----
-
-### Story 7.2: Automated Department Plan Aggregation
-
-As a **Procurement Officer**,
-I want the consolidation workspace to automatically aggregate all approved department plans,
-So that I can immediately view the master Annual Procurement Plan without manual assembly.
-
-**Acceptance Criteria:**
-
-**Given** a PO opens the consolidation workspace
-**When** the workspace initializes
-**Then** system automatically aggregates all approved department plans into a single unified master plan (FR60)
-**And** totals update automatically based on the aggregated items
-
-**Given** an aggregated department is in the consolidation
-**When** PO reviews the plan
-**Then** PO can see the origin of each item (which department it belongs to)
-**And** items are grouped or tagged by their source department
-
-**Given** a PO reviews the consolidation canvas
-**When** viewing the interface
-**Then** PO can expand to see department details: categories, items, quarterly totals
-**And** system displays a clear visual indication of all consolidated departments
-
-**Technical Notes:**
-- The full blockly workflow for PO consolidation has been prototyped in @procurelinedb.html where it automatically aggregates all plans in a single view. The implementation should mimic this unified workspace.
-- Consolidation data is derived dynamically from all `status: 'approved'` plans.
-- Expansion state stored in localStorage for persistence.
-
----
-
-### Story 7.3: Compliance Calculations & Totals
-
-As a **Procurement Officer**,
-I want automatic compliance calculations displayed in real-time,
-So that I can ensure the plan meets GOK requirements.
-
-**Acceptance Criteria:**
-
-**Given** departments are consolidated
-**When** calculations run
-**Then** system calculates grand totals from all consolidated departments (FR61)
-**And** displays: total amount, item count, department count
-
-**Given** departments are consolidated
-**When** compliance is calculated
-**Then** system calculates AGPO allocation as 30% of total (FR62)
-**And** displays: target amount, actual amount from flagged items, percentage achieved
-
-**Given** AGPO allocation is below 30%
-**When** viewing compliance
-**Then** system displays warning: "AGPO target not met. Current: X%, Required: 30%" (FR62a)
-
-**Given** departments are consolidated
-**When** compliance is calculated
-**Then** system calculates PWD set-aside as 2% of total (FR63)
-**And** displays: target amount, actual amount, percentage achieved
-
-**Given** PWD allocation is below 2%
-**When** viewing compliance
-**Then** system displays warning: "PWD target not met. Current: X%, Required: 2%" (FR63a)
-
-**Given** departments are consolidated
-**When** compliance is calculated
-**Then** system calculates Local Content target as 40% of total (FR64)
-**And** displays: target amount, actual amount, percentage achieved
-
-**Given** Local Content is below 40%
-**When** viewing compliance
-**Then** system displays warning: "Local Content target not met. Current: X%, Required: 40%" (FR64a)
-
-**Given** departments are consolidated
-**When** viewing quarterly breakdown
-**Then** system shows quarterly subtotals across all departments (FR65)
-**And** displays: Q1, Q2, Q3, Q4 totals
-
-**Given** all compliance targets are met
-**When** viewing compliance panel
-**Then** system shows green checkmarks for each target
-
-**Technical Notes:**
-- Compliance flags from items: agpo, pwd, localContent (boolean fields)
-- Calculations: sum items with flag / total × 100
-- Quarterly totals from sum of all department quarterly data
-- Warnings use configurable thresholds from tenant settings
 
 ---
 
@@ -347,21 +263,17 @@ So that it meets government submission requirements.
 
 ```
 Story 7.1 (Workspace Access)
-    │
-    └── Story 7.2 (Automated Aggregation)
-            │
-            └── Story 7.3 (Compliance Calculations)
-                    │
-                    └── Story 7.4 (Finalization)
-                            │
-                            └── Story 7.5 (Excel Export)
-                                    │
-                                    └── Story 7.6 (Excel Formatting)
+  |
+  `-- Story 7.4 (Finalization)
+      |
+      `-- Story 7.5 (Excel Export)
+          |
+          `-- Story 7.6 (Excel Formatting)
 ```
 
 ## Definition of Done
 
-- [ ] All 6 stories implemented and tested
+- [ ] All 4 active stories implemented and tested
 - [ ] Consolidation workspace tested with 15+ departments
 - [ ] Compliance calculations verified against manual calculations
 - [ ] Excel export matches GOK template exactly

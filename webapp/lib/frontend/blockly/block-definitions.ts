@@ -49,6 +49,11 @@ const ITEM_ROW_SPACING = {
     beforeTotal: 1,
 } as const;
 
+const DEPARTMENT_TOTAL_SPACING = {
+    beforeLabel: 12,
+    beforeValue: 6,
+} as const;
+
 const TIMING_FIELD_LABELS = [
     "Time process days:",
     "Invite/Advertisement:",
@@ -296,8 +301,12 @@ export function registerDepartmentUserBlocklyBlocks(BlocklyBase: BlocklyModule):
 
             this.appendDummyInput("TOTAL")
                 .setAlign(Blockly.inputs.Align.RIGHT)
+                .appendField(createAggregateSpacerField(Blockly, DEPARTMENT_TOTAL_SPACING.beforeLabel))
                 .appendField("Total: KES")
+                .appendField(createAggregateSpacerField(Blockly, DEPARTMENT_TOTAL_SPACING.beforeValue))
                 .appendField(createReadonlyTextField(Blockly, "0.00"), "DEPT_TOTAL");
+
+            this.appendStatementInput("TIMING").setCheck("department_timing_statement");
 
             this.setColour("#18b969");
             this.setPreviousStatement(true, "department_block");
@@ -336,7 +345,8 @@ export function registerDepartmentUserBlocklyBlocks(BlocklyBase: BlocklyModule):
             this.getInput("BUDGET_INPUT")?.setVisible(!this.isCollapsed_);
             this.getInput("COUNTS_INPUT")?.setVisible(!this.isCollapsed_ && this.isSummaryOnly_);
             this.getInput("QUARTER_TOTALS_INPUT")?.setVisible(!this.isCollapsed_ && this.isSummaryOnly_);
-            this.getInput("CATEGORIES")?.setVisible(!this.isSummaryOnly_);
+            this.getInput("CATEGORIES")?.setVisible(!this.isCollapsed_ && !this.isSummaryOnly_);
+            this.getInput("TIMING")?.setVisible(false);
             this.updateVisualState();
         },
 
@@ -621,18 +631,8 @@ export function registerDepartmentUserBlocklyBlocks(BlocklyBase: BlocklyModule):
                     .setVisible(false);
             });
 
-            this.setPreviousStatement(true, [
-                "department_block",
-                "planned_timing_block",
-                "actual_timing_block",
-                "variance_timing_block",
-            ]);
-            this.setNextStatement(true, [
-                "department_block",
-                "planned_timing_block",
-                "actual_timing_block",
-                "variance_timing_block",
-            ]);
+            this.setPreviousStatement(true, "department_timing_statement");
+            this.setNextStatement(true, "department_timing_statement");
             this.setColour(colour);
             this.setTooltip("Click > to expand timing details.");
             this.setInputsInline(false);

@@ -558,11 +558,32 @@ exports.default = (0, server_1.defineSchema)({
         revision: values_1.v.number(),
         createdByTenantUserId: values_1.v.id("tenantUsers"),
         updatedByTenantUserId: values_1.v.id("tenantUsers"),
+        finalizedAt: values_1.v.optional(values_1.v.number()),
+        finalizedByTenantUserId: values_1.v.optional(values_1.v.id("tenantUsers")),
         createdAt: values_1.v.number(),
         updatedAt: values_1.v.number(),
     })
         .index("by_tenantId_fiscalYear", ["tenantId", "fiscalYear"])
         .index("by_tenantId_status_fiscalYear", ["tenantId", "status", "fiscalYear"]),
+    consolidationSnapshots: (0, server_1.defineTable)({
+        tenantId: values_1.v.id("tenants"),
+        consolidationId: values_1.v.id("consolidations"),
+        fiscalYear: values_1.v.string(),
+        status: values_1.v.literal("finalized"),
+        schemaVersion: values_1.v.number(),
+        sourcePlanIds: values_1.v.array(values_1.v.string()),
+        selectedSourceDepartmentIds: values_1.v.array(values_1.v.string()),
+        draftData: values_1.v.any(),
+        workspaceState: values_1.v.optional(values_1.v.any()),
+        calculatedTotals: values_1.v.any(),
+        complianceSummary: values_1.v.any(),
+        notes: values_1.v.string(),
+        capturedAt: values_1.v.number(),
+        capturedByTenantUserId: values_1.v.id("tenantUsers"),
+        capturedByUserId: values_1.v.id("users"),
+    })
+        .index("by_consolidationId", ["consolidationId", "capturedAt"])
+        .index("by_tenantId_fiscalYear", ["tenantId", "fiscalYear", "capturedAt"]),
     departmentAccessCodes: (0, server_1.defineTable)({
         tenantId: values_1.v.id("tenants"),
         departmentId: values_1.v.id("departments"),

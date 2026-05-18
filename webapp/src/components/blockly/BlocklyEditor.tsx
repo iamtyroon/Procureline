@@ -2023,11 +2023,11 @@ export function BlocklyEditor(props: {
                         </div>
 
                         <div className={styles.workspacePrototypeToolbar}>
-                            <span className="mr-2 text-xs font-medium text-slate-500">
+                            <span className={styles.workspacePrototypeStatus}>
                                 {saveIndicatorLabel}
                             </span>
                             <Button
-                                className="border-slate-400 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                                className={styles.workspacePrototypeActionButton}
                                 onClick={handleExitIntent}
                                 type="button"
                                 variant="outline"
@@ -2036,7 +2036,7 @@ export function BlocklyEditor(props: {
                                 Exit
                             </Button>
                             <Button
-                                className="border-slate-400 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                                className={styles.workspacePrototypeActionButton}
                                 disabled={props.mode !== "edit" || catalogRequestData?.meta.canCreate === false}
                                 onClick={() => startTransition(() => openCatalogRequestDialog("item"))}
                                 type="button"
@@ -2046,7 +2046,7 @@ export function BlocklyEditor(props: {
                                 Request Item
                             </Button>
                             <Button
-                                className="border-slate-400 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                                className={styles.workspacePrototypeActionButton}
                                 onClick={() =>
                                     startTransition(() =>
                                         handlePlaceholderAction(
@@ -2061,7 +2061,7 @@ export function BlocklyEditor(props: {
                                 Export to Excel
                             </Button>
                             <Button
-                                className="border-slate-400 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 disabled:border-slate-300 disabled:text-slate-400"
+                                className={styles.workspacePrototypeActionButton}
                                 disabled={isUndoDisabled}
                                 onClick={handleWorkspaceUndo}
                                 type="button"
@@ -2071,7 +2071,7 @@ export function BlocklyEditor(props: {
                                 Undo
                             </Button>
                             <Button
-                                className="border-slate-400 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 disabled:border-slate-300 disabled:text-slate-400"
+                                className={styles.workspacePrototypeActionButton}
                                 disabled={isRedoDisabled}
                                 onClick={handleWorkspaceRedo}
                                 type="button"
@@ -2081,7 +2081,7 @@ export function BlocklyEditor(props: {
                                 Redo
                             </Button>
                             <Button
-                                className="border-emerald-500 bg-white text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 disabled:border-slate-300 disabled:text-slate-400"
+                                className={styles.workspacePrototypeSaveButton}
                                 disabled={isCloudSaveDisabled}
                                 onClick={() => {
                                     void handleSaveToCloud();
@@ -2094,7 +2094,7 @@ export function BlocklyEditor(props: {
                             </Button>
                             {canOpenSubmitReview ? (
                                 <Button
-                                    className="bg-emerald-500 text-white hover:bg-emerald-600 disabled:bg-emerald-200 disabled:text-slate-600"
+                                    className={styles.workspacePrototypeSubmitButton}
                                     disabled={submitState.disabled || isSubmitPending}
                                     onClick={() => {
                                         void handleOpenSubmitReview();
@@ -2107,7 +2107,7 @@ export function BlocklyEditor(props: {
                                 </Button>
                             ) : canWithdrawCurrentSubmission ? (
                                 <Button
-                                    className="bg-amber-500 text-white hover:bg-amber-600 disabled:bg-amber-200 disabled:text-slate-600"
+                                    className={styles.workspacePrototypeWithdrawButton}
                                     disabled={isWithdrawPending}
                                     onClick={() => {
                                         void handleWithdrawSubmission();
@@ -2120,7 +2120,7 @@ export function BlocklyEditor(props: {
                                 </Button>
                             ) : (
                                 <Button
-                                    className="bg-slate-300 text-slate-700 hover:bg-slate-300"
+                                    className={styles.workspacePrototypeDisabledButton}
                                     disabled
                                     type="button"
                                     variant="default"

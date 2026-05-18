@@ -4,6 +4,7 @@ import { join } from "node:path";
 import {
     CONSOLIDATION_EMPTY_MESSAGE,
     buildConsolidationReadiness,
+    extractConsolidationFinalizationSnapshotValues,
     normalizeConsolidationFiscalYear,
     selectCanonicalApprovedPlansByDepartment,
     validateConsolidationDraftPayload,
@@ -200,8 +201,24 @@ export function runProcurementOfficerConsolidationTests(): string[] {
         }).selectedFiscalYear,
         "2026-2027",
     );
+    assert.equal(
+        normalizeConsolidationFiscalYear({
+            approvedPlanFiscalYears: ["2025-2026"],
+            departments: [
+                {
+                    id: "department-current",
+                    isActive: true,
+                    submissionEndsAt: Date.UTC(2026, 7, 20, 12, 0, 0),
+                    submissionStartsAt: Date.UTC(2026, 7, 1, 12, 0, 0),
+                },
+            ],
+            now: Date.UTC(2026, 7, 10, 12, 0, 0),
+            submissionDeadlineFiscalYears: ["2025-2026"],
+        }).selectedFiscalYear,
+        "2026-2027",
+    );
     completedTests.push(
-        "consolidation fiscal-year normalization ignores malformed client input and falls back to safe dashboard-backed options",
+        "consolidation fiscal-year normalization ignores malformed client input and defaults to the tenant current year before stale approved-plan years",
     );
 
     assert.equal(
@@ -283,6 +300,44 @@ export function runProcurementOfficerConsolidationTests(): string[] {
         "consolidation draft validation accepts persisted stringified Blockly JSON, large block counts, and institution-scale department counts while rejecting duplicate sources plus overly deep JSON before persistence",
     );
 
+    const snapshotValues = extractConsolidationFinalizationSnapshotValues({
+        blocks: {
+            blocks: [
+                {
+                    fields: {
+                        DEPARTMENT_COUNT: "2",
+                        GRAND_TOTAL: "1,234.50",
+                        ITEM_COUNT: "8",
+                        LOCAL_CONTENT_TOTAL: "900",
+                        PWD_TOTAL: "50",
+                        Q1_TOTAL: "100",
+                        Q2_TOTAL: "200",
+                        Q3_TOTAL: "300",
+                        Q4_TOTAL: "634.50",
+                    },
+                    type: "aggregate_plan_block",
+                },
+            ],
+            languageVersion: 0,
+        },
+    });
+    assert.deepEqual(snapshotValues.calculatedTotals, {
+        departmentCount: 2,
+        itemCount: 8,
+        q1Total: 100,
+        q2Total: 200,
+        q3Total: 300,
+        q4Total: 634.5,
+        totalCost: 1234.5,
+    });
+    assert.equal(
+        snapshotValues.complianceSummary.aggregateFields.LOCAL_CONTENT_TOTAL,
+        "900",
+    );
+    completedTests.push(
+        "consolidation finalization snapshots preserve displayed aggregate totals and compliance fields without recalculating or gating them",
+    );
+
     const routeSource = readFileSync(
         join(process.cwd(), "app/(app)/po/consolidation/page.tsx"),
         "utf8",
@@ -307,14 +362,30 @@ export function runProcurementOfficerConsolidationTests(): string[] {
     assert.equal(workspaceSource.includes("CONSOLIDATION_EMPTY_MESSAGE"), true);
     assert.equal(workspaceSource.includes("Open department setup"), true);
     assert.equal(workspaceSource.includes("Open consolidation workspace"), false);
-    assert.equal(workspaceSource.includes("Excel"), false);
+    assert.equal(workspaceSource.includes("Finalize Plan"), true);
+    assert.equal(workspaceSource.includes("Edit Draft"), true);
+    assert.equal(workspaceSource.includes("Export ready"), true);
+    assert.equal(workspaceSource.includes("readOnly={isFinalized}"), true);
+    assert.equal(workspaceSource.includes("Finalized on"), true);
     assert.equal(shellSource.includes('await import("blockly")'), true);
     assert.equal(shellSource.includes("Blockly.Xml"), false);
     assert.equal(shellSource.includes("SUMMARY_ONLY"), true);
+    assert.equal(shellSource.includes("FINANCIAL_YEAR: args.fiscalYear"), true);
+    assert.equal(shellSource.includes("timingSections"), true);
+    assert.equal(shellSource.includes("inputs.TIMING"), false);
+    assert.equal(shellSource.includes("buildTimingBlockChain"), false);
+    assert.equal(shellSource.includes('name: "Timing"'), false);
+    assert.match(
+        workspaceSource,
+        /\.\.\.\(asRecord\(aggregateBlock\?\.fields\) \?\? \{\}\),\s*FINANCIAL_YEAR: args\.fiscalYear/s,
+    );
+    assert.equal(workspaceSource.includes("createDepartmentStubChainFromAggregate"), true);
+    assert.equal(workspaceSource.includes("cloneConsolidationTimingChain"), false);
+    assert.equal(workspaceSource.includes("TimingDetailsPanel"), true);
     assert.equal(workspaceSource.includes("ConsolidationDepartmentDetailsPanel"), true);
     assert.equal(workspaceSource.includes("visibleItems"), true);
     completedTests.push(
-        "consolidation UI source replaces the placeholder route, includes setup and no-approved-plan states, lazy-loads Blockly, uses summary-only department blocks, provides a virtualized details panel, and excludes export controls",
+        "consolidation UI source replaces the placeholder route, includes setup and no-approved-plan states, lazy-loads Blockly, uses compact summary-only department blocks, moves timing inspection into the details panel, provides virtualized item rows, and excludes export controls",
     );
 
     return completedTests;

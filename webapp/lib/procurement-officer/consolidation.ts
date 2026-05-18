@@ -7,6 +7,7 @@ import {
 } from "./dashboard";
 
 export const CONSOLIDATION_DRAFT_SCHEMA_VERSION = 1 as const;
+export const CONSOLIDATION_SNAPSHOT_SCHEMA_VERSION = 1 as const;
 export const CONSOLIDATION_EMPTY_MESSAGE =
     "No approved plans available for consolidation. Approve department submissions first.";
 
@@ -82,6 +83,22 @@ export interface ConsolidationReadinessResult {
     totalItemCount: number;
 }
 
+export interface ConsolidationFinalizationSnapshotValues {
+    calculatedTotals: {
+        departmentCount: number;
+        itemCount: number;
+        q1Total: number;
+        q2Total: number;
+        q3Total: number;
+        q4Total: number;
+        totalCost: number;
+    };
+    complianceSummary: {
+        aggregateFields: Record<string, string>;
+        source: "aggregate_block_fields";
+    };
+}
+
 export interface ConsolidationFiscalYearOptionsArgs {
     approvedPlanFiscalYears?: readonly string[];
     departments: readonly ProcurementDepartmentWindowRecord[];
@@ -123,6 +140,10 @@ export function normalizeConsolidationFiscalYear(
         return { currentFiscalYear, options, selectedFiscalYear: requestedFiscalYear };
     }
 
+    if (options.includes(currentFiscalYear)) {
+        return { currentFiscalYear, options, selectedFiscalYear: currentFiscalYear };
+    }
+
     const approvedOptions = options
         .filter((option) => approvedPlanFiscalYears.has(option))
         .sort((left, right) => right.localeCompare(left));
@@ -135,10 +156,6 @@ export function normalizeConsolidationFiscalYear(
             options,
             selectedFiscalYear: approvedOptions[0],
         };
-    }
-
-    if (options.includes(currentFiscalYear)) {
-        return { currentFiscalYear, options, selectedFiscalYear: currentFiscalYear };
     }
 
     return {
@@ -290,12 +307,85 @@ export function validateConsolidationDraftPayload(args: {
     return { ok: true };
 }
 
+export function extractConsolidationFinalizationSnapshotValues(
+    workspaceState: unknown,
+): ConsolidationFinalizationSnapshotValues {
+    let workspaceRecord = workspaceState;
+    if (isPersistedBlocklyWorkspaceRecordLike(workspaceState)) {
+        try {
+            workspaceRecord = JSON.parse(
+                String((workspaceState as Record<string, unknown>).workspaceJson),
+            );
+        } catch {
+            workspaceRecord = null;
+        }
+    }
+    const aggregateBlock = findWorkspaceBlock(workspaceRecord, "aggregate_plan_block");
+    const fields = coerceStringRecord(
+        aggregateBlock && typeof aggregateBlock === "object" && !Array.isArray(aggregateBlock)
+            ? (aggregateBlock as Record<string, unknown>).fields
+            : null,
+    );
+
+    return {
+        calculatedTotals: {
+            departmentCount: parseSnapshotNumber(fields.DEPARTMENT_COUNT),
+            itemCount: parseSnapshotNumber(fields.ITEM_COUNT),
+            q1Total: parseSnapshotNumber(fields.Q1_TOTAL),
+            q2Total: parseSnapshotNumber(fields.Q2_TOTAL),
+            q3Total: parseSnapshotNumber(fields.Q3_TOTAL),
+            q4Total: parseSnapshotNumber(fields.Q4_TOTAL),
+            totalCost: parseSnapshotNumber(fields.GRAND_TOTAL ?? fields.TOTAL_COST),
+        },
+        complianceSummary: {
+            aggregateFields: fields,
+            source: "aggregate_block_fields",
+        },
+    };
+}
+
+function findWorkspaceBlock(value: unknown, type: string): unknown {
+    const stack = [value];
+    while (stack.length > 0) {
+        const current = stack.pop();
+        if (!current || typeof current !== "object") {
+            continue;
+        }
+        if (!Array.isArray(current) && (current as Record<string, unknown>).type === type) {
+            return current;
+        }
+        stack.push(
+            ...(Array.isArray(current)
+                ? current
+                : Object.values(current as Record<string, unknown>)),
+        );
+    }
+    return null;
+}
+
+function coerceStringRecord(value: unknown): Record<string, string> {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return {};
+    }
+    return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+            key,
+            String(entry ?? ""),
+        ]),
+    );
+}
+
+function parseSnapshotNumber(value: unknown): number {
+    const parsed = Number(String(value ?? "0").replace(/,/g, ""));
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function validateWorkspaceJsonLike(
     value: unknown,
 ): { message?: string; ok: true } | { message: string; ok: false } {
-    let serialized = "";
+    let _serialized = "";
     try {
-        serialized = JSON.stringify(value);
+        _serialized = JSON.stringify(value);
     } catch {
         return {
             ok: false,
