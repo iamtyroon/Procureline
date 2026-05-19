@@ -373,14 +373,15 @@ export function runProcurementOfficerConsolidationTests(): string[] {
     assert.equal(workspaceSource.includes("Open consolidation workspace"), false);
     assert.equal(workspaceSource.includes("Finalize Plan"), true);
     assert.equal(workspaceSource.includes("Edit Draft"), true);
-    assert.equal(workspaceSource.includes("Export ready"), true);
+    assert.equal(workspaceSource.includes("Export ready"), false);
+    assert.equal(workspaceSource.includes("Preview .xlsx"), true);
     assert.equal(workspaceSource.includes("queueConsolidatedPlanExcelExport"), true);
     assert.equal(workspaceSource.includes("Excel Preview"), true);
     assert.equal(workspaceSource.includes("Consolidated Plan Preview"), true);
     assert.equal(workspaceSource.includes("Consolidated Procurement Plan Template"), true);
     assert.equal(workspaceSource.includes("Download .xlsx"), true);
     assert.equal(workspaceSource.includes("PreviewCategoryRows"), true);
-    assert.equal(workspaceSource.includes("Export History"), true);
+    assert.equal(workspaceSource.includes("Export History"), false);
     assert.equal(workspaceSource.includes("readOnly={isFinalized}"), true);
     assert.equal(workspaceSource.includes("Finalized on"), true);
     assert.equal(shellSource.includes('await import("blockly")'), true);

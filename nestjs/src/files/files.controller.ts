@@ -35,8 +35,30 @@ export class FilesController {
   queueConsolidatedPlanExcelExport(
     @Body() dto: QueueConsolidatedPlanExportDto,
     @CurrentUser() user: RequestUser,
-  ): Promise<{ duplicate?: boolean; eventKey: string; jobId: string | undefined; queued: boolean }> {
+  ): Promise<{
+    duplicate?: boolean;
+    eventKey: string;
+    fileName?: string;
+    jobId: string | undefined;
+    queued: boolean;
+    workbookBase64?: string;
+  }> {
     return this.filesService.queueConsolidatedPlanExcelExport(dto, user);
+  }
+
+  @Post("exports/consolidated-plan")
+  @ApiOperation({ summary: "Generate a consolidated procurement plan workbook synchronously" })
+  createConsolidatedPlanExcelExport(
+    @Body() dto: QueueConsolidatedPlanExportDto,
+  ): Promise<{
+    checksum: string;
+    downloadUrl: string;
+    fileName: string;
+    fileSizeBytes: number;
+    storageId: string;
+    workbookBase64: string;
+  }> {
+    return this.filesService.createConsolidatedPlanExcelExport(dto);
   }
 
   @Post("imports/excel")

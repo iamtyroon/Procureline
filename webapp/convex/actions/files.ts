@@ -488,8 +488,10 @@ export const queueConsolidatedPlanExcelExport = action({
     try {
       const queued = await callNestService<{
         eventKey: string;
+        fileName?: string;
         jobId?: string;
         queued: boolean;
+        workbookBase64?: string;
       }>(ctx, {
         actor,
         body: {
@@ -500,6 +502,16 @@ export const queueConsolidatedPlanExcelExport = action({
         },
         path: "/api/services/files/exports/consolidated-plan/queue",
       });
+      if (!queued.queued) {
+        return {
+          ...prepared.export,
+          eventKey: queued.eventKey,
+          fileName: queued.fileName ?? null,
+          jobId: null,
+          status: "completed",
+          workbookBase64: queued.workbookBase64 ?? null,
+        };
+      }
       await ctx.runMutation(
         internal.functions.consolidationExports.attachQueuedConsolidatedPlanExportJob,
         {

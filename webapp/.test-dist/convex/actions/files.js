@@ -382,6 +382,16 @@ exports.queueConsolidatedPlanExcelExport = (0, server_1.action)({
                 },
                 path: "/api/services/files/exports/consolidated-plan/queue",
             });
+            if (!queued.queued) {
+                return {
+                    ...prepared.export,
+                    eventKey: queued.eventKey,
+                    fileName: queued.fileName ?? null,
+                    jobId: null,
+                    status: "completed",
+                    workbookBase64: queued.workbookBase64 ?? null,
+                };
+            }
             await ctx.runMutation(api_1.internal.functions.consolidationExports.attachQueuedConsolidatedPlanExportJob, {
                 eventKey: queued.eventKey,
                 exportId: prepared.export.exportId,

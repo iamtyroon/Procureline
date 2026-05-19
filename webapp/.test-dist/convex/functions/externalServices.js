@@ -66,6 +66,32 @@ exports.completeSyncEvent = (0, server_1.internalMutation)({
             status: "completed",
             updatedAt: Date.now(),
         });
+        for (const change of args.durableChanges) {
+            if (change &&
+                typeof change === "object" &&
+                change.changeType ===
+                    "files.consolidated_plan_export.completed" &&
+                typeof change.exportId === "string") {
+                const result = args.result;
+                const now = Date.now();
+                await ctx.db.patch(change.exportId, {
+                    checksum: typeof result.checksum === "string" ? result.checksum : undefined,
+                    completedAt: now,
+                    downloadUrl: typeof result.downloadUrl === "string"
+                        ? result.downloadUrl
+                        : undefined,
+                    fileExpiresAt: now + 30 * 24 * 60 * 60 * 1000,
+                    fileSizeBytes: typeof result.fileSizeBytes === "number"
+                        ? result.fileSizeBytes
+                        : undefined,
+                    generatedAt: now,
+                    progress: 100,
+                    status: "completed",
+                    storageId: typeof result.storageId === "string" ? result.storageId : undefined,
+                    updatedAt: now,
+                });
+            }
+        }
         return { status: "completed" };
     },
 });

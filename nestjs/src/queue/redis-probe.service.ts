@@ -9,6 +9,8 @@ export class RedisProbeService implements OnModuleInit, OnApplicationShutdown {
 
   constructor(configService: ConfigService<AppConfig, true>) {
     this.redis = new Redis(configService.get("redisUrl", { infer: true }), {
+      connectTimeout: 1_000,
+      enableOfflineQueue: false,
       lazyConnect: true,
       maxRetriesPerRequest: 1,
     });

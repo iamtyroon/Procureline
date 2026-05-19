@@ -136,8 +136,7 @@ exports.getProcurementOfficerConsolidationExcelPreview = (0, server_1.query)({
         const snapshot = await loadCurrentFinalizedSnapshot(ctx, consolidation._id);
         if (!snapshot ||
             snapshot.tenantId !== authContext.tenantId ||
-            snapshot.fiscalYear !== args.fiscalYear ||
-            snapshot.status !== "finalized") {
+            snapshot.fiscalYear !== args.fiscalYear) {
             throw new values_1.ConvexError({
                 code: "FINALIZATION_REQUIRED",
                 message: FINALIZED_EXPORT_BLOCKED_MESSAGE,
@@ -192,8 +191,7 @@ exports.prepareConsolidatedPlanExcelExport = (0, server_1.internalMutation)({
         if (!snapshot ||
             snapshot.tenantId !== args.tenantId ||
             snapshot.consolidationId !== consolidation._id ||
-            snapshot.fiscalYear !== args.fiscalYear ||
-            snapshot.status !== "finalized") {
+            snapshot.fiscalYear !== args.fiscalYear) {
             throw new values_1.ConvexError({
                 code: "FINALIZATION_REQUIRED",
                 message: FINALIZED_EXPORT_BLOCKED_MESSAGE,
@@ -212,6 +210,20 @@ exports.prepareConsolidatedPlanExcelExport = (0, server_1.internalMutation)({
         }
         const now = Date.now();
         const safeFileName = `consolidated-plan-${args.fiscalYear}-${String(snapshot._id).slice(-8)}.xlsx`;
+        const sourcePlans = (await Promise.all(snapshot.sourcePlanIds.map((planId) => ctx.db.get(planId)))).filter((plan) => Boolean(plan));
+        const sourceDepartments = await Promise.all(sourcePlans.map(async (plan) => {
+            const department = await ctx.db.get(plan.departmentId);
+            return {
+                approvedAt: plan.approvedAt ?? null,
+                departmentId: String(plan.departmentId),
+                departmentName: plan.departmentNameSnapshot ?? department?.name ?? "Department",
+                estimatedBudgetUsed: plan.estimatedBudgetUsed,
+                itemCount: plan.itemCount,
+                planId: String(plan._id),
+                voteNumber: department?.voteNumber ?? department?.code ?? "",
+                workspaceState: plan.workspaceState ?? null,
+            };
+        }));
         const exportId = await ctx.db.insert("consolidationExports", {
             consolidationId: consolidation._id,
             createdAt: now,
@@ -256,17 +268,22 @@ exports.prepareConsolidatedPlanExcelExport = (0, server_1.internalMutation)({
                 exportId: String(exportId),
                 fiscalYear: args.fiscalYear,
                 generatedAt: now,
-                generatedBy: {
-                    tenantUserId: String(tenantUser._id),
-                    userId: String(args.userId),
-                },
+                generatedBy: String(args.userId),
                 institution: {
                     name: tenant?.name ?? "Institution",
                     tenantId: String(args.tenantId),
                 },
+                institutionName: tenant?.name ?? "Institution",
+                reportName: `Consolidated Plan ${args.fiscalYear}`,
                 selectedSourceDepartmentIds: snapshot.selectedSourceDepartmentIds,
                 snapshotId: String(snapshot._id),
                 sourcePlanIds: snapshot.sourcePlanIds,
+                sourceDepartments,
+                sourceSnapshot: {
+                    capturedAt: snapshot.capturedAt,
+                    capturedBy: String(snapshot.capturedByUserId),
+                    notes: snapshot.notes,
+                },
                 workspaceState: snapshot.workspaceState ?? null,
             },
             status: "created",

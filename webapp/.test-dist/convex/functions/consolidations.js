@@ -360,6 +360,9 @@ exports.getProcurementOfficerConsolidationWorkspace = (0, server_1.query)({
             fiscalYears: base.fiscalYears,
             readiness: base.readiness,
             snapshot: mapSnapshot(snapshot),
+            tenant: {
+                name: base.tenant.name,
+            },
             user: {
                 tenantUserId: null,
                 userId: String(authContext.userId),

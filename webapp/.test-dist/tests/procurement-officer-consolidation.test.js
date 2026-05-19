@@ -293,10 +293,15 @@ function runProcurementOfficerConsolidationTests() {
     strict_1.default.equal(workspaceSource.includes("Open consolidation workspace"), false);
     strict_1.default.equal(workspaceSource.includes("Finalize Plan"), true);
     strict_1.default.equal(workspaceSource.includes("Edit Draft"), true);
-    strict_1.default.equal(workspaceSource.includes("Export ready"), true);
+    strict_1.default.equal(workspaceSource.includes("Export ready"), false);
+    strict_1.default.equal(workspaceSource.includes("Preview .xlsx"), true);
     strict_1.default.equal(workspaceSource.includes("queueConsolidatedPlanExcelExport"), true);
     strict_1.default.equal(workspaceSource.includes("Excel Preview"), true);
-    strict_1.default.equal(workspaceSource.includes("Export History"), true);
+    strict_1.default.equal(workspaceSource.includes("Consolidated Plan Preview"), true);
+    strict_1.default.equal(workspaceSource.includes("Consolidated Procurement Plan Template"), true);
+    strict_1.default.equal(workspaceSource.includes("Download .xlsx"), true);
+    strict_1.default.equal(workspaceSource.includes("PreviewCategoryRows"), true);
+    strict_1.default.equal(workspaceSource.includes("Export History"), false);
     strict_1.default.equal(workspaceSource.includes("readOnly={isFinalized}"), true);
     strict_1.default.equal(workspaceSource.includes("Finalized on"), true);
     strict_1.default.equal(shellSource.includes('await import("blockly")'), true);

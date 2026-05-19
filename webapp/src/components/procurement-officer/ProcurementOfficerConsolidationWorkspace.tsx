@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { AlertTriangle, Building2, CheckCircle2, Download, FileSpreadsheet, Loader2, Lock, Minus, PencilLine, Plus, RotateCcw, Save, Search, X } from "lucide-react";
+import { AlertTriangle, Building2, CheckCircle2, Download, FileSpreadsheet, Loader2, Lock, Minus, PencilLine, Plus, Save, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -283,6 +283,108 @@ function formatKes(amount: number): string {
     })}`;
 }
 
+function downloadBase64Workbook(args: { fileName: string; workbookBase64: string }) {
+    const byteCharacters = window.atob(args.workbookBase64);
+    const byteNumbers = Array.from(byteCharacters, (character) =>
+        character.charCodeAt(0),
+    );
+    const blob = new Blob([new Uint8Array(byteNumbers)], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = args.fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+}
+
+function shouldUseLocalConsolidatedExport(): boolean {
+    return process.env.NODE_ENV !== "production";
+}
+
+function buildLocalConsolidatedExportRequest(args: {
+    workspace: ConsolidationWorkspaceData;
+}) {
+    const selectedSourceDepartmentIds =
+        args.workspace.snapshot?.selectedSourceDepartmentIds ??
+        args.workspace.draft?.draftData.selectedSourceDepartmentIds ??
+        [];
+    const selectedDepartmentIds = new Set(selectedSourceDepartmentIds);
+    const sourceDepartments =
+        selectedSourceDepartmentIds.length > 0
+            ? args.workspace.readiness.readyDepartments.filter((department) =>
+                  selectedDepartmentIds.has(department.departmentId),
+              )
+            : args.workspace.readiness.readyDepartments;
+    const fiscalYear = args.workspace.readiness.selectedFiscalYear;
+    const exportId = `local-${args.workspace.snapshot?.id ?? args.workspace.draft?.id ?? Date.now()}`;
+
+    return {
+        actor: {
+            userId: args.workspace.user.userId,
+        },
+        exportRequest: {
+            exportId,
+            formatterPayload: {
+                audit: {
+                    requestedAt: Date.now(),
+                    requestedByUserId: args.workspace.user.userId,
+                },
+                calculatedTotals: args.workspace.snapshot?.calculatedTotals ?? {},
+                complianceSummary: args.workspace.snapshot?.complianceSummary ?? {},
+                consolidationId: args.workspace.draft?.id ?? "",
+                exportId,
+                fiscalYear,
+                generatedAt: Date.now(),
+                generatedBy: args.workspace.user.userId,
+                institution: {
+                    name: args.workspace.tenant?.name ?? "Institution",
+                },
+                institutionName: args.workspace.tenant?.name ?? "Institution",
+                reportName: `Consolidated Plan ${fiscalYear}`,
+                selectedSourceDepartmentIds,
+                snapshotId: args.workspace.snapshot?.id ?? "",
+                sourceDepartments,
+                sourcePlanIds: args.workspace.snapshot?.sourcePlanIds ?? [],
+                sourceSnapshot: {
+                    capturedAt: args.workspace.snapshot?.capturedAt ?? Date.now(),
+                    capturedBy: args.workspace.snapshot?.capturedByTenantUserId,
+                    notes: args.workspace.snapshot?.notes,
+                },
+                workspaceState: args.workspace.snapshot?.workspaceState ?? null,
+            },
+            idempotencyKey: `local:${exportId}`,
+            reportName: `Consolidated Plan ${fiscalYear}`,
+        },
+    };
+}
+
+async function requestLocalConsolidatedExport(args: {
+    workspace: ConsolidationWorkspaceData;
+}): Promise<{ fileName: string; workbookBase64: string }> {
+    const response = await fetch("/api/local/consolidated-plan-export", {
+        body: JSON.stringify(buildLocalConsolidatedExportRequest(args)),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+    });
+    const result = (await response.json()) as
+        | { success: true; data: { fileName: string; workbookBase64: string } }
+        | { success: false; error?: { message?: string } };
+
+    if (!response.ok || !result.success) {
+        throw new Error(
+            !result.success && result.error?.message
+                ? result.error.message
+                : "Could not generate local Excel export.",
+        );
+    }
+
+    return result.data;
+}
+
 function formatAmount(amount: number): string {
     return amount.toLocaleString("en-US", {
         maximumFractionDigits: 2,
@@ -311,9 +413,6 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
         api.functions.consolidations.reopenProcurementOfficerConsolidationForEditing,
     );
     const queueExport = useAction(api.actions.files.queueConsolidatedPlanExcelExport);
-    const recordDownload = useMutation(
-        api.functions.consolidationExports.recordConsolidatedPlanExportDownload,
-    );
     const [workspaceState, setWorkspaceState] =
         useState<ConsolidationBlocklyState | null>(null);
     const [isDirty, setIsDirty] = useState(false);
@@ -367,27 +466,6 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
         [workspace?.readiness.readyDepartments],
     );
     const isFinalized = workspace?.draft?.status === "finalized";
-    const exportHistory = useQuery(
-        api.functions.consolidationExports.getProcurementOfficerConsolidationExportHistory,
-        workspace?.draft?.id
-            ? {
-                  consolidationId: workspace.draft.id as never,
-                  fiscalYear: workspace.readiness.selectedFiscalYear,
-              }
-            : "skip",
-    ) as
-        | Array<{
-              downloadCount: number;
-              downloadUrl: string | null;
-              errorMessage: string | null;
-              exportId: string;
-              generatedAt: number | null;
-              progress: number | null;
-              safeFileName: string;
-              snapshotId: string;
-              status: "completed" | "expired" | "failed" | "processing" | "queued";
-          }>
-        | undefined;
     const preview = useQuery(
         api.functions.consolidationExports.getProcurementOfficerConsolidationExcelPreview,
         isFinalized && workspace.draft?.id
@@ -518,13 +596,35 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
 
         setIsExporting(true);
         try {
-            await queueExport({
+            if (shouldUseLocalConsolidatedExport()) {
+                const localResult = await requestLocalConsolidatedExport({ workspace });
+                setIsPreviewOpen(false);
+                downloadBase64Workbook(localResult);
+                toast.success("Excel export downloaded.");
+                return;
+            }
+
+            const result = (await queueExport({
                 consolidationId: workspace.draft.id as never,
                 fiscalYear: workspace.readiness.selectedFiscalYear,
                 format: "xlsx",
-            });
+            })) as {
+                fileName?: string | null;
+                status?: string;
+                workbookBase64?: string | null;
+            };
             setIsPreviewOpen(false);
-            toast.success("Excel export queued.");
+            if (result.workbookBase64) {
+                downloadBase64Workbook({
+                    fileName:
+                        result.fileName ??
+                        `consolidated-plan-${workspace.readiness.selectedFiscalYear}.xlsx`,
+                    workbookBase64: result.workbookBase64,
+                });
+                toast.success("Excel export downloaded.");
+            } else {
+                toast.success("Excel export queued.");
+            }
         } catch (error) {
             const message =
                 error instanceof Error
@@ -535,24 +635,6 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
             setIsExporting(false);
         }
     }, [isFinalized, queueExport, workspace]);
-
-    const downloadExport = useCallback(
-        async (exportId: string) => {
-            try {
-                const result = (await recordDownload({
-                    exportId: exportId as never,
-                })) as { downloadUrl: string };
-                window.location.assign(result.downloadUrl);
-            } catch (error) {
-                const message =
-                    error instanceof Error
-                        ? error.message
-                        : "Export download is not available.";
-                toast.error(message);
-            }
-        },
-        [recordDownload],
-    );
 
     useEffect(() => {
         if (!isDirty || !workspaceState || !workspace || isFinalized) {
@@ -709,7 +791,7 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
                             onClick={() => setIsPreviewOpen(true)}
                         >
                             <FileSpreadsheet className="mr-2 h-4 w-4" />
-                            Export ready
+                            Preview .xlsx
                         </Button>
                     ) : null}
                     <AlertDialog>
@@ -754,14 +836,6 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
                     </AlertDialog>
                 </div>
             </div>
-
-            {isFinalized && exportHistory ? (
-                <ExportHistoryPanel
-                    exports={exportHistory}
-                    onDownload={(exportId) => void downloadExport(exportId)}
-                    onRetry={() => void requestExport()}
-                />
-            ) : null}
 
             {blockedDepartments.length > 0 ? (
                 <div className="border-b border-amber-200 bg-amber-50 px-6 py-2 text-sm text-amber-950 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
@@ -1279,26 +1353,26 @@ function PreviewRowRenderer(props: { row: PreviewRow; rowNumber: number }) {
             return (
                 <tr className="font-bold">
                     <ExcelRowHeader rowNumber={props.rowNumber} />
-                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2 text-right text-slate-950" colSpan={7}>
+                    <td className="border-2 border-[#1f4e79] bg-[#4472c4] px-2 py-2 text-right text-white" colSpan={7}>
                         Department Total
                     </td>
-                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2 text-right tabular-nums text-slate-950">
+                    <td className="border-2 border-[#1f4e79] bg-[#4472c4] px-2 py-2 text-right tabular-nums text-white">
                         {formatAmount(props.row.totalCost)}
                     </td>
-                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2"></td>
-                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2 text-right tabular-nums text-slate-950">
+                    <td className="border-2 border-[#1f4e79] bg-[#4472c4] px-2 py-2"></td>
+                    <td className="border-2 border-[#1f4e79] bg-[#4472c4] px-2 py-2 text-right tabular-nums text-white">
                         {formatAmount(props.row.q1)}
                     </td>
-                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2"></td>
-                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2 text-right tabular-nums text-slate-950">
+                    <td className="border-2 border-[#1f4e79] bg-[#4472c4] px-2 py-2"></td>
+                    <td className="border-2 border-[#1f4e79] bg-[#4472c4] px-2 py-2 text-right tabular-nums text-white">
                         {formatAmount(props.row.q2)}
                     </td>
-                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2"></td>
-                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2 text-right tabular-nums text-slate-950">
+                    <td className="border-2 border-[#1f4e79] bg-[#4472c4] px-2 py-2"></td>
+                    <td className="border-2 border-[#1f4e79] bg-[#4472c4] px-2 py-2 text-right tabular-nums text-white">
                         {formatAmount(props.row.q3)}
                     </td>
-                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2"></td>
-                    <td className="border-2 border-[#1f4e79] bg-[#d9eaf7] px-2 py-2 text-right tabular-nums text-slate-950">
+                    <td className="border-2 border-[#1f4e79] bg-[#4472c4] px-2 py-2"></td>
+                    <td className="border-2 border-[#1f4e79] bg-[#4472c4] px-2 py-2 text-right tabular-nums text-white">
                         {formatAmount(props.row.q4)}
                     </td>
                 </tr>
@@ -1459,92 +1533,6 @@ function PreviewTotalCell(props: { children: number }) {
         <td className="border-2 border-[#375623] bg-[#70ad47] px-2 py-2 text-right tabular-nums">
             {formatAmount(props.children)}
         </td>
-    );
-}
-
-function ExportHistoryPanel(props: {
-    exports: Array<{
-        downloadCount: number;
-        downloadUrl: string | null;
-        errorMessage: string | null;
-        exportId: string;
-        generatedAt: number | null;
-        progress: number | null;
-        safeFileName: string;
-        snapshotId: string;
-        status: "completed" | "expired" | "failed" | "processing" | "queued";
-    }>;
-    onDownload: (exportId: string) => void;
-    onRetry: () => void;
-}) {
-    if (props.exports.length === 0) {
-        return null;
-    }
-
-    return (
-        <div className="border-b border-border bg-card px-6 py-3 dark:border-[#243041] dark:bg-[#111827]">
-            <div className="mb-2 text-sm font-semibold text-foreground">Export History</div>
-            <div className="grid gap-2">
-                {props.exports.slice(0, 4).map((row) => {
-                    const canDownload = row.status === "completed" && row.downloadUrl;
-                    const canRetry = row.status === "completed" || row.status === "failed" || row.status === "expired";
-                    return (
-                        <div
-                            className="grid grid-cols-[1.4fr_7rem_8rem_8rem_auto] items-center gap-3 rounded-md border border-border/80 bg-background px-3 py-2 text-xs shadow-sm dark:border-[#243041] dark:bg-[#0B1220]"
-                            key={row.exportId}
-                        >
-                            <div className="min-w-0">
-                                <div className="truncate font-medium text-foreground">{row.safeFileName}</div>
-                                <div className="truncate text-muted-foreground">
-                                    {row.exportId} - snapshot {row.snapshotId}
-                                </div>
-                            </div>
-                            <div className="capitalize text-muted-foreground">
-                                {row.status}
-                                {typeof row.progress === "number" && row.status !== "completed"
-                                    ? ` ${row.progress}%`
-                                    : ""}
-                            </div>
-                            <div className="text-muted-foreground">
-                                {row.generatedAt ? formatDateTime(row.generatedAt) : "Not generated"}
-                            </div>
-                            <div className="text-muted-foreground">
-                                Downloads {row.downloadCount}
-                            </div>
-                            <div className="flex items-center justify-end gap-1">
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-8 px-2"
-                                    disabled={!canDownload}
-                                    onClick={() => props.onDownload(row.exportId)}
-                                    title="Download export"
-                                >
-                                    <Download className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-8 px-2"
-                                    disabled={!canRetry}
-                                    onClick={props.onRetry}
-                                    title="Retry export"
-                                >
-                                    <RotateCcw className="h-4 w-4" />
-                                </Button>
-                            </div>
-                            {row.errorMessage ? (
-                                <div className="col-span-5 text-xs text-destructive">
-                                    {row.errorMessage}
-                                </div>
-                            ) : null}
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
     );
 }
 

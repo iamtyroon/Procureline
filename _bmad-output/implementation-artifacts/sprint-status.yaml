@@ -104,8 +104,8 @@ development_status:
 
   7-1-consolidation-workspace-access: done
   7-4-finalization-versioning: done
-  7-5-excel-export: review
-  7-6-excel-formatting-content: ready-for-dev
+  7-5-excel-export: done
+  7-6-excel-formatting-content: review
   3-8-report-generation-system: backlog # frontend-complete
 
   8-1-free-tier-provisioning-usage-monitoring: backlog

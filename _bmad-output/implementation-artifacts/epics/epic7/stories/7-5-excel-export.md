@@ -1,6 +1,6 @@
 # Story 7.5: Excel Export
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -300,6 +300,6 @@ GPT-5
 - Story ID: `7.5`
 - Story Key: `7-5-excel-export`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic7/stories/7-5-excel-export.md`
-- Final Status: `review`
+- Final Status: `done`
 - Completion Note: `Story 7.5 implementation completed and moved to review with targeted verification passing; repo-wide webapp test compile remains blocked by pre-existing Convex/CommonJS generated-type issues.`
 

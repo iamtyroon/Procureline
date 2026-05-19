@@ -270,6 +270,29 @@ export const prepareConsolidatedPlanExcelExport = internalMutation({
 
     const now = Date.now();
     const safeFileName = `consolidated-plan-${args.fiscalYear}-${String(snapshot._id).slice(-8)}.xlsx`;
+    const sourcePlans = (
+      await Promise.all(
+        snapshot.sourcePlanIds.map((planId) =>
+          ctx.db.get(planId as Id<"plans">),
+        ),
+      )
+    ).filter((plan): plan is Doc<"plans"> => Boolean(plan));
+    const sourceDepartments = await Promise.all(
+      sourcePlans.map(async (plan) => {
+        const department = await ctx.db.get(plan.departmentId);
+        return {
+          approvedAt: plan.approvedAt ?? null,
+          departmentId: String(plan.departmentId),
+          departmentName:
+            plan.departmentNameSnapshot ?? department?.name ?? "Department",
+          estimatedBudgetUsed: plan.estimatedBudgetUsed,
+          itemCount: plan.itemCount,
+          planId: String(plan._id),
+          voteNumber: department?.voteNumber ?? department?.code ?? "",
+          workspaceState: plan.workspaceState ?? null,
+        };
+      }),
+    );
     const exportId = await ctx.db.insert("consolidationExports", {
       consolidationId: consolidation._id,
       createdAt: now,
@@ -318,17 +341,22 @@ export const prepareConsolidatedPlanExcelExport = internalMutation({
         exportId: String(exportId),
         fiscalYear: args.fiscalYear,
         generatedAt: now,
-        generatedBy: {
-          tenantUserId: String(tenantUser._id),
-          userId: String(args.userId),
-        },
+        generatedBy: String(args.userId),
         institution: {
           name: tenant?.name ?? "Institution",
           tenantId: String(args.tenantId),
         },
+        institutionName: tenant?.name ?? "Institution",
+        reportName: `Consolidated Plan ${args.fiscalYear}`,
         selectedSourceDepartmentIds: snapshot.selectedSourceDepartmentIds,
         snapshotId: String(snapshot._id),
         sourcePlanIds: snapshot.sourcePlanIds,
+        sourceDepartments,
+        sourceSnapshot: {
+          capturedAt: snapshot.capturedAt,
+          capturedBy: String(snapshot.capturedByUserId),
+          notes: snapshot.notes,
+        },
         workspaceState: snapshot.workspaceState ?? null,
       },
       status: "created",

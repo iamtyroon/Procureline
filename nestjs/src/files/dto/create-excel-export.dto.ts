@@ -1,5 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsArray, IsObject, IsOptional, IsString, IsUUID } from "class-validator";
+import type { ConsolidatedProcurementPlanExport } from "@/files/excel/consolidated-procurement-plan.types";
 
 export class CreateExcelExportDto {
   @ApiProperty()
@@ -32,5 +33,5 @@ export class QueueConsolidatedPlanExportDto {
 
   @ApiProperty({ type: Object })
   @IsObject()
-  formatterPayload!: Record<string, unknown>;
+  formatterPayload!: ConsolidatedProcurementPlanExport | Record<string, unknown>;
 }

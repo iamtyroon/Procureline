@@ -15,7 +15,10 @@ export function buildRedisConnection(configService: ConfigService<AppConfig, tru
 
   return {
     ...(Number.isFinite(db) ? { db } : {}),
+    connectTimeout: 1_000,
+    enableOfflineQueue: false,
     host: parsed.hostname,
+    maxRetriesPerRequest: null,
     password: parsed.password || undefined,
     port: parsed.port ? Number(parsed.port) : 6379,
     ...(parsed.protocol === "rediss:" ? { tls: {} } : {}),
