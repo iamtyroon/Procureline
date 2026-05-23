@@ -86,6 +86,28 @@ const consolidationExportStatusValidator = v.union(
   v.literal("expired"),
 );
 
+const tenantAdminReportTypeValidator = v.union(
+  v.literal("activity"),
+  v.literal("audit"),
+  v.literal("budget"),
+);
+
+const tenantAdminReportFormatValidator = v.union(
+  v.literal("csv"),
+  v.literal("xlsx"),
+);
+
+const tenantAdminReportStatusValidator = v.union(
+  v.literal("failed"),
+  v.literal("queued"),
+  v.literal("ready"),
+);
+
+const tenantAdminReportScheduleCadenceValidator = v.union(
+  v.literal("monthly"),
+  v.literal("weekly"),
+);
+
 export default defineSchema({
   ...authTables,
 
@@ -770,6 +792,75 @@ export default defineSchema({
       "status",
       "staleTimeoutAt",
     ]),
+
+  tenantAdminReportJobs: defineTable({
+    tenantId: v.id("tenants"),
+    requestedByTenantUserId: v.id("tenantUsers"),
+    requestedByUserId: v.id("users"),
+    reportType: tenantAdminReportTypeValidator,
+    format: tenantAdminReportFormatValidator,
+    status: tenantAdminReportStatusValidator,
+    fiscalYear: v.string(),
+    dateFrom: v.string(),
+    dateTo: v.string(),
+    departmentId: v.union(v.string(), v.literal("all")),
+    procurementOfficerId: v.union(v.string(), v.literal("all")),
+    outputFormat: tenantAdminReportFormatValidator,
+    schemaVersion: v.string(),
+    metadata: v.any(),
+    reportName: v.string(),
+    idempotencyKey: v.string(),
+    serviceJobId: v.optional(v.string()),
+    fileName: v.optional(v.string()),
+    downloadUrl: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+    retryCount: v.number(),
+    queuedAt: v.number(),
+    readyAt: v.optional(v.number()),
+    failedAt: v.optional(v.number()),
+    lastDownloadedAt: v.optional(v.number()),
+    downloadCount: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_tenantId_createdAt", ["tenantId", "createdAt"])
+    .index("by_tenantId_reportType_status", ["tenantId", "reportType", "status"])
+    .index("by_tenantId_fiscalYear", ["tenantId", "fiscalYear", "createdAt"])
+    .index("by_requestedByTenantUserId", ["requestedByTenantUserId", "createdAt"])
+    .index("by_idempotencyKey", ["idempotencyKey"]),
+
+  tenantAdminReportSecureLinks: defineTable({
+    tenantId: v.id("tenants"),
+    reportJobId: v.id("tenantAdminReportJobs"),
+    createdByTenantUserId: v.id("tenantUsers"),
+    tokenHash: v.string(),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+    lastAccessedAt: v.optional(v.number()),
+    accessCount: v.number(),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_tenantId_expiresAt", ["tenantId", "expiresAt"])
+    .index("by_reportJobId", ["reportJobId"])
+    .index("by_tokenHash", ["tokenHash"]),
+
+  tenantAdminReportSchedules: defineTable({
+    tenantId: v.id("tenants"),
+    createdByTenantUserId: v.id("tenantUsers"),
+    reportType: v.union(v.literal("activity"), v.literal("budget")),
+    cadence: tenantAdminReportScheduleCadenceValidator,
+    parameters: v.any(),
+    enabled: v.boolean(),
+    retryCount: v.number(),
+    maxRetries: v.number(),
+    lastRunAt: v.optional(v.number()),
+    nextRunAt: v.number(),
+    lastFailureAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_tenantId_enabled_nextRunAt", ["tenantId", "enabled", "nextRunAt"])
+    .index("by_tenantId_reportType", ["tenantId", "reportType"]),
 
   departmentAccessCodes: defineTable({
     tenantId: v.id("tenants"),

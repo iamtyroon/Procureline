@@ -106,7 +106,7 @@ development_status:
   7-4-finalization-versioning: done
   7-5-excel-export: done
   7-6-excel-formatting-content: done
-  3-8-report-generation-system: backlog # frontend-complete
+  3-8-report-generation-system: review # frontend-complete
 
   8-1-free-tier-provisioning-usage-monitoring: backlog
   8-2-subscription-tier-selection: backlog

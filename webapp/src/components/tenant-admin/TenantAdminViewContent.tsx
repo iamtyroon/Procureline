@@ -3,7 +3,6 @@ import {
     ArrowRight,
     CreditCard,
     Download,
-    FileSearch,
     Search,
     Settings2,
     UserCog,
@@ -18,7 +17,6 @@ import {
     ShieldCheck,
     Users2,
     Wallet,
-    type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +38,7 @@ import type {
 import { formatDashboardTimestamp, formatFiscalYearLabel, type DashboardCycleState } from "@/lib/shared/tenant-admin/dashboard";
 import { cn } from "@/lib/utils";
 import { InstitutionalOverviewView } from "@/src/components/tenant-admin/InstitutionalOverviewView";
+import { TenantAdminReportsView } from "@/src/components/tenant-admin/TenantAdminReportsView";
 
 export type TenantAdminView =
     | "audit-log"
@@ -634,34 +633,7 @@ function renderAuditLogView({
 }
 
 function renderReportsView(snapshot: TenantAdminDashboardSnapshot): JSX.Element {
-    return (
-        <div className="grid gap-5 xl:grid-cols-3">
-            <Card className="rounded-2xl border-border/70 bg-card shadow-sm xl:col-span-2">
-                <CardHeader className="border-b border-border/70 pb-4">
-                    <CardTitle className="text-base text-foreground">Report Generation</CardTitle>
-                    <CardDescription>
-                        This route stays available so the tenant-admin experience remains complete while the report generation story lands.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                    <ReportTypeCard description="Review recent tenant activity and export the visible audit scope." icon={FileSearch} title="Activity report" />
-                    <ReportTypeCard description={`Prepare ${humanizeTenantTier(snapshot.meta.tenantTier)}-tier audit exports once report generation is connected.`} icon={ShieldCheck} title="Audit report" />
-                </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl border-border/70 bg-card shadow-sm">
-                <CardContent className="space-y-4 p-6">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                        <Download className="h-5 w-5" />
-                    </div>
-                    <div className="text-lg font-semibold text-foreground">Exports staged</div>
-                    <p className="text-sm leading-6 text-muted-foreground">
-                        Reports are surfaced here so the tenant-admin prototype feels complete, but generation and file delivery still depend on Story 3.8.
-                    </p>
-                </CardContent>
-            </Card>
-        </div>
-    );
+    return <TenantAdminReportsView snapshot={snapshot} />;
 }
 
 interface PrototypeStatCardProps {
@@ -960,32 +932,6 @@ function ReadOnlyField({
                 {value}
             </div>
         </div>
-    );
-}
-
-function ReportTypeCard({
-    description,
-    icon: Icon,
-    title,
-}: {
-    description: string;
-    icon: LucideIcon;
-    title: string;
-}): JSX.Element {
-    return (
-        <Card className="rounded-2xl border-border/70 bg-muted/20 shadow-none">
-            <CardContent className="space-y-4 p-5">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                    <Icon className="h-5 w-5" />
-                </div>
-                <div className="text-lg font-semibold text-foreground">{title}</div>
-                <div className="text-sm leading-6 text-muted-foreground">{description}</div>
-                <Button variant="outline" className="w-full justify-between">
-                    Prepare report
-                    <ArrowRight className="h-4 w-4" />
-                </Button>
-            </CardContent>
-        </Card>
     );
 }
 

@@ -148,6 +148,9 @@ async function main(): Promise<void> {
     const { runTenantAdminInstitutionalVisibilityTests } = await import(
         "./tenant-admin-institutional-visibility.test.js"
     );
+    const { runTenantAdminReportGenerationTests } = await import(
+        "./tenant-admin-report-generation.test.js"
+    );
     const { runTenantAdminOnboardingTests } = await import(
         "./tenant-admin-onboarding.test.js"
     );
@@ -196,6 +199,7 @@ async function main(): Promise<void> {
         ...runSignupFlowTests(),
         ...runTenantAdminDashboardTests(),
         ...runTenantAdminInstitutionalVisibilityTests(),
+        ...runTenantAdminReportGenerationTests(),
         ...(await runTenantAdminOnboardingTests()),
         ...runTenantIsolationTests(),
     ];
