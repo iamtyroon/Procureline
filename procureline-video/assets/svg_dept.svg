@@ -1,0 +1,19 @@
+<svg viewBox="0 0 320 168" style="display: block; margin: 0 auto; overflow: visible; font-family: sans-serif;" xmlns="http://www.w3.org/2000/svg" width="320" height="168">
+  <path d="M 0 5 
+           A 5 5 0 0 1 5 0 
+           H 15 l 4 4 h 10 l 4 -4 
+           H 315 A 5 5 0 0 1 320 5 
+           V 27 A 5 5 0 0 1 315 32 
+           H 63 l -4 4 h -10 l -4 -4 H 30 
+           V 128 
+           H 45 l 4 4 h 10 l 4 -4 H 315 
+           A 5 5 0 0 1 320 133 
+           V 155 A 5 5 0 0 1 315 160 
+           H 33 l -4 4 h -10 l -4 -4 
+           H 5 A 5 5 0 0 1 0 155 Z" 
+        fill="#1db363" />
+        
+  <text x="12" y="21" fill="white" font-size="13" font-weight="600">&#11166; Dept:</text>
+  
+  <text x="90" y="149" fill="white" font-size="13" font-weight="600">Total: KES</text>
+</svg>

@@ -242,6 +242,38 @@ export function BlocklyWorkspace(props: {
         }
     }, [workspaceBehavior]);
 
+    const forceDepartmentUserDepartmentBlocksFull = useCallback((workspace: BlocklyWorkspaceSvg): void => {
+        if (workspaceBehavior !== "department_user") {
+            return;
+        }
+
+        for (const block of workspace.getAllBlocks(false) as Array<{
+            getFieldValue?: (name: string) => string;
+            isCollapsed_?: boolean;
+            isSummaryOnly_?: boolean;
+            render?: () => void;
+            setFieldValue?: (value: string, name: string) => void;
+            type: string;
+            updateCollapsedInputs?: () => void;
+        }>) {
+            if (block.type !== "department_block") {
+                continue;
+            }
+
+            const wasSummaryOnly = block.getFieldValue?.("SUMMARY_ONLY") === "true";
+            const wasCollapsed = block.isCollapsed_ === true;
+            if (!wasSummaryOnly && !wasCollapsed) {
+                continue;
+            }
+
+            block.isSummaryOnly_ = false;
+            block.isCollapsed_ = false;
+            block.setFieldValue?.("false", "SUMMARY_ONLY");
+            block.updateCollapsedInputs?.();
+            block.render?.();
+        }
+    }, [workspaceBehavior]);
+
     const syncBlockVisualClasses = useCallback((workspace: BlocklyWorkspaceSvg): void => {
         const aggregateValueFields = new Set([
             "AGPO_CALCULATED",
@@ -334,7 +366,7 @@ export function BlocklyWorkspace(props: {
         tagBlocks(workspace);
 
         // Also tag flyout blocks so they inherit the same dark-mode CSS variables
-        const flyoutWs = (workspace.getFlyout?.() as { getWorkspace?: () => BlocklyWorkspaceSvg | null } | null)?.getWorkspace?.();
+        const flyoutWs = (workspace.getFlyout() as { getWorkspace?: () => BlocklyWorkspaceSvg | null } | null)?.getWorkspace?.();
         if (flyoutWs) {
             tagBlocks(flyoutWs);
         }
@@ -459,7 +491,7 @@ export function BlocklyWorkspace(props: {
         onWorkspaceSummaryChangeRef.current(summary);
 
         return summary;
-    }, [props.budgetAllocation, props.categories, props.items, syncBudgetState]);
+    }, [props.budgetAllocation, props.categories, props.items, syncBudgetState, workspaceBehavior]);
 
     useEffect(() => {
         recalculateWorkspaceRef.current = recalculateWorkspace;
@@ -494,7 +526,7 @@ export function BlocklyWorkspace(props: {
                         return;
                     }
 
-                    const workspaceFlyout = workspace.getFlyout?.() as
+                    const workspaceFlyout = workspace.getFlyout() as
                         | {
                               getWorkspace?: () => BlocklyWorkspaceSvg | null;
                               isVisible?: () => boolean;
@@ -543,13 +575,14 @@ export function BlocklyWorkspace(props: {
                     const refresh = () => {
                         Blockly.svgResize(workspace);
                         workspace.resizeContents();
-                        (
+                        const scrollbar = (
                             workspace as BlocklyWorkspaceSvg & {
                                 scrollbar?: {
-                                    resize?: () => void;
-                                };
+                                    resize: () => void;
+                                } | null;
                             }
-                        ).scrollbar?.resize?.();
+                        ).scrollbar;
+                        scrollbar?.resize();
                         syncFlyoutScrollbarVisibility();
                     };
 
@@ -614,6 +647,7 @@ export function BlocklyWorkspace(props: {
                         viewTop?: number;
                     },
                 ) => {
+                    forceDepartmentUserDepartmentBlocksFull(workspace);
                     syncBlockVisualClasses(workspace);
 
                     // Flyout blocks are rendered asynchronously after toolbox_item_select fires.
@@ -763,6 +797,7 @@ export function BlocklyWorkspace(props: {
                     record: initialWorkspaceStateRef.current,
                     workspace,
                 });
+                forceDepartmentUserDepartmentBlocksFull(workspace);
                 syncBlockVisualClasses(workspace);
                 const persistedUiState = readDepartmentUserWorkspaceUiState({
                     planId: props.planId,
@@ -822,9 +857,13 @@ export function BlocklyWorkspace(props: {
         props.currentUserId,
         props.editorMode,
         props.planId,
+        emitHistoryState,
         lockConsolidationItemFields,
+        forceDepartmentUserDepartmentBlocksFull,
         syncBlockVisualClasses,
+        queueStructureSourceUsageRefresh,
         structureRefreshInitializationDependency,
+        queueViewportPersistence,
         viewportPersistenceInitializationDependency,
         queueWorkspaceSnapshot,
         retryKey,
@@ -846,7 +885,7 @@ export function BlocklyWorkspace(props: {
                 languageTree?: unknown;
             };
         };
-        if (!workspace.options?.languageTree) {
+        if (!workspace.options.languageTree) {
             return;
         }
 

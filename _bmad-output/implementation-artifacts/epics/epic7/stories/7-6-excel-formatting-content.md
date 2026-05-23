@@ -1,6 +1,6 @@
 # Story 7.6: Excel Formatting & Content
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -249,6 +249,17 @@ GPT-5
 - 2026-05-19: Verification: `cd nestjs; npm test -- files.service.spec.ts excel.service.spec.ts queue.service.spec.ts` passed with 18 tests; `cd nestjs; npm run lint` passed; `cd webapp; cmd /c npx convex codegen --typecheck=disable` passed. `cd webapp; npm test -- procurement-officer-consolidation` still fails before assertions because of the existing Convex/CommonJS generated-test harness issue.
 - 2026-05-19: Review polish: aligned the exported consolidated worksheet more closely to the in-app Excel preview by switching the visible sheet to the preview-style 16-column `A:P` layout, applying stronger borders and matching section fills, and replacing the old expanded department timing rows with the preview's compact timing header/labels/planned/actual/variance block.
 - 2026-05-19: Verification after styling polish: `cd nestjs; npm test -- files.service.spec.ts excel.service.spec.ts queue.service.spec.ts` passed with 18 tests, and `cd nestjs; npm run lint` passed.
+- 2026-05-24: Senior review fixes applied per PO direction: preserved the intentional preview-style `A:P` consolidated layout, skipped expanded compliance-detail remediation, fixed PWD target formulas to reference the annual total row, added worksheet row-budget preflight and reusable style caching, made formatter normalization reject non-numeric source values instead of coercing them to zero, and made malformed finalized source workspaces fail explicitly instead of exporting empty department sections.
+- 2026-05-24: Verification after review fixes: `cd nestjs; npm test -- files.service.spec.ts excel.service.spec.ts queue.service.spec.ts` passed with 20 tests, and `cd nestjs; npm run lint` passed.
+
+### Senior Developer Review (AI)
+
+- Accepted by product direction: the consolidated worksheet intentionally uses the preview-style `A:P` layout rather than reverting to the earlier `A:S` story wording.
+- Skipped by product direction: expanded compliance amount/variance/source-note remediation beyond the current summary/consolidated rows.
+- Fixed: PWD compliance target formulas now derive from the annual grand total row instead of compounding from the AGPO row.
+- Fixed: workbook generation now performs row-budget preflight before workbook creation and reuses cached style objects to reduce per-cell style allocation pressure.
+- Fixed: source numeric normalization now rejects invalid non-numeric strings with explicit errors instead of silently converting them to zero.
+- Fixed: finalized source workspaces that cannot be parsed into department/item export rows now fail explicitly instead of producing a valid-looking empty export.
 
 ### File List
 
@@ -283,5 +294,5 @@ GPT-5
 - Story ID: `7.6`
 - Story Key: `7-6-excel-formatting-content`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic7/stories/7-6-excel-formatting-content.md`
-- Final Status: `review`
-- Completion Note: `Story 7.6 implementation completed and ready for review. The formatter now generates the GOK-style consolidated .xlsx from finalized snapshot data, the PO finalized-state UI uses Preview .xlsx / Download .xlsx, local development direct download works through Next.js-to-NestJS without Redis or tunnel dependency, and targeted NestJS/codegen verification passes. The remaining webapp procurement-officer-consolidation test command is still blocked before assertions by the existing Convex/CommonJS generated-test harness issue.`
+- Final Status: `done`
+- Completion Note: `Story 7.6 implementation reviewed and completed. Per PO direction, the preview-style A:P workbook layout remains intentional and expanded compliance-detail remediation was skipped. Review fixes corrected PWD target formulas, tightened source numeric validation, added explicit failures for malformed finalized source workspaces, and reduced workbook generation allocation pressure through row-budget preflight and reusable style caching. Targeted NestJS tests and lint pass.`

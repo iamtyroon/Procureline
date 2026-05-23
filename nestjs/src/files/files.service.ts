@@ -88,9 +88,24 @@ export class FilesService {
       : {};
   }
 
-  private parseAmount(value: unknown): number {
-    const parsed = Number(String(value ?? "").replace(/,/g, ""));
-    return Number.isFinite(parsed) ? parsed : 0;
+  private parseAmount(
+    value: unknown,
+    fieldName: string,
+    options: { defaultValue?: number; required?: boolean } = {},
+  ): number {
+    if (value === undefined || value === null || value === "") {
+      if (options.required) {
+        throw new Error(`${fieldName} is required for consolidated Excel export`);
+      }
+      return options.defaultValue ?? 0;
+    }
+
+    const normalized = typeof value === "string" ? value.replace(/,/g, "").trim() : value;
+    const parsed = typeof normalized === "number" ? normalized : Number(normalized);
+    if (!Number.isFinite(parsed)) {
+      throw new Error(`${fieldName} must be a finite number`);
+    }
+    return parsed;
   }
 
   private getNestedBlock(value: unknown): Record<string, unknown> | null {
@@ -133,11 +148,12 @@ export class FilesService {
 
     while (currentItem && currentItem.type === "item_block") {
       const fields = this.asRecord(currentItem.fields);
-      const unitPrice = this.parseAmount(fields.UNIT_PRICE);
-      const q1Quantity = this.parseAmount(fields.Q1_QTY);
-      const q2Quantity = this.parseAmount(fields.Q2_QTY);
-      const q3Quantity = this.parseAmount(fields.Q3_QTY);
-      const q4Quantity = this.parseAmount(fields.Q4_QTY);
+      const itemLabel = `${categoryName} item ${items.length + 1}`;
+      const unitPrice = this.parseAmount(fields.UNIT_PRICE, `${itemLabel}.UNIT_PRICE`, { required: true });
+      const q1Quantity = this.parseAmount(fields.Q1_QTY, `${itemLabel}.Q1_QTY`);
+      const q2Quantity = this.parseAmount(fields.Q2_QTY, `${itemLabel}.Q2_QTY`);
+      const q3Quantity = this.parseAmount(fields.Q3_QTY, `${itemLabel}.Q3_QTY`);
+      const q4Quantity = this.parseAmount(fields.Q4_QTY, `${itemLabel}.Q4_QTY`);
       items.push({
         annualTotal: (q1Quantity + q2Quantity + q3Quantity + q4Quantity) * unitPrice,
         category: categoryName,
@@ -172,6 +188,11 @@ export class FilesService {
     return sourceDepartments.map((source, index) => {
       const sourceRecord = this.asRecord(source);
       const departmentBlock = this.findDepartmentBlock(sourceRecord.workspaceState);
+      if (!departmentBlock) {
+        throw new Error(
+          `Unable to build consolidated Excel export: source department ${String(sourceRecord.departmentId ?? index + 1)} has no department block in its finalized workspace snapshot.`,
+        );
+      }
       const departmentFields = this.asRecord(departmentBlock?.fields);
       const categories: ConsolidatedCategorySection[] = [];
       let currentCategory = this.getNestedBlock(this.asRecord(departmentBlock?.inputs).CATEGORIES);
@@ -190,6 +211,13 @@ export class FilesService {
         currentCategory = this.getNestedBlock(currentCategory.next);
       }
 
+      const itemCount = categories.reduce((total, category) => total + category.items.length, 0);
+      if (itemCount === 0) {
+        throw new Error(
+          `Unable to build consolidated Excel export: source department ${String(sourceRecord.departmentId ?? index + 1)} has no item rows in its finalized workspace snapshot.`,
+        );
+      }
+
       return {
         categories,
         departmentId: String(sourceRecord.departmentId ?? `department-${index + 1}`),
@@ -202,12 +230,12 @@ export class FilesService {
   private buildComplianceSummary(raw: unknown, totalCost: number): ConsolidatedComplianceSummary {
     const aggregateFields = this.asRecord(this.asRecord(raw).aggregateFields);
     const metric = (prefix: "AGPO" | "LOCAL" | "PWD", targetPercentage: number) => {
-      const actualAmount = this.parseAmount(aggregateFields[`${prefix}_CALCULATED`]);
+      const actualAmount = this.parseAmount(aggregateFields[`${prefix}_CALCULATED`], `compliance.${prefix}_CALCULATED`);
       const targetAmount = totalCost * (targetPercentage / 100);
-      const q1Amount = this.parseAmount(aggregateFields[`${prefix}_Q1_TOTAL`]);
-      const q2Amount = this.parseAmount(aggregateFields[`${prefix}_Q2_TOTAL`]);
-      const q3Amount = this.parseAmount(aggregateFields[`${prefix}_Q3_TOTAL`]);
-      const q4Amount = this.parseAmount(aggregateFields[`${prefix}_Q4_TOTAL`]);
+      const q1Amount = this.parseAmount(aggregateFields[`${prefix}_Q1_TOTAL`], `compliance.${prefix}_Q1_TOTAL`);
+      const q2Amount = this.parseAmount(aggregateFields[`${prefix}_Q2_TOTAL`], `compliance.${prefix}_Q2_TOTAL`);
+      const q3Amount = this.parseAmount(aggregateFields[`${prefix}_Q3_TOTAL`], `compliance.${prefix}_Q3_TOTAL`);
+      const q4Amount = this.parseAmount(aggregateFields[`${prefix}_Q4_TOTAL`], `compliance.${prefix}_Q4_TOTAL`);
       return {
         actualAmount,
         actualPercentage: totalCost > 0 ? (actualAmount / totalCost) * 100 : 0,
@@ -266,7 +294,7 @@ export class FilesService {
     const departments = this.buildDepartmentSections(raw.sourceDepartments);
     const rowQuarterTotals = this.sumQuarterTotals(departments);
     const totalCost =
-      this.parseAmount(calculatedTotals.totalCost) ||
+      this.parseAmount(calculatedTotals.totalCost, "calculatedTotals.totalCost") ||
       departments.reduce((total, department) => total + this.sumDepartmentAnnualTotal(department), 0);
 
     return {

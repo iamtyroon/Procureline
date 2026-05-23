@@ -1,0 +1,144 @@
+<svg viewBox="0 0 900 350" style="display: block; margin: 0 auto; overflow: hidden; font-family: sans-serif;" xmlns="http://www.w3.org/2000/svg" width="100%" height="auto">
+  
+  <style>
+    /* CSS Animations for synchronized docking */
+    .category-block {
+      animation: moveCategory 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+    .item-block {
+      animation: moveItem 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+    .cursor-pointer {
+      animation: moveCursor 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      transform-origin: 0 0;
+    }
+
+    /* Category: Starts completely offscreen (1000), docks at (50, 52) */
+    @keyframes moveCategory {
+      0%, 15% { transform: translate(1000px, 52px); }
+      30%, 85% { transform: translate(50px, 52px); }
+      95%, 100% { transform: translate(1000px, 52px); }
+    }
+
+    /* Item: Starts completely offscreen (1000), docks at (75, 84) */
+    @keyframes moveItem {
+      0%, 45% { transform: translate(1000px, 84px); }
+      60%, 85% { transform: translate(75px, 84px); }
+      95%, 100% { transform: translate(1000px, 84px); }
+    }
+
+    /* Cursor Timeline: 
+       - Fetches blocks from offscreen (X = 1100 to grab them properly)
+       - Hover, scale down to "click", drag, scale up to "release"
+    */
+    @keyframes moveCursor {
+      0%, 5% { transform: translate(400px, 250px) scale(1); }
+      
+      /* Target Category (Offscreen) */
+      12% { transform: translate(1100px, 67px) scale(1); }
+      15% { transform: translate(1100px, 67px) scale(0.85); }
+      30% { transform: translate(150px, 67px) scale(0.85); }
+      33%, 35% { transform: translate(150px, 67px) scale(1); }
+      
+      /* Target Item (Offscreen) */
+      42% { transform: translate(1100px, 99px) scale(1); }
+      45% { transform: translate(1100px, 99px) scale(0.85); }
+      60% { transform: translate(175px, 99px) scale(0.85); }
+      63%, 65% { transform: translate(175px, 99px) scale(1); }
+      
+      /* Rest & Reset */
+      75%, 85% { transform: translate(300px, 200px) scale(1); }
+      95%, 100% { transform: translate(400px, 250px) scale(1); }
+    }
+  </style>
+
+  <defs>
+    <pattern id="dotGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.5" fill="#2a2a2a" />
+    </pattern>
+    
+    <filter id="cursor-shadow" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="2" dy="4" stdDeviation="3" flood-opacity="0.6" flood-color="#000" />
+    </filter>
+  </defs>
+  
+  <rect width="1500" height="1500" x="-100" y="-100" fill="#121212" />
+  
+  <rect width="1500" height="1500" x="-100" y="-100" fill="url(#dotGrid)" />
+
+  <g transform="translate(20, 20)">
+    <path d="M 0 5 
+             A 5 5 0 0 1 5 0 
+             H 15 l 4 4 h 10 l 4 -4 
+             H 315 A 5 5 0 0 1 320 5 
+             V 27 A 5 5 0 0 1 315 32 
+             H 63 l -4 4 h -10 l -4 -4 H 30 
+             V 128 
+             H 45 l 4 4 h 10 l 4 -4 H 315 
+             A 5 5 0 0 1 320 133 
+             V 155 A 5 5 0 0 1 315 160 
+             H 33 l -4 4 h -10 l -4 -4 
+             H 5 A 5 5 0 0 1 0 155 Z" 
+          fill="#1db363" />
+    <text x="12" y="21" fill="white" font-size="13" font-weight="600">&#11166; Dept:</text>
+    <text x="90" y="149" fill="white" font-size="13" font-weight="600">Total: KES</text>
+  </g>
+
+  <g class="category-block">
+    <path d="M 0 5 
+             A 5 5 0 0 1 5 0 
+             H 15 l 4 4 h 10 l 4 -4 
+             H 575 A 5 5 0 0 1 580 5 
+             V 27 A 5 5 0 0 1 575 32 
+             H 58 l -4 4 h -10 l -4 -4 H 25 
+             V 64 
+             H 40 l 4 4 h 10 l 4 -4 H 575 
+             A 5 5 0 0 1 580 69 
+             V 91 A 5 5 0 0 1 575 96 
+             H 33 l -4 4 h -10 l -4 -4 
+             H 5 A 5 5 0 0 1 0 91 Z" 
+          fill="#4b8bf5" />
+    <text x="12" y="21" fill="white" font-size="13">Category:</text>
+    <text y="85" fill="white" font-size="13">
+      <tspan x="35">Q1</tspan>
+      <tspan x="135">Q2</tspan>
+      <tspan x="235">Q3</tspan>
+      <tspan x="335">Q4</tspan>
+      <tspan x="435">Total</tspan>
+    </text>
+  </g>
+
+  <g class="item-block">
+    <path d="M 0 5 
+             A 5 5 0 0 1 5 0 
+             H 15 l 4 4 h 10 l 4 -4 
+             H 675 A 5 5 0 0 1 680 5 
+             V 27 A 5 5 0 0 1 675 32 
+             H 33 l -4 4 h -10 l -4 -4 
+             H 5 A 5 5 0 0 1 0 27 Z" 
+          fill="#f0a020" />
+    <text x="10" y="21" fill="white" font-size="13">&#11166;</text>
+    <text x="25" y="21" fill="white" font-size="13">Item:</text>
+    
+    <text x="175" y="21" fill="white" font-size="13">Q1</text>
+    <rect x="195" y="6" width="30" height="20" rx="10" fill="#f4d197" />
+    <text x="235" y="21" fill="white" font-size="13">Q2</text>
+    <rect x="255" y="6" width="30" height="20" rx="10" fill="#f4d197" />
+    <text x="295" y="21" fill="white" font-size="13">Q3</text>
+    <rect x="315" y="6" width="30" height="20" rx="10" fill="#f4d197" />
+    <text x="355" y="21" fill="white" font-size="13">Q4</text>
+    <rect x="375" y="6" width="30" height="20" rx="10" fill="#f4d197" />
+    
+    <text x="420" y="21" fill="white" font-size="13">Qty:</text>
+    <text x="500" y="21" fill="white" font-size="13">Total: KES</text>
+  </g>
+
+  <g class="cursor-pointer" filter="url(#cursor-shadow)">
+    <path d="M 0 0 L 22 22 L 12 22 L 8 32 L 3 30 L 8 20 L 0 20 Z" 
+          fill="#ffffff" 
+          stroke="#000000" 
+          stroke-width="1.5" 
+          stroke-linejoin="round" />
+  </g>
+
+</svg>

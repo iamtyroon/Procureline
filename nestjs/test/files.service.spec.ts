@@ -289,4 +289,128 @@ describe("FilesService", () => {
       }),
     );
   });
+
+  it("rejects non-numeric source item values instead of exporting them as zero", async () => {
+    queueService.enqueue.mockRejectedValueOnce(
+      new ServiceUnavailableException({
+        error: {
+          code: "QUEUE_UNAVAILABLE",
+          message: "Redis is unavailable. Retryable work was not accepted.",
+        },
+      }),
+    );
+
+    await expect(
+      filesService.queueConsolidatedPlanExcelExport(
+        {
+          exportId: "export_1",
+          formatterPayload: {
+            complianceSummary: { aggregateFields: { GRAND_TOTAL: "25000" } },
+            consolidationId: "consolidation_1",
+            fiscalYear: "2026-2027",
+            generatedAt: Date.now(),
+            generatedBy: "user_1",
+            institutionName: "Tyroon University",
+            selectedSourceDepartmentIds: ["department_1"],
+            snapshotId: "snapshot_1",
+            sourceDepartments: [
+              {
+                departmentId: "department_1",
+                departmentName: "ICT",
+                voteNumber: "111708",
+                workspaceState: {
+                  workspaceJson: JSON.stringify({
+                    blocks: {
+                      blocks: [
+                        {
+                          fields: { VOTE_NUMBER: "111708" },
+                          inputs: {
+                            CATEGORIES: {
+                              block: {
+                                fields: { CATEGORY_NAME: "ICT" },
+                                inputs: {
+                                  ITEMS: {
+                                    block: {
+                                      fields: {
+                                        ITEM_DESC: "printer",
+                                        Q1_QTY: "not-a-number",
+                                        UNIT_PRICE: "12500",
+                                      },
+                                      type: "item_block",
+                                    },
+                                  },
+                                },
+                                type: "category_block",
+                              },
+                            },
+                          },
+                          type: "department_block",
+                        },
+                      ],
+                    },
+                  }),
+                },
+              },
+            ],
+            sourcePlanIds: ["plan_1"],
+            sourceSnapshot: { capturedAt: Date.now() },
+          },
+          idempotencyKey: "idempotency-1",
+          reportName: "Consolidated Plan 2026-2027",
+        },
+        {
+          role: "procurement_officer",
+          sub: "user_1",
+          tenantId: "tenant_1",
+        } as never,
+      ),
+    ).rejects.toThrow("ICT item 1.Q1_QTY must be a finite number");
+  });
+
+  it("rejects source workspaces that cannot be parsed into export item rows", async () => {
+    queueService.enqueue.mockRejectedValueOnce(
+      new ServiceUnavailableException({
+        error: {
+          code: "QUEUE_UNAVAILABLE",
+          message: "Redis is unavailable. Retryable work was not accepted.",
+        },
+      }),
+    );
+
+    await expect(
+      filesService.queueConsolidatedPlanExcelExport(
+        {
+          exportId: "export_1",
+          formatterPayload: {
+            complianceSummary: { aggregateFields: { GRAND_TOTAL: "25000" } },
+            consolidationId: "consolidation_1",
+            fiscalYear: "2026-2027",
+            generatedAt: Date.now(),
+            generatedBy: "user_1",
+            institutionName: "Tyroon University",
+            selectedSourceDepartmentIds: ["department_1"],
+            snapshotId: "snapshot_1",
+            sourceDepartments: [
+              {
+                departmentId: "department_1",
+                departmentName: "ICT",
+                workspaceState: {
+                  workspaceJson: JSON.stringify({ blocks: { blocks: [] } }),
+                },
+              },
+            ],
+            sourcePlanIds: ["plan_1"],
+            sourceSnapshot: { capturedAt: Date.now() },
+          },
+          idempotencyKey: "idempotency-1",
+          reportName: "Consolidated Plan 2026-2027",
+        },
+        {
+          role: "procurement_officer",
+          sub: "user_1",
+          tenantId: "tenant_1",
+        } as never,
+      ),
+    ).rejects.toThrow("has no department block");
+  });
 });

@@ -97,8 +97,8 @@ describe("ExcelService", () => {
     expect(consolidated?.getCell("H17").value).toMatchObject({ formula: "H16*30%", result: 300_000 });
     expect(consolidated?.getCell("J17").value).toMatchObject({ formula: "J16*30%", result: 60_000 });
     expect(consolidated?.getCell("P17").value).toMatchObject({ formula: "P16*30%", result: 30_000 });
-    expect(consolidated?.getCell("H18").value).toMatchObject({ formula: "H17*2%", result: 6_000 });
-    expect(consolidated?.getCell("J18").value).toMatchObject({ formula: "J17*2%", result: 1_200 });
+    expect(consolidated?.getCell("H18").value).toMatchObject({ formula: "H16*2%", result: 20_000 });
+    expect(consolidated?.getCell("J18").value).toMatchObject({ formula: "J16*2%", result: 4_000 });
     expect(consolidated?.getCell("H19").value).toMatchObject({ formula: "H16*40%", result: 400_000 });
     expect(consolidated?.getCell("H17").numFmt).toContain("KES");
     expect(consolidated?.views[0]).toMatchObject({ state: "frozen", ySplit: 3 });

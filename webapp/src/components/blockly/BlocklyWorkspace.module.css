@@ -612,7 +612,7 @@
     --pl-dk-agg-glow:        rgba(110, 125, 60, 0.08);
     --pl-dk-agg-cell:        rgba(40,58,60,0.5);
     --pl-dk-agg-text:        #ffffff;
-    --pl-dk-agg-value:       #f7f7f7;
+    --pl-dk-agg-value:       #111827;
 
     /* Department — dark forest green */
     --pl-dk-dept-fill:       #0e4e2f;
@@ -620,23 +620,23 @@
     --pl-dk-dept-glow:       rgba(50, 150, 80, 0.08);
     --pl-dk-dept-cell:       rgba(13,57,35,0.6);
     --pl-dk-dept-text:       #ffffff;
-    --pl-dk-dept-value:      #b7e6c2;
+    --pl-dk-dept-value:      #111827;
 
     /* Category — dark slate blue */
     --pl-dk-cat-fill:        #41578d;
     --pl-dk-cat-stroke:      rgba(255,255,255,0);
     --pl-dk-cat-glow:        rgba(70, 100, 180, 0.08);
-    --pl-dk-cat-cell:        rgba(88,109,152,0.7);
+    --pl-dk-cat-cell:        rgba(185, 198, 225, 0.92);
     --pl-dk-cat-text:        #ffffff;
-    --pl-dk-cat-value:       #f5f5f5;
+    --pl-dk-cat-value:       #111827;
 
     /* Item — dark warm amber */
     --pl-dk-item-fill:       #b78034;
     --pl-dk-item-stroke:     rgba(255,255,255,0);
     --pl-dk-item-glow:       rgba(160, 120, 40, 0.08);
-    --pl-dk-item-cell:       rgba(200,158,99,0.65);
+    --pl-dk-item-cell:       rgba(229, 190, 132, 0.92);
     --pl-dk-item-text:       #ffffff;
-    --pl-dk-item-value:      #e6e6e5;
+    --pl-dk-item-value:      #111827;
 
     /* Timing — dark slate cyan (shared base) */
     --pl-dk-time-fill:       #0e1c2a;
@@ -781,7 +781,7 @@
     fill: rgba(10,16,28,0.82) !important; stroke: rgba(148,163,184,0.18) !important;
 }
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyEditableText text.blocklyText),
-:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyNonEditableText text.blocklyText) { fill: var(--pl-dk-text) !important; }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyNonEditableText text.blocklyText) { fill: #111827 !important; }
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .blocklyBlockCanvas > .blocklyDraggable) {
     filter: none;
 }
@@ -811,7 +811,7 @@
 }
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .aggregate-plan-block .blocklyEditableText text.blocklyText),
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .aggregate-plan-block .blocklyNonEditableText text.blocklyText) {
-    fill: var(--pl-dk-agg-text) !important; font-size: 8.25pt !important; font-weight: 700 !important;
+    fill: #111827 !important; font-size: 8.25pt !important; font-weight: 700 !important;
 }
 /* Department block */
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .department-plan-block) {}
@@ -829,7 +829,7 @@
 }
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .department-plan-block .blocklyEditableText text.blocklyText),
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .department-plan-block .blocklyNonEditableText text.blocklyText) {
-    fill: var(--pl-dk-dept-text) !important; font-size: 8.25pt !important;
+    fill: #111827 !important; font-size: 8.25pt !important;
 }
 /* Category block */
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .category-plan-block) {}
@@ -847,7 +847,13 @@
 }
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .category-plan-block .blocklyEditableText text.blocklyText),
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .category-plan-block .blocklyNonEditableText text.blocklyText) {
-    fill: var(--pl-dk-cat-text) !important; font-size: 8.25pt !important;
+    fill: #111827 !important; font-size: 8.25pt !important;
+}
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .category-plan-block .blocklyEditableText text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .category-plan-block .blocklyNonEditableText text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .category-plan-block .blocklyEditableText tspan),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .category-plan-block .blocklyNonEditableText tspan) {
+    fill: #111827 !important;
 }
 /* Item block */
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .item-plan-block) {}
@@ -865,8 +871,32 @@
 }
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .item-plan-block .blocklyEditableText text.blocklyText),
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .item-plan-block .blocklyNonEditableText text.blocklyText) {
-    fill: var(--pl-dk-item-text) !important; font-size: 8.25pt !important;
+    fill: #111827 !important; font-size: 8.25pt !important;
 }
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .item-plan-block .blocklyEditableText text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .item-plan-block .blocklyNonEditableText text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .item-plan-block .blocklyEditableText tspan),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .item-plan-block .blocklyNonEditableText tspan) {
+    fill: #111827 !important;
+}
+
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .department-plan-block .blocklyEditableText text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .department-plan-block .blocklyNonEditableText text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .department-plan-block .blocklyEditableText tspan),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .department-plan-block .blocklyNonEditableText tspan),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .category-plan-block .blocklyEditableText text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .category-plan-block .blocklyNonEditableText text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .category-plan-block .blocklyEditableText tspan),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .category-plan-block .blocklyNonEditableText tspan),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .item-plan-block .blocklyEditableText text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .item-plan-block .blocklyNonEditableText text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .item-plan-block .blocklyEditableText tspan),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .item-plan-block .blocklyNonEditableText tspan),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .pl-block-field--department-value text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .pl-block-field--department-value tspan) {
+    fill: #06121f !important;
+}
+
 /* Timing block */
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .timing-plan-block) {}
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .timing-plan-block .blocklyPath) {
@@ -899,6 +929,55 @@
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host .pl-block-field--department-value text.blocklyText) {
     fill: var(--pl-dk-dept-value) !important; font-weight: 800 !important;
 }
+
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .department-plan-block .blocklyEditableText > rect),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .department-plan-block .blocklyNonEditableText > rect),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .pl-block-field--department-value > rect) {
+    fill: rgba(190, 225, 203, 0.94) !important;
+    stroke: rgba(15, 23, 42, 0.24) !important;
+}
+
+/* PO consolidation uses darker block bodies, so keep field pills light enough
+   for numeric values to remain readable on compact summary blocks. */
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--consolidation .aggregate-plan-block .blocklyEditableText > rect),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--consolidation .aggregate-plan-block .blocklyNonEditableText > rect),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--consolidation .department-plan-block .blocklyEditableText > rect),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--consolidation .department-plan-block .blocklyNonEditableText > rect),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--consolidation .pl-block-field--financial-value > rect),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--consolidation .pl-block-field--department-value > rect) {
+    fill: rgba(206, 222, 210, 0.96) !important;
+    stroke: rgba(15, 23, 42, 0.22) !important;
+}
+
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--consolidation .aggregate-plan-block .blocklyEditableText text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--consolidation .aggregate-plan-block .blocklyNonEditableText text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--consolidation .department-plan-block .blocklyEditableText text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--consolidation .department-plan-block .blocklyNonEditableText text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--consolidation .pl-block-field--financial-value text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--consolidation .pl-block-field--department-value text) {
+    fill: #111827 !important;
+}
+
+/* DU category and item field values only. Keep the existing field backgrounds. */
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .category-plan-block .blocklyEditableText text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .category-plan-block .blocklyNonEditableText text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .category-plan-block .blocklyEditableText tspan),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .category-plan-block .blocklyNonEditableText tspan),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .item-plan-block .blocklyEditableText text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .item-plan-block .blocklyNonEditableText text),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .item-plan-block .blocklyEditableText tspan),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .item-plan-block .blocklyNonEditableText tspan) {
+    color: #000000 !important;
+    fill: #000000 !important;
+}
+
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .category-plan-block :is(.blocklyEditableText, .blocklyNonEditableText) *:not(rect)),
+:global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host--department-user .item-plan-block :is(.blocklyEditableText, .blocklyNonEditableText) *:not(rect)) {
+    color: #000000 !important;
+    fill: #000000 !important;
+    stroke: none !important;
+}
+
 /* Node CSS variable compat */
 :global(:is(html.dark, .dark, [data-theme="dark"]) .blockly-host) {
     --node-bg: var(--pl-dk-bg);

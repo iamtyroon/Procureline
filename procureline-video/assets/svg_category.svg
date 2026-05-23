@@ -1,0 +1,25 @@
+<svg viewBox="0 0 580 104" style="display: block; margin: 0 auto; overflow: visible; font-family: sans-serif;" xmlns="http://www.w3.org/2000/svg" width="580" height="104">
+  <path d="M 0 5 
+           A 5 5 0 0 1 5 0 
+           H 15 l 4 4 h 10 l 4 -4 
+           H 575 A 5 5 0 0 1 580 5 
+           V 27 A 5 5 0 0 1 575 32 
+           H 58 l -4 4 h -10 l -4 -4 H 25 
+           V 64 
+           H 40 l 4 4 h 10 l 4 -4 H 575 
+           A 5 5 0 0 1 580 69 
+           V 91 A 5 5 0 0 1 575 96 
+           H 33 l -4 4 h -10 l -4 -4 
+           H 5 A 5 5 0 0 1 0 91 Z" 
+        fill="#4b8bf5" />
+        
+  <text x="12" y="21" fill="white" font-size="13">Category:</text>
+  
+  <text y="85" fill="white" font-size="13">
+    <tspan x="35">Q1</tspan>
+    <tspan x="135">Q2</tspan>
+    <tspan x="235">Q3</tspan>
+    <tspan x="335">Q4</tspan>
+    <tspan x="435">Total</tspan>
+  </text>
+</svg>

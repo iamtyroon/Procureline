@@ -49,9 +49,17 @@ const PROCESS_LABELS = [
 ] as const;
 
 type WorkbookCellValue = string | number | Date | null;
+type CachedCellStyle = {
+  alignment: Partial<ExcelJS.Alignment>;
+  border: Partial<ExcelJS.Borders>;
+  fill?: ExcelJS.Fill;
+  font?: Partial<ExcelJS.Font>;
+};
 
 @Injectable()
 export class ExcelService {
+  private readonly styleCache = new Map<string, CachedCellStyle>();
+
   async createWorkbook(dto: CreateExcelExportDto): Promise<{ fileName: string; workbookBase64: string }> {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet(dto.reportName);
@@ -78,6 +86,7 @@ export class ExcelService {
     payload: ConsolidatedProcurementPlanExport,
   ): Promise<GeneratedWorkbook> {
     this.validatePayload(payload);
+    this.validateWorksheetRowBudget(payload);
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "Procureline";
@@ -157,6 +166,23 @@ export class ExcelService {
     }
 
     this.validateCompliance(payload.compliance);
+  }
+
+  private validateWorksheetRowBudget(payload: ConsolidatedProcurementPlanExport): void {
+    const fixedRows = 3 + 4;
+    const estimatedRows = payload.departments.reduce((total, department) => {
+      const categoryRows = department.categories.length * 2;
+      const itemRows = department.categories.reduce(
+        (categoryTotal, category) => categoryTotal + category.items.length,
+        0,
+      );
+      const departmentRows = 1 + 1 + 5;
+      return total + categoryRows + itemRows + departmentRows;
+    }, fixedRows);
+
+    if (estimatedRows > EXCEL_MAX_ROWS) {
+      throw new Error(`Too many worksheet rows for Excel export: ${estimatedRows}. Excel limit is ${EXCEL_MAX_ROWS}.`);
+    }
   }
 
   private validateItem(item: ConsolidatedProcurementItem): void {
@@ -564,15 +590,15 @@ export class ExcelService {
       q4Result: this.sumRows(sheet, "P", [startRow]) * 0.3,
     });
     this.writeComplianceRow(sheet, startRow + 2, "PWD", compliance.pwd, {
-      amountFormula: `H${startRow + 1}*2%`,
-      q1Formula: `J${startRow + 1}*2%`,
-      q2Formula: `L${startRow + 1}*2%`,
-      q3Formula: `N${startRow + 1}*2%`,
-      q4Formula: `P${startRow + 1}*2%`,
-      q1Result: this.sumRows(sheet, "J", [startRow + 1]) * 0.02,
-      q2Result: this.sumRows(sheet, "L", [startRow + 1]) * 0.02,
-      q3Result: this.sumRows(sheet, "N", [startRow + 1]) * 0.02,
-      q4Result: this.sumRows(sheet, "P", [startRow + 1]) * 0.02,
+      amountFormula: `H${startRow}*2%`,
+      q1Formula: `J${startRow}*2%`,
+      q2Formula: `L${startRow}*2%`,
+      q3Formula: `N${startRow}*2%`,
+      q4Formula: `P${startRow}*2%`,
+      q1Result: this.sumRows(sheet, "J", [startRow]) * 0.02,
+      q2Result: this.sumRows(sheet, "L", [startRow]) * 0.02,
+      q3Result: this.sumRows(sheet, "N", [startRow]) * 0.02,
+      q4Result: this.sumRows(sheet, "P", [startRow]) * 0.02,
     });
     this.writeComplianceRow(sheet, startRow + 3, "LOCAL CONTENT", compliance.localContent, {
       amountFormula: `H${startRow}*40%`,
@@ -759,23 +785,45 @@ export class ExcelService {
     cell: ExcelJS.Cell,
     options: { borderColor: string; fillColor?: string; fontColor?: string },
   ): void {
-    cell.border = {
-      top: { style: "medium", color: { argb: options.borderColor } },
-      left: { style: "medium", color: { argb: options.borderColor } },
-      bottom: { style: "medium", color: { argb: options.borderColor } },
-      right: { style: "medium", color: { argb: options.borderColor } },
+    const style = this.getCachedCellStyle(options);
+    cell.border = style.border;
+    cell.alignment = { ...(cell.alignment ?? {}), ...style.alignment };
+    if (style.fill) {
+      cell.fill = style.fill;
+    }
+    if (style.font) {
+      cell.font = { ...(cell.font ?? {}), ...style.font };
+    }
+  }
+
+  private getCachedCellStyle(options: { borderColor: string; fillColor?: string; fontColor?: string }): CachedCellStyle {
+    const key = `${options.borderColor}:${options.fillColor ?? ""}:${options.fontColor ?? ""}`;
+    const cached = this.styleCache.get(key);
+    if (cached) {
+      return cached;
+    }
+
+    const style: CachedCellStyle = {
+      alignment: { vertical: "middle", wrapText: true },
+      border: {
+        top: { style: "medium", color: { argb: options.borderColor } },
+        left: { style: "medium", color: { argb: options.borderColor } },
+        bottom: { style: "medium", color: { argb: options.borderColor } },
+        right: { style: "medium", color: { argb: options.borderColor } },
+      },
+      ...(options.fillColor
+        ? {
+            fill: {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: options.fillColor },
+            } as ExcelJS.Fill,
+          }
+        : {}),
+      ...(options.fontColor ? { font: { color: { argb: options.fontColor } } } : {}),
     };
-    if (options.fillColor) {
-      cell.fill = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: options.fillColor },
-      };
-    }
-    if (options.fontColor) {
-      cell.font = { ...(cell.font ?? {}), color: { argb: options.fontColor } };
-    }
-    cell.alignment = { ...(cell.alignment ?? {}), vertical: "middle", wrapText: true };
+    this.styleCache.set(key, style);
+    return style;
   }
 
   private sumFormula(column: string, rows: number[]): string {
