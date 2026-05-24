@@ -134,10 +134,64 @@ export default defineSchema({
     timeZone: v.optional(v.string()),
     logoUrl: v.optional(v.string()),
     onboardingCompletedAt: v.optional(v.number()),
+    storageLimitBytes: v.optional(v.number()),
+    storageUsedBytes: v.optional(v.number()),
+    userLimit: v.optional(v.number()),
+    suspendedAt: v.optional(v.number()),
+    suspendedByPlatformUserId: v.optional(v.id("users")),
+    suspensionReason: v.optional(v.string()),
+    restoredAt: v.optional(v.number()),
+    restoredByPlatformUserId: v.optional(v.id("users")),
+    restoreReason: v.optional(v.string()),
+    softDeletedAt: v.optional(v.number()),
+    softDeletedByPlatformUserId: v.optional(v.id("users")),
+    softDeleteReason: v.optional(v.string()),
+    purgeScheduledAt: v.optional(v.number()),
+    previousSubdomains: v.optional(v.array(v.string())),
     createdAt: v.number(),
   })
     .index("by_subdomain", ["subdomain"])
     .index("by_status", ["status"]),
+
+  tenantSubdomainRedirects: defineTable({
+    tenantId: v.id("tenants"),
+    fromSubdomain: v.string(),
+    toSubdomain: v.string(),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+    createdByPlatformUserId: v.id("users"),
+  })
+    .index("by_fromSubdomain", ["fromSubdomain"])
+    .index("by_tenantId", ["tenantId", "createdAt"]),
+
+  tenantConfigOverrides: defineTable({
+    tenantId: v.id("tenants"),
+    key: v.string(),
+    value: v.string(),
+    reason: v.string(),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+    createdByPlatformUserId: v.id("users"),
+  })
+    .index("by_tenantId", ["tenantId", "createdAt"])
+    .index("by_expiresAt", ["expiresAt"]),
+
+  platformTenantDataExports: defineTable({
+    tenantId: v.id("tenants"),
+    requestedByPlatformUserId: v.id("users"),
+    status: v.union(
+      v.literal("queued"),
+      v.literal("ready"),
+      v.literal("failed"),
+    ),
+    downloadUrl: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+    requestedAt: v.number(),
+    updatedAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index("by_tenantId", ["tenantId", "requestedAt"])
+    .index("by_status", ["status", "updatedAt"]),
 
   tenantAdminInvitations: defineTable({
     tenantId: v.id("tenants"),

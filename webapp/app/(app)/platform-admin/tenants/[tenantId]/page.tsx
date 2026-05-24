@@ -1,11 +1,9 @@
-import { PlatformAdminRoutePlaceholder } from "@/src/components/platform-admin/PlatformAdminRoutePlaceholder";
+import { PlatformAdminTenantManagementView } from "@/src/components/platform-admin/PlatformAdminTenantManagementView";
 
-export default function PlatformAdminTenantDetailReservedPage() {
-    return (
-        <PlatformAdminRoutePlaceholder
-            eyebrow="Reserved for Story 2.5"
-            title="Tenant detail"
-            description="Tenant configuration and lifecycle management are reserved for the dedicated tenant-detail story. The tenant roster links here truthfully without opening fake details."
-        />
-    );
+export default function PlatformAdminTenantManagementPage({
+    params,
+}: {
+    params: { tenantId: string };
+}) {
+    return <PlatformAdminTenantManagementView tenantId={params.tenantId} />;
 }

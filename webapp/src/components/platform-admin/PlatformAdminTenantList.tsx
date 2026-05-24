@@ -195,12 +195,15 @@ export function PlatformAdminTenantList(): JSX.Element {
                                 </p>
                             </div>
                             <Button
+                                asChild
                                 type="button"
                                 variant="outline"
                                 className={cn("rounded-xl", SECONDARY_ACTION_BUTTON_CLASS)}
                             >
-                                <Plus className="mr-2 h-4 w-4" />
-                                Provisioning reserved for Story 2.4
+                                <Link href="/platform-admin/tenants/new">
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Create tenant
+                                </Link>
                             </Button>
                         </header>
 
@@ -489,7 +492,7 @@ function TenantRosterRow({
                 >
                     <Link href={row.detailHref}>
                         <Eye className="mr-2 h-4 w-4" />
-                        Reserved detail
+                        Manage
                     </Link>
                 </Button>
             </TableCell>

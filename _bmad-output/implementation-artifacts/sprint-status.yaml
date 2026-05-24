@@ -109,16 +109,16 @@ development_status:
   3-8-report-generation-system: done
 
   2-3-tenant-list-overview: done
-  2-4-tenant-creation-provisioning: backlog
-  2-5-tenant-configuration-management: backlog
-  2-6-subscription-status-management: backlog
-  2-7-payment-verification-processing: backlog
-  2-8-cross-tenant-user-management: backlog
-  2-9-free-tier-management-usage-monitoring: backlog
-  2-10-system-health-monitoring: backlog
-  2-11-security-dashboard-compliance: backlog
-  2-12-support-tickets-incidents: backlog
-  2-13-system-configuration-feature-flags: backlog
+  2-4-tenant-creation-provisioning: review
+  2-5-tenant-configuration-management: review
+  2-6-subscription-status-management: ready-for-dev
+  2-7-payment-verification-processing: ready-for-dev
+  2-8-cross-tenant-user-management: ready-for-dev
+  2-9-free-tier-management-usage-monitoring: ready-for-dev
+  2-10-system-health-monitoring: ready-for-dev
+  2-11-security-dashboard-compliance: ready-for-dev
+  2-12-support-tickets-incidents: ready-for-dev
+  2-13-system-configuration-feature-flags: ready-for-dev
 
 
   3-4-po-management-lifecycle-activity: backlog # frontend-complete
