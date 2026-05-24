@@ -1,6 +1,6 @@
 # Story 2.6: Subscription Status Management
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -18,10 +18,10 @@ so that I can monitor revenue and handle subscription issues.
 
 ## Tasks / Subtasks
 
-- [ ] Create the platform subscriptions UI and detail state.
-- [ ] Add Convex subscription summary queries with bounded filters and pagination.
-- [ ] Add revenue helpers: MRR from monthly equivalents and ARR = MRR * 12.
-- [ ] Add CSV export using existing export patterns and audit sensitive billing reads/actions.
+- [x] Create the platform subscriptions UI and detail state.
+- [x] Add Convex subscription summary queries with bounded filters and pagination.
+- [x] Add revenue helpers: MRR from monthly equivalents and ARR = MRR * 12.
+- [x] Add CSV export using existing export patterns and audit sensitive billing reads/actions.
 
 ## Dev Notes
 
@@ -94,7 +94,7 @@ Manual acceptance validation should still confirm:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
 
 ### Debug Log References
 
@@ -103,25 +103,57 @@ Manual acceptance validation should still confirm:
 - `_bmad/bmm/workflows/4-implementation/create-story/instructions.xml`
 - `_bmad-output/implementation-artifacts/epics/epic2/epic-02-platform-administration.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `webapp/convex/functions/platformAdminSubscriptions.ts`
+- `webapp/src/components/platform-admin/PlatformAdminSubscriptionsView.tsx`
+- `webapp/app/(app)/platform-admin/subscriptions/page.tsx`
+- `webapp/convex/schema.ts`
+- `webapp/lib/backend/platform-admin/dashboard-access-token.ts`
+- `webapp/lib/shared/security/audit.ts`
+- `webapp/convex/_generated/api.d.ts`
+- `webapp/convex/crons.ts`
 
 ### Completion Notes List
 
 - 2026-05-24: Created implementation-ready story context for `2-6-subscription-status-management`.
 - 2026-05-24: Marked automated tests as not required per product-owner instruction while retaining manual acceptance validation guidance.
+- 2026-05-24: Implemented the Platform Admin subscriptions route with audited read access, filtered paginated subscription list, detail state, revenue summary, revenue-by-tier data, and CSV export.
+- 2026-05-24: Added subscription status fields and billing records to Convex schema; added typed billing audit events.
+- 2026-05-24: Validation: `npx convex codegen --typecheck=disable` passed; `webapp npm run lint` is blocked by pre-existing ESLint failures outside this story; `nestjs npm run lint` passed.
+- 2026-05-24: Senior review fixes applied: bounded subscription list scans, audited subscription detail reads, backend billing input validation, full filtered CSV export rows, and external-service webhook subscription write-back support.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/epics/epic2/stories/2-6-subscription-status-management.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `webapp/app/(app)/platform-admin/subscriptions/page.tsx`
+- `webapp/convex/_generated/api.d.ts`
+- `webapp/convex/crons.ts`
+- `webapp/convex/functions/externalServices.ts`
+- `webapp/convex/functions/platformAdminSubscriptions.ts`
+- `webapp/convex/schema.ts`
+- `webapp/lib/backend/platform-admin/dashboard-access-token.ts`
+- `webapp/lib/shared/security/audit.ts`
+- `webapp/src/components/platform-admin/PlatformAdminSubscriptionsView.tsx`
 
 ## Change Log
 
 - 2026-05-24: Created Story 2.6 as ready for implementation.
+- 2026-05-24: Implemented subscription status management and moved story to review.
+- 2026-05-24: Applied senior review fixes and moved story to done.
 
 ## Story Completion Status
 
 - Story ID: `2.6`
 - Story Key: `2-6-subscription-status-management`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic2/stories/2-6-subscription-status-management.md`
-- Final Status: `ready-for-dev`
-- Completion Note: `Implementation-ready story guide created from Epic 2 source with tests explicitly not required.`
+- Final Status: `done`
+- Completion Note: `Implemented and review-fixed subscriptions UI, audited Convex reads, bounded filters, pagination, revenue reporting, filtered CSV export, and provider sync write-back support.`
+
+## Senior Developer Review (AI)
+
+- 2026-05-24: Fixed all review findings for Story 2.6.
+- Bounded the subscription snapshot query to indexed tenant scans instead of unbounded full collection reads.
+- Added audited subscription detail reads through the existing read-access token flow.
+- Updated CSV export to use filtered export rows instead of only the visible page.
+- Added backend validation for payment references, currency codes, and positive billing amounts.
+- Validation: `npx convex codegen --typecheck=disable` passed; targeted ESLint for touched webapp files passed; `nestjs npm run lint` passed. Full `webapp npm run lint` remains blocked by pre-existing unrelated lint errors.

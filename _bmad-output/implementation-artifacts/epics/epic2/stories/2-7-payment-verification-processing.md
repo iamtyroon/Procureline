@@ -1,6 +1,6 @@
 # Story 2.7: Payment Verification & Processing
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -25,10 +25,10 @@ so that billing is accurate and tenants maintain access appropriately.
 
 ## Tasks / Subtasks
 
-- [ ] Extend NestJS payment modules for Stripe, IntaSend, bank transfers, refunds, and invoices.
-- [ ] Preserve service-to-service auth boundaries from Story 2.0.
-- [ ] Add Convex billing records, reconciliation records, grace-period fields, and audit events.
-- [ ] Wire platform UI controls for verification, refunds, custom pricing, and batch status updates.
+- [x] Extend NestJS payment modules for Stripe, IntaSend, bank transfers, refunds, and invoices.
+- [x] Preserve service-to-service auth boundaries from Story 2.0.
+- [x] Add Convex billing records, reconciliation records, grace-period fields, and audit events.
+- [x] Wire platform UI controls for verification, refunds, custom pricing, and batch status updates.
 
 ## Dev Notes
 
@@ -101,7 +101,7 @@ Manual acceptance validation should still confirm:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
 
 ### Debug Log References
 
@@ -110,25 +110,61 @@ Manual acceptance validation should still confirm:
 - `_bmad/bmm/workflows/4-implementation/create-story/instructions.xml`
 - `_bmad-output/implementation-artifacts/epics/epic2/epic-02-platform-administration.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `nestjs/src/payments/dto/billing-operations.dto.ts`
+- `nestjs/src/payments/payments.controller.ts`
+- `nestjs/src/payments/payments.service.ts`
+- `webapp/convex/functions/platformAdminSubscriptions.ts`
+- `webapp/src/components/platform-admin/PlatformAdminSubscriptionsView.tsx`
+- `webapp/convex/schema.ts`
+- `webapp/lib/shared/security/audit.ts`
+- `webapp/convex/crons.ts`
 
 ### Completion Notes List
 
 - 2026-05-24: Created implementation-ready story context for `2-7-payment-verification-processing`.
 - 2026-05-24: Marked automated tests as not required per product-owner instruction while retaining manual acceptance validation guidance.
+- 2026-05-24: Added platform billing mutations for manual bank-transfer verification, provider payment recording, failed-payment grace period handling, refund approval requests with prorating, enterprise custom pricing, invoice queueing, reconciliation queueing, batch status updates, and grace-period expiry.
+- 2026-05-24: Added daily scheduled billing maintenance to queue M-Pesa reconciliation with three attempts and suspend expired grace-period tenants.
+- 2026-05-24: Extended NestJS service-auth payment endpoints for reconciliation, refund approval, and invoice generation using the existing Convex sync event boundary.
+- 2026-05-24: Validation: `npx convex codegen --typecheck=disable` passed; `webapp npm run lint` is blocked by pre-existing ESLint failures outside this story; `nestjs npm run lint` passed.
+- 2026-05-24: Senior review fixes applied: provider webhook durable changes now update subscription state, queued billing reconciliations are processed on schedule with attempt tracking, and billing mutations validate direct-call input.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/epics/epic2/stories/2-7-payment-verification-processing.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `nestjs/src/payments/dto/billing-operations.dto.ts`
+- `nestjs/src/payments/payments.controller.ts`
+- `nestjs/src/payments/payments.service.ts`
+- `webapp/app/(app)/platform-admin/subscriptions/page.tsx`
+- `webapp/convex/_generated/api.d.ts`
+- `webapp/convex/crons.ts`
+- `webapp/convex/functions/externalServices.ts`
+- `webapp/convex/functions/platformAdminSubscriptions.ts`
+- `webapp/convex/schema.ts`
+- `webapp/lib/backend/platform-admin/dashboard-access-token.ts`
+- `webapp/lib/shared/security/audit.ts`
+- `webapp/src/components/platform-admin/PlatformAdminSubscriptionsView.tsx`
 
 ## Change Log
 
 - 2026-05-24: Created Story 2.7 as ready for implementation.
+- 2026-05-24: Implemented payment verification and processing controls and moved story to review.
+- 2026-05-24: Applied senior review fixes and moved story to done.
 
 ## Story Completion Status
 
 - Story ID: `2.7`
 - Story Key: `2-7-payment-verification-processing`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic2/stories/2-7-payment-verification-processing.md`
-- Final Status: `ready-for-dev`
-- Completion Note: `Implementation-ready story guide created from Epic 2 source with tests explicitly not required.`
+- Final Status: `done`
+- Completion Note: `Implemented and review-fixed platform billing verification, reconciliation processing, refund, invoice, custom-pricing, grace-period, batch status, and provider webhook subscription update workflows.`
+
+## Senior Developer Review (AI)
+
+- 2026-05-24: Fixed all review findings for Story 2.7.
+- Added provider webhook durable subscription update changes for Stripe and IntaSend callbacks through the existing NestJS-to-Convex sync boundary.
+- Added Convex-side processing for due billing reconciliation records with attempt tracking and scheduled execution.
+- Kept M-Pesa daily reconciliation queued by billing maintenance and added a 30-minute processor for due billing reconciliation work.
+- Added backend validation for direct mutation calls that record provider payments, failed payments, refunds, and bank-transfer verification.
+- Validation: `npx convex codegen --typecheck=disable` passed; targeted ESLint for touched webapp files passed; `nestjs npm run lint` passed. Full `webapp npm run lint` remains blocked by pre-existing unrelated lint errors.

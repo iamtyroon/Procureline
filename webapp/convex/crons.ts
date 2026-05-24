@@ -17,4 +17,18 @@ crons.interval(
     {},
 );
 
+crons.daily(
+    "run subscription billing maintenance",
+    { hourUTC: 0, minuteUTC: 15 },
+    internal.functions.platformAdminSubscriptions.runScheduledBillingMaintenance,
+    {},
+);
+
+crons.interval(
+    "process due billing reconciliations",
+    { minutes: 30 },
+    internal.functions.platformAdminSubscriptions.processDueBillingReconciliations,
+    {},
+);
+
 export default crons;

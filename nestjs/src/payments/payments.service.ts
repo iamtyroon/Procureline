@@ -2,6 +2,11 @@ import { randomUUID } from "node:crypto";
 import { Injectable, ServiceUnavailableException } from "@nestjs/common";
 import type { Stripe } from "stripe";
 import type { RequestUser } from "@/common/types/request-user";
+import {
+  GenerateInvoiceDto,
+  InitiateRefundDto,
+  QueueReconciliationDto,
+} from "@/payments/dto/billing-operations.dto";
 import { ManualBankTransferVerificationDto } from "@/payments/dto/manual-bank-transfer.dto";
 import { CreateSubscriptionDto } from "@/payments/dto/create-subscription.dto";
 import { VerifyPaymentDto } from "@/payments/dto/verify-payment.dto";
@@ -21,6 +26,48 @@ export class PaymentsService {
 
   private buildSubscriptionEventKey(dto: CreateSubscriptionDto): string {
     return `subscription-create:${dto.provider}:${dto.idempotencyKey ?? randomUUID()}`;
+  }
+
+  private buildProviderSubscriptionChange(args: {
+    amountCents?: number;
+    billingCycle?: "annual" | "monthly";
+    currency?: string;
+    metadata?: Record<string, unknown>;
+    paymentReference: string;
+    provider: "intasend" | "stripe";
+    status?: string;
+  }): Record<string, unknown> | null {
+    const tenantId = typeof args.metadata?.tenantId === "string" ? args.metadata.tenantId : undefined;
+    const tenantReference =
+      typeof args.metadata?.tenantReference === "string"
+        ? args.metadata.tenantReference
+        : typeof args.metadata?.subdomain === "string"
+          ? args.metadata.subdomain
+          : undefined;
+
+    if (!tenantId && !tenantReference) {
+      return null;
+    }
+
+    const nextBillingDate =
+      typeof args.metadata?.nextBillingDate === "string"
+        ? Number(args.metadata.nextBillingDate)
+        : typeof args.metadata?.nextBillingDate === "number"
+          ? args.metadata.nextBillingDate
+          : undefined;
+
+    return {
+      amountCents: args.amountCents,
+      billingCycle: args.billingCycle ?? "annual",
+      changeType: "payment.subscription.provider_updated",
+      currency: args.currency ?? "KES",
+      nextBillingDate: Number.isFinite(nextBillingDate) ? nextBillingDate : undefined,
+      paymentReference: args.paymentReference,
+      provider: args.provider,
+      subscriptionStatus: args.status ?? "active",
+      tenantId,
+      tenantReference,
+    };
   }
 
   async createSubscription(dto: CreateSubscriptionDto, actor: RequestUser): Promise<Record<string, unknown>> {
@@ -229,8 +276,162 @@ export class PaymentsService {
     return verification;
   }
 
+  async queueReconciliation(dto: QueueReconciliationDto, actor: RequestUser): Promise<Record<string, unknown>> {
+    const eventKey = `billing-reconciliation:${dto.provider}:${dto.idempotencyKey ?? randomUUID()}`;
+    const claim = await this.convexSyncService.claimSync({
+      actor: {
+        role: actor.role,
+        tenantId: actor.tenantId,
+        userId: actor.sub,
+      },
+      eventKey,
+      eventType: dto.provider === "intasend" ? "payment.mpesa.reconciliation_queued" : "payment.stripe.retry_reconciliation_queued",
+      payload: dto,
+      provider: dto.provider,
+    });
+
+    if (claim.status === "duplicate") {
+      return {
+        duplicate: true,
+        provider: dto.provider,
+        status: "queued",
+      };
+    }
+
+    const result = {
+      maxAttempts: 3,
+      provider: dto.provider,
+      retryPolicy: "daily_retry_up_to_3_attempts",
+      status: "queued",
+    };
+    await this.convexSyncService.completeSync({
+      durableChanges: [
+        {
+          actor,
+          changeType: "payment.reconciliation.queued",
+          provider: dto.provider,
+          maxAttempts: 3,
+        },
+      ],
+      eventKey,
+      result,
+    });
+    return result;
+  }
+
+  async initiateRefund(dto: InitiateRefundDto, actor: RequestUser): Promise<Record<string, unknown>> {
+    const eventKey = `billing-refund:${dto.paymentReference}:${dto.idempotencyKey ?? randomUUID()}`;
+    const claim = await this.convexSyncService.claimSync({
+      actor: {
+        role: actor.role,
+        tenantId: actor.tenantId,
+        userId: actor.sub,
+      },
+      eventKey,
+      eventType: "payment.refund.approval_requested",
+      payload: dto,
+      provider: "custom",
+    });
+
+    if (claim.status === "duplicate") {
+      return {
+        duplicate: true,
+        paymentReference: dto.paymentReference,
+        status: "pending_approval",
+      };
+    }
+
+    const elapsedRatio = Math.min(1, Math.max(0, (Date.now() - dto.serviceStartAt) / Math.max(1, dto.serviceEndAt - dto.serviceStartAt)));
+    const proratedAmount = Math.max(0, Math.round(dto.amount * (1 - elapsedRatio)));
+    const result = {
+      paymentReference: dto.paymentReference,
+      proratedAmount,
+      status: "pending_approval",
+    };
+    await this.convexSyncService.completeSync({
+      durableChanges: [
+        {
+          actor,
+          changeType: "payment.refund.approval_requested",
+          paymentReference: dto.paymentReference,
+          proratedAmount,
+        },
+      ],
+      eventKey,
+      result,
+    });
+    return result;
+  }
+
+  async generateInvoice(dto: GenerateInvoiceDto, actor: RequestUser): Promise<Record<string, unknown>> {
+    const eventKey = `billing-invoice:${dto.tenantReference}:${dto.idempotencyKey ?? randomUUID()}`;
+    const claim = await this.convexSyncService.claimSync({
+      actor: {
+        role: actor.role,
+        tenantId: actor.tenantId,
+        userId: actor.sub,
+      },
+      eventKey,
+      eventType: "payment.invoice.generation_queued",
+      payload: dto,
+      provider: "custom",
+    });
+
+    if (claim.status === "duplicate") {
+      return {
+        duplicate: true,
+        status: "queued",
+        tenantReference: dto.tenantReference,
+      };
+    }
+
+    const result = {
+      amount: dto.amount,
+      currency: dto.currency,
+      maxAttempts: 3,
+      status: "queued",
+      tenantReference: dto.tenantReference,
+    };
+    await this.convexSyncService.completeSync({
+      durableChanges: [
+        {
+          actor,
+          changeType: "payment.invoice.generation_queued",
+          tenantReference: dto.tenantReference,
+          maxAttempts: 3,
+        },
+      ],
+      eventKey,
+      result,
+    });
+    return result;
+  }
+
   async handleStripeWebhook(rawBody: Buffer, signature: string | undefined): Promise<Record<string, unknown>> {
     const event = this.stripeProvider.constructWebhookEvent(rawBody, signature);
+    const stripeObject = event.data.object as Stripe.Event.Data.Object & {
+      amount_paid?: number;
+      amount_due?: number;
+      currency?: string;
+      current_period_end?: number;
+      id?: string;
+      metadata?: Record<string, string>;
+      status?: string;
+    };
+    const providerChange = this.buildProviderSubscriptionChange({
+      amountCents: typeof stripeObject.amount_paid === "number" ? stripeObject.amount_paid : stripeObject.amount_due,
+      billingCycle: stripeObject.metadata?.billingCycle === "monthly" ? "monthly" : "annual",
+      currency: stripeObject.currency?.toUpperCase(),
+      metadata: stripeObject.metadata,
+      paymentReference: stripeObject.id ?? event.id,
+      provider: "stripe",
+      status:
+        event.type === "invoice.payment_failed"
+          ? "past_due"
+          : event.type === "customer.subscription.deleted"
+            ? "cancelled"
+            : "active",
+    });
     const eventKey = `stripe:${event.id}`;
     const claim = await this.convexSyncService.claimSync({
       eventKey,
@@ -258,6 +459,7 @@ export class PaymentsService {
             provider: "stripe",
             type: event.type,
           },
+          ...(providerChange ? [providerChange] : []),
         ],
         eventKey,
         result: {
@@ -291,6 +493,16 @@ export class PaymentsService {
 
   async handleIntaSendCallback(payload: Record<string, unknown>, rawBody: string, signature: string | undefined): Promise<Record<string, unknown>> {
     const callbackId = this.intaSendProvider.verifyCallback(payload, rawBody, signature);
+    const metadata = (payload.metadata && typeof payload.metadata === "object" ? payload.metadata : payload) as Record<string, unknown>;
+    const providerChange = this.buildProviderSubscriptionChange({
+      amountCents: typeof payload.amount === "number" ? Math.round(payload.amount * 100) : undefined,
+      billingCycle: metadata.billingCycle === "monthly" ? "monthly" : "annual",
+      currency: typeof payload.currency === "string" ? payload.currency.toUpperCase() : "KES",
+      metadata,
+      paymentReference: callbackId,
+      provider: "intasend",
+      status: payload.state === "FAILED" || payload.status === "FAILED" ? "past_due" : "active",
+    });
     const eventKey = `intasend:${callbackId}`;
     const claim = await this.convexSyncService.claimSync({
       eventKey,
@@ -314,6 +526,7 @@ export class PaymentsService {
             changeType: "payment.provider_event.recorded",
             provider: "intasend",
           },
+          ...(providerChange ? [providerChange] : []),
         ],
         eventKey,
         result: {

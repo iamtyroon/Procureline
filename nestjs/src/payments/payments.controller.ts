@@ -15,6 +15,11 @@ import { ServiceAuthGuard } from "@/auth/service-auth.guard";
 import { CurrentUser } from "@/common/decorators/current-user.decorator";
 import type { RequestUser } from "@/common/types/request-user";
 import { ManualBankTransferVerificationDto } from "@/payments/dto/manual-bank-transfer.dto";
+import {
+  GenerateInvoiceDto,
+  InitiateRefundDto,
+  QueueReconciliationDto,
+} from "@/payments/dto/billing-operations.dto";
 import { CreateSubscriptionDto } from "@/payments/dto/create-subscription.dto";
 import { VerifyPaymentDto } from "@/payments/dto/verify-payment.dto";
 import { PaymentsService } from "@/payments/payments.service";
@@ -56,6 +61,39 @@ export class PaymentsController {
     @CurrentUser() user: RequestUser,
   ): Promise<Record<string, unknown>> {
     return this.paymentsService.verifyManualBankTransfer(dto, user);
+  }
+
+  @Post("reconciliation")
+  @ApiBearerAuth()
+  @UseGuards(ThrottlerGuard, ServiceAuthGuard)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  queueReconciliation(
+    @Body() dto: QueueReconciliationDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<Record<string, unknown>> {
+    return this.paymentsService.queueReconciliation(dto, user);
+  }
+
+  @Post("refunds")
+  @ApiBearerAuth()
+  @UseGuards(ThrottlerGuard, ServiceAuthGuard)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  initiateRefund(
+    @Body() dto: InitiateRefundDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<Record<string, unknown>> {
+    return this.paymentsService.initiateRefund(dto, user);
+  }
+
+  @Post("invoices")
+  @ApiBearerAuth()
+  @UseGuards(ThrottlerGuard, ServiceAuthGuard)
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  generateInvoice(
+    @Body() dto: GenerateInvoiceDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<Record<string, unknown>> {
+    return this.paymentsService.generateInvoice(dto, user);
   }
 
   @Post("webhooks/stripe")

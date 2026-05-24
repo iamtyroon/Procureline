@@ -111,8 +111,8 @@ development_status:
   2-3-tenant-list-overview: done
   2-4-tenant-creation-provisioning: done
   2-5-tenant-configuration-management: done
-  2-6-subscription-status-management: ready-for-dev
-  2-7-payment-verification-processing: ready-for-dev
+  2-6-subscription-status-management: done
+  2-7-payment-verification-processing: done
   2-8-cross-tenant-user-management: ready-for-dev
   2-9-free-tier-management-usage-monitoring: ready-for-dev
   2-10-system-health-monitoring: ready-for-dev

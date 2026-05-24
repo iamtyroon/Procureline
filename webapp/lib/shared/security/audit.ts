@@ -118,6 +118,30 @@ export const AUDIT_EVENT_NAMES = {
   tenantSubdomainChanged: "platform_admin.tenant.subdomain_changed",
   tenantPlatformReadAllowed: "tenant.platform_read_allowed",
   tenantProbeBlocked: "tenant.probe_blocked",
+  subscriptionReadAllowed: "platform_admin.subscription.read_allowed",
+  subscriptionBankTransferVerified:
+    "platform_admin.subscription.bank_transfer_verified",
+  subscriptionBatchStatusUpdated:
+    "platform_admin.subscription.batch_status_updated",
+  subscriptionCustomPriceUpdated:
+    "platform_admin.subscription.custom_price_updated",
+  subscriptionFailedPaymentRecorded:
+    "platform_admin.subscription.failed_payment_recorded",
+  subscriptionGraceExpired: "platform_admin.subscription.grace_expired",
+  subscriptionInvoiceQueued: "platform_admin.subscription.invoice_queued",
+  subscriptionPaymentVerified:
+    "platform_admin.subscription.payment_verified",
+  subscriptionRefundRequested: "platform_admin.subscription.refund_requested",
+  subscriptionReconciliationQueued:
+    "platform_admin.subscription.reconciliation_queued",
+  platformAdminUserManaged: "platform_admin.user.managed",
+  platformAdminTenantLockout: "platform_admin.tenant.lockout",
+  platformAdminFreeTierReviewed: "platform_admin.free_tier.reviewed",
+  platformAdminHealthManaged: "platform_admin.health.managed",
+  platformAdminSecurityManaged: "platform_admin.security.managed",
+  platformAdminSupportManaged: "platform_admin.support.managed",
+  platformAdminConfigurationChanged:
+    "platform_admin.configuration.changed",
 } as const;
 
 export const AUDIT_OUTCOMES = {

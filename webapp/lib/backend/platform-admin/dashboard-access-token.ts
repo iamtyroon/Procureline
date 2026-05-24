@@ -14,7 +14,8 @@ interface PlatformAdminDashboardAccessTokenEnvelope {
 
 export type PlatformAdminDashboardReadAccessTokenScope =
     | "dashboard"
-    | "tenant_list";
+    | "tenant_list"
+    | "subscription_list";
 
 function encodeBytesBase64Url(bytes: Uint8Array): string {
     return btoa(String.fromCharCode(...Array.from(bytes)))

@@ -149,10 +149,43 @@ export default defineSchema({
     softDeleteReason: v.optional(v.string()),
     purgeScheduledAt: v.optional(v.number()),
     previousSubdomains: v.optional(v.array(v.string())),
+    subscriptionStatus: v.optional(
+      v.union(
+        v.literal("active"),
+        v.literal("trialing"),
+        v.literal("past_due"),
+        v.literal("grace_period"),
+        v.literal("suspended"),
+        v.literal("cancelled"),
+      ),
+    ),
+    subscriptionAmountCents: v.optional(v.number()),
+    subscriptionCurrency: v.optional(v.string()),
+    subscriptionBillingCycle: v.optional(
+      v.union(v.literal("monthly"), v.literal("annual")),
+    ),
+    subscriptionPaymentMethod: v.optional(
+      v.union(
+        v.literal("stripe"),
+        v.literal("intasend"),
+        v.literal("bank_transfer"),
+        v.literal("custom"),
+      ),
+    ),
+    subscriptionNextBillingDate: v.optional(v.number()),
+    subscriptionGracePeriodEndsAt: v.optional(v.number()),
+    subscriptionCustomPriceCents: v.optional(v.number()),
+    subscriptionCustomPriceReason: v.optional(v.string()),
+    subscriptionCustomPriceUpdatedAt: v.optional(v.number()),
+    lastPaymentFailureAt: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index("by_subdomain", ["subdomain"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_tier", ["tier"])
+    .index("by_subscriptionStatus", ["subscriptionStatus"])
+    .index("by_subscriptionPaymentMethod", ["subscriptionPaymentMethod"])
+    .index("by_subscriptionNextBillingDate", ["subscriptionNextBillingDate"]),
 
   tenantSubdomainRedirects: defineTable({
     tenantId: v.id("tenants"),
@@ -1160,6 +1193,24 @@ export default defineSchema({
     ),
   }).index("by_capturedAt", ["capturedAt"]),
 
+  platformMaintenanceWindows: defineTable({
+    title: v.string(),
+    message: v.string(),
+    startsAt: v.number(),
+    endsAt: v.number(),
+    status: v.union(
+      v.literal("scheduled"),
+      v.literal("active"),
+      v.literal("completed"),
+      v.literal("cancelled"),
+    ),
+    createdByPlatformUserId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status_startsAt", ["status", "startsAt"])
+    .index("by_startsAt", ["startsAt"]),
+
   platformAdminChallenges: defineTable({
     userId: v.id("users"),
     sessionId: v.id("authSessions"),
@@ -1271,6 +1322,87 @@ export default defineSchema({
     .index("by_slug", ["slug"])
     .index("by_display_order", ["displayOrder", "isActive"]),
 
+  billingRecords: defineTable({
+    tenantId: v.id("tenants"),
+    amountCents: v.number(),
+    currency: v.string(),
+    provider: v.union(
+      v.literal("stripe"),
+      v.literal("intasend"),
+      v.literal("bank_transfer"),
+      v.literal("custom"),
+    ),
+    paymentReference: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("verified"),
+      v.literal("failed"),
+      v.literal("refunded"),
+    ),
+    billingCycle: v.union(v.literal("monthly"), v.literal("annual")),
+    periodStart: v.number(),
+    periodEnd: v.number(),
+    verifiedAt: v.optional(v.number()),
+    failedAt: v.optional(v.number()),
+    gracePeriodEndsAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    metadata: v.optional(v.any()),
+  })
+    .index("by_tenantId", ["tenantId", "createdAt"])
+    .index("by_paymentReference", ["paymentReference"])
+    .index("by_status", ["status", "updatedAt"])
+    .index("by_provider_status", ["provider", "status", "updatedAt"]),
+
+  billingReconciliationRecords: defineTable({
+    tenantId: v.optional(v.id("tenants")),
+    provider: v.union(
+      v.literal("stripe"),
+      v.literal("intasend"),
+      v.literal("bank_transfer"),
+      v.literal("custom"),
+    ),
+    paymentReference: v.optional(v.string()),
+    action: v.string(),
+    status: v.union(
+      v.literal("queued"),
+      v.literal("processed"),
+      v.literal("failed"),
+      v.literal("requires_approval"),
+    ),
+    attempts: v.number(),
+    maxAttempts: v.number(),
+    nextAttemptAt: v.optional(v.number()),
+    lastError: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_provider_status", ["provider", "status", "updatedAt"])
+    .index("by_status_nextAttemptAt", ["status", "nextAttemptAt"])
+    .index("by_tenantId", ["tenantId", "updatedAt"]),
+
+  billingRefundApprovals: defineTable({
+    tenantId: v.id("tenants"),
+    billingRecordId: v.optional(v.id("billingRecords")),
+    amountCents: v.number(),
+    proratedAmountCents: v.number(),
+    currency: v.string(),
+    reason: v.string(),
+    status: v.union(
+      v.literal("pending_approval"),
+      v.literal("approved"),
+      v.literal("rejected"),
+      v.literal("processed"),
+    ),
+    requestedByPlatformUserId: v.id("users"),
+    requestedAt: v.number(),
+    updatedAt: v.number(),
+    metadata: v.optional(v.any()),
+  })
+    .index("by_tenantId", ["tenantId", "requestedAt"])
+    .index("by_status", ["status", "updatedAt"]),
+
   salesInquiries: defineTable({
     contactName: v.string(),
     email: v.string(),
@@ -1319,6 +1451,128 @@ export default defineSchema({
     .index("by_event", ["event", "timestamp"])
     .index("by_targetTenantId", ["targetTenantId", "timestamp"])
     .index("by_timestamp", ["timestamp"]),
+
+  platformFreeTierReviews: defineTable({
+    tenantId: v.id("tenants"),
+    upgradeCandidateFirstHitAt: v.optional(v.number()),
+    salesFollowUp: v.boolean(),
+    salesNotes: v.optional(v.string()),
+    inactiveFirstDetectedAt: v.optional(v.number()),
+    abuseFlag: v.optional(
+      v.object({
+        reason: v.string(),
+        detectedAt: v.number(),
+        reviewedAt: v.optional(v.number()),
+      }),
+    ),
+    convertedAt: v.optional(v.number()),
+    convertedByPlatformUserId: v.optional(v.id("users")),
+    updatedAt: v.number(),
+    updatedByPlatformUserId: v.id("users"),
+  })
+    .index("by_tenantId", ["tenantId"])
+    .index("by_salesFollowUp", ["salesFollowUp", "updatedAt"])
+    .index("by_updatedAt", ["updatedAt"]),
+
+  platformSupportTickets: defineTable({
+    tenantId: v.optional(v.id("tenants")),
+    subject: v.string(),
+    description: v.string(),
+    status: v.union(
+      v.literal("open"),
+      v.literal("in_progress"),
+      v.literal("resolved"),
+      v.literal("merged"),
+    ),
+    priority: v.union(
+      v.literal("low"),
+      v.literal("normal"),
+      v.literal("high"),
+      v.literal("critical"),
+    ),
+    assignedToPlatformUserId: v.optional(v.id("users")),
+    slaDueAt: v.number(),
+    escalatedAt: v.optional(v.number()),
+    mergedIntoTicketId: v.optional(v.id("platformSupportTickets")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status_slaDueAt", ["status", "slaDueAt"])
+    .index("by_tenantId", ["tenantId", "updatedAt"])
+    .index("by_assignedTo", ["assignedToPlatformUserId", "updatedAt"]),
+
+  platformIncidents: defineTable({
+    title: v.string(),
+    summary: v.string(),
+    status: v.union(
+      v.literal("investigating"),
+      v.literal("identified"),
+      v.literal("monitoring"),
+      v.literal("resolved"),
+    ),
+    severity: v.union(
+      v.literal("minor"),
+      v.literal("major"),
+      v.literal("critical"),
+    ),
+    statusPageMessage: v.string(),
+    postIncidentReviewDueAt: v.optional(v.number()),
+    createdByPlatformUserId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status", ["status", "updatedAt"])
+    .index("by_updatedAt", ["updatedAt"]),
+
+  platformAnnouncements: defineTable({
+    title: v.string(),
+    message: v.string(),
+    targetTenantIds: v.optional(v.array(v.id("tenants"))),
+    status: v.union(
+      v.literal("draft"),
+      v.literal("scheduled"),
+      v.literal("sent"),
+      v.literal("cancelled"),
+    ),
+    deliverAt: v.number(),
+    createdByPlatformUserId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status_deliverAt", ["status", "deliverAt"])
+    .index("by_deliverAt", ["deliverAt"]),
+
+  platformConfigurationRecords: defineTable({
+    key: v.string(),
+    value: v.any(),
+    category: v.union(
+      v.literal("system"),
+      v.literal("feature_flag"),
+      v.literal("pricing"),
+      v.literal("email_template"),
+      v.literal("integration"),
+    ),
+    enabled: v.optional(v.boolean()),
+    rolloutPercentage: v.optional(v.number()),
+    tenantOverrides: v.optional(v.array(v.id("tenants"))),
+    version: v.number(),
+    updatedByPlatformUserId: v.id("users"),
+    updatedAt: v.number(),
+  })
+    .index("by_key", ["key"])
+    .index("by_category", ["category", "updatedAt"]),
+
+  platformConfigurationVersions: defineTable({
+    configId: v.id("platformConfigurationRecords"),
+    key: v.string(),
+    value: v.any(),
+    version: v.number(),
+    reason: v.string(),
+    createdByPlatformUserId: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_configId", ["configId", "version"])
+    .index("by_key", ["key", "version"]),
 
   auditLogs: defineTable({
     action: v.string(),

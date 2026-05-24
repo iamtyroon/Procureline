@@ -2,6 +2,16 @@ import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { internalMutation } from "../_generated/server";
 
+function stringField(record: Record<string, unknown> | null, field: string): string | null {
+  const value = record?.[field];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function numberField(record: Record<string, unknown> | null, field: string): number | null {
+  const value = record?.[field];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 export const claimSyncEvent = internalMutation({
   args: {
     actorRole: v.optional(v.string()),
@@ -147,6 +157,90 @@ export const completeSyncEvent = internalMutation({
             status: "ready",
             storageId: typeof result.storageId === "string" ? result.storageId : undefined,
             updatedAt: Date.now(),
+          });
+        }
+      }
+      if (
+        change &&
+        typeof change === "object" &&
+        (change as { changeType?: unknown }).changeType ===
+          "payment.subscription.provider_updated"
+      ) {
+        const changeRecord = change as Record<string, unknown>;
+        const tenantId = stringField(changeRecord, "tenantId");
+        const tenantReference = stringField(changeRecord, "tenantReference");
+        const provider = stringField(changeRecord, "provider");
+        const paymentReference = stringField(changeRecord, "paymentReference") ?? args.eventKey;
+        const amountCents = numberField(changeRecord, "amountCents");
+        const currency = stringField(changeRecord, "currency") ?? "KES";
+        const nextBillingDate = numberField(changeRecord, "nextBillingDate");
+        const rawStatus = stringField(changeRecord, "subscriptionStatus") ?? "active";
+        const subscriptionStatus =
+          rawStatus === "trialing" ||
+          rawStatus === "past_due" ||
+          rawStatus === "grace_period" ||
+          rawStatus === "suspended" ||
+          rawStatus === "cancelled"
+            ? rawStatus
+            : "active";
+        const billingCycle = stringField(changeRecord, "billingCycle") === "monthly" ? "monthly" : "annual";
+        const targetTenant =
+          tenantId
+            ? await ctx.db.get(tenantId as Id<"tenants">)
+            : tenantReference
+              ? await ctx.db
+                  .query("tenants")
+                  .withIndex("by_subdomain", (q) => q.eq("subdomain", tenantReference))
+                  .first()
+              : null;
+
+        if (targetTenant && (provider === "stripe" || provider === "intasend")) {
+          const now = Date.now();
+          const effectiveAmount = amountCents ?? targetTenant.subscriptionAmountCents ?? targetTenant.subscriptionCustomPriceCents ?? 0;
+          await ctx.db.insert("billingRecords", {
+            amountCents: effectiveAmount,
+            billingCycle,
+            createdAt: now,
+            currency,
+            metadata: {
+              eventKey: args.eventKey,
+              eventType: existing.eventType,
+            },
+            paymentReference,
+            periodEnd: nextBillingDate ?? targetTenant.subscriptionNextBillingDate ?? now,
+            periodStart: now,
+            provider,
+            status: subscriptionStatus === "past_due" ? "failed" : "verified",
+            tenantId: targetTenant._id,
+            updatedAt: now,
+            verifiedAt: status === "past_due" ? undefined : now,
+          });
+          await ctx.db.insert("billingReconciliationRecords", {
+            action: "provider_webhook_subscription_update",
+            attempts: 1,
+            createdAt: now,
+            maxAttempts: 3,
+            metadata: {
+              eventKey: args.eventKey,
+              eventType: existing.eventType,
+              paymentReference,
+            },
+            paymentReference,
+            provider,
+            status: "processed",
+            tenantId: targetTenant._id,
+            updatedAt: now,
+          });
+          await ctx.db.patch(targetTenant._id, {
+            lastPaymentFailureAt: subscriptionStatus === "past_due" ? now : targetTenant.lastPaymentFailureAt,
+            status: subscriptionStatus === "suspended" || subscriptionStatus === "cancelled" ? subscriptionStatus : "active",
+            subscriptionAmountCents: effectiveAmount,
+            subscriptionBillingCycle: billingCycle,
+            subscriptionCurrency: currency,
+            subscriptionGracePeriodEndsAt: subscriptionStatus === "past_due" ? now + 7 * 24 * 60 * 60 * 1000 : undefined,
+            subscriptionNextBillingDate: nextBillingDate ?? targetTenant.subscriptionNextBillingDate,
+            subscriptionPaymentMethod: provider,
+            subscriptionStatus: subscriptionStatus === "past_due" ? "grace_period" : subscriptionStatus,
           });
         }
       }
