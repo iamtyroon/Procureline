@@ -813,12 +813,17 @@ export default defineSchema({
     serviceJobId: v.optional(v.string()),
     fileName: v.optional(v.string()),
     downloadUrl: v.optional(v.string()),
+    checksum: v.optional(v.string()),
+    fileSizeBytes: v.optional(v.number()),
+    storageId: v.optional(v.string()),
     errorMessage: v.optional(v.string()),
     retryCount: v.number(),
     queuedAt: v.number(),
+    staleTimeoutAt: v.optional(v.number()),
     readyAt: v.optional(v.number()),
     failedAt: v.optional(v.number()),
     lastDownloadedAt: v.optional(v.number()),
+    lastDownloadedByTenantUserId: v.optional(v.id("tenantUsers")),
     downloadCount: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -827,6 +832,7 @@ export default defineSchema({
     .index("by_tenantId_reportType_status", ["tenantId", "reportType", "status"])
     .index("by_tenantId_fiscalYear", ["tenantId", "fiscalYear", "createdAt"])
     .index("by_requestedByTenantUserId", ["requestedByTenantUserId", "createdAt"])
+    .index("by_serviceJobId", ["serviceJobId"])
     .index("by_idempotencyKey", ["idempotencyKey"]),
 
   tenantAdminReportSecureLinks: defineTable({
@@ -859,6 +865,7 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
+    .index("by_enabled_nextRunAt", ["enabled", "nextRunAt"])
     .index("by_tenantId_enabled_nextRunAt", ["tenantId", "enabled", "nextRunAt"])
     .index("by_tenantId_reportType", ["tenantId", "reportType"]),
 

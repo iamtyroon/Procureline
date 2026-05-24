@@ -2,7 +2,7 @@
 
 import { ConvexError, v } from "convex/values";
 import { api, internal } from "../_generated/api";
-import { action } from "../_generated/server";
+import { action, internalAction } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
 import { callNestService, getServiceActorContext } from "./_helpers";
@@ -27,6 +27,7 @@ import {
   buildAuditReportRows,
   buildBudgetReportRows,
   buildTenantAdminReportMetadata,
+  buildTenantAdminReportServicePath,
   validateTenantAdminReportParameters,
   type TenantAdminReportParameters,
 } from "../../lib/shared/tenant-admin/report-generation";
@@ -545,6 +546,16 @@ export const queueTenantAdminReportGeneration = action({
     });
 
     try {
+      const jobId = (await ctx.runMutation(
+        internal.functions.tenantAdminReports.createTenantAdminReportJobFromAction,
+        {
+          idempotencyKey: requestId,
+          metadata,
+          parameters: args.parameters,
+          reportName,
+          status: "queued",
+        },
+      )) as string;
       const queued = await callNestService<{
         downloadUrl?: string;
         fileName?: string;
@@ -558,26 +569,31 @@ export const queueTenantAdminReportGeneration = action({
           reportName,
           rows,
         },
-        path: "/api/services/files/exports/excel/queue",
+        path: buildTenantAdminReportServicePath(args.parameters.format),
       });
       const state: "queued" | "ready" =
         queued.state === "export_ready" || queued.state === "ready"
           ? "ready"
           : "queued";
-      const jobId = (await ctx.runMutation(
-        internal.functions.tenantAdminReports.createTenantAdminReportJobFromAction,
-        {
-          fileName: queued.fileName,
-          downloadUrl: queued.downloadUrl,
-          idempotencyKey: requestId,
-          metadata,
-          parameters: args.parameters,
-          reportName,
-          serviceJobId: queued.jobId,
-          status: state,
-        },
-      )) as string;
-
+      if (state === "ready") {
+        await ctx.runMutation(
+          internal.functions.tenantAdminReports.completeTenantAdminReportJobFromService,
+          {
+            downloadUrl: queued.downloadUrl,
+            fileName: queued.fileName,
+            reportJobId: jobId as Id<"tenantAdminReportJobs">,
+            serviceJobId: queued.jobId,
+          },
+        );
+      } else {
+        await ctx.runMutation(
+          internal.functions.tenantAdminReports.attachTenantAdminReportServiceJob,
+          {
+            reportJobId: jobId as Id<"tenantAdminReportJobs">,
+            serviceJobId: queued.jobId,
+          },
+        );
+      }
       await appendTenantAdminReportAudit(ctx, actor, {
         outcome: state,
         reportType: args.parameters.reportType,
@@ -617,6 +633,58 @@ export const queueTenantAdminReportGeneration = action({
       );
       throw error;
     }
+  },
+});
+
+export const runDueTenantAdminReportSchedules = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const now = Date.now();
+    const schedules = (await ctx.runMutation(
+      internal.functions.tenantAdminReports.listDueTenantAdminReportSchedules,
+      { now, limit: 20 },
+    )) as Array<{
+      _id: Id<"tenantAdminReportSchedules">;
+      createdByTenantUserId: Id<"tenantUsers">;
+      parameters: TenantAdminReportParameters;
+      reportType: "activity" | "budget";
+      tenantId: Id<"tenants">;
+    }>;
+
+    for (const schedule of schedules) {
+      try {
+        await queueTenantAdminReportForActor(ctx, {
+          actor: {
+            role: "tenant_admin",
+            tenantId: String(schedule.tenantId),
+            userId: String(schedule.createdByTenantUserId),
+          },
+          parameters: {
+            ...schedule.parameters,
+            reportType: schedule.reportType,
+          },
+          scheduleId: schedule._id,
+        });
+        await ctx.runMutation(
+          internal.functions.tenantAdminReports.markTenantAdminReportScheduleSuccess,
+          { scheduleId: schedule._id },
+        );
+      } catch (error) {
+        await ctx.runMutation(
+          internal.functions.tenantAdminReports.markTenantAdminReportScheduleFailure,
+          {
+            errorMessage:
+              error instanceof Error && error.message.trim().length > 0
+                ? error.message
+                : "Scheduled report generation failed.",
+            scheduleId: schedule._id,
+          },
+        );
+      }
+    }
+
+    return null;
   },
 });
 
@@ -796,6 +864,89 @@ async function appendTenantAdminReportAudit(
     targetTenantId: actor.tenantId as Id<"tenants"> | undefined,
     timestamp: Date.now(),
   });
+}
+
+async function queueTenantAdminReportForActor(
+  ctx: ActionCtx,
+  args: {
+    actor: {
+      role: "tenant_admin";
+      tenantId: string;
+      userId: string;
+    };
+    parameters: TenantAdminReportParameters;
+    scheduleId: Id<"tenantAdminReportSchedules">;
+  },
+): Promise<void> {
+  const generatedAt = Date.now();
+  const requestId = [
+    "tenant-admin-scheduled-report",
+    args.actor.tenantId,
+    args.parameters.reportType,
+    args.parameters.fiscalYear,
+    args.scheduleId,
+    String(generatedAt),
+  ].join(":");
+  const metadata = buildTenantAdminReportMetadata({
+    generatedAt,
+    generatedByTenantUserId: args.actor.userId,
+    parameters: args.parameters,
+    tenantId: args.actor.tenantId,
+    tenantName: "Tenant",
+  });
+  const reportName = `${humanizeTenantAdminReportType(args.parameters.reportType)} Report ${args.parameters.fiscalYear}`;
+  const jobId = (await ctx.runMutation(
+    internal.functions.tenantAdminReports.createTenantAdminReportJobForSchedule,
+    {
+      idempotencyKey: requestId,
+      metadata: {
+        ...metadata,
+        scheduleId: String(args.scheduleId),
+      },
+      parameters: args.parameters,
+      reportName,
+      tenantId: args.actor.tenantId as Id<"tenants">,
+      tenantUserId: args.actor.userId as Id<"tenantUsers">,
+    },
+  )) as Id<"tenantAdminReportJobs">;
+  const queued = await callNestService<{
+    downloadUrl?: string;
+    fileName?: string;
+    jobId?: string;
+    state?: "queued" | "export_ready" | "ready";
+  }>(ctx, {
+    actor: args.actor,
+    body: {
+      idempotencyKey: requestId,
+      metadata: {
+        ...metadata,
+        scheduleId: String(args.scheduleId),
+      },
+      reportName,
+      rows: [],
+    },
+    path: buildTenantAdminReportServicePath(args.parameters.format),
+  });
+
+  if (queued.state === "export_ready" || queued.state === "ready") {
+    await ctx.runMutation(
+      internal.functions.tenantAdminReports.completeTenantAdminReportJobFromService,
+      {
+        downloadUrl: queued.downloadUrl,
+        fileName: queued.fileName,
+        reportJobId: jobId,
+        serviceJobId: queued.jobId,
+      },
+    );
+  } else {
+    await ctx.runMutation(
+      internal.functions.tenantAdminReports.attachTenantAdminReportServiceJob,
+      {
+        reportJobId: jobId,
+        serviceJobId: queued.jobId,
+      },
+    );
+  }
 }
 
 function humanizeTenantAdminReportType(reportType: string): string {

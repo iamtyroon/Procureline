@@ -55,6 +55,9 @@ export function TenantAdminReportsView({
     const upsertSchedule = useMutation(
         api.functions.tenantAdminReports.upsertTenantAdminReportSchedule,
     );
+    const recordDownload = useMutation(
+        api.functions.tenantAdminReports.recordTenantAdminReportDownload,
+    );
     const activeJob =
         jobs?.find((job: { _id: unknown }) => String(job._id) === activeJobId) ??
         jobs?.[0] ??
@@ -100,6 +103,16 @@ export function TenantAdminReportsView({
                 parameters,
                 reportType,
             });
+        });
+    }
+
+    function downloadReport(): void {
+        if (!activeJob || activeJob.status !== "ready") {
+            return;
+        }
+        startTransition(async () => {
+            const result = await recordDownload({ reportJobId: activeJob._id });
+            window.open(result.downloadUrl, "_blank", "noopener,noreferrer");
         });
     }
 
@@ -284,11 +297,7 @@ export function TenantAdminReportsView({
                             <Button
                                 className="w-full gap-2"
                                 disabled={activeJob.status !== "ready" || !activeJob.downloadUrl}
-                                onClick={() => {
-                                    if (activeJob.downloadUrl) {
-                                        window.open(activeJob.downloadUrl, "_blank", "noopener,noreferrer");
-                                    }
-                                }}
+                                onClick={downloadReport}
                                 variant="outline"
                             >
                                 <Download className="h-4 w-4" />

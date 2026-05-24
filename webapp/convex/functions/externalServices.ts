@@ -111,6 +111,45 @@ export const completeSyncEvent = internalMutation({
           },
         );
       }
+      if (
+        change &&
+        typeof change === "object" &&
+        (change as { changeType?: unknown }).changeType ===
+          "files.tenant_admin_report.completed"
+      ) {
+        const result = args.result as {
+          checksum?: unknown;
+          downloadUrl?: unknown;
+          fileName?: unknown;
+          fileSizeBytes?: unknown;
+          storageId?: unknown;
+        };
+        const job =
+          typeof (change as { reportJobId?: unknown }).reportJobId === "string"
+            ? await ctx.db.get((change as { reportJobId: string }).reportJobId as Id<"tenantAdminReportJobs">)
+            : typeof (change as { idempotencyKey?: unknown }).idempotencyKey === "string"
+              ? await ctx.db
+                  .query("tenantAdminReportJobs")
+                  .withIndex("by_idempotencyKey", (q) =>
+                    q.eq("idempotencyKey", (change as { idempotencyKey: string }).idempotencyKey),
+                  )
+                  .first()
+              : null;
+        if (job) {
+          await ctx.db.patch(job._id, {
+            checksum: typeof result.checksum === "string" ? result.checksum : undefined,
+            downloadUrl:
+              typeof result.downloadUrl === "string" ? result.downloadUrl : job.downloadUrl,
+            fileName: typeof result.fileName === "string" ? result.fileName : job.fileName,
+            fileSizeBytes:
+              typeof result.fileSizeBytes === "number" ? result.fileSizeBytes : undefined,
+            readyAt: Date.now(),
+            status: "ready",
+            storageId: typeof result.storageId === "string" ? result.storageId : undefined,
+            updatedAt: Date.now(),
+          });
+        }
+      }
     }
 
     return { status: "completed" as const };
@@ -145,6 +184,35 @@ export const failSyncEvent = internalMutation({
       status: "failed",
       updatedAt: Date.now(),
     });
+
+    for (const change of args.durableChanges ?? existing.durableChanges) {
+      if (
+        change &&
+        typeof change === "object" &&
+        (change as { changeType?: unknown }).changeType ===
+          "files.tenant_admin_report.failed"
+      ) {
+        const job =
+          typeof (change as { reportJobId?: unknown }).reportJobId === "string"
+            ? await ctx.db.get((change as { reportJobId: string }).reportJobId as Id<"tenantAdminReportJobs">)
+            : typeof (change as { idempotencyKey?: unknown }).idempotencyKey === "string"
+              ? await ctx.db
+                  .query("tenantAdminReportJobs")
+                  .withIndex("by_idempotencyKey", (q) =>
+                    q.eq("idempotencyKey", (change as { idempotencyKey: string }).idempotencyKey),
+                  )
+                  .first()
+              : null;
+        if (job) {
+          await ctx.db.patch(job._id, {
+            errorMessage: args.error.message.slice(0, 240),
+            failedAt: Date.now(),
+            status: "failed",
+            updatedAt: Date.now(),
+          });
+        }
+      }
+    }
 
     return { status: "failed" as const };
   },

@@ -7,6 +7,7 @@ import {
 
 export const TENANT_ADMIN_REPORT_SCHEMA_VERSION = "tenant-admin-report.v1" as const;
 export const TENANT_ADMIN_REPORT_LINK_EXPIRY_MS = 72 * 60 * 60 * 1000;
+export const TENANT_ADMIN_REPORT_STALE_TIMEOUT_MS = 15 * 60 * 1000;
 
 export type TenantAdminReportType = "activity" | "audit" | "budget";
 export type TenantAdminReportFormat = "csv" | "xlsx";
@@ -171,6 +172,12 @@ export function buildAuditReportRows(
 
 export function buildSecureShareExpiry(createdAt: number): number {
     return createdAt + TENANT_ADMIN_REPORT_LINK_EXPIRY_MS;
+}
+
+export function buildTenantAdminReportServicePath(format: TenantAdminReportFormat): string {
+    return format === "csv"
+        ? "/api/services/files/exports/csv/queue"
+        : "/api/services/files/exports/excel/queue";
 }
 
 function getFiscalYearDateRange(fiscalYear: string): TenantAdminReportParameters["dateRange"] {

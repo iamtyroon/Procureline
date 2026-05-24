@@ -1,6 +1,6 @@
 # Story 3.8: Report Generation System
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -161,10 +161,13 @@ GPT-5
 ### File List
 
 - `webapp/lib/shared/tenant-admin/report-generation.ts`
+- `webapp/app/tenant-admin/reports/share/[token]/route.ts`
 - `webapp/src/components/tenant-admin/TenantAdminReportsView.tsx`
 - `webapp/src/components/tenant-admin/TenantAdminViewContent.tsx`
+- `webapp/convex/crons.ts`
 - `webapp/convex/schema.ts`
 - `webapp/convex/functions/tenantAdminReports.ts`
+- `webapp/convex/functions/externalServices.ts`
 - `webapp/convex/actions/files.ts`
 - `webapp/convex/_generated/api.d.ts`
 - `webapp/tests/tenant-admin-report-generation.test.ts`
@@ -174,3 +177,22 @@ GPT-5
 ## Change Log
 
 - 2026-05-24: Implemented Story 3.8 Tenant Admin report generation workspace, shared contracts, Convex report persistence/actions/functions, export queue integration, secure-link/schedule metadata, focused tests, and story status tracking.
+- 2026-05-24: Applied senior review fixes for audited downloads, secure external link resolution, async service completion/failure sync, format-specific queue routing, scheduled report runner wiring, schema indexes, and focused format-routing coverage.
+
+### Senior Developer Review (AI)
+
+Review fixes applied:
+
+- Added a public App Router secure-link route that resolves 72-hour report tokens through Convex, audits external access, increments access/download counts, and redirects to the generated report URL.
+- Added authenticated Tenant Admin download recording so ready report downloads update `downloadCount`, `lastDownloadedAt`, and `auditLogs` before opening the file URL.
+- Added service completion/failure hooks for `tenantAdminReportJobs` through the existing external service sync durable-change path.
+- Routed report queue requests to CSV or XLSX server-side export queues according to the selected output format.
+- Added scheduled-report cron wiring and schedule success/failure retry bookkeeping with retry-exhaustion audit events.
+- Extended report persistence for service job lookup, generated file metadata, stale timeout tracking, and download ownership.
+- Added focused shared-model coverage for format-specific queue path selection.
+
+Verification:
+
+- `cmd /c npx convex codegen --typecheck=disable` - passed.
+- `cmd /c npx tsc --noEmit --module commonjs --target es2022 --moduleResolution node --esModuleInterop --skipLibCheck --strict tests\tenant-admin-report-generation.test.ts` - passed.
+- `cmd /c npx tsc -p tsconfig.json --pretty false` - passed.

@@ -10,4 +10,11 @@ crons.interval(
     {},
 );
 
+crons.interval(
+    "run due tenant-admin report schedules",
+    { minutes: 15 },
+    internal.actions.files.runDueTenantAdminReportSchedules,
+    {},
+);
+
 export default crons;

@@ -4,6 +4,7 @@ import {
     buildDefaultTenantAdminReportParameters,
     buildSecureShareExpiry,
     buildTenantAdminReportMetadata,
+    buildTenantAdminReportServicePath,
     TENANT_ADMIN_REPORT_LINK_EXPIRY_MS,
     TENANT_ADMIN_REPORT_SCHEMA_VERSION,
     validateTenantAdminReportParameters,
@@ -83,6 +84,18 @@ export function runTenantAdminReportGenerationTests(): string[] {
     assert.equal(buildSecureShareExpiry(now), now + TENANT_ADMIN_REPORT_LINK_EXPIRY_MS);
     completedTests.push(
         "tenant-admin secure report links expire exactly 72 hours after creation",
+    );
+
+    assert.equal(
+        buildTenantAdminReportServicePath("xlsx"),
+        "/api/services/files/exports/excel/queue",
+    );
+    assert.equal(
+        buildTenantAdminReportServicePath("csv"),
+        "/api/services/files/exports/csv/queue",
+    );
+    completedTests.push(
+        "tenant-admin report queueing routes CSV and XLSX requests to format-specific server-side export queues",
     );
 
     return completedTests;
