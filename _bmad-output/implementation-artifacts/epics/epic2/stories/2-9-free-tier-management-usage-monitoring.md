@@ -1,6 +1,6 @@
 # Story 2.9: Free Tier Management & Usage Monitoring
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -25,11 +25,11 @@ so that I can identify upgrade candidates and ensure fair platform usage.
 
 ## Tasks / Subtasks
 
-- [ ] Add free-tier route or dashboard tab.
-- [ ] Create Convex aggregate queries for free-tier usage.
-- [ ] Persist upgradeCandidate, salesFollowUp, inactive, and abuse review state.
-- [ ] Add scheduled threshold, inactivity, abuse, and signup-volume checks.
-- [ ] Do not add free-tier expiration; Free tier is permanent.
+- [x] Add free-tier route or dashboard tab.
+- [x] Create Convex aggregate queries for free-tier usage.
+- [x] Persist upgradeCandidate, salesFollowUp, inactive, and abuse review state.
+- [x] Add scheduled threshold, inactivity, abuse, and signup-volume checks.
+- [x] Do not add free-tier expiration; Free tier is permanent.
 
 ## Dev Notes
 
@@ -102,7 +102,7 @@ Manual acceptance validation should still confirm:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
 
 ### Debug Log References
 
@@ -114,22 +114,41 @@ Manual acceptance validation should still confirm:
 
 ### Completion Notes List
 
-- 2026-05-24: Created implementation-ready story context for `2-9-free-tier-management-usage-monitoring`.
-- 2026-05-24: Marked automated tests as not required per product-owner instruction while retaining manual acceptance validation guidance.
+- 2026-05-24: Implemented guarded Platform Admin operations UI and Convex functions for this story as part of the coordinated Epic 2 platform-admin slice.
+- 2026-05-24: Validation run: `npx convex codegen --typecheck=disable` passed; targeted ESLint for changed platform-admin files passed. Full `npm run lint` remains blocked by pre-existing unrelated lint errors in Blockly/plans/tenant-admin files.
 
 ### File List
 
-- `_bmad-output/implementation-artifacts/epics/epic2/stories/2-9-free-tier-management-usage-monitoring.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/epics/epic2/stories/2-9-free-tier-management-usage-monitoring.md`
+- `webapp/app/(app)/platform-admin/tenant-admins/page.tsx`
+- `webapp/app/(app)/platform-admin/free-tier/page.tsx`
+- `webapp/app/(app)/platform-admin/health/page.tsx`
+- `webapp/app/(app)/platform-admin/security/page.tsx`
+- `webapp/app/(app)/platform-admin/support/page.tsx`
+- `webapp/app/(app)/platform-admin/configuration/page.tsx`
+- `webapp/app/(app)/layout.tsx`
+- `webapp/convex/_generated/api.d.ts`
+- `webapp/convex/functions/platformAdminOperations.ts`
+- `webapp/convex/crons.ts`
+- `webapp/lib/shared/platform-admin/dashboard-snapshot.ts`
+- `webapp/src/components/platform-admin/PlatformAdminDashboardParts.tsx`
+- `webapp/src/components/platform-admin/PlatformAdminOperationsViews.tsx`
 
 ## Change Log
 
+- 2026-05-24: Addressed senior review findings for free-tier detection, overage reporting, conversion notification, and signup-volume alerting; moved story to done.
+- 2026-05-24: Implemented story and moved to review.
 - 2026-05-24: Created Story 2.9 as ready for implementation.
+
+## Senior Developer Review (AI)
+
+- 2026-05-24: Fixed review findings by persisting upgrade-candidate first hits, inactivity detection, duplicate abuse flags, overage details, conversion notifications, and signup-volume alerts in scheduled maintenance. Targeted TypeScript and ESLint validation passed.
 
 ## Story Completion Status
 
 - Story ID: `2.9`
 - Story Key: `2-9-free-tier-management-usage-monitoring`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic2/stories/2-9-free-tier-management-usage-monitoring.md`
-- Final Status: `ready-for-dev`
-- Completion Note: `Implementation-ready story guide created from Epic 2 source with tests explicitly not required.`
+- Final Status: `done`
+- Completion Note: `Implemented guarded platform-admin UI, Convex operations, schema support, scheduled maintenance hooks, and audit coverage; automated tests were not added per product-owner instruction.`

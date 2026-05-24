@@ -31,4 +31,11 @@ crons.interval(
     {},
 );
 
+crons.interval(
+    "run platform-admin operations maintenance",
+    { minutes: 15 },
+    internal.functions.platformAdminOperations.runPlatformAdminMaintenance,
+    {},
+);
+
 export default crons;

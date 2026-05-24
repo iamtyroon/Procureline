@@ -1,6 +1,6 @@
 # Story 2.13: System Configuration & Feature Flags
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -25,12 +25,12 @@ so that I can control platform behavior and roll out features safely.
 
 ## Tasks / Subtasks
 
-- [ ] Add configuration route/navigation and settings sections.
-- [ ] Add system config, feature flag, rollout, integration, and config-version records.
-- [ ] Implement deterministic percentage rollout using tenant ID hashing and overrides.
-- [ ] Wire pricing updates to subscription tiers while preserving grandfather pricing.
-- [ ] Add email template preview/editing through existing React Email/NestJS email stack.
-- [ ] Add export/import and rollback with validation and audit logs.
+- [x] Add configuration route/navigation and settings sections.
+- [x] Add system config, feature flag, rollout, integration, and config-version records.
+- [x] Implement deterministic percentage rollout using tenant ID hashing and overrides.
+- [x] Wire pricing updates to subscription tiers while preserving grandfather pricing.
+- [x] Add email template preview/editing through existing React Email/NestJS email stack.
+- [x] Add export/import and rollback with validation and audit logs.
 
 ## Dev Notes
 
@@ -103,7 +103,7 @@ Manual acceptance validation should still confirm:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
 
 ### Debug Log References
 
@@ -115,22 +115,41 @@ Manual acceptance validation should still confirm:
 
 ### Completion Notes List
 
-- 2026-05-24: Created implementation-ready story context for `2-13-system-configuration-feature-flags`.
-- 2026-05-24: Marked automated tests as not required per product-owner instruction while retaining manual acceptance validation guidance.
+- 2026-05-24: Implemented guarded Platform Admin operations UI and Convex functions for this story as part of the coordinated Epic 2 platform-admin slice.
+- 2026-05-24: Validation run: `npx convex codegen --typecheck=disable` passed; targeted ESLint for changed platform-admin files passed. Full `npm run lint` remains blocked by pre-existing unrelated lint errors in Blockly/plans/tenant-admin files.
 
 ### File List
 
-- `_bmad-output/implementation-artifacts/epics/epic2/stories/2-13-system-configuration-feature-flags.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/epics/epic2/stories/2-13-system-configuration-feature-flags.md`
+- `webapp/app/(app)/platform-admin/tenant-admins/page.tsx`
+- `webapp/app/(app)/platform-admin/free-tier/page.tsx`
+- `webapp/app/(app)/platform-admin/health/page.tsx`
+- `webapp/app/(app)/platform-admin/security/page.tsx`
+- `webapp/app/(app)/platform-admin/support/page.tsx`
+- `webapp/app/(app)/platform-admin/configuration/page.tsx`
+- `webapp/app/(app)/layout.tsx`
+- `webapp/convex/_generated/api.d.ts`
+- `webapp/convex/functions/platformAdminOperations.ts`
+- `webapp/convex/crons.ts`
+- `webapp/lib/shared/platform-admin/dashboard-snapshot.ts`
+- `webapp/src/components/platform-admin/PlatformAdminDashboardParts.tsx`
+- `webapp/src/components/platform-admin/PlatformAdminOperationsViews.tsx`
 
 ## Change Log
 
+- 2026-05-24: Addressed senior review findings for feature rollout overrides, email preview, import/export, rollback history, and grandfather pricing evidence; moved story to done.
+- 2026-05-24: Implemented story and moved to review.
 - 2026-05-24: Created Story 2.13 as ready for implementation.
+
+## Senior Developer Review (AI)
+
+- 2026-05-24: Fixed review findings by adding tenant override persistence for feature flags, import controls, export payloads, email-template preview, rollback version entries, rollout bounds validation, and grandfather price snapshots before tier price updates. Targeted TypeScript and ESLint validation passed.
 
 ## Story Completion Status
 
 - Story ID: `2.13`
 - Story Key: `2-13-system-configuration-feature-flags`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic2/stories/2-13-system-configuration-feature-flags.md`
-- Final Status: `ready-for-dev`
-- Completion Note: `Implementation-ready story guide created from Epic 2 source with tests explicitly not required.`
+- Final Status: `done`
+- Completion Note: `Implemented guarded platform-admin UI, Convex operations, schema support, scheduled maintenance hooks, and audit coverage; automated tests were not added per product-owner instruction.`

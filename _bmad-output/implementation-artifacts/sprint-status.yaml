@@ -113,12 +113,12 @@ development_status:
   2-5-tenant-configuration-management: done
   2-6-subscription-status-management: done
   2-7-payment-verification-processing: done
-  2-8-cross-tenant-user-management: ready-for-dev
-  2-9-free-tier-management-usage-monitoring: ready-for-dev
-  2-10-system-health-monitoring: ready-for-dev
-  2-11-security-dashboard-compliance: ready-for-dev
-  2-12-support-tickets-incidents: ready-for-dev
-  2-13-system-configuration-feature-flags: ready-for-dev
+  2-8-cross-tenant-user-management: done
+  2-9-free-tier-management-usage-monitoring: done
+  2-10-system-health-monitoring: done
+  2-11-security-dashboard-compliance: done
+  2-12-support-tickets-incidents: done
+  2-13-system-configuration-feature-flags: done
 
 
   3-4-po-management-lifecycle-activity: backlog # frontend-complete

@@ -41,6 +41,7 @@ import type * as functions_planRedrafts from "../functions/planRedrafts.js";
 import type * as functions_plans from "../functions/plans.js";
 import type * as functions_platformAdminAuth from "../functions/platformAdminAuth.js";
 import type * as functions_platformAdminDashboard from "../functions/platformAdminDashboard.js";
+import type * as functions_platformAdminOperations from "../functions/platformAdminOperations.js";
 import type * as functions_platformAdminSubscriptions from "../functions/platformAdminSubscriptions.js";
 import type * as functions_platformAdminTenants from "../functions/platformAdminTenants.js";
 import type * as functions_procurementOfficerDashboard from "../functions/procurementOfficerDashboard.js";
@@ -102,6 +103,7 @@ declare const fullApi: ApiFromModules<{
   "functions/plans": typeof functions_plans;
   "functions/platformAdminAuth": typeof functions_platformAdminAuth;
   "functions/platformAdminDashboard": typeof functions_platformAdminDashboard;
+  "functions/platformAdminOperations": typeof functions_platformAdminOperations;
   "functions/platformAdminSubscriptions": typeof functions_platformAdminSubscriptions;
   "functions/platformAdminTenants": typeof functions_platformAdminTenants;
   "functions/procurementOfficerDashboard": typeof functions_procurementOfficerDashboard;

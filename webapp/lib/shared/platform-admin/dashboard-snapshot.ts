@@ -118,8 +118,12 @@ export interface PlatformAdminDashboardNavigationItem {
         | "audit_logs"
         | "dashboard"
         | "errors"
+        | "free_tier"
         | "health"
+        | "configuration"
+        | "security"
         | "subscriptions"
+        | "support"
         | "tenant_admins"
         | "tenants";
     label: string;
@@ -258,6 +262,11 @@ const PLATFORM_ADMIN_NAVIGATION: PlatformAdminDashboardNavigationGroup[] = [
                 id: "subscriptions",
                 label: "Subscriptions",
             },
+            {
+                href: "/platform-admin/free-tier",
+                id: "free_tier",
+                label: "Free Tier",
+            },
         ],
     },
     {
@@ -283,11 +292,26 @@ const PLATFORM_ADMIN_NAVIGATION: PlatformAdminDashboardNavigationGroup[] = [
                 id: "health",
                 label: "System Health",
             },
+            {
+                href: "/platform-admin/security",
+                id: "security",
+                label: "Security",
+            },
+            {
+                href: "/platform-admin/configuration",
+                id: "configuration",
+                label: "Configuration",
+            },
         ],
     },
     {
         label: "Support",
         items: [
+            {
+                href: "/platform-admin/support",
+                id: "support",
+                label: "Tickets & Incidents",
+            },
             {
                 href: "/platform-admin/audit-logs",
                 id: "audit_logs",

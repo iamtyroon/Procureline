@@ -3,8 +3,12 @@ import {
     AlertTriangle,
     BellRing,
     Building2,
+    Flag,
     LayoutGrid,
     ServerCog,
+    Settings,
+    Shield,
+    Ticket,
     UserCog,
     Wallet,
 } from "lucide-react";
@@ -311,12 +315,20 @@ function resolveSidebarIcon(
             return Building2;
         case "subscriptions":
             return Wallet;
+        case "free_tier":
+            return Flag;
         case "tenant_admins":
             return UserCog;
         case "analytics":
             return LayoutGrid;
         case "health":
             return ServerCog;
+        case "security":
+            return Shield;
+        case "configuration":
+            return Settings;
+        case "support":
+            return Ticket;
         case "audit_logs":
             return BellRing;
         case "errors":

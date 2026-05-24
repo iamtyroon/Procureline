@@ -27,6 +27,8 @@ import { ModeToggle } from "@/src/components/mode-toggle";
 import { RoleGuard } from "@/src/components/auth/RoleGuard";
 import { Spinner } from "@/src/components/ui/Spinner";
 
+const platformAdminOperationsApi = (api as any).functions.platformAdminOperations;
+
 function ProcurementHeaderPill({
     icon,
     label,
@@ -100,6 +102,10 @@ export default function AppLayout({
     const departmentUserDashboardSnapshot = useQuery(
         api.functions.departmentUserDashboard.getDepartmentUserDashboardSnapshot,
         authContext?.role === "department_user" ? {} : "skip",
+    );
+    const activeMaintenanceWindow = useQuery(
+        platformAdminOperationsApi.getActiveMaintenanceWindow,
+        isAuthenticated ? {} : "skip",
     );
     const markCurrentSessionLoggedOut = useMutation(
         api.functions.sessions.markCurrentSessionLoggedOut,
@@ -444,6 +450,16 @@ export default function AppLayout({
                         role="status"
                     >
                         <div className="mx-auto max-w-6xl">{noticeMessage}</div>
+                    </div>
+                ) : null}
+                {activeMaintenanceWindow ? (
+                    <div
+                        className="border-t border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 sm:px-6"
+                        role="status"
+                    >
+                        <div className="mx-auto max-w-6xl">
+                            {activeMaintenanceWindow.title}: {activeMaintenanceWindow.message}
+                        </div>
                     </div>
                 ) : null}
             </header>

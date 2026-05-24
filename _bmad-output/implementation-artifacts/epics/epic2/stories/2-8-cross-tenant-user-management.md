@@ -1,6 +1,6 @@
 # Story 2.8: Cross-Tenant User Management
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -25,10 +25,10 @@ so that I can handle security issues and support requests efficiently.
 
 ## Tasks / Subtasks
 
-- [ ] Build cross-tenant user search and detail UI.
-- [ ] Add guarded Convex search queries that avoid tenant-scoped data leakage.
-- [ ] Add account operations for reset, unlock, force logout, deactivate, tenant lockout, and GDPR handling.
-- [ ] Centralize orphan prevention and reuse existing session/audit storage.
+- [x] Build cross-tenant user search and detail UI.
+- [x] Add guarded Convex search queries that avoid tenant-scoped data leakage.
+- [x] Add account operations for reset, unlock, force logout, deactivate, tenant lockout, and GDPR handling.
+- [x] Centralize orphan prevention and reuse existing session/audit storage.
 
 ## Dev Notes
 
@@ -101,7 +101,7 @@ Manual acceptance validation should still confirm:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
 
 ### Debug Log References
 
@@ -113,22 +113,41 @@ Manual acceptance validation should still confirm:
 
 ### Completion Notes List
 
-- 2026-05-24: Created implementation-ready story context for `2-8-cross-tenant-user-management`.
-- 2026-05-24: Marked automated tests as not required per product-owner instruction while retaining manual acceptance validation guidance.
+- 2026-05-24: Implemented guarded Platform Admin operations UI and Convex functions for this story as part of the coordinated Epic 2 platform-admin slice.
+- 2026-05-24: Validation run: `npx convex codegen --typecheck=disable` passed; targeted ESLint for changed platform-admin files passed. Full `npm run lint` remains blocked by pre-existing unrelated lint errors in Blockly/plans/tenant-admin files.
 
 ### File List
 
-- `_bmad-output/implementation-artifacts/epics/epic2/stories/2-8-cross-tenant-user-management.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/epics/epic2/stories/2-8-cross-tenant-user-management.md`
+- `webapp/app/(app)/platform-admin/tenant-admins/page.tsx`
+- `webapp/app/(app)/platform-admin/free-tier/page.tsx`
+- `webapp/app/(app)/platform-admin/health/page.tsx`
+- `webapp/app/(app)/platform-admin/security/page.tsx`
+- `webapp/app/(app)/platform-admin/support/page.tsx`
+- `webapp/app/(app)/platform-admin/configuration/page.tsx`
+- `webapp/app/(app)/layout.tsx`
+- `webapp/convex/_generated/api.d.ts`
+- `webapp/convex/functions/platformAdminOperations.ts`
+- `webapp/convex/crons.ts`
+- `webapp/lib/shared/platform-admin/dashboard-snapshot.ts`
+- `webapp/src/components/platform-admin/PlatformAdminDashboardParts.tsx`
+- `webapp/src/components/platform-admin/PlatformAdminOperationsViews.tsx`
 
 ## Change Log
 
+- 2026-05-24: Addressed senior review findings for password reset, unlock, and operation evidence; moved story to done.
+- 2026-05-24: Implemented story and moved to review.
 - 2026-05-24: Created Story 2.8 as ready for implementation.
+
+## Senior Developer Review (AI)
+
+- 2026-05-24: Fixed review findings by making password reset require reset state and queue notification, clearing lock/challenge state for unlock, and preserving audited account-operation evidence. Targeted TypeScript and ESLint validation passed.
 
 ## Story Completion Status
 
 - Story ID: `2.8`
 - Story Key: `2-8-cross-tenant-user-management`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic2/stories/2-8-cross-tenant-user-management.md`
-- Final Status: `ready-for-dev`
-- Completion Note: `Implementation-ready story guide created from Epic 2 source with tests explicitly not required.`
+- Final Status: `done`
+- Completion Note: `Implemented guarded platform-admin UI, Convex operations, schema support, scheduled maintenance hooks, and audit coverage; automated tests were not added per product-owner instruction.`

@@ -1,6 +1,6 @@
 # Story 2.10: System Health Monitoring
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -25,10 +25,10 @@ so that I can proactively address issues before they impact users.
 
 ## Tasks / Subtasks
 
-- [ ] Build the platform health route using existing dashboard health patterns.
-- [ ] Add health snapshot tables/functions for API, DB, jobs, infra, backups, SSL, and alerts.
-- [ ] Connect NestJS health and queue status through authenticated service calls where needed.
-- [ ] Add maintenance mode state and app-wide banner integration.
+- [x] Build the platform health route using existing dashboard health patterns.
+- [x] Add health snapshot tables/functions for API, DB, jobs, infra, backups, SSL, and alerts.
+- [x] Connect NestJS health and queue status through authenticated service calls where needed.
+- [x] Add maintenance mode state and app-wide banner integration.
 
 ## Dev Notes
 
@@ -101,7 +101,7 @@ Manual acceptance validation should still confirm:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
 
 ### Debug Log References
 
@@ -113,22 +113,41 @@ Manual acceptance validation should still confirm:
 
 ### Completion Notes List
 
-- 2026-05-24: Created implementation-ready story context for `2-10-system-health-monitoring`.
-- 2026-05-24: Marked automated tests as not required per product-owner instruction while retaining manual acceptance validation guidance.
+- 2026-05-24: Implemented guarded Platform Admin operations UI and Convex functions for this story as part of the coordinated Epic 2 platform-admin slice.
+- 2026-05-24: Validation run: `npx convex codegen --typecheck=disable` passed; targeted ESLint for changed platform-admin files passed. Full `npm run lint` remains blocked by pre-existing unrelated lint errors in Blockly/plans/tenant-admin files.
 
 ### File List
 
-- `_bmad-output/implementation-artifacts/epics/epic2/stories/2-10-system-health-monitoring.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/epics/epic2/stories/2-10-system-health-monitoring.md`
+- `webapp/app/(app)/platform-admin/tenant-admins/page.tsx`
+- `webapp/app/(app)/platform-admin/free-tier/page.tsx`
+- `webapp/app/(app)/platform-admin/health/page.tsx`
+- `webapp/app/(app)/platform-admin/security/page.tsx`
+- `webapp/app/(app)/platform-admin/support/page.tsx`
+- `webapp/app/(app)/platform-admin/configuration/page.tsx`
+- `webapp/app/(app)/layout.tsx`
+- `webapp/convex/_generated/api.d.ts`
+- `webapp/convex/functions/platformAdminOperations.ts`
+- `webapp/convex/crons.ts`
+- `webapp/lib/shared/platform-admin/dashboard-snapshot.ts`
+- `webapp/src/components/platform-admin/PlatformAdminDashboardParts.tsx`
+- `webapp/src/components/platform-admin/PlatformAdminOperationsViews.tsx`
 
 ## Change Log
 
+- 2026-05-24: Addressed senior review findings for health metrics, backup status, SSL visibility, alerts, and maintenance banner integration; moved story to done.
+- 2026-05-24: Implemented story and moved to review.
 - 2026-05-24: Created Story 2.10 as ready for implementation.
+
+## Senior Developer Review (AI)
+
+- 2026-05-24: Fixed review findings by deriving health signals from available operational snapshots/events, recording manual backup completion/progress, surfacing API/backup alerts, adding SSL configuration support, advancing maintenance-window lifecycle, and displaying active maintenance globally. Targeted TypeScript and ESLint validation passed.
 
 ## Story Completion Status
 
 - Story ID: `2.10`
 - Story Key: `2-10-system-health-monitoring`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic2/stories/2-10-system-health-monitoring.md`
-- Final Status: `ready-for-dev`
-- Completion Note: `Implementation-ready story guide created from Epic 2 source with tests explicitly not required.`
+- Final Status: `done`
+- Completion Note: `Implemented guarded platform-admin UI, Convex operations, schema support, scheduled maintenance hooks, and audit coverage; automated tests were not added per product-owner instruction.`
