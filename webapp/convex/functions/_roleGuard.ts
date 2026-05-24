@@ -3,6 +3,7 @@ import { ConvexError, v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import {
+    ACCOUNT_SUSPENDED_REASON,
     ACCOUNT_DEACTIVATED_REASON,
     SESSION_EXPIRED_REASON,
     SUBSCRIPTION_INACTIVE_REASON,
@@ -65,6 +66,7 @@ const accessStateValidator = v.union(
 
 const authNavigationReasonValidator = v.union(
     v.literal(ACCOUNT_DEACTIVATED_REASON),
+    v.literal(ACCOUNT_SUSPENDED_REASON),
     v.literal(FORBIDDEN_ACCESS_REASON),
     v.literal(PENDING_ACCESS_REASON),
     v.literal(PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON),
@@ -77,6 +79,7 @@ const tenantStatusValidator = v.union(
     v.literal("active"),
     v.literal("cancelled"),
     v.literal("not_applicable"),
+    v.literal("pending"),
     v.literal("suspended"),
 );
 
@@ -180,7 +183,10 @@ function unauthorizedError(message: string): never {
 }
 
 function createInactiveAccessContext(args: {
-    reason: typeof ACCOUNT_DEACTIVATED_REASON | typeof SUBSCRIPTION_INACTIVE_REASON;
+    reason:
+        | typeof ACCOUNT_DEACTIVATED_REASON
+        | typeof ACCOUNT_SUSPENDED_REASON
+        | typeof SUBSCRIPTION_INACTIVE_REASON;
     rememberMe: boolean;
     sessionStatus: AuthorizationContext["sessionStatus"];
     userId: Id<"users">;
@@ -432,7 +438,10 @@ export async function getAuthorizationContext(
 
     if (tenant.status !== "active") {
         return createInactiveAccessContext({
-            reason: SUBSCRIPTION_INACTIVE_REASON,
+            reason:
+                tenant.status === "suspended"
+                    ? ACCOUNT_SUSPENDED_REASON
+                    : SUBSCRIPTION_INACTIVE_REASON,
             rememberMe: currentSession.state.rememberMe,
             sessionStatus: currentSession.state.status,
             userId,

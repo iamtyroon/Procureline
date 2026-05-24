@@ -1,6 +1,6 @@
 # Story 2.4: Tenant Creation & Provisioning
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -116,6 +116,7 @@ GPT-5 Codex
 - 2026-05-24: Implemented guarded tenant provisioning with subdomain availability validation, tenant defaults, Tenant Admin invitation creation, dev inbox email capture, and required audit events.
 - 2026-05-24: Added `/platform-admin/tenants/new` UI and wired the tenant roster create action to it.
 - 2026-05-24: Verified changed TypeScript with `npx tsc --noEmit` and targeted ESLint; full lint is blocked by unrelated existing lint errors.
+- 2026-05-24: Addressed code-review findings by adding a Pending tenant state for platform-admin provisioning, showing Pending in the roster, and activating the tenant when the Tenant Admin accepts the invitation.
 
 ### File List
 
@@ -123,7 +124,12 @@ GPT-5 Codex
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - `webapp/app/(app)/platform-admin/tenants/new/page.tsx`
 - `webapp/convex/functions/platformAdminTenants.ts`
+- `webapp/convex/functions/tenantAdminOnboarding.ts`
 - `webapp/convex/schema.ts`
+- `webapp/lib/backend/tenant-admin/onboarding.ts`
+- `webapp/lib/shared/platform-admin/dashboard-snapshot.ts`
+- `webapp/lib/shared/platform-admin/tenant-list.ts`
+- `webapp/lib/shared/tenant-admin/dashboard-snapshot.ts`
 - `webapp/lib/shared/security/audit.ts`
 - `webapp/src/components/platform-admin/PlatformAdminTenantList.tsx`
 - `webapp/src/components/platform-admin/PlatformAdminTenantProvisioningForm.tsx`
@@ -132,11 +138,18 @@ GPT-5 Codex
 
 - 2026-05-24: Created Story 2.4 as ready for implementation.
 - 2026-05-24: Implemented Story 2.4 tenant creation and provisioning; status set to review.
+- 2026-05-24: Fixed senior review findings and marked Story 2.4 done.
+
+## Senior Developer Review (AI)
+
+- Fixed: Newly provisioned Platform Admin tenants now start in `pending` status and display as Pending in the tenant roster until the Tenant Admin invitation is accepted.
+- Fixed: Tenant Admin invitation acceptance now activates a pending tenant, preserving the intended onboarding gate without blocking redemption.
+- Verification: `webapp npx tsc --noEmit` passed; targeted ESLint passed for changed files.
 
 ## Story Completion Status
 
 - Story ID: `2.4`
 - Story Key: `2-4-tenant-creation-provisioning`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic2/stories/2-4-tenant-creation-provisioning.md`
-- Final Status: `review`
-- Completion Note: `Implemented guarded tenant provisioning with availability checks, invitation/email capture, audit logging, and Platform Admin UI.`
+- Final Status: `done`
+- Completion Note: `Implemented guarded tenant provisioning with availability checks, invitation/email capture, audit logging, Pending roster status, and Tenant Admin acceptance activation.`

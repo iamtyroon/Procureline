@@ -21,6 +21,7 @@ const tenantRecordValidator = v.object({
         v.literal("active"),
         v.literal("suspended"),
         v.literal("cancelled"),
+        v.literal("pending"),
     ),
     profileComplete: v.boolean(),
     primaryContactName: v.optional(v.string()),

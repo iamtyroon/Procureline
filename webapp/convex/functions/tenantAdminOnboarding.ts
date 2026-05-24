@@ -168,7 +168,7 @@ function resolveInvitationAccessMessage(args: {
         expiresAt: args.invitation.expiresAt,
         now: args.now,
         status: effectiveStatus,
-        tenantIsActive: args.tenant.status === "active",
+        tenantIsActive: args.tenant.status === "active" || args.tenant.status === "pending",
     });
 }
 
@@ -594,6 +594,11 @@ export async function redeemInvitationCore(args: {
         status: "accepted",
         updatedAt: now,
     });
+    if (tenant?.status === "pending") {
+        await args.ctx.db.patch(tenant._id, {
+            status: "active",
+        });
+    }
 
     const onboardingState = await getLatestOnboardingState(
         args.ctx,

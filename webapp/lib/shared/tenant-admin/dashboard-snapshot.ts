@@ -20,7 +20,7 @@ export type DashboardTenantTier =
     | "professional"
     | "starter";
 
-export type DashboardTenantStatus = "active" | "cancelled" | "suspended";
+export type DashboardTenantStatus = "active" | "cancelled" | "pending" | "suspended";
 
 export type DashboardAuditActorRole =
     | "anonymous"

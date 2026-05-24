@@ -36,6 +36,7 @@ export type TenantStatusValue =
     | "active"
     | "cancelled"
     | "not_applicable"
+    | "pending"
     | "suspended";
 
 export const FORBIDDEN_ACCESS_REASON = "forbidden_access" as const;
@@ -182,6 +183,8 @@ export function getAuthNoticeMessage(reason?: string | null): string | null {
             return "Platform Admin access requires a password reset before you can sign in again.";
         case "subscription_inactive":
             return "Tenant deactivated. Contact Support.";
+        case "account_suspended":
+            return "Account suspended. Contact your administrator.";
         default:
             return null;
     }
@@ -197,6 +200,7 @@ export function shouldTerminateAuthenticatedSession(
         !authContext.isSessionValid ||
         authContext.accessState === "inactive" ||
         authContext.redirectReason === "account_deactivated" ||
+        authContext.redirectReason === "account_suspended" ||
         authContext.redirectReason === "session_expired" ||
         authContext.redirectReason ===
             PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON

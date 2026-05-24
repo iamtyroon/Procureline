@@ -34,6 +34,7 @@ import {
 const AUTH_REASON_MESSAGES: Record<string, string> = {
     session_expired: "Your session has expired. Please log in again.",
     account_deactivated: "Account deactivated. Contact your administrator.",
+    account_suspended: "Account suspended.",
     subscription_inactive: "Subscription inactive. Contact your administrator.",
     password_reset_success: PASSWORD_RESET_SUCCESS_MESSAGE,
 };

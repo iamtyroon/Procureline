@@ -15,6 +15,7 @@ export type PlatformAdminTenantTier =
 export type PlatformAdminTenantStatus =
     | "active"
     | "cancelled"
+    | "pending"
     | "suspended"
     | "unknown";
 
@@ -132,7 +133,7 @@ interface BuildPlatformAdminTenantListSnapshotArgs {
 }
 
 const KNOWN_TIERS = new Set(["enterprise", "free", "professional", "starter"]);
-const KNOWN_STATUSES = new Set(["active", "cancelled", "suspended"]);
+const KNOWN_STATUSES = new Set(["active", "cancelled", "pending", "suspended"]);
 
 export const PLATFORM_ADMIN_TENANT_LIST_PAGE_SIZE = 20;
 
@@ -392,6 +393,7 @@ function createFilterOptions(): PlatformAdminTenantListSnapshot["filters"] {
         status: [
             { label: "All statuses", value: "all" },
             { label: "Active", value: "active" },
+            { label: "Pending", value: "pending" },
             { label: "Suspended", value: "suspended" },
             { label: "Cancelled", value: "cancelled" },
             { label: "Unknown", value: "unknown" },

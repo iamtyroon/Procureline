@@ -1,6 +1,6 @@
 # Story 2.5: Tenant Configuration & Management
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -119,26 +119,46 @@ GPT-5 Codex
 - 2026-05-24: Implemented tenant management detail UI for configuration, lifecycle actions, alerts, redirects, temporary overrides, and export requests.
 - 2026-05-24: Added guarded Convex mutations for settings edits, suspend, restore, soft-delete with 90-day purge metadata, subdomain redirect creation, override expiry, and export link generation.
 - 2026-05-24: Existing tenant access guard already fails closed for non-active tenants; lifecycle changes now drive that status path immediately.
+- 2026-05-24: Addressed code-review findings by adding suspended-login messaging, numeric settings validation, active-only overrides/redirect resolution, and generated tenant data export links.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/epics/epic2/stories/2-5-tenant-configuration-management.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - `webapp/app/(app)/platform-admin/tenants/[tenantId]/page.tsx`
+- `webapp/convex/functions/_roleGuard.ts`
 - `webapp/convex/functions/platformAdminTenants.ts`
+- `webapp/convex/functions/tenantAdminDashboard.ts`
+- `webapp/convex/functions/tenants.ts`
 - `webapp/convex/schema.ts`
+- `webapp/lib/shared/auth/roles.ts`
+- `webapp/lib/shared/auth/session.ts`
+- `webapp/lib/shared/platform-admin/dashboard-snapshot.ts`
+- `webapp/lib/shared/platform-admin/tenant-list.ts`
+- `webapp/lib/shared/tenant-admin/dashboard-snapshot.ts`
 - `webapp/lib/shared/security/audit.ts`
+- `webapp/src/components/auth/LoginForm.tsx`
 - `webapp/src/components/platform-admin/PlatformAdminTenantManagementView.tsx`
+- `webapp/src/components/platform-admin/PlatformAdminTenantList.tsx`
 
 ## Change Log
 
 - 2026-05-24: Created Story 2.5 as ready for implementation.
 - 2026-05-24: Implemented Story 2.5 tenant configuration and lifecycle management; status set to review.
+- 2026-05-24: Fixed senior review findings and marked Story 2.5 done.
+
+## Senior Developer Review (AI)
+
+- Fixed: Suspended tenants now redirect login attempts with `account_suspended`, and shared login displays "Account suspended."
+- Fixed: Tenant settings mutations reject invalid fiscal months, storage limits, user limits, and budget ceilings.
+- Fixed: Data export requests generate a complete JSON tenant export download link instead of a placeholder route.
+- Fixed: Active subdomain redirects and temporary overrides are now filtered to unexpired records, with resolver/query support for effective configuration and redirect lookup.
+- Verification: `webapp npx tsc --noEmit` passed; targeted ESLint passed for changed files.
 
 ## Story Completion Status
 
 - Story ID: `2.5`
 - Story Key: `2-5-tenant-configuration-management`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic2/stories/2-5-tenant-configuration-management.md`
-- Final Status: `review`
-- Completion Note: `Implemented guarded tenant detail management, lifecycle controls, threshold alerts, redirects, temporary overrides, and export request records.`
+- Final Status: `done`
+- Completion Note: `Implemented guarded tenant detail management, lifecycle controls, suspended-login messaging, threshold alerts, active redirects, temporary overrides, and generated tenant data exports.`

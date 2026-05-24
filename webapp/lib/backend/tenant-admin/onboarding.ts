@@ -101,7 +101,9 @@ function resolveInvitationAccessMessage(args: {
         status: effectiveStatus as Parameters<
             typeof getTenantAdminInvitationAccessMessage
         >[0]["status"],
-        tenantIsActive: requiredString(args.tenant.status) === "active",
+        tenantIsActive:
+            requiredString(args.tenant.status) === "active" ||
+            requiredString(args.tenant.status) === "pending",
     });
 }
 
@@ -710,6 +712,11 @@ export async function redeemInvitationForBackendTests(args: {
         status: "accepted",
         updatedAt: args.now,
     });
+    if (requiredString(tenant?.status) === "pending") {
+        await args.ctx.db.patch(requiredString(tenant?._id), {
+            status: "active",
+        });
+    }
 
     const onboardingState = await getLatestOnboardingState(
         args.ctx,

@@ -60,6 +60,7 @@ const tenantTierValidator = v.union(
 const tenantStatusValidator = v.union(
     v.literal("active"),
     v.literal("cancelled"),
+    v.literal("pending"),
     v.literal("suspended"),
 );
 

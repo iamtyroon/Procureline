@@ -10,6 +10,7 @@ export { PLATFORM_ADMIN_INACTIVITY_WINDOW_MS };
 export const SESSION_EXPIRED_REASON = "session_expired" as const;
 export const ACCOUNT_DEACTIVATED_REASON = "account_deactivated" as const;
 export const SUBSCRIPTION_INACTIVE_REASON = "subscription_inactive" as const;
+export const ACCOUNT_SUSPENDED_REASON = "account_suspended" as const;
 export const REMEMBER_ME_STORAGE_KEY = "pendingRememberMe";
 
 export const STANDARD_SESSION_INACTIVITY_MS = 1000 * 60 * 60 * 24 * 15;
@@ -18,6 +19,7 @@ export const REMEMBER_ME_SESSION_WINDOW_MS = 1000 * 60 * 60 * 24 * 30;
 export type SessionRedirectReason =
     | typeof SESSION_EXPIRED_REASON
     | typeof ACCOUNT_DEACTIVATED_REASON
+    | typeof ACCOUNT_SUSPENDED_REASON
     | typeof SUBSCRIPTION_INACTIVE_REASON;
 
 export type SessionStatus = "active" | "expired" | "revoked" | "logged_out";

@@ -109,8 +109,8 @@ development_status:
   3-8-report-generation-system: done
 
   2-3-tenant-list-overview: done
-  2-4-tenant-creation-provisioning: review
-  2-5-tenant-configuration-management: review
+  2-4-tenant-creation-provisioning: done
+  2-5-tenant-configuration-management: done
   2-6-subscription-status-management: ready-for-dev
   2-7-payment-verification-processing: ready-for-dev
   2-8-cross-tenant-user-management: ready-for-dev

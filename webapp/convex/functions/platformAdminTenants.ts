@@ -43,6 +43,7 @@ const tenantStatusFilterValidator = v.union(
     v.literal("all"),
     v.literal("active"),
     v.literal("cancelled"),
+    v.literal("pending"),
     v.literal("suspended"),
     v.literal("unknown"),
 );
@@ -90,6 +91,26 @@ function assertPlainText(value: string, field: string, label: string, maxLength 
         validationError(field, result.issue.message);
     }
     return result.value;
+}
+
+function assertIntegerInRange(value: number | undefined, field: string, label: string, min: number, max: number): number | undefined {
+    if (value === undefined) {
+        return undefined;
+    }
+    if (!Number.isInteger(value) || value < min || value > max) {
+        validationError(field, `${label} must be a whole number between ${min} and ${max}.`);
+    }
+    return value;
+}
+
+function assertPositiveFiniteNumber(value: number | undefined, field: string, label: string): number | undefined {
+    if (value === undefined) {
+        return undefined;
+    }
+    if (!Number.isFinite(value) || value <= 0) {
+        validationError(field, `${label} must be greater than zero.`);
+    }
+    return value;
 }
 
 async function assertSubdomainAvailable(
@@ -148,6 +169,7 @@ function buildTenantDetail(tenant: Doc<"tenants">, args: {
     departmentCount: number;
     redirects: Doc<"tenantSubdomainRedirects">[];
 }) {
+    const now = Date.now();
     const storageLimitBytes = tenant.storageLimitBytes ?? 1073741824;
     const storageUsedBytes = tenant.storageUsedBytes ?? 0;
     const userLimit = tenant.userLimit ?? 25;
@@ -185,12 +207,16 @@ function buildTenantDetail(tenant: Doc<"tenants">, args: {
             ...(storagePercent >= 90 ? [`Storage usage is at ${storagePercent}% of limit`] : []),
             ...(userPercent >= 90 ? [`Active user count is at ${userPercent}% of limit`] : []),
         ],
-        redirects: args.redirects.map((redirect) => ({
+        redirects: args.redirects
+            .filter((redirect) => redirect.expiresAt > now)
+            .map((redirect) => ({
             fromSubdomain: redirect.fromSubdomain,
             toSubdomain: redirect.toSubdomain,
             expiresAt: redirect.expiresAt,
         })),
-        overrides: args.configOverrides.map((override) => ({
+        overrides: args.configOverrides
+            .filter((override) => override.expiresAt > now)
+            .map((override) => ({
             id: override._id,
             key: override.key,
             value: override.value,
@@ -296,7 +322,10 @@ export const getPlatformAdminTenantListSnapshot = query({
                 primaryContactEmail: tenant.primaryContactEmail ?? null,
                 primaryContactName: tenant.primaryContactName ?? null,
                 profileComplete: tenant.profileComplete,
-                status: tenant.status,
+                status:
+                    tenant.status === "active" && tenant.profileComplete === false
+                        ? "pending"
+                        : tenant.status,
                 subdomain: tenant.subdomain,
                 tier: tenant.tier,
             })),
@@ -406,7 +435,7 @@ export const provisionTenant = mutation({
                 name: organizationNameResult.value.normalized,
                 subdomain,
                 tier: "free",
-                status: "active",
+                status: "pending",
                 profileComplete: false,
                 primaryContactEmail: emailResult.value,
                 storageLimitBytes: 1073741824,
@@ -545,16 +574,31 @@ export const updateTenantSettings = mutation({
         if (email && !email.ok) {
             validationError("primaryContactEmail", email.issue.message);
         }
+        const fiscalYearStartMonth = assertIntegerInRange(
+            args.fiscalYearStartMonth,
+            "fiscalYearStartMonth",
+            "Fiscal year start month",
+            1,
+            12,
+        );
+        const storageLimitBytes = assertPositiveFiniteNumber(args.storageLimitBytes, "storageLimitBytes", "Storage limit");
+        const userLimit = assertIntegerInRange(args.userLimit, "userLimit", "User limit", 1, 100000);
+        const procurementBudgetCeiling = assertPositiveFiniteNumber(
+            args.procurementBudgetCeiling,
+            "procurementBudgetCeiling",
+            "Procurement budget ceiling",
+        );
+
         await ctx.db.patch(args.tenantId, {
             name: nameResult.value.normalized,
             primaryContactEmail: email?.value,
             primaryContactName: args.primaryContactName ? assertPlainText(args.primaryContactName, "primaryContactName", "Contact name", 120) : undefined,
             primaryContactPhone: args.primaryContactPhone ? assertPlainText(args.primaryContactPhone, "primaryContactPhone", "Contact phone", 40) : undefined,
-            procurementBudgetCeiling: args.procurementBudgetCeiling,
-            fiscalYearStartMonth: args.fiscalYearStartMonth,
+            procurementBudgetCeiling,
+            fiscalYearStartMonth,
             timeZone: args.timeZone ? assertPlainText(args.timeZone, "timeZone", "Time zone", 80) : undefined,
-            storageLimitBytes: args.storageLimitBytes,
-            userLimit: args.userLimit,
+            storageLimitBytes,
+            userLimit,
         });
         await auditTenantChange({
             action: "update_settings",
@@ -641,6 +685,10 @@ export const updateTenantLifecycle = mutation({
                 restoredAt: now,
                 restoredByPlatformUserId: authContext.userId,
                 restoreReason: reason,
+                softDeletedAt: undefined,
+                softDeletedByPlatformUserId: undefined,
+                softDeleteReason: undefined,
+                purgeScheduledAt: undefined,
             });
             await auditTenantChange({ action: "restore", ctx, event: AUDIT_EVENT_NAMES.tenantLifecycleRestored, metadata: { reason }, platformUserId: authContext.userId, recordId: String(args.tenantId), targetTenantId: args.tenantId });
         } else {
@@ -697,15 +745,38 @@ export const requestTenantDataExport = mutation({
     }),
     handler: async (ctx, args) => {
         const authContext = await requirePlatformAdmin(ctx);
-        if (!(await ctx.db.get(args.tenantId))) {
+        const tenant = await ctx.db.get(args.tenantId);
+        if (!tenant) {
             validationError("tenantId", "Tenant not found.");
         }
         const now = Date.now();
+        const [tenantUsers, departments, invitations, redirects, overrides, auditLogs] = await Promise.all([
+            ctx.db.query("tenantUsers").withIndex("by_tenantId", (q) => q.eq("tenantId", args.tenantId)).collect(),
+            ctx.db.query("departments").withIndex("by_tenantId", (q) => q.eq("tenantId", args.tenantId)).collect(),
+            ctx.db.query("tenantAdminInvitations").withIndex("by_tenantId_email", (q) => q.eq("tenantId", args.tenantId)).collect(),
+            ctx.db.query("tenantSubdomainRedirects").withIndex("by_tenantId", (q) => q.eq("tenantId", args.tenantId)).collect(),
+            ctx.db.query("tenantConfigOverrides").withIndex("by_tenantId", (q) => q.eq("tenantId", args.tenantId)).collect(),
+            ctx.db.query("auditLogs").withIndex("by_targetTenantId", (q) => q.eq("targetTenantId", args.tenantId)).collect(),
+        ]);
+        const exportPayload = {
+            auditLogs,
+            departments,
+            generatedAt: now,
+            generatedByPlatformUserId: authContext.userId,
+            invitations,
+            overrides,
+            redirects,
+            tenant,
+            tenantUsers,
+        };
+        const fileBody = JSON.stringify(exportPayload, null, 2);
+        const downloadUrl = `data:application/json;charset=utf-8,${encodeURIComponent(fileBody)}`;
         const exportId = await ctx.db.insert("platformTenantDataExports", {
             tenantId: args.tenantId,
             requestedByPlatformUserId: authContext.userId,
             status: "ready",
-            downloadUrl: `/api/platform-admin/tenants/${String(args.tenantId)}/export/${now}.zip`,
+            downloadUrl,
+            fileSizeBytes: fileBody.length,
             requestedAt: now,
             updatedAt: now,
             expiresAt: now + exportLinkRetentionMs,
@@ -713,7 +784,61 @@ export const requestTenantDataExport = mutation({
         await auditTenantChange({ action: "request_data_export", ctx, event: AUDIT_EVENT_NAMES.tenantDataExportRequested, outcome: "queued", platformUserId: authContext.userId, recordId: String(exportId), targetTenantId: args.tenantId });
         return {
             exportId,
-            downloadUrl: `/api/platform-admin/tenants/${String(args.tenantId)}/export/${now}.zip`,
+            downloadUrl,
+        };
+    },
+});
+
+export const resolveTenantSubdomainRedirect = query({
+    args: { subdomain: v.string() },
+    returns: v.union(
+        v.null(),
+        v.object({
+            expiresAt: v.number(),
+            tenantId: v.id("tenants"),
+            toSubdomain: v.string(),
+        }),
+    ),
+    handler: async (ctx, args) => {
+        const subdomain = requireValidSubdomain(args.subdomain);
+        const redirect = await ctx.db
+            .query("tenantSubdomainRedirects")
+            .withIndex("by_fromSubdomain", (q) => q.eq("fromSubdomain", subdomain))
+            .first();
+        if (!redirect || redirect.expiresAt <= Date.now()) {
+            return null;
+        }
+        return {
+            expiresAt: redirect.expiresAt,
+            tenantId: redirect.tenantId,
+            toSubdomain: redirect.toSubdomain,
+        };
+    },
+});
+
+export const getTenantEffectiveConfiguration = query({
+    args: { tenantId: v.id("tenants") },
+    handler: async (ctx, args) => {
+        await requirePlatformAdmin(ctx);
+        const tenant = await ctx.db.get(args.tenantId);
+        if (!tenant) {
+            return null;
+        }
+        const overrides = await ctx.db
+            .query("tenantConfigOverrides")
+            .withIndex("by_tenantId", (q) => q.eq("tenantId", args.tenantId))
+            .collect();
+        const now = Date.now();
+        const activeOverrides = overrides.filter((override) => override.expiresAt > now);
+        const overrideValues = Object.fromEntries(
+            activeOverrides.map((override) => [override.key, override.value]),
+        );
+        return {
+            fiscalYearStartMonth: tenant.fiscalYearStartMonth,
+            overrideValues,
+            storageLimitBytes: tenant.storageLimitBytes,
+            timeZone: tenant.timeZone,
+            userLimit: tenant.userLimit,
         };
     },
 });

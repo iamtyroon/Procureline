@@ -514,6 +514,8 @@ function StatusBadge({
                 "rounded-full",
                 status === "active" &&
                     "border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-400/20 dark:text-emerald-100",
+                status === "pending" &&
+                    "border-sky-300 bg-sky-100 text-sky-800 dark:border-sky-400/30 dark:bg-sky-400/20 dark:text-sky-100",
                 status === "suspended" &&
                     "border-rose-300 bg-rose-100 text-rose-800 dark:border-rose-400/30 dark:bg-rose-400/20 dark:text-rose-100",
                 status === "cancelled" &&

@@ -19,6 +19,7 @@ export type PlatformAdminTenantTier =
 export type PlatformAdminTenantStatus =
     | "active"
     | "cancelled"
+    | "pending"
     | "suspended";
 
 export interface PlatformAdminTenantRecord {
@@ -342,6 +343,7 @@ function createEmptyStatusCounts(): Record<PlatformAdminTenantStatus, number> {
     return {
         active: 0,
         cancelled: 0,
+        pending: 0,
         suspended: 0,
     };
 }
