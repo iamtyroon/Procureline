@@ -8,8 +8,13 @@ export const PLATFORM_ADMIN_DASHBOARD_ACCESS_TOKEN_TTL_MS =
 interface PlatformAdminDashboardAccessTokenEnvelope {
     expiresAt: number;
     issuedAt: number;
+    scope?: PlatformAdminDashboardReadAccessTokenScope;
     userId: string;
 }
+
+export type PlatformAdminDashboardReadAccessTokenScope =
+    | "dashboard"
+    | "tenant_list";
 
 function encodeBytesBase64Url(bytes: Uint8Array): string {
     return btoa(String.fromCharCode(...Array.from(bytes)))
@@ -107,12 +112,14 @@ export function resolvePlatformAdminDashboardAccessTokenSecret(args?: {
 export async function createPlatformAdminDashboardReadAccessToken(args: {
     now?: number;
     secret?: string;
+    scope?: PlatformAdminDashboardReadAccessTokenScope;
     userId: string;
 }): Promise<string> {
     const issuedAt = args.now ?? Date.now();
     const envelope: PlatformAdminDashboardAccessTokenEnvelope = {
         expiresAt: issuedAt + PLATFORM_ADMIN_DASHBOARD_ACCESS_TOKEN_TTL_MS,
         issuedAt,
+        scope: args.scope ?? "dashboard",
         userId: args.userId,
     };
     const encodedPayload = encodeTextBase64Url(JSON.stringify(envelope));
@@ -127,6 +134,7 @@ export async function createPlatformAdminDashboardReadAccessToken(args: {
 export async function verifyPlatformAdminDashboardReadAccessToken(args: {
     now?: number;
     secret?: string;
+    scope?: PlatformAdminDashboardReadAccessTokenScope;
     token: string;
     userId: string;
 }): Promise<
@@ -167,8 +175,17 @@ export async function verifyPlatformAdminDashboardReadAccessToken(args: {
         if (
             typeof envelope.issuedAt !== "number" ||
             typeof envelope.expiresAt !== "number" ||
+            (typeof envelope.scope !== "undefined" &&
+                typeof envelope.scope !== "string") ||
             typeof envelope.userId !== "string"
         ) {
+            return {
+                ok: false,
+                reason: "invalid",
+            };
+        }
+
+        if ((envelope.scope ?? "dashboard") !== (args.scope ?? "dashboard")) {
             return {
                 ok: false,
                 reason: "invalid",

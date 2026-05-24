@@ -109,8 +109,38 @@ export async function runPlatformAdminDashboardTests(): Promise<string[]> {
         ok: false,
         reason: "invalid",
     });
+    const tenantListReadAccessToken =
+        await createPlatformAdminDashboardReadAccessToken({
+            now: Date.UTC(2026, 2, 22, 8, 15, 0),
+            scope: "tenant_list",
+            secret: "platform-admin-dashboard-test-secret",
+            userId: "user-platform-admin",
+        });
+    assert.deepEqual(
+        await verifyPlatformAdminDashboardReadAccessToken({
+            now: Date.UTC(2026, 2, 22, 8, 20, 0),
+            scope: "tenant_list",
+            secret: "platform-admin-dashboard-test-secret",
+            token: tenantListReadAccessToken,
+            userId: "user-platform-admin",
+        }),
+        { ok: true },
+    );
+    assert.deepEqual(
+        await verifyPlatformAdminDashboardReadAccessToken({
+            now: Date.UTC(2026, 2, 22, 8, 20, 0),
+            scope: "tenant_list",
+            secret: "platform-admin-dashboard-test-secret",
+            token: dashboardReadAccessToken,
+            userId: "user-platform-admin",
+        }),
+        {
+            ok: false,
+            reason: "invalid",
+        },
+    );
     completedTests.push(
-        "platform-admin dashboard access tokens are signed, time-bound, and scoped to the current admin user",
+        "platform-admin dashboard access tokens are signed, time-bound, and scoped to the current admin user and audited read surface",
     );
 
     assert.throws(

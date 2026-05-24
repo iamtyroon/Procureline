@@ -108,19 +108,7 @@ development_status:
   7-6-excel-formatting-content: done
   3-8-report-generation-system: done
 
-  8-1-free-tier-provisioning-usage-monitoring: backlog
-  8-2-subscription-tier-selection: backlog
-  8-3-payment-processing: backlog
-  8-4-invoice-management: backlog
-  8-5-subscription-lifecycle-management: backlog
-  9-1-plan-workflow-notifications: backlog
-  9-2-deadline-reminder-notifications: backlog
-  9-3-billing-notifications: backlog
-  9-4-item-request-custom-notifications: backlog
-  10-1-comprehensive-action-logging: backlog
-  10-2-audit-log-viewing: backlog
-  10-3-audit-report-generation: backlog
-  2-3-tenant-list-overview: backlog
+  2-3-tenant-list-overview: done
   2-4-tenant-creation-provisioning: backlog
   2-5-tenant-configuration-management: backlog
   2-6-subscription-status-management: backlog
@@ -131,6 +119,8 @@ development_status:
   2-11-security-dashboard-compliance: backlog
   2-12-support-tickets-incidents: backlog
   2-13-system-configuration-feature-flags: backlog
+
+
   3-4-po-management-lifecycle-activity: backlog # frontend-complete
   3-5-institutional-settings-configuration: backlog # frontend-complete
   3-6-billing-dashboard-payment-methods: backlog # frontend-complete
@@ -138,6 +128,25 @@ development_status:
   3-10-notification-system: backlog
   3-11-security-session-management: backlog # frontend-complete
   3-12-account-lifecycle-admin-transfer: backlog # frontend-complete
+
+
+  9-1-plan-workflow-notifications: backlog
+  9-2-deadline-reminder-notifications: backlog
+  9-3-billing-notifications: backlog
+  9-4-item-request-custom-notifications: backlog
+
+
+  10-1-comprehensive-action-logging: backlog
+  10-2-audit-log-viewing: backlog
+  10-3-audit-report-generation: backlog
+
+
+  8-1-free-tier-provisioning-usage-monitoring: backlog
+  8-2-subscription-tier-selection: backlog
+  8-3-payment-processing: backlog
+  8-4-invoice-management: backlog
+  8-5-subscription-lifecycle-management: backlog
+
   4-4-budget-allocation-department-import: backlog
   11-4-first-login-onboarding-contextual-help: backlog
 

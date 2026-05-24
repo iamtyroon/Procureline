@@ -175,19 +175,7 @@ export function PlatformAdminLoginForm({
     }
 
     return (
-        <div className="space-y-6">
-            <div className="rounded-[2rem] border border-slate-800 bg-slate-950 px-6 py-5 text-slate-100 shadow-2xl">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-300">
-                    Internal Access
-                </p>
-                <h1 className="mt-3 text-3xl font-semibold">Platform Admin Console</h1>
-                <p className="mt-3 max-w-md text-sm leading-6 text-slate-300">
-                    Procureline requires a separate admin sign-in flow with mandatory
-                    email OTP verification, suspicious-login checks, and a 30-minute
-                    privileged idle session window.
-                </p>
-            </div>
-
+        <div>
             <Card className="border-slate-200 shadow-xl">
                 <CardHeader className="space-y-2 text-center">
                     <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
