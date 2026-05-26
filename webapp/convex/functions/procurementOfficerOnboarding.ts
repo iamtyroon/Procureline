@@ -643,6 +643,30 @@ export const createInvitationRecord = internalMutation({
                 message: PROCUREMENT_OFFICER_TENANT_INACTIVE_MESSAGE,
             });
         }
+        const now = Date.now();
+        const [existingPoMemberships, tenantInvitations] = await Promise.all([
+            ctx.db
+                .query("tenantUsers")
+                .withIndex("by_tenantId", (q) => q.eq("tenantId", args.tenantId))
+                .filter((q) => q.eq(q.field("role"), "procurement_officer"))
+                .collect(),
+            ctx.db
+                .query("poInvitations")
+                .withIndex("by_tenantId", (q) => q.eq("tenantId", args.tenantId))
+                .collect(),
+        ]);
+        if (
+            existingPoMemberships.length > 0 ||
+            tenantInvitations.some(
+                (invitation) =>
+                    getInvitationEffectiveStatus({ invitation, now }) === "pending",
+            )
+        ) {
+            throw new ConvexError({
+                code: "PO_SEAT_OCCUPIED",
+                message: "This institution already has a Procurement Officer assignment or pending invitation.",
+            });
+        }
 
         const emailResult = validateEmailInput(args.email);
         if (!emailResult.ok) {
@@ -711,7 +735,6 @@ export const createInvitationRecord = internalMutation({
                 q.eq("tenantId", args.tenantId).eq("normalizedEmail", emailResult.value),
             )
             .collect();
-        const now = Date.now();
         const hasPendingInvitation = existingInvitations.some(
             (invitation) =>
                 getInvitationEffectiveStatus({ invitation, now }) === "pending",
@@ -1006,6 +1029,31 @@ export const issueInvitation: ReturnType<typeof action> = action({
             inviteUrl: result.inviteUrl,
             invitationId: result.invitationId,
         };
+    },
+});
+
+export const bulkIssueInvitations: ReturnType<typeof action> = action({
+    args: {
+        rows: v.array(v.object({
+            email: v.string(),
+            fullName: v.string(),
+            phone: v.string(),
+            rowNumber: v.number(),
+        })),
+    },
+    returns: v.object({
+        accepted: v.number(),
+        errors: v.array(v.object({ message: v.string(), rowNumber: v.number() })),
+    }),
+    handler: async (ctx, _args) => {
+        const actor = await getServiceActorContext(ctx);
+        if (actor.role !== "tenant_admin" || !actor.tenantId) {
+            throw new ConvexError({ code: "UNAUTHORIZED", message: "Tenant administrator access is required" });
+        }
+        throw new ConvexError({
+            code: "PO_SINGLE_SEAT_POLICY",
+            message: "Bulk Procurement Officer invitations are disabled because each institution has one Procurement Officer assignment.",
+        });
     },
 });
 

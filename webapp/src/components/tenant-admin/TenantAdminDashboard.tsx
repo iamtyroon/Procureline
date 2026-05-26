@@ -16,6 +16,7 @@ import {
     ShieldCheck,
     Users2,
     Wallet,
+    Bell,
 } from "lucide-react";
 import { startTransition, useEffect, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
@@ -73,6 +74,10 @@ export function TenantAdminDashboard({
     const liveSnapshot = useQuery(
         api.functions.tenantAdminDashboard.getTenantAdminDashboardSnapshot,
         selectedFiscalYear ? { selectedFiscalYear } : {},
+    );
+    const notificationCenter = useQuery(
+        (api as any).functions.tenantAdminOperations.getNotificationCenter,
+        {},
     );
 
     const cacheTenantId =
@@ -356,13 +361,18 @@ export function TenantAdminDashboard({
                 </aside>
 
                 <div className="min-w-0 flex-1 bg-background">
-                    <header className="border-b border-border/70 bg-card/70 px-8 py-7 backdrop-blur">
-                        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                            {viewMeta.title}
-                        </h1>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            {viewMeta.subtitle}
-                        </p>
+                    <header className="flex items-start justify-between border-b border-border/70 bg-card/70 px-8 py-7 backdrop-blur">
+                        <div>
+                            <h1 className="text-2xl font-bold tracking-tight text-foreground">{viewMeta.title}</h1>
+                            <p className="mt-1 text-sm text-muted-foreground">{viewMeta.subtitle}</p>
+                        </div>
+                        <Button asChild size="sm" variant="outline" className="gap-2">
+                            <Link href="/tenant-admin/notifications">
+                                <Bell className="h-4 w-4" />
+                                Notifications
+                                {notificationCenter?.unreadCount ? <Badge>{notificationCenter.unreadCount}</Badge> : null}
+                            </Link>
+                        </Button>
                     </header>
 
                     <div className="px-8 py-8">
@@ -473,6 +483,16 @@ const TENANT_ADMIN_SIDEBAR_SECTIONS: TenantAdminSidebarSectionConfig[] = [
                 href: "/tenant-admin/billing",
                 icon: Wallet,
                 label: "Billing",
+            },
+            {
+                href: "/tenant-admin/notifications",
+                icon: Bell,
+                label: "Notifications",
+            },
+            {
+                href: "/tenant-admin/security",
+                icon: ShieldCheck,
+                label: "Security",
             },
             {
                 href: "/tenant-admin/settings",

@@ -15,7 +15,7 @@ const onboardingStatusValidator = values_1.v.union(values_1.v.literal("blocked")
 const availabilityValidator = values_1.v.union(values_1.v.literal("available"), values_1.v.literal("coming_soon"));
 const quickActionStatusValidator = values_1.v.union(values_1.v.literal("coming_soon"), values_1.v.literal("ready"), values_1.v.literal("setup_required"));
 const tenantTierValidator = values_1.v.union(values_1.v.literal("free"), values_1.v.literal("starter"), values_1.v.literal("professional"), values_1.v.literal("enterprise"));
-const tenantStatusValidator = values_1.v.union(values_1.v.literal("active"), values_1.v.literal("cancelled"), values_1.v.literal("suspended"));
+const tenantStatusValidator = values_1.v.union(values_1.v.literal("active"), values_1.v.literal("cancelled"), values_1.v.literal("pending"), values_1.v.literal("suspended"));
 const summaryCardValidator = values_1.v.object({
     dataState: metricStateValidator,
     helperText: values_1.v.string(),

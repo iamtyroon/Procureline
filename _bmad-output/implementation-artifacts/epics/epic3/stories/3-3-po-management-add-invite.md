@@ -1,22 +1,22 @@
 # Story 3.3: PO Management - Add & Invite
 
-Status: done
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
 ## Story
 
 As a Tenant Admin,
-I want to add and invite Procurement Officers to my organization,
-so that they can manage departments and procurement activities.
+I want to assign my institution's single Procurement Officer,
+so that one accountable officer manages departments and procurement activities.
 
 ## Acceptance Criteria
 
 1. [Given] a Tenant Admin opens `/tenant-admin/po-management` [When] the page loads [Then] the existing tenant-admin dashboard shell stays intact [And] the PO management view shows a real directory that combines active or inactive Procurement Officers with pending invitation records instead of only the current read-only placeholder cards (FR-TA3a, FR15).
-2. [Given] a Tenant Admin clicks `Add PO` [When] the add dialog or form opens [Then] the form requires full name, email, and phone [And] it validates the inputs with the repo-standard RHF + Zod form pattern before any Convex mutation runs (FR-TA3b).
+2. [Given] a tenant has no Procurement Officer membership or pending invitation [When] a Tenant Admin clicks `Assign PO` [Then] the add dialog requires full name, email, and phone [And] it validates the inputs with the repo-standard RHF + Zod form pattern before any Convex mutation runs (FR-TA3b).
 3. [Given] a Tenant Admin submits a valid new Procurement Officer invitation [When] the backend accepts it [Then] the system creates a tenant-scoped invitation record with both an invite-link credential and a one-time activation code [And] it sends the email invitation [And] it returns a copyable activation code for manual sharing in the same UI flow (FR-TA3c, FR16).
 4. [Given] the invited email already belongs to a Procurement Officer or other tenant-scoped user in a different tenant [When] the new invitation is created for this tenant [Then] the invitation is allowed [And] the eventual onboarding flow can activate a second tenant membership for the same auth identity instead of treating the user as globally misconfigured (FR-TA3d).
-5. [Given] a Tenant Admin tries to invite an email that already has a Procurement Officer membership in the same tenant, already has another tenant-scoped membership in the same tenant, or already has a still-valid pending invitation for the same tenant [When] they submit the form [Then] the system rejects the request with a same-organization duplicate error instead of creating parallel pending credentials or silently attaching a second tenant-scoped role inside one tenant (FR-TA3e).
+5. [Given] a tenant already has any Procurement Officer membership or live pending PO invitation [When] a Tenant Admin attempts another assignment using any email [Then] the system rejects the request because each institution has one Procurement Officer seat [And] the UI does not display a second-assignment action (FR-TA3e).
 6. [Given] a Procurement Officer invitation is resent [When] the Tenant Admin requests fresh credentials [Then] the previous pending invite link and activation code are invalidated immediately [And] only the most recently issued pending invitation remains redeemable even if an older link is still open in a browser tab [And] the UI updates to show the latest pending status and issue time (FR-TA3g).
 7. [Given] seven days pass without acceptance [When] invitation state is evaluated by the backend, the PO management query, or a redemption mutation [Then] the invitation is treated as expired server-authoritatively at every boundary [And] the Tenant Admin sees an expired state with a resend action instead of a still-valid pending badge (FR-TA3g).
 8. [Given] the invitation email hard-bounces or is suppressed [When] the bounce webhook is verified and processed [Then] the invitation status changes to `bounced` [And] duplicated or replayed provider events do not double-notify or corrupt invitation state [And] the Tenant Admin receives a scoped in-app warning on the PO management surface plus a tenant-admin email notification without requiring the full Story 3.10 notification center to exist yet (FR-TA3f).
@@ -82,6 +82,11 @@ so that they can manage departments and procurement activities.
   - [x] Add auth-context and RBAC tests proving the repo no longer fails closed as `misconfigured` when a user has multiple valid tenant memberships selected through the PO invite flow, and that stale stored membership selections fail closed instead of silently picking another tenant.
   - [x] Add route or component tests for `/access/procurement-officer`, including invite-link prefill, manual activation-code entry, invalid credential messaging, conflicting handoff param rejection, and the transition from pending invitation to active tenant membership.
   - [x] Add webhook-handler tests that verify invalid signatures fail closed, valid bounce events patch the right invitation row, replayed deliveries are deduplicated, and accepted invitations do not regress back to actionable bounce states.
+
+### Product Rule Update
+
+- 2026-05-26: The product policy was narrowed to one Procurement Officer assignment per tenant. The assignment action is available only while no PO membership or pending invitation exists, and backend issuance rejects a second seat regardless of email address.
+- 2026-05-26: Status returned to `in-progress` pending rendered verification of the single-seat assignment rule and replacement handling.
 
 ## Dev Notes
 
@@ -382,5 +387,5 @@ gpt-5-codex
 - Story ID: `3.3`
 - Story Key: `3-3-po-management-add-invite`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic3/stories/3-3-po-management-add-invite.md`
-- Final Status: `done`
+- Final Status: `in-progress`
 - Completion Note: `Implemented Procurement Officer invitation management, access handoff, bounce handling, cross-tenant membership selection, cleared the review follow-ups for reselection and URL safety, and reverified the story with regenerated Convex bindings plus the full automated test suite.`

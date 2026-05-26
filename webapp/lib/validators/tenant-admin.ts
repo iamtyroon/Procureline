@@ -74,8 +74,10 @@ export const tenantAdminInstitutionProfileSchema = z.object({
             invalid_type_error: "Fiscal year start month is required",
         })
         .int("Fiscal year start month must be a whole number")
-        .min(1, "Fiscal year start month must be between 1 and 12")
-        .max(12, "Fiscal year start month must be between 1 and 12"),
+        .refine(
+            (value) => value === 7,
+            "The institutional fiscal year is fixed from 1 July through 30 June.",
+        ),
     institutionName: institutionNameSchema,
     logoUrl: z
         .string()

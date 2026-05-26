@@ -11,7 +11,7 @@ const tenantRecordValidator = values_1.v.object({
     name: values_1.v.string(),
     subdomain: values_1.v.string(),
     tier: values_1.v.union(values_1.v.literal("free"), values_1.v.literal("starter"), values_1.v.literal("professional"), values_1.v.literal("enterprise")),
-    status: values_1.v.union(values_1.v.literal("active"), values_1.v.literal("suspended"), values_1.v.literal("cancelled")),
+    status: values_1.v.union(values_1.v.literal("active"), values_1.v.literal("suspended"), values_1.v.literal("cancelled"), values_1.v.literal("pending")),
     profileComplete: values_1.v.boolean(),
     primaryContactName: values_1.v.optional(values_1.v.string()),
     primaryContactEmail: values_1.v.optional(values_1.v.string()),

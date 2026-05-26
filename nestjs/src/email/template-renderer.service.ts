@@ -18,7 +18,8 @@ export class EmailTemplateRendererService {
       | "catalog-request-submitted"
       | "deadline-extension"
       | "deadline-reminder"
-      | "submission-reminder",
+      | "submission-reminder"
+      | "plan-submission-confirmation",
     templateProps?: Record<string, unknown>,
   ): Promise<string> {
     if (template === "access-code-delivery") {

@@ -519,6 +519,54 @@ export const provisionTenant = mutation({
     },
 });
 
+export const assignReplacementTenantAdmin = mutation({
+    args: {
+        tenantAdminEmail: v.string(),
+        tenantId: v.id("tenants"),
+    },
+    returns: v.object({
+        invitationId: v.id("tenantAdminInvitations"),
+        inviteUrl: v.string(),
+    }),
+    handler: async (ctx, args) => {
+        const authContext = await requirePlatformAdmin(ctx);
+        const tenant = await ctx.db.get(args.tenantId);
+        if (!tenant) validationError("tenantId", "Tenant not found.");
+        const emailResult = validateEmailInput(args.tenantAdminEmail, "tenantAdminEmail");
+        if (!emailResult.ok) validationError("tenantAdminEmail", emailResult.issue.message);
+        const invitation = await issueInvitationCore({
+            ctx,
+            email: emailResult.value,
+            platformUserId: authContext.userId,
+            tenantId: args.tenantId,
+        });
+        await ctx.db.insert("devEmailMessages", {
+            createdAt: Date.now(),
+            debugLink: invitation.inviteUrl,
+            from: "Procureline <no-reply@procureline.local>",
+            html: `<p>You have been appointed to administer ${tenant.name} on Procureline.</p><p><a href="${invitation.inviteUrl}">Accept appointment</a></p>`,
+            idempotencyKey: `tenant-admin-replacement:${String(invitation.invitationId)}`,
+            messageType: "tenant_admin_invitation",
+            metadata: { invitationId: String(invitation.invitationId), mode: "platform_override", tenantId: String(args.tenantId) },
+            primaryRecipient: emailResult.value,
+            subject: "Tenant Admin replacement appointment",
+            text: `You have been appointed to administer ${tenant.name} on Procureline. Accept: ${invitation.inviteUrl}`,
+            to: [emailResult.value],
+            transport: "dev_inbox",
+        });
+        await auditTenantChange({
+            action: "assign_replacement_admin",
+            ctx,
+            event: AUDIT_EVENT_NAMES.tenantSettingsUpdated,
+            metadata: { normalizedEmail: normalizeAuthEmail(args.tenantAdminEmail), mode: "platform_override" },
+            platformUserId: authContext.userId,
+            recordId: String(invitation.invitationId),
+            targetTenantId: args.tenantId,
+        });
+        return invitation;
+    },
+});
+
 export const getTenantManagementDetail = query({
     args: { tenantId: v.id("tenants") },
     handler: async (ctx, args) => {
@@ -574,13 +622,9 @@ export const updateTenantSettings = mutation({
         if (email && !email.ok) {
             validationError("primaryContactEmail", email.issue.message);
         }
-        const fiscalYearStartMonth = assertIntegerInRange(
-            args.fiscalYearStartMonth,
-            "fiscalYearStartMonth",
-            "Fiscal year start month",
-            1,
-            12,
-        );
+        if (args.fiscalYearStartMonth !== undefined && args.fiscalYearStartMonth !== 7) {
+            validationError("fiscalYearStartMonth", "The institutional fiscal year is fixed from 1 July through 30 June.");
+        }
         const storageLimitBytes = assertPositiveFiniteNumber(args.storageLimitBytes, "storageLimitBytes", "Storage limit");
         const userLimit = assertIntegerInRange(args.userLimit, "userLimit", "User limit", 1, 100000);
         const procurementBudgetCeiling = assertPositiveFiniteNumber(
@@ -595,7 +639,7 @@ export const updateTenantSettings = mutation({
             primaryContactName: args.primaryContactName ? assertPlainText(args.primaryContactName, "primaryContactName", "Contact name", 120) : undefined,
             primaryContactPhone: args.primaryContactPhone ? assertPlainText(args.primaryContactPhone, "primaryContactPhone", "Contact phone", 40) : undefined,
             procurementBudgetCeiling,
-            fiscalYearStartMonth,
+            fiscalYearStartMonth: 7,
             timeZone: args.timeZone ? assertPlainText(args.timeZone, "timeZone", "Time zone", 80) : undefined,
             storageLimitBytes,
             userLimit,

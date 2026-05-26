@@ -73,7 +73,30 @@ async function runPlatformAdminDashboardTests() {
         ok: false,
         reason: "invalid",
     });
-    completedTests.push("platform-admin dashboard access tokens are signed, time-bound, and scoped to the current admin user");
+    const tenantListReadAccessToken = await (0, dashboard_access_token_1.createPlatformAdminDashboardReadAccessToken)({
+        now: Date.UTC(2026, 2, 22, 8, 15, 0),
+        scope: "tenant_list",
+        secret: "platform-admin-dashboard-test-secret",
+        userId: "user-platform-admin",
+    });
+    strict_1.default.deepEqual(await (0, dashboard_access_token_1.verifyPlatformAdminDashboardReadAccessToken)({
+        now: Date.UTC(2026, 2, 22, 8, 20, 0),
+        scope: "tenant_list",
+        secret: "platform-admin-dashboard-test-secret",
+        token: tenantListReadAccessToken,
+        userId: "user-platform-admin",
+    }), { ok: true });
+    strict_1.default.deepEqual(await (0, dashboard_access_token_1.verifyPlatformAdminDashboardReadAccessToken)({
+        now: Date.UTC(2026, 2, 22, 8, 20, 0),
+        scope: "tenant_list",
+        secret: "platform-admin-dashboard-test-secret",
+        token: dashboardReadAccessToken,
+        userId: "user-platform-admin",
+    }), {
+        ok: false,
+        reason: "invalid",
+    });
+    completedTests.push("platform-admin dashboard access tokens are signed, time-bound, and scoped to the current admin user and audited read surface");
     strict_1.default.throws(() => (0, dashboard_access_token_1.resolvePlatformAdminDashboardAccessTokenSecret)({
         nodeEnv: "production",
         secret: undefined,

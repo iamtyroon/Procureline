@@ -66,3 +66,21 @@ export const verifyManualBankTransfer = action({
     });
   },
 });
+
+export const generateInvoice = action({
+  args: {
+    amount: v.number(),
+    currency: v.string(),
+    idempotencyKey: v.optional(v.string()),
+    tenantReference: v.string(),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const actor = await getServiceActorContext(ctx);
+    return callNestService(ctx, {
+      actor,
+      body: args,
+      path: "/api/services/payments/invoices",
+    });
+  },
+});

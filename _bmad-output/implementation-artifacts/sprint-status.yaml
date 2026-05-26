@@ -76,7 +76,7 @@ development_status:
   2-1-platform-admin-authentication-2fa: done
   2-2-platform-admin-dashboard-shell: done
   3-1-tenant-admin-institution-setup-flow: done
-  3-3-po-management-add-invite: done # implementation reviewed, fixed, and reverified locally
+  3-3-po-management-add-invite: in-progress # single-PO tenant rule implemented; rendered verification remains
   4-2-department-crud-operations: done
   4-3-access-code-generation-management: done
   4-5-submission-deadline-management: done
@@ -121,13 +121,13 @@ development_status:
   2-13-system-configuration-feature-flags: done
 
 
-  3-4-po-management-lifecycle-activity: backlog # frontend-complete
-  3-5-institutional-settings-configuration: backlog # frontend-complete
-  3-6-billing-dashboard-payment-methods: backlog # frontend-complete
-  3-7-subscription-lifecycle-management: backlog
-  3-10-notification-system: backlog
-  3-11-security-session-management: backlog # frontend-complete
-  3-12-account-lifecycle-admin-transfer: backlog # frontend-complete
+  3-4-po-management-lifecycle-activity: in-progress # review fixes and single-PO rule applied; PO auth lockout producer and rendered verification remain
+  3-5-institutional-settings-configuration: in-progress # review fixes applied; rendered/manual verification remains
+  3-6-billing-dashboard-payment-methods: in-progress # review fixes applied; generated invoice delivery/expiry-provider verification remains
+  3-7-subscription-lifecycle-management: in-progress # review fixes applied; provider-confirmed manual verification remains
+  3-10-notification-system: in-progress # review fixes applied; recipient-visible PO inbox verification remains
+  3-11-security-session-management: in-progress # review fixes applied; new-device/export and full login-policy verification remain
+  3-12-account-lifecycle-admin-transfer: in-progress # review fixes applied; inactive recovery entry point/manual verification remains
 
 
   9-1-plan-workflow-notifications: backlog

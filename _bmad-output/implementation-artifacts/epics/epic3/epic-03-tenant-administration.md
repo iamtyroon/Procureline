@@ -240,8 +240,8 @@ So that I can monitor my organization's procurement activities at a glance.
 ### Story 3.3: PO Management - Add & Invite
 
 As a **Tenant Admin**,
-I want to add and invite Procurement Officers to my organization,
-So that they can manage departments and procurement activities.
+I want to assign my institution's single Procurement Officer,
+So that one accountable officer manages departments and procurement activities.
 
 **Acceptance Criteria:**
 
@@ -250,7 +250,8 @@ So that they can manage departments and procurement activities.
 **Then** system displays all POs with status indicators (Active, Pending, Deactivated) (FR-TA3a, FR15)
 **And** list shows name, email, status, last activity date
 
-**Given** a Tenant Admin clicks "Add PO"
+**Given** a tenant has no Procurement Officer assignment or pending invitation
+**When** a Tenant Admin clicks "Assign PO"
 **When** they fill in the form
 **Then** system requires name, email, and phone (FR-TA3b)
 **And** validates email format and phone format
@@ -261,6 +262,10 @@ So that they can manage departments and procurement activities.
 **And** system generates a one-time activation code for the same invitation
 **And** Tenant Admin can copy and share the activation code manually
 **And** invitation includes organization name and setup instructions
+
+**Given** a tenant already has a Procurement Officer assignment or valid pending invitation
+**When** a Tenant Admin attempts another PO assignment
+**Then** system blocks the action because one Procurement Officer seat is supported per tenant
 
 **Given** a Tenant Admin adds a PO
 **When** the email exists as a PO in a different tenant
@@ -347,18 +352,15 @@ So that I can maintain proper access control and oversight.
 **Then** system sends verification to new email (FR-TA3n)
 **And** old email remains active until new email verified
 
-**Given** a Tenant Admin has multiple POs to add
-**When** they use bulk import
-**Then** system accepts CSV file with name, email, phone columns (FR-TA3o)
-**And** validates each row independently
-**And** displays row-level errors for invalid entries
-**And** successfully imports valid rows
+**Given** a Tenant Admin manages a tenant with a single Procurement Officer seat
+**When** they open PO management
+**Then** system does not offer bulk PO import
+**And** replacement or reactivation follows controlled lifecycle behavior
 
 **Technical Notes:**
 - Soft delete via `isActive: boolean` and `deletedAt: timestamp` fields
 - Activity logs from `auditLogs` table with `actorId` filter
-- CSV parsing with validation using Papa Parse library
-- Bulk import creates invitations for all valid entries
+- Bulk PO import is not supported under the single-seat Procurement Officer policy
 
 ---
 
@@ -375,9 +377,9 @@ So that the platform operates according to my organization's requirements.
 **Then** system allows updating: organization name, logo, primary contact info (FR-TA4a)
 **And** changes are saved immediately
 
-**Given** a Tenant Admin configures fiscal year
-**When** they set the start month and naming convention
-**Then** system saves the fiscal year configuration (FR-TA4b)
+  **Given** a Tenant Admin configures fiscal year
+  **When** they choose a naming convention
+  **Then** system applies the fixed 1 July through 30 June fiscal-year boundary and saves the display configuration (FR-TA4b)
 **And** naming convention options include: "FY2025-26", "2025/2026", custom format
 
 **Given** a Tenant Admin changes fiscal year settings

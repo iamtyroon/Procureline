@@ -41,7 +41,8 @@ function resolveInvitationAccessMessage(args) {
         expiresAt,
         now: args.now,
         status: effectiveStatus,
-        tenantIsActive: requiredString(args.tenant.status) === "active",
+        tenantIsActive: requiredString(args.tenant.status) === "active" ||
+            requiredString(args.tenant.status) === "pending",
     });
 }
 async function appendAuditLog(ctx, entry) {
@@ -443,6 +444,11 @@ async function redeemInvitationForBackendTests(args) {
         status: "accepted",
         updatedAt: args.now,
     });
+    if (requiredString(tenant?.status) === "pending") {
+        await args.ctx.db.patch(requiredString(tenant?._id), {
+            status: "active",
+        });
+    }
     const onboardingState = await getLatestOnboardingState(args.ctx, requiredString(invitation.normalizedEmail));
     if (onboardingState) {
         await args.ctx.db.patch(requiredString(onboardingState._id), {

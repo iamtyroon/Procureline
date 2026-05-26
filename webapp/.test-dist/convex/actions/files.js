@@ -1,7 +1,7 @@
 "use node";
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.queueConsolidatedPlanExcelExport = exports.queueTenantAdminInstitutionalExport = exports.exportSubmissionMonitoringReport = exports.exportCatalogItems = exports.createPdf = exports.importWorkbook = exports.queueExcelExport = exports.createExcelExport = void 0;
+exports.queueConsolidatedPlanExcelExport = exports.runDueTenantAdminReportSchedules = exports.queueTenantAdminReportGeneration = exports.queueTenantAdminInstitutionalExport = exports.exportSubmissionMonitoringReport = exports.exportCatalogItems = exports.createPdf = exports.importWorkbook = exports.queueExcelExport = exports.createExcelExport = void 0;
 const values_1 = require("convex/values");
 const api_1 = require("../_generated/api");
 const server_1 = require("../_generated/server");
@@ -11,6 +11,7 @@ const catalog_filters_1 = require("../../lib/procurement-officer/catalog-filters
 const items_1 = require("../../lib/procurement-officer/items");
 const submission_monitoring_1 = require("../../lib/procurement-officer/submission-monitoring");
 const institutional_visibility_1 = require("../../lib/shared/tenant-admin/institutional-visibility");
+const report_generation_1 = require("../../lib/shared/tenant-admin/report-generation");
 exports.createExcelExport = (0, server_1.action)({
     args: {
         idempotencyKey: values_1.v.optional(values_1.v.string()),
@@ -337,6 +338,180 @@ exports.queueTenantAdminInstitutionalExport = (0, server_1.action)({
         }
     },
 });
+exports.queueTenantAdminReportGeneration = (0, server_1.action)({
+    args: {
+        parameters: values_1.v.object({
+            dateRange: values_1.v.object({
+                from: values_1.v.string(),
+                to: values_1.v.string(),
+            }),
+            departmentId: values_1.v.union(values_1.v.string(), values_1.v.literal("all")),
+            fiscalYear: values_1.v.string(),
+            format: values_1.v.union(values_1.v.literal("csv"), values_1.v.literal("xlsx")),
+            procurementOfficerId: values_1.v.union(values_1.v.string(), values_1.v.literal("all")),
+            reportType: values_1.v.union(values_1.v.literal("activity"), values_1.v.literal("audit"), values_1.v.literal("budget")),
+            status: values_1.v.union(values_1.v.literal("all"), values_1.v.literal("approved"), values_1.v.literal("draft"), values_1.v.literal("not_started"), values_1.v.literal("rejected"), values_1.v.literal("submitted")),
+        }),
+    },
+    returns: values_1.v.object({
+        fileName: values_1.v.optional(values_1.v.string()),
+        jobId: values_1.v.string(),
+        requestId: values_1.v.string(),
+        schemaVersion: values_1.v.string(),
+        state: values_1.v.union(values_1.v.literal("queued"), values_1.v.literal("ready")),
+    }),
+    handler: async (ctx, args) => {
+        const actor = await (0, _helpers_1.getServiceActorContext)(ctx);
+        if (actor.role !== "tenant_admin" || !actor.tenantId) {
+            throw new values_1.ConvexError({
+                code: "UNAUTHORIZED",
+                message: "Tenant Admin access is required for report generation.",
+            });
+        }
+        const validation = (0, report_generation_1.validateTenantAdminReportParameters)(args.parameters);
+        if (!validation.valid) {
+            throw new values_1.ConvexError({
+                code: "VALIDATION_FAILED",
+                message: validation.issues.join(" "),
+            });
+        }
+        const generatedAt = Date.now();
+        const requestId = [
+            "tenant-admin-report",
+            actor.tenantId,
+            args.parameters.reportType,
+            args.parameters.fiscalYear,
+            actor.userId,
+            String(generatedAt),
+        ].join(":");
+        const snapshot = (await ctx.runQuery(api_1.api.functions.tenantAdminDashboard.getTenantAdminDashboardSnapshot, { selectedFiscalYear: args.parameters.fiscalYear }));
+        const source = (await ctx.runQuery(api_1.api.functions.tenantAdminReports.getTenantAdminReportSource, { fiscalYear: args.parameters.fiscalYear }));
+        const metadata = (0, report_generation_1.buildTenantAdminReportMetadata)({
+            generatedAt,
+            generatedByTenantUserId: actor.userId,
+            parameters: args.parameters,
+            tenantId: String(actor.tenantId),
+            tenantName: snapshot.meta.tenantName || source.tenantName,
+        });
+        const rows = args.parameters.reportType === "budget"
+            ? (0, report_generation_1.buildBudgetReportRows)({
+                overview: snapshot.institutionalOverview,
+                parameters: args.parameters,
+            })
+            : (0, report_generation_1.buildAuditReportRows)(source.auditLogs);
+        const reportName = `${humanizeTenantAdminReportType(args.parameters.reportType)} Report ${args.parameters.fiscalYear}`;
+        await appendTenantAdminReportAudit(ctx, actor, {
+            outcome: "queued",
+            reportType: args.parameters.reportType,
+            requestId,
+            rowCount: rows.length,
+            summary: "Tenant Admin report request queued for server-side generation.",
+        });
+        try {
+            const jobId = (await ctx.runMutation(api_1.internal.functions.tenantAdminReports.createTenantAdminReportJobFromAction, {
+                idempotencyKey: requestId,
+                metadata,
+                parameters: args.parameters,
+                reportName,
+                status: "queued",
+            }));
+            const queued = await (0, _helpers_1.callNestService)(ctx, {
+                actor,
+                body: {
+                    idempotencyKey: requestId,
+                    metadata,
+                    reportName,
+                    rows,
+                },
+                path: (0, report_generation_1.buildTenantAdminReportServicePath)(args.parameters.format),
+            });
+            const state = queued.state === "export_ready" || queued.state === "ready"
+                ? "ready"
+                : "queued";
+            if (state === "ready") {
+                await ctx.runMutation(api_1.internal.functions.tenantAdminReports.completeTenantAdminReportJobFromService, {
+                    downloadUrl: queued.downloadUrl,
+                    fileName: queued.fileName,
+                    reportJobId: jobId,
+                    serviceJobId: queued.jobId,
+                });
+            }
+            else {
+                await ctx.runMutation(api_1.internal.functions.tenantAdminReports.attachTenantAdminReportServiceJob, {
+                    reportJobId: jobId,
+                    serviceJobId: queued.jobId,
+                });
+            }
+            await appendTenantAdminReportAudit(ctx, actor, {
+                outcome: state,
+                reportType: args.parameters.reportType,
+                requestId,
+                rowCount: rows.length,
+                summary: state === "ready"
+                    ? "Tenant Admin report is ready for secure delivery."
+                    : "Tenant Admin report is being generated server-side.",
+            });
+            return {
+                jobId,
+                requestId,
+                schemaVersion: metadata.schemaVersion,
+                state,
+                ...(queued.fileName ? { fileName: queued.fileName } : {}),
+            };
+        }
+        catch (error) {
+            const message = error instanceof Error && error.message.trim().length > 0
+                ? error.message.trim()
+                : "Tenant Admin report generation failed.";
+            await appendTenantAdminReportAudit(ctx, actor, {
+                outcome: "failed",
+                reportType: args.parameters.reportType,
+                requestId,
+                rowCount: rows.length,
+                summary: message,
+            });
+            await ctx.runMutation(api_1.internal.functions.tenantAdminReports.markTenantAdminReportJobFailedFromAction, {
+                errorMessage: message.slice(0, 240),
+                idempotencyKey: requestId,
+            });
+            throw error;
+        }
+    },
+});
+exports.runDueTenantAdminReportSchedules = (0, server_1.internalAction)({
+    args: {},
+    returns: values_1.v.null(),
+    handler: async (ctx) => {
+        const now = Date.now();
+        const schedules = (await ctx.runMutation(api_1.internal.functions.tenantAdminReports.listDueTenantAdminReportSchedules, { now, limit: 20 }));
+        for (const schedule of schedules) {
+            try {
+                await queueTenantAdminReportForActor(ctx, {
+                    actor: {
+                        role: "tenant_admin",
+                        tenantId: String(schedule.tenantId),
+                        userId: String(schedule.createdByTenantUserId),
+                    },
+                    parameters: {
+                        ...schedule.parameters,
+                        reportType: schedule.reportType,
+                    },
+                    scheduleId: schedule._id,
+                });
+                await ctx.runMutation(api_1.internal.functions.tenantAdminReports.markTenantAdminReportScheduleSuccess, { scheduleId: schedule._id });
+            }
+            catch (error) {
+                await ctx.runMutation(api_1.internal.functions.tenantAdminReports.markTenantAdminReportScheduleFailure, {
+                    errorMessage: error instanceof Error && error.message.trim().length > 0
+                        ? error.message
+                        : "Scheduled report generation failed.",
+                    scheduleId: schedule._id,
+                });
+            }
+        }
+        return null;
+    },
+});
 exports.queueConsolidatedPlanExcelExport = (0, server_1.action)({
     args: {
         consolidationId: values_1.v.id("consolidations"),
@@ -442,6 +617,92 @@ async function appendTenantAdminInstitutionalExportAudit(ctx, actor, args) {
         targetTenantId: actor.tenantId,
         timestamp: Date.now(),
     });
+}
+async function appendTenantAdminReportAudit(ctx, actor, args) {
+    await ctx.runMutation(api_1.internal.functions.auditLogs.appendAuditLogFromAction, {
+        action: "export",
+        actorRole: actor.role,
+        actorState: (0, audit_1.createAuthenticatedAuditActor)({
+            role: actor.role,
+            userId: actor.userId,
+        }).state,
+        actorUserId: actor.userId,
+        entityType: "tenant_admin_report",
+        event: "tenant_admin.report.generated",
+        metadata: {
+            reportType: args.reportType,
+            requestId: args.requestId,
+            rowCount: args.rowCount,
+            schemaVersion: "tenant-admin-report.v1",
+            summary: args.summary,
+        },
+        outcome: args.outcome,
+        recordId: args.requestId,
+        sourceTenantId: actor.tenantId,
+        tableName: "tenantAdminReportJobs",
+        targetTenantId: actor.tenantId,
+        timestamp: Date.now(),
+    });
+}
+async function queueTenantAdminReportForActor(ctx, args) {
+    const generatedAt = Date.now();
+    const requestId = [
+        "tenant-admin-scheduled-report",
+        args.actor.tenantId,
+        args.parameters.reportType,
+        args.parameters.fiscalYear,
+        args.scheduleId,
+        String(generatedAt),
+    ].join(":");
+    const metadata = (0, report_generation_1.buildTenantAdminReportMetadata)({
+        generatedAt,
+        generatedByTenantUserId: args.actor.userId,
+        parameters: args.parameters,
+        tenantId: args.actor.tenantId,
+        tenantName: "Tenant",
+    });
+    const reportName = `${humanizeTenantAdminReportType(args.parameters.reportType)} Report ${args.parameters.fiscalYear}`;
+    const jobId = (await ctx.runMutation(api_1.internal.functions.tenantAdminReports.createTenantAdminReportJobForSchedule, {
+        idempotencyKey: requestId,
+        metadata: {
+            ...metadata,
+            scheduleId: String(args.scheduleId),
+        },
+        parameters: args.parameters,
+        reportName,
+        tenantId: args.actor.tenantId,
+        tenantUserId: args.actor.userId,
+    }));
+    const queued = await (0, _helpers_1.callNestService)(ctx, {
+        actor: args.actor,
+        body: {
+            idempotencyKey: requestId,
+            metadata: {
+                ...metadata,
+                scheduleId: String(args.scheduleId),
+            },
+            reportName,
+            rows: [],
+        },
+        path: (0, report_generation_1.buildTenantAdminReportServicePath)(args.parameters.format),
+    });
+    if (queued.state === "export_ready" || queued.state === "ready") {
+        await ctx.runMutation(api_1.internal.functions.tenantAdminReports.completeTenantAdminReportJobFromService, {
+            downloadUrl: queued.downloadUrl,
+            fileName: queued.fileName,
+            reportJobId: jobId,
+            serviceJobId: queued.jobId,
+        });
+    }
+    else {
+        await ctx.runMutation(api_1.internal.functions.tenantAdminReports.attachTenantAdminReportServiceJob, {
+            reportJobId: jobId,
+            serviceJobId: queued.jobId,
+        });
+    }
+}
+function humanizeTenantAdminReportType(reportType) {
+    return reportType.charAt(0).toUpperCase() + reportType.slice(1);
 }
 async function appendCatalogExportAudit(ctx, actor, args) {
     await ctx.runMutation(api_1.internal.functions.auditLogs.appendAuditLogFromAction, {

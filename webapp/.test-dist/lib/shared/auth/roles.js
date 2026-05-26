@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.evaluateRoleRouteAccess = exports.resolveRoleRecords = exports.shouldTerminateAuthenticatedSession = exports.getAuthNoticeMessage = exports.buildForbiddenRedirectPath = exports.buildDashboardPath = exports.getProtectedRouteRole = exports.isSegmentAwarePrefixMatch = exports.getRoleLabel = exports.getHomePathForRole = exports.isTenantScopedRole = exports.isAppRole = exports.ROLE_HOME_PATHS = exports.ROLE_LABELS = exports.ROLE_MISCONFIGURED_REASON = exports.PENDING_ACCESS_REASON = exports.FORBIDDEN_ACCESS_REASON = exports.TENANT_SCOPED_ROLES = exports.APP_ROLES = void 0;
+const session_1 = require("./session");
 const auth_1 = require("../platform-admin/auth");
 const onboarding_1 = require("../tenant-admin/onboarding");
 exports.APP_ROLES = [
@@ -89,8 +90,12 @@ function getAuthNoticeMessage(reason) {
             return "Your account roles are misconfigured. Access is blocked until an administrator fixes the setup.";
         case auth_1.PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON:
             return "Platform Admin access requires a password reset before you can sign in again.";
+        case session_1.TENANT_ADMIN_PASSWORD_RESET_REQUIRED_REASON:
+            return "Tenant Admin access requires a password reset because the current password has expired.";
         case "subscription_inactive":
             return "Tenant deactivated. Contact Support.";
+        case "account_suspended":
+            return "Account suspended. Contact your administrator.";
         default:
             return null;
     }
@@ -100,9 +105,11 @@ function shouldTerminateAuthenticatedSession(authContext) {
     return (!authContext.isSessionValid ||
         authContext.accessState === "inactive" ||
         authContext.redirectReason === "account_deactivated" ||
+        authContext.redirectReason === "account_suspended" ||
         authContext.redirectReason === "session_expired" ||
         authContext.redirectReason ===
-            auth_1.PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON);
+            auth_1.PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON ||
+        authContext.redirectReason === session_1.TENANT_ADMIN_PASSWORD_RESET_REQUIRED_REASON);
 }
 exports.shouldTerminateAuthenticatedSession = shouldTerminateAuthenticatedSession;
 function resolveRoleRecords(args) {
@@ -254,6 +261,7 @@ function hasStaleTenantSelection(args) {
 function evaluateRoleRouteAccess(args) {
     const platformAdminAuthStage = args.authContext.platformAdminAuthStage ?? "not_applicable";
     const requiresPlatformAdminVerification = args.authContext.requiresPlatformAdminVerification === true;
+    const requiresTenantAdminVerification = args.authContext.requiresTenantAdminVerification === true;
     if (args.pathname === "/dashboard") {
         return { action: "allow" };
     }
@@ -287,6 +295,12 @@ function evaluateRoleRouteAccess(args) {
         };
     }
     if (requiredRole === "tenant_admin") {
+        if (requiresTenantAdminVerification) {
+            return {
+                action: "redirect",
+                target: args.authContext.redirectPath,
+            };
+        }
         const tenantAdminDecision = (0, onboarding_1.evaluateTenantAdminOnboardingRouteAccess)({
             homePath: args.authContext.homePath,
             onboardingStage: args.authContext.tenantAdminOnboardingStage ?? "not_applicable",

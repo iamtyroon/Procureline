@@ -24,6 +24,20 @@ crons.daily(
     {},
 );
 
+crons.daily(
+    "run tenant subscription reminders and scheduled changes",
+    { hourUTC: 0, minuteUTC: 30 },
+    internal.functions.tenantAdminOperations.runTenantSubscriptionMaintenance,
+    {},
+);
+
+crons.daily(
+    "deliver tenant notification digests",
+    { hourUTC: 4, minuteUTC: 0 },
+    internal.functions.tenantAdminOperations.runTenantNotificationDigests,
+    {},
+);
+
 crons.interval(
     "process due billing reconciliations",
     { minutes: 30 },

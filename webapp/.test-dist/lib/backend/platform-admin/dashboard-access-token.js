@@ -65,6 +65,7 @@ async function createPlatformAdminDashboardReadAccessToken(args) {
     const envelope = {
         expiresAt: issuedAt + exports.PLATFORM_ADMIN_DASHBOARD_ACCESS_TOKEN_TTL_MS,
         issuedAt,
+        scope: args.scope ?? "dashboard",
         userId: args.userId,
     };
     const encodedPayload = encodeTextBase64Url(JSON.stringify(envelope));
@@ -92,7 +93,15 @@ async function verifyPlatformAdminDashboardReadAccessToken(args) {
         const now = args.now ?? Date.now();
         if (typeof envelope.issuedAt !== "number" ||
             typeof envelope.expiresAt !== "number" ||
+            (typeof envelope.scope !== "undefined" &&
+                typeof envelope.scope !== "string") ||
             typeof envelope.userId !== "string") {
+            return {
+                ok: false,
+                reason: "invalid",
+            };
+        }
+        if ((envelope.scope ?? "dashboard") !== (args.scope ?? "dashboard")) {
             return {
                 ok: false,
                 reason: "invalid",

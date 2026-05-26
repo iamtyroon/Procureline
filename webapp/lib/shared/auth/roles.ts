@@ -1,4 +1,5 @@
 import type { SessionRedirectReason, SessionStatus } from "./session";
+import { TENANT_ADMIN_PASSWORD_RESET_REQUIRED_REASON } from "./session";
 import {
     isPlatformAdminAuthRoute,
     isPlatformAdminAuthStageVerified,
@@ -48,7 +49,8 @@ export type AuthNavigationReason =
     | typeof FORBIDDEN_ACCESS_REASON
     | typeof PENDING_ACCESS_REASON
     | typeof ROLE_MISCONFIGURED_REASON
-    | typeof PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON;
+    | typeof PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON
+    | typeof TENANT_ADMIN_PASSWORD_RESET_REQUIRED_REASON;
 
 export const ROLE_LABELS: Record<AuthContextRole, string> = {
     platform_admin: "Platform Admin",
@@ -109,6 +111,8 @@ export interface AuthContextSnapshot {
     sessionStatus: SessionStatus;
     platformAdminAuthStage?: PlatformAdminAuthStage;
     requiresPlatformAdminVerification?: boolean;
+    tenantAdminAuthStage?: "not_applicable" | "verification_required" | "verified";
+    requiresTenantAdminVerification?: boolean;
     tenantAdminOnboardingStage?: TenantAdminOnboardingStage;
     tenantId?: string;
     tenantStatus: TenantStatusValue;
@@ -181,6 +185,8 @@ export function getAuthNoticeMessage(reason?: string | null): string | null {
             return "Your account roles are misconfigured. Access is blocked until an administrator fixes the setup.";
         case PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON:
             return "Platform Admin access requires a password reset before you can sign in again.";
+        case TENANT_ADMIN_PASSWORD_RESET_REQUIRED_REASON:
+            return "Tenant Admin access requires a password reset because the current password has expired.";
         case "subscription_inactive":
             return "Tenant deactivated. Contact Support.";
         case "account_suspended":
@@ -203,7 +209,8 @@ export function shouldTerminateAuthenticatedSession(
         authContext.redirectReason === "account_suspended" ||
         authContext.redirectReason === "session_expired" ||
         authContext.redirectReason ===
-            PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON
+            PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON ||
+        authContext.redirectReason === TENANT_ADMIN_PASSWORD_RESET_REQUIRED_REASON
     );
 }
 
@@ -426,6 +433,8 @@ export function evaluateRoleRouteAccess(args: {
         args.authContext.platformAdminAuthStage ?? "not_applicable";
     const requiresPlatformAdminVerification =
         args.authContext.requiresPlatformAdminVerification === true;
+    const requiresTenantAdminVerification =
+        args.authContext.requiresTenantAdminVerification === true;
 
     if (args.pathname === "/dashboard") {
         return { action: "allow" };
@@ -469,6 +478,12 @@ export function evaluateRoleRouteAccess(args: {
     }
 
     if (requiredRole === "tenant_admin") {
+        if (requiresTenantAdminVerification) {
+            return {
+                action: "redirect",
+                target: args.authContext.redirectPath,
+            };
+        }
         const tenantAdminDecision = evaluateTenantAdminOnboardingRouteAccess({
             homePath: args.authContext.homePath,
             onboardingStage:

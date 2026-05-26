@@ -1,7 +1,7 @@
 "use node";
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cancelTransactionalEmail = exports.queueTransactionalEmail = void 0;
+exports.cancelTransactionalEmail = exports.queueTenantBackgroundEmail = exports.queueTransactionalEmail = void 0;
 const server_1 = require("../_generated/server");
 const values_1 = require("convex/values");
 const _helpers_1 = require("./_helpers");
@@ -20,6 +20,30 @@ exports.queueTransactionalEmail = (0, server_1.action)({
         return (0, _helpers_1.callNestService)(ctx, {
             actor,
             body: args,
+            path: "/api/services/email/send",
+        });
+    },
+});
+exports.queueTenantBackgroundEmail = (0, server_1.internalAction)({
+    args: {
+        idempotencyKey: values_1.v.string(),
+        subject: values_1.v.string(),
+        template: values_1.v.literal("generic-notification"),
+        templateProps: values_1.v.optional(values_1.v.any()),
+        tenantId: values_1.v.string(),
+        to: values_1.v.string(),
+        userId: values_1.v.string(),
+    },
+    returns: values_1.v.any(),
+    handler: async (ctx, args) => {
+        const { tenantId, userId, ...body } = args;
+        return (0, _helpers_1.callNestService)(ctx, {
+            actor: {
+                role: "tenant_admin",
+                tenantId,
+                userId,
+            },
+            body,
             path: "/api/services/email/send",
         });
     },

@@ -154,6 +154,9 @@ async function main(): Promise<void> {
     const { runTenantAdminOnboardingTests } = await import(
         "./tenant-admin-onboarding.test.js"
     );
+    const { runTenantAdminOperationsTests } = await import(
+        "./tenant-admin-operations.test.js"
+    );
     const { runTenantIsolationTests } = await import("./tenant-isolation.test.js");
 
     const completedTests = [
@@ -201,6 +204,7 @@ async function main(): Promise<void> {
         ...runTenantAdminInstitutionalVisibilityTests(),
         ...runTenantAdminReportGenerationTests(),
         ...(await runTenantAdminOnboardingTests()),
+        ...runTenantAdminOperationsTests(),
         ...runTenantIsolationTests(),
     ];
 

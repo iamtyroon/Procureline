@@ -3,6 +3,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.failSyncEvent = exports.completeSyncEvent = exports.claimSyncEvent = void 0;
 const values_1 = require("convex/values");
 const server_1 = require("../_generated/server");
+function stringField(record, field) {
+    const value = record?.[field];
+    return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+function numberField(record, field) {
+    const value = record?.[field];
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
 exports.claimSyncEvent = (0, server_1.internalMutation)({
     args: {
         actorRole: values_1.v.optional(values_1.v.string()),
@@ -91,6 +99,111 @@ exports.completeSyncEvent = (0, server_1.internalMutation)({
                     updatedAt: now,
                 });
             }
+            if (change &&
+                typeof change === "object" &&
+                change.changeType ===
+                    "files.tenant_admin_report.completed") {
+                const result = args.result;
+                const job = typeof change.reportJobId === "string"
+                    ? await ctx.db.get(change.reportJobId)
+                    : typeof change.idempotencyKey === "string"
+                        ? await ctx.db
+                            .query("tenantAdminReportJobs")
+                            .withIndex("by_idempotencyKey", (q) => q.eq("idempotencyKey", change.idempotencyKey))
+                            .first()
+                        : null;
+                if (job) {
+                    await ctx.db.patch(job._id, {
+                        checksum: typeof result.checksum === "string" ? result.checksum : undefined,
+                        downloadUrl: typeof result.downloadUrl === "string" ? result.downloadUrl : job.downloadUrl,
+                        fileName: typeof result.fileName === "string" ? result.fileName : job.fileName,
+                        fileSizeBytes: typeof result.fileSizeBytes === "number" ? result.fileSizeBytes : undefined,
+                        readyAt: Date.now(),
+                        status: "ready",
+                        storageId: typeof result.storageId === "string" ? result.storageId : undefined,
+                        updatedAt: Date.now(),
+                    });
+                }
+            }
+            if (change &&
+                typeof change === "object" &&
+                change.changeType ===
+                    "payment.subscription.provider_updated") {
+                const changeRecord = change;
+                const tenantId = stringField(changeRecord, "tenantId");
+                const tenantReference = stringField(changeRecord, "tenantReference");
+                const provider = stringField(changeRecord, "provider");
+                const paymentReference = stringField(changeRecord, "paymentReference") ?? args.eventKey;
+                const amountCents = numberField(changeRecord, "amountCents");
+                const currency = stringField(changeRecord, "currency") ?? "KES";
+                const nextBillingDate = numberField(changeRecord, "nextBillingDate");
+                const rawStatus = stringField(changeRecord, "subscriptionStatus") ?? "active";
+                const subscriptionStatus = rawStatus === "trialing" ||
+                    rawStatus === "past_due" ||
+                    rawStatus === "grace_period" ||
+                    rawStatus === "suspended" ||
+                    rawStatus === "cancelled"
+                    ? rawStatus
+                    : "active";
+                const billingCycle = stringField(changeRecord, "billingCycle") === "monthly" ? "monthly" : "annual";
+                const targetTenant = tenantId
+                    ? await ctx.db.get(tenantId)
+                    : tenantReference
+                        ? await ctx.db
+                            .query("tenants")
+                            .withIndex("by_subdomain", (q) => q.eq("subdomain", tenantReference))
+                            .first()
+                        : null;
+                if (targetTenant && (provider === "stripe" || provider === "intasend")) {
+                    const now = Date.now();
+                    const effectiveAmount = amountCents ?? targetTenant.subscriptionAmountCents ?? targetTenant.subscriptionCustomPriceCents ?? 0;
+                    await ctx.db.insert("billingRecords", {
+                        amountCents: effectiveAmount,
+                        billingCycle,
+                        createdAt: now,
+                        currency,
+                        metadata: {
+                            eventKey: args.eventKey,
+                            eventType: existing.eventType,
+                        },
+                        paymentReference,
+                        periodEnd: nextBillingDate ?? targetTenant.subscriptionNextBillingDate ?? now,
+                        periodStart: now,
+                        provider,
+                        status: subscriptionStatus === "past_due" ? "failed" : "verified",
+                        tenantId: targetTenant._id,
+                        updatedAt: now,
+                        verifiedAt: status === "past_due" ? undefined : now,
+                    });
+                    await ctx.db.insert("billingReconciliationRecords", {
+                        action: "provider_webhook_subscription_update",
+                        attempts: 1,
+                        createdAt: now,
+                        maxAttempts: 3,
+                        metadata: {
+                            eventKey: args.eventKey,
+                            eventType: existing.eventType,
+                            paymentReference,
+                        },
+                        paymentReference,
+                        provider,
+                        status: "processed",
+                        tenantId: targetTenant._id,
+                        updatedAt: now,
+                    });
+                    await ctx.db.patch(targetTenant._id, {
+                        lastPaymentFailureAt: subscriptionStatus === "past_due" ? now : targetTenant.lastPaymentFailureAt,
+                        status: subscriptionStatus === "suspended" || subscriptionStatus === "cancelled" ? subscriptionStatus : "active",
+                        subscriptionAmountCents: effectiveAmount,
+                        subscriptionBillingCycle: billingCycle,
+                        subscriptionCurrency: currency,
+                        subscriptionGracePeriodEndsAt: subscriptionStatus === "past_due" ? now + 7 * 24 * 60 * 60 * 1000 : undefined,
+                        subscriptionNextBillingDate: nextBillingDate ?? targetTenant.subscriptionNextBillingDate,
+                        subscriptionPaymentMethod: provider,
+                        subscriptionStatus: subscriptionStatus === "past_due" ? "grace_period" : subscriptionStatus,
+                    });
+                }
+            }
         }
         return { status: "completed" };
     },
@@ -121,6 +234,29 @@ exports.failSyncEvent = (0, server_1.internalMutation)({
             status: "failed",
             updatedAt: Date.now(),
         });
+        for (const change of args.durableChanges ?? existing.durableChanges) {
+            if (change &&
+                typeof change === "object" &&
+                change.changeType ===
+                    "files.tenant_admin_report.failed") {
+                const job = typeof change.reportJobId === "string"
+                    ? await ctx.db.get(change.reportJobId)
+                    : typeof change.idempotencyKey === "string"
+                        ? await ctx.db
+                            .query("tenantAdminReportJobs")
+                            .withIndex("by_idempotencyKey", (q) => q.eq("idempotencyKey", change.idempotencyKey))
+                            .first()
+                        : null;
+                if (job) {
+                    await ctx.db.patch(job._id, {
+                        errorMessage: args.error.message.slice(0, 240),
+                        failedAt: Date.now(),
+                        status: "failed",
+                        updatedAt: Date.now(),
+                    });
+                }
+            }
+        }
         return { status: "failed" };
     },
 });

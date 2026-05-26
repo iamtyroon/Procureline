@@ -1,11 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createLogoutMetadataPatch = exports.resolveSessionState = exports.getSessionInactivityWindowMs = exports.REMEMBER_ME_SESSION_WINDOW_MS = exports.STANDARD_SESSION_INACTIVITY_MS = exports.REMEMBER_ME_STORAGE_KEY = exports.SUBSCRIPTION_INACTIVE_REASON = exports.ACCOUNT_DEACTIVATED_REASON = exports.SESSION_EXPIRED_REASON = exports.PLATFORM_ADMIN_INACTIVITY_WINDOW_MS = void 0;
+exports.createLogoutMetadataPatch = exports.resolveSessionState = exports.getSessionInactivityWindowMs = exports.REMEMBER_ME_SESSION_WINDOW_MS = exports.STANDARD_SESSION_INACTIVITY_MS = exports.REMEMBER_ME_STORAGE_KEY = exports.TENANT_ADMIN_PASSWORD_RESET_REQUIRED_REASON = exports.ACCOUNT_SUSPENDED_REASON = exports.SUBSCRIPTION_INACTIVE_REASON = exports.ACCOUNT_DEACTIVATED_REASON = exports.SESSION_EXPIRED_REASON = exports.PLATFORM_ADMIN_INACTIVITY_WINDOW_MS = void 0;
 const auth_1 = require("../platform-admin/auth");
 Object.defineProperty(exports, "PLATFORM_ADMIN_INACTIVITY_WINDOW_MS", { enumerable: true, get: function () { return auth_1.PLATFORM_ADMIN_INACTIVITY_WINDOW_MS; } });
 exports.SESSION_EXPIRED_REASON = "session_expired";
 exports.ACCOUNT_DEACTIVATED_REASON = "account_deactivated";
 exports.SUBSCRIPTION_INACTIVE_REASON = "subscription_inactive";
+exports.ACCOUNT_SUSPENDED_REASON = "account_suspended";
+exports.TENANT_ADMIN_PASSWORD_RESET_REQUIRED_REASON = "tenant_admin_password_reset_required";
 exports.REMEMBER_ME_STORAGE_KEY = "pendingRememberMe";
 exports.STANDARD_SESSION_INACTIVITY_MS = 1000 * 60 * 60 * 24 * 15;
 exports.REMEMBER_ME_SESSION_WINDOW_MS = 1000 * 60 * 60 * 24 * 30;

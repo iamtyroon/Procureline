@@ -26,6 +26,11 @@ const PLATFORM_ADMIN_NAVIGATION = [
                 id: "subscriptions",
                 label: "Subscriptions",
             },
+            {
+                href: "/platform-admin/free-tier",
+                id: "free_tier",
+                label: "Free Tier",
+            },
         ],
     },
     {
@@ -51,11 +56,26 @@ const PLATFORM_ADMIN_NAVIGATION = [
                 id: "health",
                 label: "System Health",
             },
+            {
+                href: "/platform-admin/security",
+                id: "security",
+                label: "Security",
+            },
+            {
+                href: "/platform-admin/configuration",
+                id: "configuration",
+                label: "Configuration",
+            },
         ],
     },
     {
         label: "Support",
         items: [
+            {
+                href: "/platform-admin/support",
+                id: "support",
+                label: "Tickets & Incidents",
+            },
             {
                 href: "/platform-admin/audit-logs",
                 id: "audit_logs",
@@ -108,6 +128,7 @@ function createEmptyStatusCounts() {
     return {
         active: 0,
         cancelled: 0,
+        pending: 0,
         suspended: 0,
     };
 }

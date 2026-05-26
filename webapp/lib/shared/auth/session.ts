@@ -11,6 +11,7 @@ export const SESSION_EXPIRED_REASON = "session_expired" as const;
 export const ACCOUNT_DEACTIVATED_REASON = "account_deactivated" as const;
 export const SUBSCRIPTION_INACTIVE_REASON = "subscription_inactive" as const;
 export const ACCOUNT_SUSPENDED_REASON = "account_suspended" as const;
+export const TENANT_ADMIN_PASSWORD_RESET_REQUIRED_REASON = "tenant_admin_password_reset_required" as const;
 export const REMEMBER_ME_STORAGE_KEY = "pendingRememberMe";
 
 export const STANDARD_SESSION_INACTIVITY_MS = 1000 * 60 * 60 * 24 * 15;
@@ -20,7 +21,8 @@ export type SessionRedirectReason =
     | typeof SESSION_EXPIRED_REASON
     | typeof ACCOUNT_DEACTIVATED_REASON
     | typeof ACCOUNT_SUSPENDED_REASON
-    | typeof SUBSCRIPTION_INACTIVE_REASON;
+    | typeof SUBSCRIPTION_INACTIVE_REASON
+    | typeof TENANT_ADMIN_PASSWORD_RESET_REQUIRED_REASON;
 
 export type SessionStatus = "active" | "expired" | "revoked" | "logged_out";
 
@@ -52,6 +54,8 @@ export interface SessionMetadataRecordLike {
     platformAdminIpRegion?: string;
     platformAdminIpCity?: string;
     platformAdminUserAgent?: string;
+    tenantAdminAuthStage?: "verification_required" | "verified";
+    tenantAdminVerifiedAt?: number;
 }
 
 export interface ResolvedSessionState {

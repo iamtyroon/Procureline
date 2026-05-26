@@ -174,6 +174,16 @@ export default defineSchema({
     ),
     subscriptionNextBillingDate: v.optional(v.number()),
     subscriptionGracePeriodEndsAt: v.optional(v.number()),
+    subscriptionPendingTier: v.optional(
+      v.union(
+        v.literal("free"),
+        v.literal("starter"),
+        v.literal("professional"),
+        v.literal("enterprise"),
+      ),
+    ),
+    subscriptionPendingChangeEffectiveAt: v.optional(v.number()),
+    subscriptionDeletionReviewAt: v.optional(v.number()),
     subscriptionCustomPriceCents: v.optional(v.number()),
     subscriptionCustomPriceReason: v.optional(v.string()),
     subscriptionCustomPriceUpdatedAt: v.optional(v.number()),
@@ -329,6 +339,9 @@ export default defineSchema({
       v.literal("department_user"),
     ),
     isActive: v.boolean(),
+    deactivatedAt: v.optional(v.number()),
+    deactivatedByTenantUserId: v.optional(v.id("tenantUsers")),
+    reactivatedAt: v.optional(v.number()),
   })
     .index("by_userId", ["userId"])
     .index("by_tenantId", ["tenantId"])
@@ -1294,6 +1307,13 @@ export default defineSchema({
     platformAdminIpRegion: v.optional(v.string()),
     platformAdminIpCity: v.optional(v.string()),
     platformAdminUserAgent: v.optional(v.string()),
+    tenantAdminDeviceLabel: v.optional(v.string()),
+    tenantAdminIpCountry: v.optional(v.string()),
+    tenantAdminUserAgent: v.optional(v.string()),
+    tenantAdminAuthStage: v.optional(
+      v.union(v.literal("verification_required"), v.literal("verified")),
+    ),
+    tenantAdminVerifiedAt: v.optional(v.number()),
   })
     .index("by_sessionId", ["sessionId"])
     .index("by_userId", ["userId"])
@@ -1348,11 +1368,197 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
     metadata: v.optional(v.any()),
+    invoiceDownloadUrl: v.optional(v.string()),
+    invoiceGeneratedAt: v.optional(v.number()),
   })
     .index("by_tenantId", ["tenantId", "createdAt"])
     .index("by_paymentReference", ["paymentReference"])
     .index("by_status", ["status", "updatedAt"])
     .index("by_provider_status", ["provider", "status", "updatedAt"]),
+
+  tenantSettingsVersions: defineTable({
+    tenantId: v.id("tenants"),
+    version: v.number(),
+    effectiveFromNextCycle: v.boolean(),
+    fiscalYearStartMonth: v.number(),
+    fiscalYearDisplayFormat: v.union(
+      v.literal("FY2025-26"),
+      v.literal("2025/2026"),
+      v.literal("custom"),
+    ),
+    fiscalYearCustomFormat: v.optional(v.string()),
+    complianceTargets: v.object({
+      agpo: v.number(),
+      pwd: v.number(),
+      localContent: v.number(),
+    }),
+    allowedEmailDomains: v.array(v.string()),
+    createdByTenantUserId: v.id("tenantUsers"),
+    createdAt: v.number(),
+  })
+    .index("by_tenantId", ["tenantId", "version"])
+    .index("by_tenantId_createdAt", ["tenantId", "createdAt"]),
+
+  tenantPendingEmailChanges: defineTable({
+    tenantId: v.id("tenants"),
+    targetUserId: v.id("users"),
+    targetTenantUserId: v.id("tenantUsers"),
+    requestedByTenantUserId: v.id("tenantUsers"),
+    requestedEmail: v.string(),
+    tokenHash: v.string(),
+    purpose: v.union(v.literal("po_email"), v.literal("tenant_admin_email")),
+    status: v.union(v.literal("pending"), v.literal("verified"), v.literal("cancelled"), v.literal("expired")),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_tokenHash", ["tokenHash"])
+    .index("by_tenantId_targetTenantUserId", ["tenantId", "targetTenantUserId", "createdAt"]),
+
+  tenantNotifications: defineTable({
+    tenantId: v.id("tenants"),
+    recipientTenantUserId: v.id("tenantUsers"),
+    recipientUserId: v.id("users"),
+    eventKey: v.string(),
+    category: v.union(
+      v.literal("po_lifecycle"),
+      v.literal("submission"),
+      v.literal("billing"),
+      v.literal("security"),
+      v.literal("broadcast"),
+    ),
+    priority: v.union(v.literal("normal"), v.literal("high"), v.literal("critical")),
+    title: v.string(),
+    message: v.string(),
+    actionTarget: v.optional(
+      v.union(
+        v.literal("/tenant-admin/po-management"),
+        v.literal("/tenant-admin/billing"),
+        v.literal("/tenant-admin/security"),
+        v.literal("/tenant-admin/notifications"),
+      ),
+    ),
+    emailStatus: v.union(v.literal("not_requested"), v.literal("queued"), v.literal("digest_queued"), v.literal("sent"), v.literal("failed")),
+    readAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_eventKey", ["eventKey"])
+    .index("by_recipientTenantUserId", ["recipientTenantUserId", "createdAt"])
+    .index("by_tenantId", ["tenantId", "createdAt"]),
+
+  tenantNotificationPreferences: defineTable({
+    tenantId: v.id("tenants"),
+    tenantUserId: v.id("tenantUsers"),
+    preset: v.union(v.literal("all"), v.literal("critical_only"), v.literal("custom")),
+    categories: v.array(
+      v.object({
+        category: v.union(v.literal("po_lifecycle"), v.literal("submission"), v.literal("billing"), v.literal("security"), v.literal("broadcast")),
+        email: v.boolean(),
+        inApp: v.boolean(),
+      }),
+    ),
+    updatedAt: v.number(),
+  }).index("by_tenantUserId", ["tenantUserId"]),
+
+  tenantNotificationBroadcasts: defineTable({
+    tenantId: v.id("tenants"),
+    createdByTenantUserId: v.id("tenantUsers"),
+    subject: v.string(),
+    message: v.string(),
+    channels: v.array(v.union(v.literal("email"), v.literal("in_app"))),
+    createdAt: v.number(),
+  }).index("by_tenantId", ["tenantId", "createdAt"]),
+
+  tenantNotificationDeliveries: defineTable({
+    tenantId: v.id("tenants"),
+    broadcastId: v.id("tenantNotificationBroadcasts"),
+    recipientTenantUserId: v.id("tenantUsers"),
+    emailStatus: v.union(v.literal("not_requested"), v.literal("queued"), v.literal("failed")),
+    inAppNotificationId: v.optional(v.id("tenantNotifications")),
+    createdAt: v.number(),
+  }).index("by_broadcastId", ["broadcastId", "createdAt"]),
+
+  tenantAdminSecurityStates: defineTable({
+    tenantId: v.id("tenants"),
+    tenantUserId: v.id("tenantUsers"),
+    userId: v.id("users"),
+    totpSecretHash: v.optional(v.string()),
+    totpSecretCiphertext: v.optional(v.string()),
+    totpSecretIv: v.optional(v.string()),
+    totpEnrollmentPendingHash: v.optional(v.string()),
+    isTwoFactorEnrolled: v.boolean(),
+    recoveryCodes: v.array(v.object({
+      codeHash: v.string(),
+      suffix: v.string(),
+      consumedAt: v.optional(v.number()),
+    })),
+    recoveryCodesAcknowledgedAt: v.optional(v.number()),
+    failedLoginAttempts: v.number(),
+    lockedUntil: v.optional(v.number()),
+    passwordChangedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_tenantUserId", ["tenantUserId"]),
+
+  tenantSecurityEvents: defineTable({
+    tenantId: v.id("tenants"),
+    tenantUserId: v.id("tenantUsers"),
+    userId: v.id("users"),
+    event: v.string(),
+    deviceLabel: v.optional(v.string()),
+    country: v.optional(v.string()),
+    userAgent: v.optional(v.string()),
+    timestamp: v.number(),
+  }).index("by_tenantUserId", ["tenantUserId", "timestamp"]),
+
+  tenantAdminTransferRequests: defineTable({
+    tenantId: v.id("tenants"),
+    initiatedByTenantUserId: v.id("tenantUsers"),
+    recipientTenantUserId: v.id("tenantUsers"),
+    mode: v.union(v.literal("voluntary"), v.literal("platform_override")),
+    status: v.union(v.literal("pending_acceptance"), v.literal("completed"), v.literal("cancelled"), v.literal("expired")),
+    acceptanceTokenHash: v.string(),
+    initiatorConfirmedAt: v.number(),
+    acceptedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_tenantId", ["tenantId", "createdAt"])
+    .index("by_acceptanceTokenHash", ["acceptanceTokenHash"]),
+
+  tenantAdminDeletionRequests: defineTable({
+    tenantId: v.id("tenants"),
+    tenantUserId: v.id("tenantUsers"),
+    requestedByTenantUserId: v.id("tenantUsers"),
+    status: v.union(v.literal("requested"), v.literal("restored"), v.literal("blocked")),
+    recoverUntil: v.optional(v.number()),
+    requestedAt: v.number(),
+    restoredAt: v.optional(v.number()),
+  }).index("by_tenantUserId", ["tenantUserId", "requestedAt"]),
+
+  tenantSubscriptionChangeRequests: defineTable({
+    tenantId: v.id("tenants"),
+    requestedByTenantUserId: v.id("tenantUsers"),
+    fromTier: v.union(v.literal("free"), v.literal("starter"), v.literal("professional"), v.literal("enterprise")),
+    toTier: v.union(v.literal("free"), v.literal("starter"), v.literal("professional"), v.literal("enterprise")),
+    changeType: v.union(v.literal("upgrade"), v.literal("downgrade"), v.literal("enterprise_contact")),
+    status: v.union(v.literal("pending_provider_confirmation"), v.literal("scheduled"), v.literal("blocked"), v.literal("submitted")),
+    effectiveAt: v.optional(v.number()),
+    prorationAmountCents: v.optional(v.number()),
+    blockers: v.optional(v.array(v.string())),
+    createdAt: v.number(),
+  }).index("by_tenantId", ["tenantId", "createdAt"]),
+
+  tenantSubscriptionReminders: defineTable({
+    tenantId: v.id("tenants"),
+    idempotencyKey: v.string(),
+    reminderType: v.union(v.literal("grace_daily"), v.literal("renewal_30"), v.literal("renewal_7"), v.literal("deletion_review")),
+    deliverAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_idempotencyKey", ["idempotencyKey"])
+    .index("by_tenantId", ["tenantId", "createdAt"]),
 
   billingReconciliationRecords: defineTable({
     tenantId: v.optional(v.id("tenants")),

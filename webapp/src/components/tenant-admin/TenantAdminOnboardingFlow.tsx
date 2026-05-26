@@ -41,6 +41,7 @@ const ONBOARDING_STEPS = [
         title: "Institution profile",
     },
 ] as const;
+const INSTITUTIONAL_FISCAL_YEAR_START_MONTH = 7;
 
 export function TenantAdminOnboardingFlow(): JSX.Element {
     const router = useRouter();
@@ -56,7 +57,7 @@ export function TenantAdminOnboardingFlow(): JSX.Element {
     const form = useForm<TenantAdminInstitutionProfileFormData>({
         resolver: zodResolver(tenantAdminInstitutionProfileSchema),
         defaultValues: {
-            fiscalYearStartMonth: 7,
+            fiscalYearStartMonth: INSTITUTIONAL_FISCAL_YEAR_START_MONTH,
             institutionName: "",
             logoUrl: "",
             primaryContactEmail: "",
@@ -82,7 +83,7 @@ export function TenantAdminOnboardingFlow(): JSX.Element {
         }
 
         form.reset({
-            fiscalYearStartMonth: onboardingContext.fiscalYearStartMonth ?? 7,
+            fiscalYearStartMonth: INSTITUTIONAL_FISCAL_YEAR_START_MONTH,
             institutionName: onboardingContext.institutionName,
             logoUrl: onboardingContext.logoUrl ?? "",
             primaryContactEmail: onboardingContext.primaryContactEmail,
@@ -96,7 +97,7 @@ export function TenantAdminOnboardingFlow(): JSX.Element {
     ): Promise<void> {
         try {
             await completeInstitutionProfile({
-                fiscalYearStartMonth: values.fiscalYearStartMonth,
+                fiscalYearStartMonth: INSTITUTIONAL_FISCAL_YEAR_START_MONTH,
                 institutionName: values.institutionName,
                 logoUrl: values.logoUrl || undefined,
                 primaryContactEmail: values.primaryContactEmail,
@@ -263,26 +264,13 @@ export function TenantAdminOnboardingFlow(): JSX.Element {
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="fiscalYearStartMonth">
-                                    Fiscal year start month
-                                </Label>
-                                <Input
-                                    id="fiscalYearStartMonth"
-                                    type="number"
-                                    min={1}
-                                    max={12}
-                                    {...form.register("fiscalYearStartMonth", {
-                                        valueAsNumber: true,
-                                    })}
-                                />
-                                {form.formState.errors.fiscalYearStartMonth?.message ? (
-                                    <p className="text-sm text-destructive">
-                                        {
-                                            form.formState.errors.fiscalYearStartMonth
-                                                .message
-                                        }
-                                    </p>
-                                ) : null}
+                                <Label>Fiscal year period</Label>
+                                <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm">
+                                    1 July - 30 June
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                    Fixed institutional reporting cycle.
+                                </p>
                             </div>
 
                             <div className="space-y-2">

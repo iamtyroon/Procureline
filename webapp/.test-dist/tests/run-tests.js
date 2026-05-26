@@ -60,7 +60,9 @@ async function main() {
     const { runSignupFlowTests } = await import("./signup-flow.test.js");
     const { runTenantAdminDashboardTests } = await import("./tenant-admin-dashboard.test.js");
     const { runTenantAdminInstitutionalVisibilityTests } = await import("./tenant-admin-institutional-visibility.test.js");
+    const { runTenantAdminReportGenerationTests } = await import("./tenant-admin-report-generation.test.js");
     const { runTenantAdminOnboardingTests } = await import("./tenant-admin-onboarding.test.js");
+    const { runTenantAdminOperationsTests } = await import("./tenant-admin-operations.test.js");
     const { runTenantIsolationTests } = await import("./tenant-isolation.test.js");
     const completedTests = [
         ...runBlocklyWorkspacePersistenceTests(),
@@ -105,7 +107,9 @@ async function main() {
         ...runSignupFlowTests(),
         ...runTenantAdminDashboardTests(),
         ...runTenantAdminInstitutionalVisibilityTests(),
+        ...runTenantAdminReportGenerationTests(),
         ...(await runTenantAdminOnboardingTests()),
+        ...runTenantAdminOperationsTests(),
         ...runTenantIsolationTests(),
     ];
     for (const completedTest of completedTests) {

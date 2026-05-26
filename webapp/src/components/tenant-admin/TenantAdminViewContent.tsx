@@ -1,10 +1,8 @@
 import Link from "next/link";
 import {
     ArrowRight,
-    CreditCard,
     Download,
     Search,
-    Settings2,
     UserCog,
     UserPlus,
     Building2,
@@ -39,6 +37,12 @@ import { formatDashboardTimestamp, formatFiscalYearLabel, type DashboardCycleSta
 import { cn } from "@/lib/utils";
 import { InstitutionalOverviewView } from "@/src/components/tenant-admin/InstitutionalOverviewView";
 import { TenantAdminReportsView } from "@/src/components/tenant-admin/TenantAdminReportsView";
+import {
+    TenantAdminBillingOperationsView,
+    TenantAdminNotificationsView,
+    TenantAdminSecurityView,
+    TenantAdminSettingsOperationsView,
+} from "@/src/components/tenant-admin/TenantAdminOperationsViews";
 
 export type TenantAdminView =
     | "audit-log"
@@ -48,6 +52,8 @@ export type TenantAdminView =
     | "departments"
     | "po-management"
     | "reports"
+    | "notifications"
+    | "security"
     | "settings";
 
 export const TENANT_ADMIN_VIEW_META: Record<
@@ -82,6 +88,14 @@ export const TENANT_ADMIN_VIEW_META: Record<
         title: "Reports",
         subtitle: "Prepare report exports and reporting workflows for tenant leadership.",
     },
+    notifications: {
+        title: "Notifications",
+        subtitle: "Manage actionable messages, preferences, and PO broadcasts.",
+    },
+    security: {
+        title: "Security & Sessions",
+        subtitle: "Review access history, authenticator protection, and active sessions.",
+    },
     settings: {
         title: "Settings",
         subtitle: "Review institution profile details and tenant-admin account settings.",
@@ -112,9 +126,13 @@ export function renderTenantAdminView(args: RenderTenantAdminViewArgs): JSX.Elem
         case "departments":
             return renderDepartmentsView(args.snapshot);
         case "billing":
-            return renderBillingView(args.snapshot);
+            return <TenantAdminBillingOperationsView />;
         case "settings":
-            return renderSettingsView(args.snapshot);
+            return <TenantAdminSettingsOperationsView snapshot={args.snapshot} />;
+        case "notifications":
+            return <TenantAdminNotificationsView />;
+        case "security":
+            return <TenantAdminSecurityView />;
         case "audit-log":
             return renderAuditLogView(args);
         case "reports":
@@ -132,8 +150,9 @@ function renderDashboardView({
     snapshot,
 }: RenderTenantAdminViewArgs): JSX.Element {
     return (
-        <section className="grid gap-5 xl:grid-cols-3">
-            <Card className="rounded-2xl border-border/70 bg-card shadow-sm xl:col-span-2">
+        <section className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
+            <div className="space-y-5">
+            <Card className="rounded-2xl border-border/70 bg-card shadow-sm">
                 <CardContent className="space-y-6 p-6">
                     <div className="flex items-start gap-4">
                         <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-emerald-500 text-lg font-extrabold text-primary-foreground">
@@ -153,7 +172,7 @@ function renderDashboardView({
                     <div className="flex flex-wrap items-center gap-3">
                         <div className="inline-flex items-center gap-2 rounded-md border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary">
                             <Landmark className="h-3.5 w-3.5" />
-                            {formatFiscalYearLabel(snapshot.meta.selectedFiscalYear)}
+                            Viewing {formatFiscalYearLabel(snapshot.meta.selectedFiscalYear)}
                         </div>
                         <StatusBadge tone="success" value={humanizeTenantStatus(snapshot.meta.tenantStatus)} />
                     </div>
@@ -169,7 +188,7 @@ function renderDashboardView({
 
                         <div className="rounded-xl border border-border/70 bg-background p-4">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                                Fiscal year
+                                Dashboard period
                             </p>
                             <Select value={snapshot.meta.selectedFiscalYear} onValueChange={onFiscalYearChange}>
                                 <SelectTrigger className="mt-3 h-10 rounded-lg border-border bg-background">
@@ -183,6 +202,18 @@ function renderDashboardView({
                                     ))}
                                 </SelectContent>
                             </Select>
+                            {snapshot.meta.isSelectedCurrentFiscalYear ? (
+                                <p className="mt-3 text-xs text-muted-foreground">
+                                    Current active cycle: {formatFiscalYearLabel(snapshot.meta.currentFiscalYear)}
+                                    {" "} (1 July - 30 June).
+                                </p>
+                            ) : (
+                                <div className="mt-3 rounded-md border border-primary/20 bg-primary/5 p-2 text-xs text-muted-foreground">
+                                    Viewing {formatFiscalYearLabel(snapshot.meta.selectedFiscalYear)} data only.
+                                    Current active cycle is {formatFiscalYearLabel(snapshot.meta.currentFiscalYear)}
+                                    {" "} until 30 June {snapshot.meta.currentFiscalYear.split("-")[1]}.
+                                </div>
+                            )}
                             <div className="mt-4 space-y-2 text-xs text-muted-foreground">
                                 <div className="flex items-center gap-2">
                                     <LayoutGrid className="h-3.5 w-3.5 text-primary" />
@@ -202,36 +233,24 @@ function renderDashboardView({
                 </CardContent>
             </Card>
 
-            <PrototypeStatCard
-                icon={Users2}
-                iconTone="secondary"
-                label="Total Users"
-                meta={formatUserBreakdownShort(snapshot.userSummary)}
-                value={String(snapshot.userSummary.activeTotal)}
-            />
-            <PrototypeStatCard
-                icon={ShieldCheck}
-                iconTone="primary"
-                label="Submission Progress"
-                meta={snapshot.summaryCards.submissionProgress.helperText}
-                value={snapshot.summaryCards.submissionProgress.value}
-            />
-            <PrototypeStatCard
-                icon={Wallet}
-                iconTone="accent"
-                label="Budget Utilized"
-                meta={snapshot.summaryCards.budgetUtilization.helperText}
-                value={snapshot.summaryCards.budgetUtilization.value}
-            />
-            <PrototypeStatCard
-                icon={Building2}
-                iconTone="tertiary"
-                label="Active Departments"
-                meta={snapshot.summaryCards.departments.helperText}
-                value={snapshot.summaryCards.departments.value}
-            />
+            <div className="grid gap-5 md:grid-cols-2">
+                <PrototypeStatCard
+                    icon={ShieldCheck}
+                    iconTone="primary"
+                    label="Submission Progress"
+                    meta={snapshot.summaryCards.submissionProgress.helperText}
+                    value={snapshot.summaryCards.submissionProgress.value}
+                />
+                <PrototypeStatCard
+                    icon={Wallet}
+                    iconTone="accent"
+                    label="Budget Utilized"
+                    meta={snapshot.summaryCards.budgetUtilization.helperText}
+                    value={snapshot.summaryCards.budgetUtilization.value}
+                />
+            </div>
 
-            <Card className="rounded-2xl border-border/70 bg-card shadow-sm xl:col-span-2">
+            <Card className="rounded-2xl border-border/70 bg-card shadow-sm">
                 <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-border/70 pb-4">
                     <div className="flex items-center gap-3 text-sm font-semibold text-foreground">
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
@@ -269,29 +288,6 @@ function renderDashboardView({
             </Card>
 
             <Card className="rounded-2xl border-border/70 bg-card shadow-sm">
-                <CardHeader className="space-y-3 pb-4">
-                    <CardTitle className="text-sm font-semibold text-foreground">Procurement Cycle</CardTitle>
-                    <CardDescription className="text-sm leading-6 text-muted-foreground">
-                        {snapshot.cycleState.description}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="text-2xl font-bold tracking-tight text-foreground">
-                        {snapshot.cycleState.title}
-                    </div>
-                    <StatusBadge tone={getCycleTone(snapshot.cycleState.state)} value={humanizeCycleState(snapshot.cycleState.state)} />
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span>Cycle signal</span>
-                            <span>{getCycleProgressValue(snapshot.cycleState.state)}%</span>
-                        </div>
-                        <Progress value={getCycleProgressValue(snapshot.cycleState.state)} className="h-2 bg-muted" />
-                    </div>
-                    <p className="text-sm leading-6 text-muted-foreground">{liveCountdownLabel}</p>
-                </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl border-border/70 bg-card shadow-sm xl:col-span-3">
                 <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-border/70 pb-4">
                     <div className="flex items-center gap-3 text-sm font-semibold text-foreground">
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-secondary-foreground shadow-sm">
@@ -319,6 +315,50 @@ function renderDashboardView({
                     </div>
                 </CardContent>
             </Card>
+            </div>
+
+            <aside className="space-y-5">
+                <PrototypeStatCard
+                    className="xl:min-h-[210px]"
+                    compact
+                    icon={Users2}
+                    iconTone="secondary"
+                    label="Total Users"
+                    meta={formatUserBreakdownShort(snapshot.userSummary)}
+                    value={String(snapshot.userSummary.activeTotal)}
+                />
+                <PrototypeStatCard
+                    className="xl:min-h-[178px]"
+                    compact
+                    icon={Building2}
+                    iconTone="tertiary"
+                    label="Active Departments"
+                    meta={snapshot.summaryCards.departments.helperText}
+                    value={snapshot.summaryCards.departments.value}
+                />
+                <Card className="rounded-2xl border-border/70 bg-card shadow-sm">
+                    <CardHeader className="space-y-3 pb-4">
+                        <CardTitle className="text-sm font-semibold text-foreground">Procurement Cycle</CardTitle>
+                        <CardDescription className="text-sm leading-6 text-muted-foreground">
+                            {snapshot.cycleState.description}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="text-2xl font-bold tracking-tight text-foreground">
+                            {snapshot.cycleState.title}
+                        </div>
+                        <StatusBadge tone={getCycleTone(snapshot.cycleState.state)} value={humanizeCycleState(snapshot.cycleState.state)} />
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span>Cycle signal</span>
+                                <span>{getCycleProgressValue(snapshot.cycleState.state)}%</span>
+                            </div>
+                            <Progress value={getCycleProgressValue(snapshot.cycleState.state)} className="h-2 bg-muted" />
+                        </div>
+                        <p className="text-sm leading-6 text-muted-foreground">{liveCountdownLabel}</p>
+                    </CardContent>
+                </Card>
+            </aside>
         </section>
     );
 }
@@ -489,103 +529,6 @@ function renderDepartmentsView(snapshot: TenantAdminDashboardSnapshot): JSX.Elem
     return <InstitutionalOverviewView overview={snapshot.institutionalOverview} />;
 }
 
-function renderBillingView(snapshot: TenantAdminDashboardSnapshot): JSX.Element {
-    const tierLimits = getTenantTierLimitPresentation(snapshot.meta.tenantTier);
-
-    return (
-        <div className="grid gap-5 xl:grid-cols-3">
-            <Card className="rounded-2xl border-border/70 bg-card shadow-sm">
-                <CardContent className="space-y-5 p-6">
-                    <div>
-                        <div className="text-lg font-semibold text-foreground">
-                            {humanizeTenantTier(snapshot.meta.tenantTier)} plan
-                        </div>
-                        <div className="mt-2 text-4xl font-bold tracking-tight text-foreground">
-                            {tierLimits.priceLabel}
-                        </div>
-                        <div className="mt-1 text-sm text-muted-foreground">
-                            per year ({formatFiscalYearLabel(snapshot.meta.selectedFiscalYear)})
-                        </div>
-                    </div>
-                    <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/30 p-4 text-sm">
-                        <BillingDetailRow label="Tenant status" value={humanizeTenantStatus(snapshot.meta.tenantStatus)} />
-                        <BillingDetailRow label="Tier" value={humanizeTenantTier(snapshot.meta.tenantTier)} />
-                        <BillingDetailRow label="Users in use" value={String(snapshot.userSummary.activeTotal)} />
-                        <BillingDetailRow label="Departments in use" value={snapshot.summaryCards.departments.value} />
-                    </div>
-                    <Button variant="outline" className="w-full gap-2">
-                        <CreditCard className="h-4 w-4" />
-                        Manage subscription
-                    </Button>
-                </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl border-border/70 bg-card shadow-sm xl:col-span-2">
-                <CardHeader className="border-b border-border/70 pb-4">
-                    <CardTitle className="text-base text-foreground">
-                        Usage ({formatFiscalYearLabel(snapshot.meta.selectedFiscalYear)})
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-5 p-6">
-                    <UsageMeter label="Departments" currentValue={Number(snapshot.summaryCards.departments.value) || 0} limitValue={tierLimits.departments} />
-                    <UsageMeter label="Users" currentValue={snapshot.userSummary.activeTotal} limitValue={tierLimits.users} />
-                    <UsageMeter label="Storage" currentValue={0} limitValue={tierLimits.storageGb} suffix="GB" />
-                    <UsageMeter label="Plan Revisions" currentValue={0} limitValue={tierLimits.revisions} />
-                </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl border-border/70 bg-card shadow-sm xl:col-span-3">
-                <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-border/70 pb-4">
-                    <CardTitle className="text-base text-foreground">Invoice History</CardTitle>
-                    <Button variant="ghost" size="sm" disabled>Download all</Button>
-                </CardHeader>
-                <CardContent className="p-6">
-                    <EmptyStateCard
-                        description="Billing invoices and payment history will populate here when the tenant billing stories land."
-                        title="Invoice history not connected yet"
-                    />
-                </CardContent>
-            </Card>
-        </div>
-    );
-}
-
-function renderSettingsView(snapshot: TenantAdminDashboardSnapshot): JSX.Element {
-    return (
-        <div className="grid gap-5 xl:grid-cols-3">
-            <Card className="rounded-2xl border-border/70 bg-card shadow-sm xl:col-span-2">
-                <CardHeader className="border-b border-border/70 pb-4">
-                    <CardTitle className="text-base text-foreground">Institution Settings</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-5 p-6">
-                    <ReadOnlyField label="Institution Name" value={snapshot.meta.tenantName} />
-                    <ReadOnlyField label="Current Fiscal Year" value={formatFiscalYearLabel(snapshot.meta.selectedFiscalYear)} />
-                    <ReadOnlyField label="Subscription Tier" value={humanizeTenantTier(snapshot.meta.tenantTier)} />
-                    <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm leading-6 text-muted-foreground">
-                        <div className="mb-2 flex items-center gap-2 font-medium text-foreground">
-                            <Settings2 className="h-4 w-4 text-primary" />
-                            Settings actions are staged
-                        </div>
-                        This screen now mirrors the prototype layout, but save actions will connect to the full institution settings story next.
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl border-border/70 bg-card shadow-sm">
-                <CardHeader className="border-b border-border/70 pb-4">
-                    <CardTitle className="text-base text-foreground">Your Profile</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-5 p-6">
-                    <ReadOnlyField label="Full Name" value={snapshot.directory.currentTenantAdmin?.name ?? "Tenant Admin"} />
-                    <ReadOnlyField label="Email" value={snapshot.directory.currentTenantAdmin?.email ?? "No email available"} />
-                    <Button variant="outline" className="w-full">Change password</Button>
-                    <Button className="w-full">Update profile</Button>
-                </CardContent>
-            </Card>
-        </div>
-    );
-}
-
 function renderAuditLogView({
     onDirectoryQueryChange,
     visibleAuditItems,
@@ -637,6 +580,8 @@ function renderReportsView(snapshot: TenantAdminDashboardSnapshot): JSX.Element 
 }
 
 interface PrototypeStatCardProps {
+    className?: string;
+    compact?: boolean;
     icon: typeof Users2;
     iconTone: "accent" | "primary" | "secondary" | "tertiary";
     label: string;
@@ -645,6 +590,8 @@ interface PrototypeStatCardProps {
 }
 
 function PrototypeStatCard({
+    className,
+    compact = false,
     icon: Icon,
     iconTone,
     label,
@@ -652,24 +599,25 @@ function PrototypeStatCard({
     value,
 }: PrototypeStatCardProps): JSX.Element {
     return (
-        <Card className="relative overflow-hidden rounded-2xl border-border/70 bg-card shadow-sm">
+        <Card className={cn("relative overflow-hidden rounded-2xl border-border/70 bg-card shadow-sm", className)}>
             <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-primary to-emerald-400 opacity-0 transition-opacity duration-300 hover:opacity-100" />
-            <CardContent className="p-6">
+            <CardContent className={cn(compact ? "p-5" : "p-6")}>
                 <div
                     className={cn(
-                        "mb-4 flex h-11 w-11 items-center justify-center rounded-[10px] shadow-sm",
+                        "flex items-center justify-center rounded-[10px] shadow-sm",
+                        compact ? "mb-3 h-10 w-10" : "mb-4 h-11 w-11",
                         iconTone === "primary" && "bg-primary text-primary-foreground",
                         iconTone === "secondary" && "bg-secondary text-secondary-foreground",
                         iconTone === "accent" && "bg-accent text-accent-foreground",
                         iconTone === "tertiary" && "bg-muted text-foreground",
                     )}
                 >
-                    <Icon className="h-5 w-5" />
+                    <Icon className={compact ? "h-4 w-4" : "h-5 w-5"} />
                 </div>
                 <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                     {label}
                 </div>
-                <div className="mt-1 text-[1.75rem] font-bold tracking-tight text-foreground">
+                <div className={cn("mt-1 font-bold tracking-tight text-foreground", compact ? "text-2xl" : "text-[1.75rem]")}>
                     {value}
                 </div>
                 <div className="mt-1 text-sm text-muted-foreground">{meta}</div>
@@ -869,93 +817,4 @@ function PrototypeMetricTile({
             </CardContent>
         </Card>
     );
-}
-
-function BillingDetailRow({
-    label,
-    value,
-}: {
-    label: string;
-    value: string;
-}): JSX.Element {
-    return (
-        <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">{label}</span>
-            <span className="font-medium text-foreground">{value}</span>
-        </div>
-    );
-}
-
-function UsageMeter({
-    currentValue,
-    label,
-    limitValue,
-    suffix = "",
-}: {
-    currentValue: number;
-    label: string;
-    limitValue: number | null;
-    suffix?: string;
-}): JSX.Element {
-    const percentage =
-        limitValue === null || limitValue <= 0
-            ? 10
-            : Math.max(0, Math.min(100, Math.round((currentValue / limitValue) * 100)));
-    const renderedCurrentValue = suffix ? `${currentValue} ${suffix}` : String(currentValue);
-    const renderedLimit =
-        limitValue === null ? "Unlimited" : suffix ? `${limitValue} ${suffix}` : String(limitValue);
-
-    return (
-        <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-foreground">{label}</span>
-                <span className="text-muted-foreground">
-                    {renderedCurrentValue} of {renderedLimit}
-                </span>
-            </div>
-            <Progress value={percentage} className="h-2 bg-muted" />
-        </div>
-    );
-}
-
-function ReadOnlyField({
-    label,
-    value,
-}: {
-    label: string;
-    value: string;
-}): JSX.Element {
-    return (
-        <div className="space-y-2">
-            <div className="text-sm font-medium text-foreground">{label}</div>
-            <div className="rounded-xl border border-border/70 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                {value}
-            </div>
-        </div>
-    );
-}
-
-function getTenantTierLimitPresentation(
-    tier: TenantAdminDashboardSnapshot["meta"]["tenantTier"],
-): {
-    departments: number | null;
-    priceLabel: string;
-    revisions: number | null;
-    storageGb: number | null;
-    users: number | null;
-} {
-    switch (tier) {
-        case "free":
-            return { departments: 10, priceLabel: "$0", revisions: 2, storageGb: 5, users: 15 };
-        case "starter":
-            return { departments: 30, priceLabel: "$2,769", revisions: 4, storageGb: 25, users: 50 };
-        case "professional":
-            return { departments: 100, priceLabel: "$9,230", revisions: 8, storageGb: 100, users: 200 };
-        default:
-            return { departments: null, priceLabel: "Custom", revisions: null, storageGb: null, users: null };
-    }
-}
-
-function humanizeTenantTier(tier: TenantAdminDashboardSnapshot["meta"]["tenantTier"]): string {
-    return tier.charAt(0).toUpperCase() + tier.slice(1);
 }

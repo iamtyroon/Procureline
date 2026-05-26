@@ -7,6 +7,7 @@ import {
     ACCOUNT_DEACTIVATED_REASON,
     SESSION_EXPIRED_REASON,
     SUBSCRIPTION_INACTIVE_REASON,
+    TENANT_ADMIN_PASSWORD_RESET_REQUIRED_REASON,
 } from "../../lib/shared/auth/session";
 import {
     evaluateDepartmentUserSubmissionWindow,
@@ -73,6 +74,7 @@ const authNavigationReasonValidator = v.union(
     v.literal(ROLE_MISCONFIGURED_REASON),
     v.literal(SESSION_EXPIRED_REASON),
     v.literal(SUBSCRIPTION_INACTIVE_REASON),
+    v.literal(TENANT_ADMIN_PASSWORD_RESET_REQUIRED_REASON),
 );
 
 const tenantStatusValidator = v.union(
@@ -124,6 +126,14 @@ export const authContextValidator = v.object({
     ),
     tenantId: v.optional(v.id("tenants")),
     tenantAdminOnboardingStage: tenantAdminOnboardingStageValidator,
+    tenantAdminAuthStage: v.optional(
+        v.union(
+            v.literal("not_applicable"),
+            v.literal("verification_required"),
+            v.literal("verified"),
+        ),
+    ),
+    requiresTenantAdminVerification: v.optional(v.boolean()),
     tenantStatus: tenantStatusValidator,
     userId: v.id("users"),
     redirectReason: v.optional(authNavigationReasonValidator),
@@ -146,6 +156,8 @@ export interface AuthorizationContext {
     sessionStatus: "active" | "expired" | "logged_out" | "revoked";
     tenantId?: Id<"tenants">;
     tenantAdminOnboardingStage: TenantAdminOnboardingStage;
+    tenantAdminAuthStage?: "not_applicable" | "verification_required" | "verified";
+    requiresTenantAdminVerification?: boolean;
     tenantStatus: TenantStatusValue;
     userId: Id<"users">;
     redirectReason?: AuthNavigationReason;
@@ -168,6 +180,8 @@ function createBaseContext(args: {
     sessionStatus: AuthorizationContext["sessionStatus"];
     tenantId?: Id<"tenants">;
     tenantAdminOnboardingStage: TenantAdminOnboardingStage;
+    tenantAdminAuthStage?: "not_applicable" | "verification_required" | "verified";
+    requiresTenantAdminVerification?: boolean;
     tenantStatus: TenantStatusValue;
     userId: Id<"users">;
     redirectReason?: AuthNavigationReason;
@@ -186,7 +200,8 @@ function createInactiveAccessContext(args: {
     reason:
         | typeof ACCOUNT_DEACTIVATED_REASON
         | typeof ACCOUNT_SUSPENDED_REASON
-        | typeof SUBSCRIPTION_INACTIVE_REASON;
+        | typeof SUBSCRIPTION_INACTIVE_REASON
+        | typeof TENANT_ADMIN_PASSWORD_RESET_REQUIRED_REASON;
     rememberMe: boolean;
     sessionStatus: AuthorizationContext["sessionStatus"];
     userId: Id<"users">;
@@ -194,7 +209,9 @@ function createInactiveAccessContext(args: {
     const redirectPath =
         args.reason === SUBSCRIPTION_INACTIVE_REASON
             ? buildDashboardPath(args.reason)
-            : `/login?reason=${args.reason}`;
+            : args.reason === TENANT_ADMIN_PASSWORD_RESET_REQUIRED_REASON
+              ? `/reset-password?reason=${args.reason}`
+              : `/login?reason=${args.reason}`;
 
     return createBaseContext({
         accessState: "inactive",
@@ -436,7 +453,10 @@ export async function getAuthorizationContext(
         });
     }
 
-    if (tenant.status !== "active") {
+    if (
+        tenant.status !== "active" &&
+        !(tenant.status === "suspended" && resolvedRole.role === "tenant_admin")
+    ) {
         return createInactiveAccessContext({
             reason:
                 tenant.status === "suspended"
@@ -567,6 +587,50 @@ export async function getAuthorizationContext(
         tenantAdminOnboardingStage === "required"
             ? TENANT_ADMIN_ONBOARDING_ROUTE
             : getHomePathForRole(resolvedRole.role as AppRole);
+    let tenantAdminAuthStage: AuthorizationContext["tenantAdminAuthStage"] = "not_applicable";
+    let requiresTenantAdminVerification = false;
+    if (resolvedRole.role === "tenant_admin" && tenantAdminOnboardingStage === "complete") {
+        const membership = await ctx.db
+            .query("tenantUsers")
+            .withIndex("by_userId_tenantId", (q) =>
+                q.eq("userId", userId).eq("tenantId", tenantId),
+            )
+            .filter((q) => q.eq(q.field("role"), "tenant_admin"))
+            .first();
+        const securityState = membership
+            ? await ctx.db
+                  .query("tenantAdminSecurityStates")
+                  .withIndex("by_tenantUserId", (q) => q.eq("tenantUserId", membership._id))
+                  .first()
+            : null;
+        if (securityState?.lockedUntil && securityState.lockedUntil > Date.now()) {
+            return createInactiveAccessContext({
+                reason: ACCOUNT_SUSPENDED_REASON,
+                rememberMe: currentSession.state.rememberMe,
+                sessionStatus: currentSession.state.status,
+                userId,
+            });
+        }
+        if (securityState?.passwordChangedAt && securityState.passwordChangedAt + 90 * 24 * 60 * 60 * 1000 <= Date.now()) {
+            return createInactiveAccessContext({
+                reason: TENANT_ADMIN_PASSWORD_RESET_REQUIRED_REASON,
+                rememberMe: currentSession.state.rememberMe,
+                sessionStatus: currentSession.state.status,
+                userId,
+            });
+        }
+        if (
+            securityState?.isTwoFactorEnrolled &&
+            securityState.totpSecretCiphertext &&
+            securityState.totpSecretIv
+        ) {
+            tenantAdminAuthStage =
+                currentSessionDocuments.metadata?.tenantAdminAuthStage === "verified"
+                    ? "verified"
+                    : "verification_required";
+            requiresTenantAdminVerification = tenantAdminAuthStage !== "verified";
+        }
+    }
 
     return createBaseContext({
         accessState: "allowed",
@@ -578,13 +642,15 @@ export async function getAuthorizationContext(
         isSessionValid: true,
         platformAdminAuthStage: "not_applicable",
         requiresPlatformAdminVerification: false,
-        redirectPath: tenantHomePath,
+        redirectPath: requiresTenantAdminVerification ? "/tenant-admin/verify" : tenantHomePath,
         rememberMe: currentSession.state.rememberMe,
         role: resolvedRole.role,
         scope: "tenant",
         sessionStatus: currentSession.state.status,
         tenantId,
         tenantAdminOnboardingStage,
+        tenantAdminAuthStage,
+        requiresTenantAdminVerification,
         tenantStatus: tenant.status,
         userId,
     });
@@ -629,6 +695,9 @@ export async function requireTenantRole(
 
     if (authContext.scope !== "tenant" || !authContext.tenantId) {
         unauthorizedError("Tenant-scoped access is required for this resource");
+    }
+    if (authContext.role === "tenant_admin" && authContext.requiresTenantAdminVerification) {
+        unauthorizedError("Tenant administrator two-factor verification is required");
     }
 
     return authContext as AuthorizationContext & {

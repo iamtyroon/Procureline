@@ -1,6 +1,6 @@
 "use node";
 
-import { action } from "../_generated/server";
+import { action, internalAction } from "../_generated/server";
 import { v } from "convex/values";
 import { callNestService, getServiceActorContext } from "./_helpers";
 
@@ -29,6 +29,31 @@ export const queueTransactionalEmail = action({
     return callNestService(ctx, {
       actor,
       body: args,
+      path: "/api/services/email/send",
+    });
+  },
+});
+
+export const queueTenantBackgroundEmail = internalAction({
+  args: {
+    idempotencyKey: v.string(),
+    subject: v.string(),
+    template: v.literal("generic-notification"),
+    templateProps: v.optional(v.any()),
+    tenantId: v.string(),
+    to: v.string(),
+    userId: v.string(),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const { tenantId, userId, ...body } = args;
+    return callNestService(ctx, {
+      actor: {
+        role: "tenant_admin",
+        tenantId,
+        userId,
+      },
+      body,
       path: "/api/services/email/send",
     });
   },

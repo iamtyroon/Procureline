@@ -12,8 +12,8 @@ const sessions_1 = require("./sessions");
 const authContextRoleValidator = values_1.v.union(values_1.v.literal("platform_admin"), values_1.v.literal("tenant_admin"), values_1.v.literal("procurement_officer"), values_1.v.literal("department_user"), values_1.v.literal("unassigned"));
 const authScopeValidator = values_1.v.union(values_1.v.literal("platform"), values_1.v.literal("tenant"), values_1.v.literal("none"));
 const accessStateValidator = values_1.v.union(values_1.v.literal("allowed"), values_1.v.literal("inactive"), values_1.v.literal("misconfigured"), values_1.v.literal("pending_access"));
-const authNavigationReasonValidator = values_1.v.union(values_1.v.literal(session_1.ACCOUNT_DEACTIVATED_REASON), values_1.v.literal(roles_1.FORBIDDEN_ACCESS_REASON), values_1.v.literal(roles_1.PENDING_ACCESS_REASON), values_1.v.literal(auth_1.PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON), values_1.v.literal(roles_1.ROLE_MISCONFIGURED_REASON), values_1.v.literal(session_1.SESSION_EXPIRED_REASON), values_1.v.literal(session_1.SUBSCRIPTION_INACTIVE_REASON));
-const tenantStatusValidator = values_1.v.union(values_1.v.literal("active"), values_1.v.literal("cancelled"), values_1.v.literal("not_applicable"), values_1.v.literal("suspended"));
+const authNavigationReasonValidator = values_1.v.union(values_1.v.literal(session_1.ACCOUNT_DEACTIVATED_REASON), values_1.v.literal(session_1.ACCOUNT_SUSPENDED_REASON), values_1.v.literal(roles_1.FORBIDDEN_ACCESS_REASON), values_1.v.literal(roles_1.PENDING_ACCESS_REASON), values_1.v.literal(auth_1.PLATFORM_ADMIN_PASSWORD_RESET_REQUIRED_REASON), values_1.v.literal(roles_1.ROLE_MISCONFIGURED_REASON), values_1.v.literal(session_1.SESSION_EXPIRED_REASON), values_1.v.literal(session_1.SUBSCRIPTION_INACTIVE_REASON), values_1.v.literal(session_1.TENANT_ADMIN_PASSWORD_RESET_REQUIRED_REASON));
+const tenantStatusValidator = values_1.v.union(values_1.v.literal("active"), values_1.v.literal("cancelled"), values_1.v.literal("not_applicable"), values_1.v.literal("pending"), values_1.v.literal("suspended"));
 const departmentAccessModeValidator = values_1.v.union(values_1.v.literal("editable"), values_1.v.literal("read_only_grace"));
 const platformAdminAuthStageValidator = values_1.v.union(values_1.v.literal("not_applicable"), values_1.v.literal("setup_required"), values_1.v.literal("verification_required"), values_1.v.literal("verified"), values_1.v.literal("reset_required"));
 const tenantAdminOnboardingStageValidator = values_1.v.union(values_1.v.literal("required"), values_1.v.literal("complete"), values_1.v.literal("not_applicable"));
@@ -34,6 +34,8 @@ exports.authContextValidator = values_1.v.object({
     sessionStatus: values_1.v.union(values_1.v.literal("active"), values_1.v.literal("expired"), values_1.v.literal("revoked"), values_1.v.literal("logged_out")),
     tenantId: values_1.v.optional(values_1.v.id("tenants")),
     tenantAdminOnboardingStage: tenantAdminOnboardingStageValidator,
+    tenantAdminAuthStage: values_1.v.optional(values_1.v.union(values_1.v.literal("not_applicable"), values_1.v.literal("verification_required"), values_1.v.literal("verified"))),
+    requiresTenantAdminVerification: values_1.v.optional(values_1.v.boolean()),
     tenantStatus: tenantStatusValidator,
     userId: values_1.v.id("users"),
     redirectReason: values_1.v.optional(authNavigationReasonValidator),
@@ -50,7 +52,9 @@ function unauthorizedError(message) {
 function createInactiveAccessContext(args) {
     const redirectPath = args.reason === session_1.SUBSCRIPTION_INACTIVE_REASON
         ? (0, roles_1.buildDashboardPath)(args.reason)
-        : `/login?reason=${args.reason}`;
+        : args.reason === session_1.TENANT_ADMIN_PASSWORD_RESET_REQUIRED_REASON
+            ? `/reset-password?reason=${args.reason}`
+            : `/login?reason=${args.reason}`;
     return createBaseContext({
         accessState: "inactive",
         departmentAccessMode: undefined,
@@ -272,9 +276,12 @@ async function getAuthorizationContext(ctx) {
             redirectReason: roles_1.ROLE_MISCONFIGURED_REASON,
         });
     }
-    if (tenant.status !== "active") {
+    if (tenant.status !== "active" &&
+        !(tenant.status === "suspended" && resolvedRole.role === "tenant_admin")) {
         return createInactiveAccessContext({
-            reason: session_1.SUBSCRIPTION_INACTIVE_REASON,
+            reason: tenant.status === "suspended"
+                ? session_1.ACCOUNT_SUSPENDED_REASON
+                : session_1.SUBSCRIPTION_INACTIVE_REASON,
             rememberMe: currentSession.state.rememberMe,
             sessionStatus: currentSession.state.status,
             userId,
@@ -386,6 +393,46 @@ async function getAuthorizationContext(ctx) {
         tenantAdminOnboardingStage === "required"
         ? onboarding_1.TENANT_ADMIN_ONBOARDING_ROUTE
         : (0, roles_1.getHomePathForRole)(resolvedRole.role);
+    let tenantAdminAuthStage = "not_applicable";
+    let requiresTenantAdminVerification = false;
+    if (resolvedRole.role === "tenant_admin" && tenantAdminOnboardingStage === "complete") {
+        const membership = await ctx.db
+            .query("tenantUsers")
+            .withIndex("by_userId_tenantId", (q) => q.eq("userId", userId).eq("tenantId", tenantId))
+            .filter((q) => q.eq(q.field("role"), "tenant_admin"))
+            .first();
+        const securityState = membership
+            ? await ctx.db
+                .query("tenantAdminSecurityStates")
+                .withIndex("by_tenantUserId", (q) => q.eq("tenantUserId", membership._id))
+                .first()
+            : null;
+        if (securityState?.lockedUntil && securityState.lockedUntil > Date.now()) {
+            return createInactiveAccessContext({
+                reason: session_1.ACCOUNT_SUSPENDED_REASON,
+                rememberMe: currentSession.state.rememberMe,
+                sessionStatus: currentSession.state.status,
+                userId,
+            });
+        }
+        if (securityState?.passwordChangedAt && securityState.passwordChangedAt + 90 * 24 * 60 * 60 * 1000 <= Date.now()) {
+            return createInactiveAccessContext({
+                reason: session_1.TENANT_ADMIN_PASSWORD_RESET_REQUIRED_REASON,
+                rememberMe: currentSession.state.rememberMe,
+                sessionStatus: currentSession.state.status,
+                userId,
+            });
+        }
+        if (securityState?.isTwoFactorEnrolled &&
+            securityState.totpSecretCiphertext &&
+            securityState.totpSecretIv) {
+            tenantAdminAuthStage =
+                currentSessionDocuments.metadata?.tenantAdminAuthStage === "verified"
+                    ? "verified"
+                    : "verification_required";
+            requiresTenantAdminVerification = tenantAdminAuthStage !== "verified";
+        }
+    }
     return createBaseContext({
         accessState: "allowed",
         departmentAccessMode,
@@ -396,13 +443,15 @@ async function getAuthorizationContext(ctx) {
         isSessionValid: true,
         platformAdminAuthStage: "not_applicable",
         requiresPlatformAdminVerification: false,
-        redirectPath: tenantHomePath,
+        redirectPath: requiresTenantAdminVerification ? "/tenant-admin/verify" : tenantHomePath,
         rememberMe: currentSession.state.rememberMe,
         role: resolvedRole.role,
         scope: "tenant",
         sessionStatus: currentSession.state.status,
         tenantId,
         tenantAdminOnboardingStage,
+        tenantAdminAuthStage,
+        requiresTenantAdminVerification,
         tenantStatus: tenant.status,
         userId,
     });
@@ -432,6 +481,9 @@ async function requireTenantRole(ctx, allowedRoles = ["tenant_admin", "procureme
     const authContext = await requireAnyRole(ctx, allowedRoles);
     if (authContext.scope !== "tenant" || !authContext.tenantId) {
         unauthorizedError("Tenant-scoped access is required for this resource");
+    }
+    if (authContext.role === "tenant_admin" && authContext.requiresTenantAdminVerification) {
+        unauthorizedError("Tenant administrator two-factor verification is required");
     }
     return authContext;
 }

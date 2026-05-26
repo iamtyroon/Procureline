@@ -54,6 +54,7 @@ import type * as functions_securityAudit from "../functions/securityAudit.js";
 import type * as functions_sessions from "../functions/sessions.js";
 import type * as functions_tenantAdminDashboard from "../functions/tenantAdminDashboard.js";
 import type * as functions_tenantAdminOnboarding from "../functions/tenantAdminOnboarding.js";
+import type * as functions_tenantAdminOperations from "../functions/tenantAdminOperations.js";
 import type * as functions_tenantAdminReports from "../functions/tenantAdminReports.js";
 import type * as functions_tenants from "../functions/tenants.js";
 import type * as functions_users from "../functions/users.js";
@@ -116,6 +117,7 @@ declare const fullApi: ApiFromModules<{
   "functions/sessions": typeof functions_sessions;
   "functions/tenantAdminDashboard": typeof functions_tenantAdminDashboard;
   "functions/tenantAdminOnboarding": typeof functions_tenantAdminOnboarding;
+  "functions/tenantAdminOperations": typeof functions_tenantAdminOperations;
   "functions/tenantAdminReports": typeof functions_tenantAdminReports;
   "functions/tenants": typeof functions_tenants;
   "functions/users": typeof functions_users;

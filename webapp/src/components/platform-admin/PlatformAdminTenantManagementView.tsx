@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+const INSTITUTIONAL_FISCAL_YEAR_START_MONTH = 7;
+
 export function PlatformAdminTenantManagementView({
     tenantId,
 }: {
@@ -29,7 +31,6 @@ export function PlatformAdminTenantManagementView({
         primaryContactEmail: "",
         primaryContactName: "",
         primaryContactPhone: "",
-        fiscalYearStartMonth: "7",
         timeZone: "Africa/Nairobi",
         storageLimitGb: "1",
         userLimit: "25",
@@ -54,7 +55,6 @@ export function PlatformAdminTenantManagementView({
             primaryContactEmail: detail.primaryContactEmail ?? "",
             primaryContactName: detail.primaryContactName ?? "",
             primaryContactPhone: detail.primaryContactPhone ?? "",
-            fiscalYearStartMonth: String(detail.fiscalYearStartMonth ?? 7),
             timeZone: detail.timeZone ?? "Africa/Nairobi",
             storageLimitGb: String(Math.max(1, Math.round(detail.storageLimitBytes / 1073741824))),
             userLimit: String(detail.userLimit),
@@ -121,7 +121,7 @@ export function PlatformAdminTenantManagementView({
                         <Input value={form.primaryContactName} onChange={(event) => setForm({ ...form, primaryContactName: event.target.value })} placeholder="Primary contact name" />
                         <Input value={form.primaryContactPhone} onChange={(event) => setForm({ ...form, primaryContactPhone: event.target.value })} placeholder="Primary contact phone" />
                         <div className="grid grid-cols-2 gap-3">
-                            <Input value={form.fiscalYearStartMonth} onChange={(event) => setForm({ ...form, fiscalYearStartMonth: event.target.value })} placeholder="Fiscal start month" />
+                            <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm">Fiscal year: 1 July - 30 June</div>
                             <Input value={form.timeZone} onChange={(event) => setForm({ ...form, timeZone: event.target.value })} placeholder="Time zone" />
                             <Input value={form.storageLimitGb} onChange={(event) => setForm({ ...form, storageLimitGb: event.target.value })} placeholder="Storage GB" />
                             <Input value={form.userLimit} onChange={(event) => setForm({ ...form, userLimit: event.target.value })} placeholder="User limit" />
@@ -132,7 +132,7 @@ export function PlatformAdminTenantManagementView({
                             primaryContactEmail: form.primaryContactEmail || undefined,
                             primaryContactName: form.primaryContactName || undefined,
                             primaryContactPhone: form.primaryContactPhone || undefined,
-                            fiscalYearStartMonth: Number(form.fiscalYearStartMonth),
+                            fiscalYearStartMonth: INSTITUTIONAL_FISCAL_YEAR_START_MONTH,
                             timeZone: form.timeZone,
                             storageLimitBytes: Number(form.storageLimitGb) * 1073741824,
                             userLimit: Number(form.userLimit),

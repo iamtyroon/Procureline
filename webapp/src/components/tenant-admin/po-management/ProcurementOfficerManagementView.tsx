@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAction } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import {
     AlertTriangle,
     Clock3,
@@ -72,6 +72,23 @@ export function ProcurementOfficerManagementView({
     const resendInvitation = useAction(
         api.functions.procurementOfficerOnboarding.resendInvitation,
     );
+    const operationsApi = (api as any).functions.tenantAdminOperations;
+    const setProcurementOfficerActive = useMutation(operationsApi.setProcurementOfficerActive);
+    const unlockProcurementOfficer = useMutation(operationsApi.unlockProcurementOfficer);
+    const requestVerifiedEmailChange = useMutation(operationsApi.requestVerifiedEmailChange);
+    const [activityTargetId, setActivityTargetId] = useState<string | null>(null);
+    const [activityFilters, setActivityFilters] = useState({ action: "", dateFrom: "", dateTo: "", entityType: "", page: 1 });
+    const activity = useQuery(
+        operationsApi.listProcurementOfficerActivity,
+        activityTargetId ? {
+            action: activityFilters.action || undefined,
+            dateFrom: activityFilters.dateFrom ? new Date(activityFilters.dateFrom).getTime() : undefined,
+            dateTo: activityFilters.dateTo ? new Date(`${activityFilters.dateTo}T23:59:59`).getTime() : undefined,
+            entityType: activityFilters.entityType || undefined,
+            page: activityFilters.page,
+            tenantUserId: activityTargetId as any,
+        } : "skip",
+    );
     const [dialogOpen, setDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [lastIssuedInvite, setLastIssuedInvite] =
@@ -97,6 +114,7 @@ export function ProcurementOfficerManagementView({
     const stagedLifecycleEntries = directory.filter(
         (entry) => entry.source === "active_member",
     );
+    const canInviteProcurementOfficer = directory.length === 0;
     const warningText = useMemo(() => {
         if (attentionEntries.length === 0) {
             return null;
@@ -158,6 +176,51 @@ export function ProcurementOfficerManagementView({
         }
     }
 
+    async function handleLifecycle(entry: TenantAdminProcurementOfficerDirectoryEntry): Promise<void> {
+        const activating = entry.status === "inactive";
+        if (
+            !activating &&
+            !window.confirm(
+                "Deactivate this Procurement Officer? Assigned departments and procurement records remain preserved, but active submission work may be affected.",
+            )
+        ) {
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            await setProcurementOfficerActive({
+                active: activating,
+                confirmImpact: !activating,
+                tenantUserId: entry.id as any,
+            });
+            toast.success(activating ? "Procurement Officer reactivated." : "Procurement Officer deactivated.");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Lifecycle update failed.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
+    async function handleUnlock(entry: TenantAdminProcurementOfficerDirectoryEntry): Promise<void> {
+        try {
+            await unlockProcurementOfficer({ tenantUserId: entry.id as any });
+            toast.success("Stored account lockout reset.");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Unlock failed.");
+        }
+    }
+
+    async function handleEmailChange(entry: TenantAdminProcurementOfficerDirectoryEntry): Promise<void> {
+        const requestedEmail = window.prompt("Enter the new Procurement Officer email address. Existing sign-in remains active until verification.");
+        if (!requestedEmail) return;
+        try {
+            await requestVerifiedEmailChange({ purpose: "po_email", requestedEmail, targetTenantUserId: entry.id as any });
+            toast.success("Pending email verification created. Existing email remains effective.");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Email change request failed.");
+        }
+    }
+
     return (
         <div className="grid gap-5 xl:grid-cols-3">
             <Card className="rounded-2xl border-border/70 bg-card shadow-sm">
@@ -166,7 +229,7 @@ export function ProcurementOfficerManagementView({
                         <Users2 className="h-6 w-6" />
                     </div>
                     <div className="text-sm font-medium text-muted-foreground">
-                        Active Procurement Officers
+                        Assigned Procurement Officer
                     </div>
                     <div className="text-3xl font-bold text-foreground">{activeCount}</div>
                 </CardContent>
@@ -205,11 +268,11 @@ export function ProcurementOfficerManagementView({
                             Procurement Officer Directory
                         </CardTitle>
                         <CardDescription>
-                            Invite Procurement Officers, monitor invitation delivery, and keep
-                            lifecycle actions staged for Story 3.4.
+                            Manage the single Procurement Officer accountable for departmental
+                            procurement work, access status, and recorded activity.
                         </CardDescription>
                     </div>
-                    <Dialog
+                    {canInviteProcurementOfficer ? <Dialog
                         open={dialogOpen}
                         onOpenChange={(open) => {
                             setDialogOpen(open);
@@ -221,15 +284,15 @@ export function ProcurementOfficerManagementView({
                         <DialogTrigger asChild>
                             <Button className="gap-2">
                                 <UserPlus className="h-4 w-4" />
-                                Add PO
+                                Assign PO
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-xl">
                             <DialogHeader>
-                                <DialogTitle>Add and invite Procurement Officer</DialogTitle>
+                                <DialogTitle>Assign Procurement Officer</DialogTitle>
                                 <DialogDescription>
                                     Issue a secure invite link and activation code for a
-                                    Procurement Officer in {snapshot.meta.tenantName}.
+                                    institution&apos;s single Procurement Officer in {snapshot.meta.tenantName}.
                                 </DialogDescription>
                             </DialogHeader>
 
@@ -351,7 +414,7 @@ export function ProcurementOfficerManagementView({
                                 </Form>
                             )}
                         </DialogContent>
-                    </Dialog>
+                    </Dialog> : null}
                 </CardHeader>
                 <CardContent className="space-y-4 p-6">
                     {warningText ? (
@@ -367,11 +430,11 @@ export function ProcurementOfficerManagementView({
                     {directory.length === 0 ? (
                         <div className="rounded-xl border border-dashed border-border bg-muted/30 p-8 text-center">
                             <p className="text-sm font-medium text-foreground">
-                                No Procurement Officers or invitations yet
+                                No Procurement Officer assigned
                             </p>
                             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                                Invite your first Procurement Officer to activate department and
-                                procurement-management workflows.
+                                Assign one Procurement Officer to manage departmental procurement
+                                activity for this institution.
                             </p>
                         </div>
                     ) : (
@@ -385,15 +448,45 @@ export function ProcurementOfficerManagementView({
                                         ? void handleResend(entry.invitationId)
                                         : undefined
                                 }
+                                onLifecycle={() => void handleLifecycle(entry)}
+                                onUnlock={() => void handleUnlock(entry)}
+                                onViewActivity={() => setActivityTargetId(entry.id)}
+                                onEmailChange={() => void handleEmailChange(entry)}
                             />
                         ))
                     )}
 
                     {stagedLifecycleEntries.length > 0 ? (
                         <div className="rounded-2xl border border-border/70 bg-muted/25 p-4 text-sm text-muted-foreground">
-                            Edit, Replace, and Deactivate stay visible as follow-on lifecycle
-                            controls for Story 3.4. This story only covers add-and-invite
-                            onboarding.
+                            Lifecycle actions change membership access only. Department
+                            ownership, procurement records, and audit history remain preserved.
+                        </div>
+                    ) : null}
+                    {activityTargetId ? (
+                        <div className="rounded-2xl border border-border/70 bg-background p-4">
+                            <div className="mb-3 flex items-center justify-between">
+                                <div className="font-medium text-foreground">Procurement Officer activity</div>
+                                <Button size="sm" variant="ghost" onClick={() => { setActivityTargetId(null); setActivityFilters({ action: "", dateFrom: "", dateTo: "", entityType: "", page: 1 }); }}>Close</Button>
+                            </div>
+                            <div className="mb-3 grid gap-2 md:grid-cols-4">
+                                <Input type="date" value={activityFilters.dateFrom} onChange={(event) => setActivityFilters({ ...activityFilters, dateFrom: event.target.value, page: 1 })} />
+                                <Input type="date" value={activityFilters.dateTo} onChange={(event) => setActivityFilters({ ...activityFilters, dateTo: event.target.value, page: 1 })} />
+                                <Input placeholder="Action" value={activityFilters.action} onChange={(event) => setActivityFilters({ ...activityFilters, action: event.target.value, page: 1 })} />
+                                <Input placeholder="Entity type" value={activityFilters.entityType} onChange={(event) => setActivityFilters({ ...activityFilters, entityType: event.target.value, page: 1 })} />
+                            </div>
+                            {activity?.items?.length ? activity.items.map((item: any) => (
+                                <div className="border-t py-2 text-sm" key={item._id}>
+                                    <div className="font-medium">{item.event}</div>
+                                    <div className="text-muted-foreground">
+                                        {new Date(item.timestamp).toLocaleString()} / {item.entityType} / {item.outcome}
+                                    </div>
+                                </div>
+                            )) : <div className="text-sm text-muted-foreground">No matching activity recorded.</div>}
+                            <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
+                                <Button disabled={!activity || activity.page <= 1} size="sm" variant="outline" onClick={() => setActivityFilters({ ...activityFilters, page: Math.max(1, activityFilters.page - 1) })}>Previous</Button>
+                                <span>Page {activity?.page ?? 1} of {activity?.totalPages ?? 1}</span>
+                                <Button disabled={!activity || activity.page >= activity.totalPages} size="sm" variant="outline" onClick={() => setActivityFilters({ ...activityFilters, page: activityFilters.page + 1 })}>Next</Button>
+                            </div>
                         </div>
                     ) : null}
                 </CardContent>
@@ -405,11 +498,19 @@ export function ProcurementOfficerManagementView({
 function DirectoryRow({
     entry,
     isBusy,
+    onLifecycle,
+    onEmailChange,
     onResend,
+    onUnlock,
+    onViewActivity,
 }: {
     entry: TenantAdminProcurementOfficerDirectoryEntry;
     isBusy: boolean;
+    onLifecycle: () => void;
+    onEmailChange: () => void;
     onResend: () => void;
+    onUnlock: () => void;
+    onViewActivity: () => void;
 }): JSX.Element {
     const showResend =
         entry.source === "invitation" &&
@@ -461,14 +562,17 @@ function DirectoryRow({
                 ) : null}
                 {entry.source === "active_member" ? (
                     <>
-                        <Button type="button" variant="outline" size="sm" disabled>
-                            Edit
+                        <Button type="button" variant="outline" size="sm" disabled={isBusy} onClick={onViewActivity}>
+                            Activity
                         </Button>
-                        <Button type="button" variant="outline" size="sm" disabled>
-                            Replace
+                        <Button type="button" variant="outline" size="sm" disabled={isBusy} onClick={onUnlock}>
+                            Unlock
                         </Button>
-                        <Button type="button" variant="destructive" size="sm" disabled>
-                            Deactivate
+                        <Button type="button" variant="outline" size="sm" disabled={isBusy} onClick={onEmailChange}>
+                            Change email
+                        </Button>
+                        <Button type="button" variant={entry.status === "inactive" ? "outline" : "destructive"} size="sm" disabled={isBusy} onClick={onLifecycle}>
+                            {entry.status === "inactive" ? "Reactivate" : "Deactivate"}
                         </Button>
                     </>
                 ) : null}
