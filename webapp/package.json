@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "npm-run-all --parallel dev:frontend dev:backend dev:nestjs",
+    "dev": "npm-run-all --parallel dev:frontend dev:backend dev:redis dev:nestjs",
     "dev:frontend": "next dev",
     "dev:backend": "convex dev --typecheck=enable",
     "convex:setup": "convex dev --once --typecheck=enable",
+    "dev:redis": "cd ../nestjs && npm run start:redis",
     "dev:nestjs": "cd ../nestjs && npm run start:dev",
     "dev:frontend-only": "next dev",
     "build": "next build",

@@ -14,20 +14,28 @@ This service hosts Procureline's external integrations and heavy processing work
 
 1. Copy `nestjs/.env.example` to `nestjs/.env` and fill the required secrets.
 2. Add the matching integration vars to `webapp/.env.local`.
-3. Install dependencies in both projects.
-4. Run the applications in separate terminals:
+3. If using `AUTH_EMAIL_TRANSPORT=dev_inbox`, set `AUTH_EMAIL_TRANSPORT` and
+   `AUTH_DEV_INBOX_SECRET` to the same values in `nestjs/.env`,
+   `webapp/.env.local`, and the Convex developer deployment:
+
+```bash
+cd webapp
+npx convex env set AUTH_EMAIL_TRANSPORT dev_inbox
+npx convex env set AUTH_DEV_INBOX_SECRET replace-me-dev-email-secret
+```
+
+4. Install dependencies in both projects.
+5. Run the combined development stack from `webapp`; it starts Next.js,
+   Convex, this service, and a development-only local Redis instance:
 
 ```bash
 cd webapp
 npm run dev
 ```
 
-```bash
-cd nestjs
-npm run start:dev
-```
-
 The service runs independently from `webapp/` and does not require nesting under `webapp/convex`.
+For NestJS-only development, run `npm run start:redis` and `npm run start:dev`
+in separate `nestjs` terminals.
 
 ## First integration targets
 

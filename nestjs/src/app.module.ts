@@ -51,6 +51,6 @@ import { ConvexSyncModule } from "@/sync/convex-sync.module";
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(CorrelationIdMiddleware).forRoutes("*");
+    consumer.apply(CorrelationIdMiddleware).forRoutes("{*splat}");
   }
 }

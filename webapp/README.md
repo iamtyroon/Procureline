@@ -86,8 +86,42 @@ This runs all development processes:
 ```txt
 npm run dev:frontend    Next.js dev server
 npm run dev:backend     Convex dev server
+npm run dev:redis       Local Redis server for queues and background jobs
 npm run dev:nestjs      NestJS external services
 ```
+
+The local Redis process is provided by `redis-memory-server`; on Windows it
+downloads and runs a local Memurai binary during installation/first use. It is
+development-only data and stops when `npm run dev` is stopped.
+
+### Development Email Inbox
+
+The development inbox requires the same mode and secret in three environments:
+
+- `webapp/.env.local`, used by the Next.js `/dev/email-inbox` page.
+- The Convex developer deployment, used by queries and Convex email actions.
+- `nestjs/.env`, used by the NestJS email service.
+
+Choose one local-only secret, then configure the webapp and Convex deployment:
+
+```bash
+# Add these two lines to webapp/.env.local:
+# AUTH_EMAIL_TRANSPORT=dev_inbox
+# AUTH_DEV_INBOX_SECRET=replace-me-dev-email-secret
+
+npx convex env set AUTH_EMAIL_TRANSPORT dev_inbox
+npx convex env set AUTH_DEV_INBOX_SECRET replace-me-dev-email-secret
+```
+
+In `nestjs/.env`, keep the matching values:
+
+```bash
+AUTH_EMAIL_TRANSPORT=dev_inbox
+AUTH_DEV_INBOX_SECRET=replace-me-dev-email-secret
+```
+
+Restart `npm run dev` after changing `.env.local`. The Convex `env set` commands
+target the developer deployment selected by `webapp/.env.local`.
 
 For frontend-only work:
 

@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "node dist/main.js",
+    "start:redis": "node scripts/start-local-redis.js",
     "start:dev": "nest start --watch",
     "build": "nest build",
     "test": "jest --runInBand",
@@ -47,6 +48,7 @@
     "@types/react": "^19.2.2",
     "@types/supertest": "^6.0.3",
     "jest": "^29.7.0",
+    "redis-memory-server": "^0.16.1",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
