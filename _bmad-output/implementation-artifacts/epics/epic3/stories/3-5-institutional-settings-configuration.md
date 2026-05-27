@@ -1,6 +1,6 @@
 # Story 3.5: Institutional Settings Configuration
 
-Status: in-progress
+Status: done
 
 ## Story
 
@@ -96,6 +96,8 @@ GPT-5
 - Code-review follow-up: validated Convex logo storage, fiscal display controls, next-cycle confirmation, and active-user domain removal protection are implemented; rendered/manual verification remains outstanding.
 - Browser-feedback follow-up: timezone editing is constrained to IANA dropdown choices with server validation, fiscal-year format choices display a current-cycle preview, and the fiscal-year boundary is enforced as the fixed 1 July through 30 June institutional cycle.
 - Browser-feedback follow-up: the dashboard fiscal-year selector is identified as a reporting-period view and displays the active July-to-June cycle separately, so selecting a future period is not presented as changing institutional settings.
+- Browser-feedback follow-up: empty future dashboard periods are no longer selectable; the current period remains available and prior periods are listed only when backed by stored records.
+- Status closed on 2026-05-26 after product review accepted the IANA timezone selector, fixed July-to-June fiscal-year boundary, and current-period dashboard behavior.
 
 ### File List
 

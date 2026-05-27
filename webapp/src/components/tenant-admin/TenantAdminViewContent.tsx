@@ -39,7 +39,6 @@ import { InstitutionalOverviewView } from "@/src/components/tenant-admin/Institu
 import { TenantAdminReportsView } from "@/src/components/tenant-admin/TenantAdminReportsView";
 import {
     TenantAdminBillingOperationsView,
-    TenantAdminNotificationsView,
     TenantAdminSecurityView,
     TenantAdminSettingsOperationsView,
 } from "@/src/components/tenant-admin/TenantAdminOperationsViews";
@@ -52,7 +51,6 @@ export type TenantAdminView =
     | "departments"
     | "po-management"
     | "reports"
-    | "notifications"
     | "security"
     | "settings";
 
@@ -87,10 +85,6 @@ export const TENANT_ADMIN_VIEW_META: Record<
     reports: {
         title: "Reports",
         subtitle: "Prepare report exports and reporting workflows for tenant leadership.",
-    },
-    notifications: {
-        title: "Notifications",
-        subtitle: "Manage actionable messages, preferences, and PO broadcasts.",
     },
     security: {
         title: "Security & Sessions",
@@ -129,8 +123,6 @@ export function renderTenantAdminView(args: RenderTenantAdminViewArgs): JSX.Elem
             return <TenantAdminBillingOperationsView />;
         case "settings":
             return <TenantAdminSettingsOperationsView snapshot={args.snapshot} />;
-        case "notifications":
-            return <TenantAdminNotificationsView />;
         case "security":
             return <TenantAdminSecurityView />;
         case "audit-log":

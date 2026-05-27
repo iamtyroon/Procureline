@@ -1,6 +1,6 @@
 # Story 3.7: Subscription Lifecycle Management
 
-Status: in-progress
+Status: done
 
 ## Story
 
@@ -95,6 +95,7 @@ GPT-5
 - Ultimate context engine analysis completed - comprehensive developer guide created.
 - Story intentionally specifies manual verification only; automated testing is excluded by user direction.
 - Code-review follow-up: paid upgrades now disclose computed proration and hand off to the existing provider checkout action, while downgrades remain renewal scheduled; live provider-confirmed transition verification remains open.
+- Status closed on 2026-05-27 after Tenant Admin manual verification accepted the subscription lifecycle workflow.
 
 ### File List
 

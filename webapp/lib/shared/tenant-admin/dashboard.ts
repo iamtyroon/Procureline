@@ -155,11 +155,8 @@ export function buildAvailableFiscalYears(args: {
     now: number;
     selectedFiscalYear?: string;
 }): string[] {
-    const years = new Set<string>([getFiscalYearForDate(args.now).key]);
-
-    if (args.selectedFiscalYear) {
-        years.add(args.selectedFiscalYear);
-    }
+    const currentFiscalYear = getFiscalYearForDate(args.now).key;
+    const years = new Set<string>([currentFiscalYear]);
 
     for (const timestamp of args.activityTimestamps ?? []) {
         years.add(getFiscalYearKeyForTimestamp(timestamp));
@@ -181,7 +178,9 @@ export function buildAvailableFiscalYears(args: {
         }
     }
 
-    return Array.from(years).sort((left, right) => right.localeCompare(left));
+    return Array.from(years)
+        .filter((year) => year <= currentFiscalYear)
+        .sort((left, right) => right.localeCompare(left));
 }
 
 export function isTimestampInFiscalYear(args: {

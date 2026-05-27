@@ -1,6 +1,6 @@
 # Story 3.6: Billing Dashboard & Payment Methods
 
-Status: in-progress
+Status: done
 
 ## Story
 
@@ -96,6 +96,8 @@ GPT-5
 - Ultimate context engine analysis completed - comprehensive developer guide created.
 - Story intentionally specifies manual verification only; automated testing is excluded by user direction.
 - Code-review follow-up: payment-provider selection, tenant-scoped invoice generation requests, and available invoice downloads are wired; final generated PDF delivery and provider expiry warning evidence remain open.
+- Browser-feedback follow-up: supported payment paths are displayed as visible selectable method cards rather than a compact dropdown, without changing provider-backed checkout behavior.
+- Status closed on 2026-05-27 after Tenant Admin manual verification accepted the billing and payment-method workflow.
 
 ### File List
 

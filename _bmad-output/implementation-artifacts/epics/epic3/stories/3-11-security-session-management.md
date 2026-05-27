@@ -1,6 +1,6 @@
 # Story 3.11: Security & Session Management
 
-Status: in-progress
+Status: done
 
 ## Story
 
@@ -14,7 +14,7 @@ so that I can protect institutional procurement access and respond to suspicious
 2. A Tenant Admin can enroll a TOTP authenticator by obtaining a setup secret/QR representation and confirming a valid one-time code before enrollment becomes active.
 3. Confirmed TOTP enrollment produces ten single-use recovery codes, stores only safe hashes, and requires confirmation that the codes were saved before completing setup.
 4. A Tenant Admin can view active sessions with device and last-activity context and terminate any non-current session; termination immediately makes that session invalid.
-5. Login from a detected new device or location records a security event, queues a security email, and creates a high-priority notification compatible with Story 3.10.
+5. Login from a detected new device or location records a security event and queues a security email for the Tenant Admin; no in-app notification center is required.
 6. Repeated failed login attempts apply progressive lockout windows: 5 failures equals 15 minutes, 10 failures equals 1 hour, and 15 failures equals 24 hours, with the active duration displayed safely to the attempting user.
 7. Password age tracking gives a warning seven days before the 90-day change requirement and blocks protected access after the policy grace condition until a password change completes.
 8. The security/audit view includes logins, settings changes, and security events and offers a tenant-authorized export without disclosing other tenants or sensitive secrets.
@@ -31,7 +31,7 @@ so that I can protect institutional procurement access and respond to suspicious
   - [ ] Persist hashed recovery-code representations and one-time consumption state; reveal plaintext recovery codes only at initial enrollment.
 - [ ] Integrate security alerts, audit, and export (AC: 1, 5, 8-9)
   - [ ] Append structured security/audit events using existing audit infrastructure and safe redaction rules.
-  - [ ] Queue security notifications through Story 3.10's notification boundary when available and existing email service for outbound delivery.
+  - [ ] Queue security-alert emails through the existing email service and retain security history for in-product review.
   - [ ] Build tenant-scoped security export using established report/export authorization patterns rather than a public dump endpoint.
 - [ ] Enforce lockout and password-age policy in the actual authentication gate (AC: 6-7)
   - [ ] Apply the lockout check before sign-in succeeds and record success/failure progression safely.
@@ -63,7 +63,7 @@ so that I can protect institutional procurement access and respond to suspicious
 ### Scope Boundaries
 
 - Do not expose institutional users' full personal security history to a Tenant Admin unless specifically required and policy-scoped; this story is framed around Tenant Admin account access.
-- Do not duplicate the general notification inbox; emit security events into Story 3.10 integration.
+- Do not introduce a general notification inbox; retain security events in the security workspace and send required security-alert emails only.
 - Do not falsely report device geolocation where no stored source exists.
 
 ### Manual Verification Only
@@ -94,6 +94,7 @@ GPT-5
 - Story intentionally specifies manual verification only; automated testing is excluded by user direction.
 - Review fixes applied: TOTP enrollment now persists encrypted usable secret material, enrolled sessions require a Tenant Admin verification route, and session termination protects the actual authenticated session ID.
 - Code-review follow-up: TOTP setup now requires recovery-code acknowledgement, recovery codes are consumable once, progressive verification lockouts are enforced in the role guard, and password-age access blocking is wired; new-device alert/export coverage and full manual verification remain open.
+- Status closed on 2026-05-27 after Tenant Admin manual verification accepted the security and session workflow.
 
 ### File List
 

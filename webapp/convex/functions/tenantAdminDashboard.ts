@@ -423,8 +423,11 @@ export const getTenantAdminDashboardSnapshot = query({
         }
 
         const now = Date.now();
+        const currentFiscalYear = getFiscalYearForDate(now).key;
         const selectedFiscalYear =
-            args.selectedFiscalYear ?? getFiscalYearForDate(now).key;
+            args.selectedFiscalYear && args.selectedFiscalYear <= currentFiscalYear
+                ? args.selectedFiscalYear
+                : currentFiscalYear;
         const [tenantUsers, departments, departmentUserProfiles, poInvitations, targetActivity, sourceActivity, submissionDeadlines] =
             await Promise.all([
                 ctx.db
@@ -538,7 +541,6 @@ export const getTenantAdminDashboardSnapshot = query({
         );
         const fiscalYearKeys = Array.from(
             new Set([
-                selectedFiscalYear,
                 ...plans.map((plan) => plan.fiscalYear),
                 ...planSubmissionSnapshots.map((snapshot) => snapshot.fiscalYear),
                 ...planReviewDecisions.map((decision) => decision.fiscalYear),

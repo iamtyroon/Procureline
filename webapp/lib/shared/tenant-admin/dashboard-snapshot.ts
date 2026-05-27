@@ -219,7 +219,6 @@ export function buildTenantAdminDashboardSnapshot(
         departmentWindows: args.departments,
         fiscalYearKeys: args.fiscalYearKeys,
         now: args.now,
-        selectedFiscalYear,
     });
 
     const selectedFiscalYearHasSignals =

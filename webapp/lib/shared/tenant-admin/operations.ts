@@ -90,16 +90,6 @@ export function computeLockoutUntil(args: {
     return null;
 }
 
-export function resolveNotificationEmailMode(args: {
-    isCritical: boolean;
-    recentImmediateCount: number;
-}): "immediate" | "digest" {
-    if (args.isCritical) {
-        return "immediate";
-    }
-    return args.recentImmediateCount >= 10 ? "digest" : "immediate";
-}
-
 export function formatFiscalYearBySetting(args: {
     customFormat?: string;
     format: "2025/2026" | "FY2025-26" | "custom";

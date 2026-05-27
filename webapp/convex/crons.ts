@@ -31,13 +31,6 @@ crons.daily(
     {},
 );
 
-crons.daily(
-    "deliver tenant notification digests",
-    { hourUTC: 4, minuteUTC: 0 },
-    internal.functions.tenantAdminOperations.runTenantNotificationDigests,
-    {},
-);
-
 crons.interval(
     "process due billing reconciliations",
     { minutes: 30 },

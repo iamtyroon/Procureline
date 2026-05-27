@@ -76,7 +76,7 @@ development_status:
   2-1-platform-admin-authentication-2fa: done
   2-2-platform-admin-dashboard-shell: done
   3-1-tenant-admin-institution-setup-flow: done
-  3-3-po-management-add-invite: in-progress # single-PO tenant rule implemented; rendered verification remains
+  3-3-po-management-add-invite: done # single-PO workflow manually verified and accepted
   4-2-department-crud-operations: done
   4-3-access-code-generation-management: done
   4-5-submission-deadline-management: done
@@ -121,13 +121,13 @@ development_status:
   2-13-system-configuration-feature-flags: done
 
 
-  3-4-po-management-lifecycle-activity: in-progress # review fixes and single-PO rule applied; PO auth lockout producer and rendered verification remain
-  3-5-institutional-settings-configuration: in-progress # review fixes applied; rendered/manual verification remains
-  3-6-billing-dashboard-payment-methods: in-progress # review fixes applied; generated invoice delivery/expiry-provider verification remains
-  3-7-subscription-lifecycle-management: in-progress # review fixes applied; provider-confirmed manual verification remains
-  3-10-notification-system: in-progress # review fixes applied; recipient-visible PO inbox verification remains
-  3-11-security-session-management: in-progress # review fixes applied; new-device/export and full login-policy verification remain
-  3-12-account-lifecycle-admin-transfer: in-progress # review fixes applied; inactive recovery entry point/manual verification remains
+  3-4-po-management-lifecycle-activity: done # lifecycle and single-PO workflow manually verified and accepted
+  3-5-institutional-settings-configuration: done # product-reviewed settings and fiscal-year corrections accepted
+  3-6-billing-dashboard-payment-methods: done # billing and payment-method workflow manually verified and accepted
+  3-7-subscription-lifecycle-management: done # subscription lifecycle manually verified and accepted
+  3-10-notification-system: deprecated # removed by product decision; tenant-admin notification feature is not required
+  3-11-security-session-management: done # security and session workflow manually verified and accepted
+  3-12-account-lifecycle-admin-transfer: done # account lifecycle and transfer workflow manually verified and accepted
 
 
   9-1-plan-workflow-notifications: backlog
@@ -147,7 +147,7 @@ development_status:
   8-4-invoice-management: backlog
   8-5-subscription-lifecycle-management: backlog
 
-  4-4-budget-allocation-department-import: backlog
+  4-4-budget-allocation-department-import: deprecated # deprioritized in favor of manual upload due to complexity of source data integrations; can be re-added if manual process proves unscalable
   11-4-first-login-onboarding-contextual-help: backlog
 
   epic-1-retrospective: optional
@@ -205,7 +205,7 @@ story_surfaces:
     3-7-subscription-lifecycle-management: full-stack
     3-8-report-generation-system: full-stack
     3-9-cross-institutional-visibility: frontend-led
-    3-10-notification-system: full-stack
+    3-10-notification-system: removed
     3-11-security-session-management: full-stack
     3-12-account-lifecycle-admin-transfer: full-stack
 
@@ -370,7 +370,6 @@ recommended_execution_sequence:
       - 3-5-institutional-settings-configuration
       - 3-6-billing-dashboard-payment-methods
       - 3-7-subscription-lifecycle-management
-      - 3-10-notification-system
       - 3-11-security-session-management
       - 3-12-account-lifecycle-admin-transfer
       - 4-4-budget-allocation-department-import

@@ -1415,69 +1415,6 @@ export default defineSchema({
     .index("by_tokenHash", ["tokenHash"])
     .index("by_tenantId_targetTenantUserId", ["tenantId", "targetTenantUserId", "createdAt"]),
 
-  tenantNotifications: defineTable({
-    tenantId: v.id("tenants"),
-    recipientTenantUserId: v.id("tenantUsers"),
-    recipientUserId: v.id("users"),
-    eventKey: v.string(),
-    category: v.union(
-      v.literal("po_lifecycle"),
-      v.literal("submission"),
-      v.literal("billing"),
-      v.literal("security"),
-      v.literal("broadcast"),
-    ),
-    priority: v.union(v.literal("normal"), v.literal("high"), v.literal("critical")),
-    title: v.string(),
-    message: v.string(),
-    actionTarget: v.optional(
-      v.union(
-        v.literal("/tenant-admin/po-management"),
-        v.literal("/tenant-admin/billing"),
-        v.literal("/tenant-admin/security"),
-        v.literal("/tenant-admin/notifications"),
-      ),
-    ),
-    emailStatus: v.union(v.literal("not_requested"), v.literal("queued"), v.literal("digest_queued"), v.literal("sent"), v.literal("failed")),
-    readAt: v.optional(v.number()),
-    createdAt: v.number(),
-  })
-    .index("by_eventKey", ["eventKey"])
-    .index("by_recipientTenantUserId", ["recipientTenantUserId", "createdAt"])
-    .index("by_tenantId", ["tenantId", "createdAt"]),
-
-  tenantNotificationPreferences: defineTable({
-    tenantId: v.id("tenants"),
-    tenantUserId: v.id("tenantUsers"),
-    preset: v.union(v.literal("all"), v.literal("critical_only"), v.literal("custom")),
-    categories: v.array(
-      v.object({
-        category: v.union(v.literal("po_lifecycle"), v.literal("submission"), v.literal("billing"), v.literal("security"), v.literal("broadcast")),
-        email: v.boolean(),
-        inApp: v.boolean(),
-      }),
-    ),
-    updatedAt: v.number(),
-  }).index("by_tenantUserId", ["tenantUserId"]),
-
-  tenantNotificationBroadcasts: defineTable({
-    tenantId: v.id("tenants"),
-    createdByTenantUserId: v.id("tenantUsers"),
-    subject: v.string(),
-    message: v.string(),
-    channels: v.array(v.union(v.literal("email"), v.literal("in_app"))),
-    createdAt: v.number(),
-  }).index("by_tenantId", ["tenantId", "createdAt"]),
-
-  tenantNotificationDeliveries: defineTable({
-    tenantId: v.id("tenants"),
-    broadcastId: v.id("tenantNotificationBroadcasts"),
-    recipientTenantUserId: v.id("tenantUsers"),
-    emailStatus: v.union(v.literal("not_requested"), v.literal("queued"), v.literal("failed")),
-    inAppNotificationId: v.optional(v.id("tenantNotifications")),
-    createdAt: v.number(),
-  }).index("by_broadcastId", ["broadcastId", "createdAt"]),
-
   tenantAdminSecurityStates: defineTable({
     tenantId: v.id("tenants"),
     tenantUserId: v.id("tenantUsers"),

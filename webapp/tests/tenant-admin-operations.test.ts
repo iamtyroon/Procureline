@@ -5,7 +5,6 @@ import {
     formatFiscalYearBySetting,
     getUsageTone,
     normalizeAllowedEmailDomain,
-    resolveNotificationEmailMode,
     validateComplianceTargets,
 } from "../lib/shared/tenant-admin/operations";
 
@@ -30,9 +29,7 @@ export function runTenantAdminOperationsTests(): string[] {
     assert.equal(computeLockoutUntil({ failedAttempts: 5, now }), now + 15 * 60 * 1000);
     assert.equal(computeLockoutUntil({ failedAttempts: 10, now }), now + 60 * 60 * 1000);
     assert.equal(computeLockoutUntil({ failedAttempts: 15, now }), now + 24 * 60 * 60 * 1000);
-    assert.equal(resolveNotificationEmailMode({ isCritical: false, recentImmediateCount: 10 }), "digest");
-    assert.equal(resolveNotificationEmailMode({ isCritical: true, recentImmediateCount: 15 }), "immediate");
-    completedTests.push("security lockout escalation and critical notification delivery policies are deterministic");
+    completedTests.push("security lockout escalation remains deterministic");
 
     assert.equal(formatFiscalYearBySetting({ format: "FY2025-26", startYear: 2025 }), "FY2025-26");
     assert.equal(

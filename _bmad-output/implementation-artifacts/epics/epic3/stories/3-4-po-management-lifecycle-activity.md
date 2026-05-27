@@ -1,6 +1,6 @@
 # Story 3.4: PO Management - Lifecycle & Activity
 
-Status: in-progress
+Status: done
 
 ## Story
 
@@ -68,7 +68,7 @@ so that access remains appropriate without losing departmental continuity or aud
 ### Scope Boundaries
 
 - Do not rebuild invitation issuance or onboarding already owned by Story 3.3.
-- Do not implement a general notification center; Story 3.10 owns notification preference and inbox functionality.
+- Do not implement a general notification center; Tenant Admin notifications were removed by product decision.
 - Do not assign departments to alternative POs automatically on deactivation; this story preserves data and surfaces impact.
 
 ### Manual Verification Only
@@ -100,6 +100,7 @@ GPT-5
 - Review fix applied: PO verified-email changes now queue the proof token to the proposed destination address instead of exposing it to the requesting administrator.
 - Code-review follow-up: activity filters and paging are now wired in the rendered PO workspace; status remains in progress until a real PO lockout-producing authentication path and browser verification are completed.
 - Product-rule follow-up: the PO management view now represents one accountable Procurement Officer per tenant; bulk import is removed and additional assignment is server-blocked.
+- Status closed on 2026-05-27 after Tenant Admin manual verification accepted the PO lifecycle and single-seat workflow.
 
 ### File List
 

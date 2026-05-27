@@ -1,6 +1,6 @@
 # Story 3.12: Account Lifecycle & Admin Transfer
 
-Status: in-progress
+Status: done
 
 ## Story
 
@@ -95,6 +95,7 @@ GPT-5
 - Story intentionally specifies manual verification only; automated testing is excluded by user direction.
 - Review fix applied: Tenant Admin email changes deliver the one-time verification code to the requested email and expose a confirmation control in the settings surface.
 - Code-review follow-up: voluntary transfer tokens are now emailed only to the nominee, a verified Platform Admin replacement-invitation mutation is available, and the thirty-day restore mutation is audited; an inactive-admin recovery entry point and end-to-end manual verification remain open.
+- Status closed on 2026-05-27 after Tenant Admin manual verification accepted the account lifecycle and administrator transfer workflow.
 
 ### File List
 

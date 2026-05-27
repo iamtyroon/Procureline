@@ -1,7 +1,7 @@
 "use client";
 
 import { useAction, useMutation, useQuery } from "convex/react";
-import { Bell, LoaderCircle, LockKeyhole, ShieldCheck } from "lucide-react";
+import { Building2, CreditCard, LoaderCircle, LockKeyhole, ShieldCheck, Smartphone } from "lucide-react";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Textarea } from "@/components/ui/textarea";
 import { getProcurementFiscalYearForDate } from "@/lib/procurement-officer/dashboard";
 import type { TenantAdminDashboardSnapshot } from "@/lib/shared/tenant-admin/dashboard-snapshot";
 import { formatFiscalYearBySetting, getUsageTone } from "@/lib/shared/tenant-admin/operations";
@@ -221,6 +220,26 @@ export function TenantAdminBillingOperationsView(): JSX.Element {
     const checkout = useAction(api.actions.payments.createSubscriptionCheckout);
     const generateInvoice = useAction(api.actions.payments.generateInvoice);
     const [provider, setProvider] = useState<"stripe" | "intasend" | "bank_transfer">("stripe");
+    const paymentMethods = [
+        {
+            description: "Secure card checkout",
+            icon: CreditCard,
+            label: "Stripe card",
+            value: "stripe" as const,
+        },
+        {
+            description: "Mobile money payment",
+            icon: Smartphone,
+            label: "M-Pesa / IntaSend",
+            value: "intasend" as const,
+        },
+        {
+            description: "Invoice or LPO settlement",
+            icon: Building2,
+            label: "Bank transfer",
+            value: "bank_transfer" as const,
+        },
+    ];
     if (!workspace) return <LoadingCard label="Loading billing workspace..." />;
     const status = workspace.tenant.subscriptionStatus ?? "active";
     async function changePlan(tier: any): Promise<void> {
@@ -242,27 +261,40 @@ export function TenantAdminBillingOperationsView(): JSX.Element {
                 <Card><CardHeader><CardTitle>{workspace.tenant.tier} plan</CardTitle><CardDescription>Status: {status}</CardDescription></CardHeader><CardContent className="space-y-2 text-sm"><div>Payment path: {workspace.tenant.subscriptionPaymentMethod ?? "Not configured"}</div><div>Next billing: {workspace.tenant.subscriptionNextBillingDate ? new Date(workspace.tenant.subscriptionNextBillingDate).toLocaleDateString() : "Unavailable"}</div></CardContent></Card>
                 <Card className="xl:col-span-2"><CardHeader><CardTitle>Live Usage</CardTitle></CardHeader><CardContent className="space-y-4">{workspace.metrics.map((metric: any) => <Usage key={metric.key} metric={metric} />)}</CardContent></Card>
             </div>
-            <Card><CardHeader><CardTitle>Plans</CardTitle><CardDescription>Upgrades open provider checkout and activate only after confirmation; downgrades take effect at renewal.</CardDescription></CardHeader><CardContent className="space-y-3"><select className="rounded-md border bg-background p-2 text-sm" value={provider} onChange={(event) => setProvider(event.target.value as typeof provider)}><option value="stripe">Stripe card</option><option value="intasend">M-Pesa / IntaSend</option><option value="bank_transfer">Bank transfer</option></select><div className="flex flex-wrap gap-3">{workspace.tiers.map((tier: any) => <Button variant={tier.slug === workspace.tenant.tier ? "default" : "outline"} disabled={tier.slug === workspace.tenant.tier} key={tier.slug} onClick={() => void changePlan(tier)}>{tier.slug === "enterprise" ? "Contact Sales" : tier.tierName}</Button>)}</div></CardContent></Card>
+            <Card>
+                <CardHeader><CardTitle>Plans</CardTitle><CardDescription>Upgrades open provider checkout and activate only after confirmation; downgrades take effect at renewal.</CardDescription></CardHeader>
+                <CardContent className="space-y-5">
+                    <div className="space-y-2">
+                        <p className="text-sm font-medium">Payment method</p>
+                        <div className="grid gap-3 md:grid-cols-3">
+                            {paymentMethods.map((method) => {
+                                const selected = method.value === provider;
+                                return (
+                                    <button
+                                        aria-pressed={selected}
+                                        className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-colors ${selected ? "border-primary bg-primary/10 text-foreground" : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-muted/30"}`}
+                                        key={method.value}
+                                        onClick={() => setProvider(method.value)}
+                                        type="button"
+                                    >
+                                        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                                            <method.icon className="h-4 w-4" />
+                                        </span>
+                                        <span>
+                                            <span className="block text-sm font-medium">{method.label}</span>
+                                            <span className="mt-1 block text-xs text-muted-foreground">{method.description}</span>
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    <div className="flex flex-wrap gap-3">{workspace.tiers.map((tier: any) => <Button variant={tier.slug === workspace.tenant.tier ? "default" : "outline"} disabled={tier.slug === workspace.tenant.tier} key={tier.slug} onClick={() => void changePlan(tier)}>{tier.slug === "enterprise" ? "Contact Sales" : tier.tierName}</Button>)}</div>
+                </CardContent>
+            </Card>
             <Card><CardHeader><CardTitle>Invoices & Payments</CardTitle></CardHeader><CardContent className="space-y-2">{workspace.records.length === 0 ? <p className="text-sm text-muted-foreground">No verified provider billing records available.</p> : workspace.records.map((record: any) => <div key={record._id} className="flex items-center justify-between rounded-lg border p-3 text-sm"><span>{new Date(record.createdAt).toLocaleDateString()} / {record.provider}<br />{record.currency} {(record.amountCents / 100).toFixed(2)} / {record.status}</span>{record.invoiceDownloadUrl ? <a className="text-primary underline" href={record.invoiceDownloadUrl} rel="noreferrer" target="_blank">Download invoice</a> : <Button size="sm" variant="outline" onClick={() => void generateInvoice({ amount: record.amountCents, currency: record.currency, idempotencyKey: crypto.randomUUID(), tenantReference: String(workspace.tenant._id) }).then(() => toast.success("Invoice generation queued.")).catch((error: unknown) => toast.error(readError(error)))}>Generate invoice</Button>}</div>)}</CardContent></Card>
         </div>
     );
-}
-
-export function TenantAdminNotificationsView(): JSX.Element {
-    const center = useQuery(operationsApi.getNotificationCenter, {});
-    const markRead = useMutation(operationsApi.markNotificationRead);
-    const savePreset = useMutation(operationsApi.saveNotificationPreset);
-    const sendBroadcast = useMutation(operationsApi.sendPoBroadcast);
-    const [subject, setSubject] = useState("");
-    const [message, setMessage] = useState("");
-    if (!center) return <LoadingCard label="Loading notifications..." />;
-    return <div className="grid gap-5 xl:grid-cols-3">
-        <Card className="xl:col-span-2"><CardHeader><CardTitle className="flex items-center gap-2"><Bell className="h-4 w-4" /> Inbox <Badge>{center.unreadCount} unread</Badge></CardTitle></CardHeader><CardContent className="space-y-2">{center.notifications.length === 0 ? <p className="text-sm text-muted-foreground">No notifications yet.</p> : center.notifications.map((item: any) => <button className="block w-full rounded-lg border p-3 text-left" key={item._id} onClick={() => void markRead({ notificationId: item._id })}><div className="flex justify-between"><span className="font-medium">{item.title}</span><Badge variant="outline">{item.priority}</Badge></div><p className="mt-1 text-sm text-muted-foreground">{item.message}</p></button>)}</CardContent></Card>
-        <div className="space-y-5">
-            <Card><CardHeader><CardTitle>Preferences</CardTitle></CardHeader><CardContent className="flex gap-2"><Button variant="outline" onClick={() => void savePreset({ preset: "all" })}>Notify for all</Button><Button variant="outline" onClick={() => void savePreset({ preset: "critical_only" })}>Critical only</Button></CardContent></Card>
-            <Card><CardHeader><CardTitle>Broadcast to active POs</CardTitle></CardHeader><CardContent className="space-y-3"><Input placeholder="Subject" value={subject} onChange={(event) => setSubject(event.target.value)} /><Textarea placeholder="Message" value={message} onChange={(event) => setMessage(event.target.value)} /><Button onClick={() => void sendBroadcast({ channels: ["email", "in_app"], message, subject }).then((result: any) => toast.success(`Queued for ${result.recipientCount} active PO recipient(s).`)).catch((error: unknown) => toast.error(readError(error)))}>Send broadcast</Button></CardContent></Card>
-        </div>
-    </div>;
 }
 
 export function TenantAdminSecurityView(): JSX.Element {

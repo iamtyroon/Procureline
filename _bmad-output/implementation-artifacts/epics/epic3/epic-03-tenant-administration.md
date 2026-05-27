@@ -38,7 +38,7 @@ Tenant Admins (like Dr. Amina Hassan from the user journey) can complete institu
 - FR-TA5a through FR-TA5o: Billing & Subscription (15 FRs)
 - FR-TA6b through FR-TA6l: Reporting (11 FRs)
 - FR-TA7a through FR-TA7h: Cross-Institutional Visibility (8 FRs)
-- FR-TA8a through FR-TA8h: Notifications (7 FRs)
+- FR-TA8a through FR-TA8h: Removed - Tenant Admin notification center is not required
 - FR-TA9a through FR-TA9h: Security (8 FRs)
 - FR-TA10a through FR-TA10h: Account Lifecycle (7 FRs)
 
@@ -86,7 +86,7 @@ Tenant Admins (like Dr. Amina Hassan from the user journey) can complete institu
 **What You'll Use from Epic 2 Story 2.0:**
 - Billing APIs for subscription management (Stories 3.6, 3.7)
 - Excel generation for report exports (Story 3.8)
-- Email sending for notifications and invitations (Stories 3.3, 3.4, 3.10)
+- Email sending for invitations and workflow-owned transactional messages (Stories 3.3, 3.4, 3.6, 3.7, 3.12)
 - PDF generation for invoices and reports (Stories 3.6, 3.8)
 
 ---
@@ -102,7 +102,7 @@ Tenant Admins (like Dr. Amina Hassan from the user journey) can complete institu
 - `Story 3.7` achieves tenant-side subscription lifecycle actions. Delivery should handle upgrade, downgrade, grace-period, and suspension behavior with clear plan-impact messaging and usage-limit checks.
 - `Story 3.8` achieves self-service report generation for tenant leadership. Delivery should provide report selection UI, parameter handling, asynchronous generation, and secure access to generated outputs.
 - `Story 3.9` achieves institutional oversight across departments and POs. Delivery should aggregate department progress, allow filtering and drill-down, and preserve read-only boundaries where direct editing is not intended.
-- `Story 3.10` achieves tenant-facing notification control. Delivery should expose notification preferences, in-app inbox behavior, and outbound communication actions without letting noise overwhelm the admin experience.
+- `Story 3.10` is removed by product decision. Tenant Admin has no in-app notification center, notification preference controls, digest inbox, or PO broadcast facility.
 - `Story 3.11` achieves tenant-admin security visibility and session control. Delivery should provide login history, 2FA management, active session handling, and suspicious-access reporting within the tenant scope.
 - `Story 3.12` achieves safe account lifecycle transitions for the tenant admin role itself. Delivery should support profile changes, transfer of tenant ownership duties, and safeguards against leaving a tenant without an accountable admin.
 
@@ -736,54 +736,9 @@ So that I can maintain oversight without interfering with PO operations.
 
 ---
 
-### Story 3.10: Notification System
+### Story 3.10: Notification System - Removed
 
-As a **Tenant Admin**,
-I want to receive and manage notifications about important events,
-So that I stay informed without being overwhelmed.
-
-**Acceptance Criteria:**
-
-**Given** important events occur in the tenant
-**When** events are triggered (PO added, submission received, payment due)
-**Then** system sends email notifications to Tenant Admin (FR-TA8a)
-**And** email includes event details and action link
-
-**Given** a Tenant Admin logs into the platform
-**When** they view the interface
-**Then** system displays notification bell with unread count (FR-TA8b)
-**And** clicking opens notification center with history
-
-**Given** a Tenant Admin wants to customize notifications
-**When** they access notification preferences
-**Then** system allows configuring: email on/off per event type, in-app on/off (FR-TA8c)
-**And** provides "Notify for all" and "Critical only" presets
-
-**Given** a Tenant Admin wants to communicate with POs
-**When** they compose a broadcast message
-**Then** system sends message to all POs via email and in-app (FR-TA8d)
-**And** tracks delivery status and read receipts
-
-**Given** many events occur in a single day
-**When** notification threshold is exceeded (>10 in 24h)
-**Then** system switches to digest mode (FR-TA8e)
-**And** sends single daily summary instead of individual emails
-
-**Given** a critical event occurs (payment failure, security alert)
-**When** the event is triggered
-**Then** system sends via multiple channels: email AND in-app (FR-TA8g)
-**And** marks as high priority in notification center
-
-**Given** a Tenant Admin performs an action
-**When** that action would normally trigger a notification
-**Then** system excludes Tenant Admin from receiving notification for own actions (FR-TA8h)
-
-**Technical Notes:**
-- Notifications stored in `notifications` table with `recipientId`, `type`, `read`, `data`
-- Email sending via Resend through NestJS microservice
-- Digest mode via cron job that batches notifications
-- Broadcast message stored in `broadcastMessages` table
-- Critical notifications bypass digest mode
+Product decision (2026-05-26): Tenant Admin does not require a notification center, notification preferences, daily digest, or PO broadcast facility. This story is removed from delivery scope. Workflow-owned transactional emails defined by billing, security, invitations, or account-lifecycle stories remain independent requirements.
 
 ---
 
@@ -818,7 +773,7 @@ So that I can protect my institution's sensitive procurement data.
 **Given** a login occurs from new location or device
 **When** the login is detected
 **Then** system sends security alert email (FR-TA9e)
-**And** shows alert in notification center
+**And** records the security event for review in the security workspace
 
 **Given** a user fails login multiple times
 **When** threshold is exceeded
@@ -907,7 +862,7 @@ Story 3.1 (Onboarding)
     │       │
     │       ├── Story 3.9 (Visibility)
     │       │
-    │       └── Story 3.10 (Notifications)
+    │       └── Story 3.10 (Notifications - Removed)
     │
     ├── Story 3.3 (PO Add/Invite)
     │       │

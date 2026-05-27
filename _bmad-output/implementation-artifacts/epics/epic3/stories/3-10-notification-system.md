@@ -1,6 +1,6 @@
 # Story 3.10: Notification System
 
-Status: in-progress
+Status: deprecated
 
 ## Story
 
@@ -8,7 +8,13 @@ As a **Tenant Admin**,
 I want a controlled notification inbox, preferences, and PO broadcast facility,
 so that I receive actionable information without unnecessary communication volume.
 
-## Acceptance Criteria
+## Product Decision
+
+Removed on 2026-05-26: Tenant Admin does not require an in-app notification center, notification preferences, digest inbox, or PO broadcast facility. Operational emails owned by other workflows, such as billing reminders or account-transfer verification, remain in their owning stories and are not part of this removed feature.
+
+## Superseded Acceptance Criteria
+
+The acceptance criteria below are retained only as historical context and are no longer deliverable requirements.
 
 1. Tenant events including PO onboarding/lifecycle events, submission receipt events, and payment-due/failure events can create Tenant Admin notifications with event detail and a tenant-safe action link.
 2. The tenant-admin shell displays a notification bell with unread count and opens an in-app notification center containing tenant-scoped history, priority, read state, timestamp, and actionable navigation.
@@ -93,6 +99,8 @@ GPT-5
 - Story intentionally specifies manual verification only; automated testing is excluded by user direction.
 - Review fix applied: immediate notifications, broadcasts, billing reminders, and daily digest delivery now schedule messages through the existing NestJS email boundary.
 - Code-review follow-up: routine self-action delivery is suppressed and tenant-admin recipient preferences now govern generated inbox/email messages; PO recipient inbox visibility still requires completion/verification.
+- Browser-feedback follow-up: the header bell now opens the notification center as an in-context side panel; the standalone notification page and sidebar navigation entry are no longer part of the tenant-admin workflow.
+- Product decision follow-up: Story 3.10 was removed from implementation scope; its shell UI, route, Convex APIs, persistence tables, producers, and digest cron were deleted.
 
 ### File List
 

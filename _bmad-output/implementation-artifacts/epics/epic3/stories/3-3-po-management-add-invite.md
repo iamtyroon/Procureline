@@ -1,6 +1,6 @@
 # Story 3.3: PO Management - Add & Invite
 
-Status: in-progress
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -323,6 +323,8 @@ gpt-5-codex
 
 ### Completion Notes List
 
+- Status closed on 2026-05-27 after Tenant Admin manual verification accepted the single-PO invitation and assignment workflow.
+
 - 2026-03-23: Created the implementation-ready story artifact for `3-3-po-management-add-invite`.
 - 2026-03-23: Anchored the story to the live tenant-admin dashboard shell, existing public-entry handoff params, current invitation and audit patterns, and the reserved Procurement Officer access route already in the repo.
 - 2026-03-23: Called out the hidden architecture blocker that the current auth model treats multiple active tenant memberships as `misconfigured`, which directly conflicts with FR-TA3d and must be addressed during implementation.
@@ -387,5 +389,5 @@ gpt-5-codex
 - Story ID: `3.3`
 - Story Key: `3-3-po-management-add-invite`
 - Output File: `_bmad-output/implementation-artifacts/epics/epic3/stories/3-3-po-management-add-invite.md`
-- Final Status: `in-progress`
+- Final Status: `done`
 - Completion Note: `Implemented Procurement Officer invitation management, access handoff, bounce handling, cross-tenant membership selection, cleared the review follow-ups for reselection and URL safety, and reverified the story with regenerated Convex bindings plus the full automated test suite.`
