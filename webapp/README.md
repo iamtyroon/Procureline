@@ -55,15 +55,38 @@ convex/actions/                          Backend actions for external services/f
 
 ## Working Locally
 
+For a fresh clone, install packages and provision the developer's Convex deployment:
+
+```bash
+npm install
+npm run convex:setup
+```
+
+`convex:setup` writes the local Convex environment values, publishes the
+functions, verifies the Convex TypeScript surface, and exits after setup.
+
+Install and configure the sibling NestJS service before starting the combined
+development process:
+
+```bash
+cd ../nestjs
+npm install
+cp .env.example .env
+```
+
+Set `CONVEX_URL` in `nestjs/.env` to the `NEXT_PUBLIC_CONVEX_URL` value created
+in `webapp/.env.local`, then return to `webapp`:
+
 ```bash
 npm run dev
 ```
 
-This runs both sides:
+This runs all development processes:
 
 ```txt
 npm run dev:frontend    Next.js dev server
 npm run dev:backend     Convex dev server
+npm run dev:nestjs      NestJS external services
 ```
 
 For frontend-only work:
