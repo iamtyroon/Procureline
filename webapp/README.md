@@ -129,6 +129,14 @@ For frontend-only work:
 npm run dev:frontend-only
 ```
 
+### Docker Shared-Deployment Setup
+
+For a Docker-based handoff that connects another developer to the same Convex
+development deployment and runs NestJS through a temporary public tunnel, see
+[`../DOCKER_DEVELOPMENT.md`](../DOCKER_DEVELOPMENT.md). Do not run the native
+`npm run dev` stack while Docker Compose is running because both bind ports
+`3000`, `4001`, and `6379`.
+
 ## Verification
 
 Use these checks before handing off larger changes:

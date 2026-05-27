@@ -37,6 +37,11 @@ The service runs independently from `webapp/` and does not require nesting under
 For NestJS-only development, run `npm run start:redis` and `npm run start:dev`
 in separate `nestjs` terminals.
 
+For the shared-Convex Docker workflow used by another developer, follow
+[`../DOCKER_DEVELOPMENT.md`](../DOCKER_DEVELOPMENT.md). The Docker stack uses
+an official Redis container instead of `start:redis` and registers a temporary
+public NestJS tunnel for Convex actions.
+
 ## First integration targets
 
 - `webapp/convex/actions/payments.ts`

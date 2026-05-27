@@ -1,0 +1,92 @@
+name: procureline-dev
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  nestjs:
+    build:
+      context: ./nestjs
+      dockerfile: Dockerfile.dev
+    command: npm run start:dev
+    env_file:
+      - ./nestjs/.env.docker.local
+    environment:
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "4001:4001"
+    volumes:
+      - ./nestjs:/workspace/nestjs
+      - nestjs_node_modules:/workspace/nestjs/node_modules
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:4001/api/services/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  webapp:
+    build:
+      context: ./webapp
+      dockerfile: Dockerfile.dev
+    command: npm run dev:frontend-only -- --hostname 0.0.0.0
+    env_file:
+      - ./webapp/.env.docker.local
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./webapp:/workspace/webapp
+      - webapp_node_modules:/workspace/webapp/node_modules
+
+  convex:
+    build:
+      context: ./webapp
+      dockerfile: Dockerfile.dev
+    command: npx convex dev --env-file .env.docker.local --typecheck=enable
+    env_file:
+      - ./webapp/.env.docker.local
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./webapp:/workspace/webapp
+      - webapp_node_modules:/workspace/webapp/node_modules
+      - convex_home:/root/.convex
+
+  tunnel-register:
+    build:
+      context: .
+      dockerfile: docker/tunnel-register/Dockerfile
+    command: node /opt/procureline/register-tunnel.js
+    env_file:
+      - ./webapp/.env.docker.local
+    environment:
+      NESTJS_INTERNAL_URL: http://nestjs:4001
+    volumes:
+      - ./webapp:/workspace/webapp
+      - webapp_node_modules:/workspace/webapp/node_modules
+      - convex_home:/root/.convex
+    depends_on:
+      nestjs:
+        condition: service_healthy
+
+volumes:
+  convex_home:
+  nestjs_node_modules:
+  redis_data:
+  webapp_node_modules:

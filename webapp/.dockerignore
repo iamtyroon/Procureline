@@ -1,0 +1,9 @@
+.env*
+.next
+.test-dist
+convex-backup-*.zip
+node_modules
+npm-debug.log*
+out
+test-output.txt
+tsconfig.tsbuildinfo

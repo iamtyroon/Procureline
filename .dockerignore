@@ -1,0 +1,16 @@
+.git
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.docker.example
+**/.next
+**/.test-dist
+**/coverage
+**/dist
+**/node_modules
+**/npm-debug.log*
+**/out
+**/*backup*.zip
+**/test-output.txt
+**/test-results.json
+**/tsconfig.tsbuildinfo
