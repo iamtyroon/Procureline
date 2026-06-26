@@ -22,9 +22,7 @@ function runTenantAdminOperationsTests() {
     strict_1.default.equal((0, operations_1.computeLockoutUntil)({ failedAttempts: 5, now }), now + 15 * 60 * 1000);
     strict_1.default.equal((0, operations_1.computeLockoutUntil)({ failedAttempts: 10, now }), now + 60 * 60 * 1000);
     strict_1.default.equal((0, operations_1.computeLockoutUntil)({ failedAttempts: 15, now }), now + 24 * 60 * 60 * 1000);
-    strict_1.default.equal((0, operations_1.resolveNotificationEmailMode)({ isCritical: false, recentImmediateCount: 10 }), "digest");
-    strict_1.default.equal((0, operations_1.resolveNotificationEmailMode)({ isCritical: true, recentImmediateCount: 15 }), "immediate");
-    completedTests.push("security lockout escalation and critical notification delivery policies are deterministic");
+    completedTests.push("security lockout escalation remains deterministic");
     strict_1.default.equal((0, operations_1.formatFiscalYearBySetting)({ format: "FY2025-26", startYear: 2025 }), "FY2025-26");
     strict_1.default.equal((0, operations_1.formatFiscalYearBySetting)({ format: "custom", customFormat: "{start}/{endShort}", startYear: 2025 }), "2025/26");
     completedTests.push("tenant fiscal-year display formatting supports approved and validated custom formats");

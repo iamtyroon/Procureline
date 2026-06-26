@@ -4,20 +4,9 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { ArrowLeft, FileDown, PackagePlus, Redo2, Save, Send, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { CatalogRequestDialog } from "@/src/components/blockly/CatalogRequestDialog";
 import { BlocklyLoadingSkeleton } from "@/src/components/blockly/BlocklyLoadingSkeleton";
@@ -25,10 +14,7 @@ import type {
     BlocklyWorkspaceChangePayload,
     BlocklyWorkspaceHistoryState,
 } from "@/src/components/blockly/BlocklyWorkspace";
-import {
-    areBlocklyWorkspaceJsonEquivalent,
-    type BlocklyWorkspaceRecord,
-} from "@/lib/shared/blockly/blockly-serialization";
+import type { BlocklyWorkspaceRecord } from "@/lib/shared/blockly/blockly-serialization";
 import { getPersistedPlanSummaryForWorkspaceSummaryChange } from "@/lib/frontend/blockly/du-editor-fallback";
 import { buildDepartmentUserToolbox } from "@/lib/frontend/blockly/du-toolbox";
 import {
@@ -37,7 +23,6 @@ import {
     mapDepartmentUserBudgetMeterState,
     resolveDepartmentUserDisplayedWorkspaceSummary,
     type DepartmentUserBudgetMeterState,
-    type DepartmentUserPersistedPlanSummary,
     type DepartmentUserWorkspaceSummary,
 } from "@/lib/shared/blockly/du-workspace-calculations";
 import {
@@ -59,10 +44,8 @@ import {
     clearDepartmentUserWorkspaceDraftState,
     coalesceDepartmentUserWorkspaceSnapshot,
     compareDepartmentUserWorkspaceRecoveryFreshness,
-    createDepartmentUserWorkspaceLeaveGuardHistoryState,
     createClearedDepartmentUserWorkspaceRecord,
     createRecoveredDepartmentUserWorkspaceRecord,
-    getDepartmentUserWorkspaceLeaveGuardHistoryAction,
     getDepartmentUserWorkspaceRecoveryMessage,
     getDepartmentUserWorkspaceSaveIndicatorLabel,
     hasCompetingDepartmentUserWorkspaceSession,
@@ -70,7 +53,6 @@ import {
     readDepartmentUserWorkspaceDraftState,
     readDepartmentUserWorkspaceSessionLease,
     releaseDepartmentUserWorkspaceSessionLease,
-    shouldInterceptDepartmentUserRouteNavigation,
     shouldWarnDepartmentUserBeforeLeave,
     upsertDepartmentUserWorkspaceQueuedSnapshot,
     upsertDepartmentUserWorkspaceRecoverySnapshot,
@@ -87,7 +69,19 @@ import {
     PROCUREMENT_ITEM_VALIDATION_CHANGE_NOTICE,
     PROCUREMENT_ITEM_WORKSPACE_UNAVAILABLE_MESSAGE,
 } from "@/lib/procurement-officer/items";
-import type { CategoryIconName } from "@/lib/procurement-officer/categories";
+import { BlocklyEditorDialogs } from "./editor/BlocklyEditorDialogs";
+import { BlocklyEditorHeader } from "./editor/BlocklyEditorHeader";
+import { useWorkspaceNavigationGuard } from "./editor/useWorkspaceNavigationGuard";
+import {
+    getDepartmentUserWorkspaceBrowserSessionId,
+    isSameWorkspaceContent,
+    isSameWorkspaceSnapshotIgnoringSavedAt,
+} from "./editor/workspaceEditorUtils";
+import type {
+    BlocklyEditorProps,
+    DepartmentUserCatalogRequestData,
+} from "./editor/BlocklyEditor.types";
+import { formatKenyanCurrency, formatSubmittedAtLabel } from "./editor/formatters";
 import styles from "./BlocklyWorkspace.module.css";
 
 const LazyBlocklyWorkspace = dynamic(
@@ -101,169 +95,7 @@ const LazyBlocklyWorkspace = dynamic(
     },
 );
 
-type PendingNavigationTarget =
-    | {
-          kind: "back";
-      }
-    | {
-          href: string;
-          kind: "href";
-      };
-
-type DepartmentUserCatalogRequestRecord = {
-    canCancel: boolean;
-    canEdit: boolean;
-    categoryId?: string | null;
-    categoryName?: string | null;
-    categoryReferenceMode?: "existing" | "request";
-    categoryRequest?: {
-        description: string;
-        id: string;
-        justification: string;
-        name: string;
-        revision: number;
-    } | null;
-    createdAt: number;
-    description: string;
-    estimatedUnitPrice?: number;
-    id: string;
-    justification: string;
-    linkedCategoryRequestId?: string | null;
-    name: string;
-    reason: string | null;
-    revision: number;
-    status: "approved" | "cancelled" | "denied" | "expired" | "pending";
-    submittedAt: number;
-    type: "category" | "item";
-    updatedAt: number;
-};
-
-type DepartmentUserCatalogRequestData = {
-    meta: {
-        accessMode: "editable" | "read_only_grace" | null;
-        canCreate: boolean;
-    };
-    requests: DepartmentUserCatalogRequestRecord[];
-    summary: {
-        pendingCategoryCount: number;
-        pendingItemCount: number;
-        totalCount: number;
-        totalPendingCount: number;
-    };
-};
-
-export function BlocklyEditor(props: {
-    accessMode: "editable" | "read_only_grace" | null;
-    actor: "department_user" | "procurement_officer";
-    actorLabel: string;
-    categories: Array<{
-        color?: string | null;
-        id: string;
-        icon?: CategoryIconName | null;
-        isActive: boolean;
-        name: string;
-        sortOrder: number;
-    }>;
-    department: {
-        budgetAllocation: number | null;
-        code: string;
-        id: string;
-        name: string;
-        voteNumber: string;
-    };
-    currentUserId: string;
-    fiscalYear: string;
-    items: Array<{
-        categoryId: string;
-        complianceFlags?: readonly string[] | null;
-        description: string | null;
-        id: string;
-        isActive: boolean;
-        lastPriceChangedAt: number | null;
-        maxQuantity: number | null;
-        minQuantity: number | null;
-        name: string;
-        procurementMethod: string | null;
-        sortOrder: number;
-        sourceOfFunds: string | null;
-        unitOfMeasurement: string | null;
-        unitPrice: number | null;
-    }>;
-    mode: "edit" | "view";
-    modeIndicatorLabel: string | null;
-    planId: string;
-    planMeta: {
-        canWithdraw: boolean;
-        reviewStartedAt: number | null;
-        revisionContext: {
-            activeDecision: null | {
-                comment: string;
-                decidedAt: number;
-                decisionType: "approved" | "rejected" | "revision_requested";
-                effectiveRevisionDeadlineAt: number | null;
-                flaggedTargets: Array<{
-                    categoryId: string;
-                    id: string;
-                    itemId: string | null;
-                    label: string;
-                    type: "category" | "item";
-                }>;
-                id: string;
-                lifecycleStatus: "active" | "superseded" | "undone" | null;
-                revisionDeadlineAt: number | null;
-                submissionReference: string | null;
-            };
-            effectiveDeadlineExpired: boolean;
-            history: Array<{
-                detail: string;
-                id: string;
-                kind:
-                    | "approved"
-                    | "rejected"
-                    | "revision_requested"
-                    | "submitted"
-                    | "withdrawn";
-                timestamp: number | null;
-                timestampLabel: string;
-                title: string;
-            }>;
-            inconsistentStateMessage: string | null;
-            reviewDecisions: Array<{
-                comment: string;
-                decidedAt: number;
-                decisionType: "approved" | "rejected" | "revision_requested";
-                effectiveRevisionDeadlineAt: number | null;
-                flaggedTargets: Array<{
-                    categoryId: string;
-                    id: string;
-                    itemId: string | null;
-                    label: string;
-                    type: "category" | "item";
-                }>;
-                id: string;
-                lifecycleStatus: "active" | "superseded" | "undone" | null;
-                revisionDeadlineAt: number | null;
-                submissionReference: string | null;
-            }>;
-        } | null;
-        status: "approved" | "draft" | "rejected" | "submitted";
-        submissionEmailErrorMessage: string | null;
-        submissionEmailStatus: "failed" | "queued" | null;
-        submissionReference: string | null;
-        submittedAt: number | null;
-        timeZone: string;
-    };
-    persistedPlanSummary: DepartmentUserPersistedPlanSummary;
-    selectedCategoryIds: string[];
-    subtitle: string;
-    unavailableCategories: Array<{
-        id: string;
-        name: string;
-        reason: string;
-    }>;
-    workspaceState: BlocklyWorkspaceRecord | null;
-    workspaceVersion: number;
-}) {
+export function BlocklyEditor(props: BlocklyEditorProps) {
     const router = useRouter();
     const saveWorkspaceDraft = useMutation(api.functions.plans.saveDepartmentUserWorkspaceDraft);
     const submitDepartmentUserPlan = useMutation(api.functions.plans.submitDepartmentUserPlan);
@@ -390,9 +222,6 @@ export function BlocklyEditor(props: {
     const storageWarningMessageRef = useRef<string | null>(null);
     const saveIndicatorAnnouncementRef = useRef<string | null>(null);
     const hasSessionConflictRef = useRef(false);
-    const pendingNavigationTargetRef = useRef<PendingNavigationTarget | null>(null);
-    const navigationGuardBypassRef = useRef(false);
-    const historyGuardArmedRef = useRef(false);
     const handleStorageFailureRef = useRef<
         (error: DepartmentUserWorkspaceStorageFailure) => void
     >(() => {});
@@ -422,7 +251,6 @@ export function BlocklyEditor(props: {
             canRedo: false,
             canUndo: false,
         });
-    const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
     const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
     const [isSubmitReviewOpen, setIsSubmitReviewOpen] = useState(false);
     const [isSubmitPending, setIsSubmitPending] = useState(false);
@@ -754,6 +582,13 @@ export function BlocklyEditor(props: {
         hasUnsyncedRisk,
         isSaveInFlight: isSaveInFlightRef.current,
         mode: props.mode,
+    });
+    const navigationGuard = useWorkspaceNavigationGuard({
+        hasUnsyncedRisk,
+        isSaveInFlightRef,
+        mode: props.mode,
+        sessionId: sessionIdRef.current,
+        shouldWarnBeforeLeave,
     });
 
     function handleStorageFailure(error: DepartmentUserWorkspaceStorageFailure): void {
@@ -1163,149 +998,6 @@ export function BlocklyEditor(props: {
         };
     }, [props.mode]);
 
-    useEffect(() => {
-        if (!shouldWarnBeforeLeave) {
-            return;
-        }
-
-        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-            event.preventDefault();
-            event.returnValue = "";
-        };
-
-        window.addEventListener("beforeunload", handleBeforeUnload);
-        return () => {
-            window.removeEventListener("beforeunload", handleBeforeUnload);
-        };
-    }, [shouldWarnBeforeLeave]);
-
-    useEffect(() => {
-        if (!shouldWarnBeforeLeave) {
-            return;
-        }
-
-        const handleDocumentClick = (event: MouseEvent) => {
-            if (
-                navigationGuardBypassRef.current ||
-                event.defaultPrevented ||
-                event.button !== 0 ||
-                event.metaKey ||
-                event.ctrlKey ||
-                event.shiftKey ||
-                event.altKey
-            ) {
-                return;
-            }
-
-            const eventTarget = event.target;
-            if (!(eventTarget instanceof Element)) {
-                return;
-            }
-
-            const anchor = eventTarget.closest("a[href]");
-            if (!(anchor instanceof HTMLAnchorElement)) {
-                return;
-            }
-
-            if (
-                anchor.target &&
-                anchor.target !== "_self" &&
-                anchor.target.trim().length > 0
-            ) {
-                return;
-            }
-
-            if (anchor.hasAttribute("download")) {
-                return;
-            }
-
-            if (
-                !shouldInterceptDepartmentUserRouteNavigation({
-                    currentUrl: window.location.href,
-                    hasUnsyncedRisk,
-                    isSaveInFlight: isSaveInFlightRef.current,
-                    mode: props.mode,
-                    nextUrl: anchor.href,
-                })
-            ) {
-                return;
-            }
-
-            event.preventDefault();
-            pendingNavigationTargetRef.current = {
-                href: anchor.href,
-                kind: "href",
-            };
-            setIsExitDialogOpen(true);
-        };
-
-        document.addEventListener("click", handleDocumentClick, true);
-        return () => {
-            document.removeEventListener("click", handleDocumentClick, true);
-        };
-    }, [hasUnsyncedRisk, props.mode, shouldWarnBeforeLeave]);
-
-    useEffect(() => {
-        const historyAction = getDepartmentUserWorkspaceLeaveGuardHistoryAction({
-            historyState: window.history.state,
-            isGuardArmed: historyGuardArmedRef.current,
-            sessionId: sessionIdRef.current,
-            shouldWarnBeforeLeave,
-        });
-
-        if (historyAction === "disarm") {
-            historyGuardArmedRef.current = false;
-            navigationGuardBypassRef.current = true;
-            window.history.back();
-            const resetBypassTimeoutId = window.setTimeout(() => {
-                navigationGuardBypassRef.current = false;
-            }, 100);
-            return () => {
-                window.clearTimeout(resetBypassTimeoutId);
-            };
-        }
-
-        if (!shouldWarnBeforeLeave) {
-            historyGuardArmedRef.current = false;
-            return;
-        }
-
-        if (historyAction === "arm") {
-            window.history.pushState(
-                createDepartmentUserWorkspaceLeaveGuardHistoryState(
-                    sessionIdRef.current,
-                ),
-                "",
-                window.location.href,
-            );
-            historyGuardArmedRef.current = true;
-        }
-
-        const handlePopState = () => {
-            if (navigationGuardBypassRef.current) {
-                navigationGuardBypassRef.current = false;
-                return;
-            }
-
-            window.history.pushState(
-                createDepartmentUserWorkspaceLeaveGuardHistoryState(
-                    sessionIdRef.current,
-                ),
-                "",
-                window.location.href,
-            );
-            pendingNavigationTargetRef.current = {
-                kind: "back",
-            };
-            setIsExitDialogOpen(true);
-        };
-
-        window.addEventListener("popstate", handlePopState);
-        return () => {
-            window.removeEventListener("popstate", handlePopState);
-        };
-    }, [shouldWarnBeforeLeave]);
-
     async function handleWorkspaceChange(payload: BlocklyWorkspaceChangePayload): Promise<void> {
         currentWorkspaceRecordRef.current = payload.workspaceState;
         latestLocalWorkspaceRevisionRef.current = Math.max(
@@ -1444,10 +1136,6 @@ export function BlocklyEditor(props: {
                     : "We could not submit that item request right now.",
             );
         }
-    }
-
-    function handlePlaceholderAction(message: string): void {
-        toast(message);
     }
 
     async function confirmNoLocalDraftBeforeSubmission(): Promise<boolean> {
@@ -1810,50 +1498,6 @@ export function BlocklyEditor(props: {
         }));
     }
 
-    function handleExitDialogOpenChange(nextOpen: boolean): void {
-        if (!nextOpen) {
-            pendingNavigationTargetRef.current = null;
-        }
-
-        setIsExitDialogOpen(nextOpen);
-    }
-
-    function handleConfirmedExit(): void {
-        const pendingNavigationTarget = pendingNavigationTargetRef.current ?? {
-            href: "/du",
-            kind: "href" as const,
-        };
-        pendingNavigationTargetRef.current = null;
-        setIsExitDialogOpen(false);
-        navigationGuardBypassRef.current = true;
-
-        if (pendingNavigationTarget.kind === "back") {
-            window.history.back();
-            window.setTimeout(() => {
-                navigationGuardBypassRef.current = false;
-            }, 100);
-            return;
-        }
-
-        router.push(pendingNavigationTarget.href);
-        window.setTimeout(() => {
-            navigationGuardBypassRef.current = false;
-        }, 100);
-    }
-
-    function handleExitIntent(): void {
-        if (!shouldWarnBeforeLeave) {
-            router.push("/du");
-            return;
-        }
-
-        pendingNavigationTargetRef.current = {
-            href: "/du",
-            kind: "href",
-        };
-        setIsExitDialogOpen(true);
-    }
-
     const pendingCatalogRequestIssue = useMemo<DepartmentUserPlanSubmissionIssue | null>(() => {
         const pendingCount = catalogRequestData?.summary.totalPendingCount ?? 0;
         if (pendingCount <= 0) {
@@ -1977,160 +1621,33 @@ export function BlocklyEditor(props: {
 
             <div className={styles.workspaceShell}>
                 <div className={styles.workspacePrototype}>
-                    <div className={styles.workspacePrototypeHeader}>
-                        <div className={styles.workspacePrototypeLead}>
-                            <span className={styles.workspacePrototypeEyebrow}>
-                                Fiscal year {props.fiscalYear}
-                            </span>
-                            <h1 className={styles.workspacePrototypeTitle}>{workspaceTitle}</h1>
-                            <p
-                                className={styles.workspacePrototypeSubtitle}
-                                data-du-deadline-summary
-                            >
-                                {workspaceSubtitle}
-                            </p>
-                        </div>
-
-                        <div className={styles.workspacePrototypeStats}>
-                            <div
-                                className={styles.prototypeBudgetMeter}
-                                data-du-budget-summary
-                            >
-                                <div className={styles.prototypeBudgetLabel}>
-                                    Department budget
-                                </div>
-                                <div className={styles.prototypeBudgetBar}>
-                                    <div
-                                        className={styles.prototypeBudgetFill}
-                                        style={{
-                                            width: `${Math.max(
-                                                0,
-                                                Math.min(100, budgetState.usedPercent ?? 0),
-                                            )}%`,
-                                        }}
-                                    />
-                                </div>
-                                <div className={styles.prototypeBudgetText}>
-                                    <span>{formatKenyanCurrency(budgetState.usedAmount)}</span>
-                                    <span>
-                                        {budgetState.totalBudget === null
-                                            ? "Not allocated"
-                                            : formatKenyanCurrency(budgetState.totalBudget)}
-                                    </span>
-                                    <span>{budgetState.usageLabel}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className={styles.workspacePrototypeToolbar}>
-                            <span className={styles.workspacePrototypeStatus}>
-                                {saveIndicatorLabel}
-                            </span>
-                            <Button
-                                className={styles.workspacePrototypeActionButton}
-                                onClick={handleExitIntent}
-                                type="button"
-                                variant="outline"
-                            >
-                                <ArrowLeft className="mr-2 h-4 w-4" />
-                                Exit
-                            </Button>
-                            <Button
-                                className={styles.workspacePrototypeActionButton}
-                                disabled={props.mode !== "edit" || catalogRequestData?.meta.canCreate === false}
-                                onClick={() => startTransition(() => openCatalogRequestDialog("item"))}
-                                type="button"
-                                variant="outline"
-                            >
-                                <PackagePlus className="mr-2 h-4 w-4" />
-                                Request Item
-                            </Button>
-                            <Button
-                                className={styles.workspacePrototypeActionButton}
-                                onClick={() =>
-                                    startTransition(() =>
-                                        handlePlaceholderAction(
-                                            "Export handoff stays reserved until the export stories land.",
-                                        ),
-                                    )
-                                }
-                                type="button"
-                                variant="outline"
-                            >
-                                <FileDown className="mr-2 h-4 w-4" />
-                                Export to Excel
-                            </Button>
-                            <Button
-                                className={styles.workspacePrototypeActionButton}
-                                disabled={isUndoDisabled}
-                                onClick={handleWorkspaceUndo}
-                                type="button"
-                                variant="outline"
-                            >
-                                <Undo2 className="mr-2 h-4 w-4" />
-                                Undo
-                            </Button>
-                            <Button
-                                className={styles.workspacePrototypeActionButton}
-                                disabled={isRedoDisabled}
-                                onClick={handleWorkspaceRedo}
-                                type="button"
-                                variant="outline"
-                            >
-                                <Redo2 className="mr-2 h-4 w-4" />
-                                Redo
-                            </Button>
-                            <Button
-                                className={styles.workspacePrototypeSaveButton}
-                                disabled={isCloudSaveDisabled}
-                                onClick={() => {
-                                    void handleSaveToCloud();
-                                }}
-                                type="button"
-                                variant="outline"
-                            >
-                                <Save className="mr-2 h-4 w-4" />
-                                {saveState === "saving" ? "Saving..." : "Save"}
-                            </Button>
-                            {canOpenSubmitReview ? (
-                                <Button
-                                    className={styles.workspacePrototypeSubmitButton}
-                                    disabled={submitState.disabled || isSubmitPending}
-                                    onClick={() => {
-                                        void handleOpenSubmitReview();
-                                    }}
-                                    type="button"
-                                    variant="default"
-                                >
-                                    <Send className="mr-2 h-4 w-4" />
-                                    {isSubmitPending ? "Submitting..." : submitState.label}
-                                </Button>
-                            ) : canWithdrawCurrentSubmission ? (
-                                <Button
-                                    className={styles.workspacePrototypeWithdrawButton}
-                                    disabled={isWithdrawPending}
-                                    onClick={() => {
-                                        void handleWithdrawSubmission();
-                                    }}
-                                    type="button"
-                                    variant="default"
-                                >
-                                    <Send className="mr-2 h-4 w-4" />
-                                    {isWithdrawPending ? "Withdrawing..." : "Withdraw Submission"}
-                                </Button>
-                            ) : (
-                                <Button
-                                    className={styles.workspacePrototypeDisabledButton}
-                                    disabled
-                                    type="button"
-                                    variant="default"
-                                >
-                                    <Send className="mr-2 h-4 w-4" />
-                                    {props.planMeta.status === "submitted" ? "Submitted" : "View Only"}
-                                </Button>
-                            )}
-                        </div>
-                    </div>
+                    <BlocklyEditorHeader
+                        budgetState={budgetState}
+                        canCreateCatalogRequest={catalogRequestData?.meta.canCreate !== false}
+                        canOpenSubmitReview={canOpenSubmitReview}
+                        canWithdrawCurrentSubmission={canWithdrawCurrentSubmission}
+                        fiscalYear={props.fiscalYear}
+                        isCloudSaveDisabled={isCloudSaveDisabled}
+                        isRedoDisabled={isRedoDisabled}
+                        isSubmitPending={isSubmitPending}
+                        isUndoDisabled={isUndoDisabled}
+                        isWithdrawPending={isWithdrawPending}
+                        mode={props.mode}
+                        onExit={navigationGuard.requestExit}
+                        onOpenCatalogRequest={() => openCatalogRequestDialog("item")}
+                        onRedo={handleWorkspaceRedo}
+                        onSave={() => void handleSaveToCloud()}
+                        onSubmit={() => void handleOpenSubmitReview()}
+                        onUndo={handleWorkspaceUndo}
+                        onWithdraw={() => void handleWithdrawSubmission()}
+                        planStatus={props.planMeta.status}
+                        saveIndicatorLabel={saveIndicatorLabel}
+                        saveState={saveState}
+                        submitDisabled={submitState.disabled}
+                        submitLabel={submitState.label}
+                        subtitle={workspaceSubtitle}
+                        title={workspaceTitle}
+                    />
 
                     <div className={styles.workspacePrototypeCanvas}>
                         <LazyBlocklyWorkspace
@@ -2680,133 +2197,15 @@ export function BlocklyEditor(props: {
                 }
             />
 
-            <AlertDialog
-                open={isExitDialogOpen}
-                onOpenChange={handleExitDialogOpenChange}
-            >
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Leave this draft?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Unsaved local changes may be lost. Stay here to keep the local draft and recovery copy active, or leave the editor now.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Stay</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirmedExit}>
-                            Leave
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog open={isClearDialogOpen} onOpenChange={setIsClearDialogOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Start over on this draft?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This clears the current Blockly canvas and replaces the local recovery snapshot for this plan. Use Save afterwards if you want the cleared version synced to cloud.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Keep current draft</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={(event) => {
-                                event.preventDefault();
-                                setIsClearDialogOpen(false);
-                                void handleClearPlan();
-                            }}
-                        >
-                            Clear plan
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+            <BlocklyEditorDialogs
+                clearOpen={isClearDialogOpen}
+                exitOpen={navigationGuard.isExitDialogOpen}
+                onClear={() => void handleClearPlan()}
+                onClearOpenChange={setIsClearDialogOpen}
+                onConfirmExit={navigationGuard.confirmExit}
+                onExitOpenChange={navigationGuard.onExitOpenChange}
+            />
         </div>
     );
 }
 
-function formatKenyanCurrency(amount: number): string {
-    return new Intl.NumberFormat("en-KE", {
-        currency: "KES",
-        maximumFractionDigits: 2,
-        minimumFractionDigits: 2,
-        style: "currency",
-    }).format(amount);
-}
-
-function formatSubmittedAtLabel(timestamp: number): string {
-    return new Intl.DateTimeFormat("en-KE", {
-        dateStyle: "medium",
-        timeStyle: "short",
-    }).format(timestamp);
-}
-
-function isSameWorkspaceSnapshotIgnoringSavedAt(
-    left: BlocklyWorkspaceRecord | null | undefined,
-    right: BlocklyWorkspaceRecord | null | undefined,
-): boolean {
-    if (!left || !right) {
-        return false;
-    }
-
-    return (
-        left.editorMetadata.revision === right.editorMetadata.revision &&
-        left.editorMetadata.lastSavedByUserId === right.editorMetadata.lastSavedByUserId &&
-        left.editorMetadata.recoveredAt === right.editorMetadata.recoveredAt &&
-        left.editorMetadata.saveSource === right.editorMetadata.saveSource &&
-        areBlocklyWorkspaceJsonEquivalent(left.workspaceJson, right.workspaceJson)
-    );
-}
-
-function isSameWorkspaceContent(
-    left: BlocklyWorkspaceRecord | null | undefined,
-    right: BlocklyWorkspaceRecord | null | undefined,
-): boolean {
-    if (!left || !right) {
-        return false;
-    }
-
-    return areBlocklyWorkspaceJsonEquivalent(left.workspaceJson, right.workspaceJson);
-}
-
-function getDepartmentUserWorkspaceBrowserSessionId(args: {
-    planId: string;
-    userId: string;
-}): string {
-    const fallbackSessionId = createDepartmentUserWorkspaceSessionId();
-
-    if (typeof window === "undefined") {
-        return fallbackSessionId;
-    }
-
-    const sessionStorageKey = `procureline:blockly-tab-session:${args.userId}:${args.planId}`;
-
-    try {
-        const existingSessionId = window.sessionStorage.getItem(sessionStorageKey);
-        if (existingSessionId) {
-            return existingSessionId;
-        }
-
-        const navigationEntry = window.performance
-            .getEntriesByType("navigation")
-            .at(0) as PerformanceNavigationTiming | undefined;
-        const isBrowserReload = navigationEntry?.type === "reload";
-        const activeLease = readDepartmentUserWorkspaceSessionLease(args);
-        const sessionId =
-            isBrowserReload && activeLease?.sessionId
-                ? activeLease.sessionId
-                : fallbackSessionId;
-
-        window.sessionStorage.setItem(sessionStorageKey, sessionId);
-        return sessionId;
-    } catch {
-        return fallbackSessionId;
-    }
-}
-
-function createDepartmentUserWorkspaceSessionId(): string {
-    return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-        ? crypto.randomUUID()
-        : `workspace-session-${Date.now()}`;
-}

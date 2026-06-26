@@ -264,7 +264,10 @@ exports.getTenantAdminDashboardSnapshot = (0, server_1.query)({
             });
         }
         const now = Date.now();
-        const selectedFiscalYear = args.selectedFiscalYear ?? (0, dashboard_1.getFiscalYearForDate)(now).key;
+        const currentFiscalYear = (0, dashboard_1.getFiscalYearForDate)(now).key;
+        const selectedFiscalYear = args.selectedFiscalYear && args.selectedFiscalYear <= currentFiscalYear
+            ? args.selectedFiscalYear
+            : currentFiscalYear;
         const [tenantUsers, departments, departmentUserProfiles, poInvitations, targetActivity, sourceActivity, submissionDeadlines] = await Promise.all([
             ctx.db
                 .query("tenantUsers")
@@ -337,7 +340,6 @@ exports.getTenantAdminDashboardSnapshot = (0, server_1.query)({
         const planReviewDecisions = departmentProcurementData.flatMap((entry) => entry.decisions);
         const planRedraftRequests = departmentProcurementData.flatMap((entry) => entry.redrafts);
         const fiscalYearKeys = Array.from(new Set([
-            selectedFiscalYear,
             ...plans.map((plan) => plan.fiscalYear),
             ...planSubmissionSnapshots.map((snapshot) => snapshot.fiscalYear),
             ...planReviewDecisions.map((decision) => decision.fiscalYear),

@@ -7,7 +7,6 @@ crons.interval("expire pending department-user catalog requests", { hours: 1 }, 
 crons.interval("run due tenant-admin report schedules", { minutes: 15 }, api_1.internal.actions.files.runDueTenantAdminReportSchedules, {});
 crons.daily("run subscription billing maintenance", { hourUTC: 0, minuteUTC: 15 }, api_1.internal.functions.platformAdminSubscriptions.runScheduledBillingMaintenance, {});
 crons.daily("run tenant subscription reminders and scheduled changes", { hourUTC: 0, minuteUTC: 30 }, api_1.internal.functions.tenantAdminOperations.runTenantSubscriptionMaintenance, {});
-crons.daily("deliver tenant notification digests", { hourUTC: 4, minuteUTC: 0 }, api_1.internal.functions.tenantAdminOperations.runTenantNotificationDigests, {});
 crons.interval("process due billing reconciliations", { minutes: 30 }, api_1.internal.functions.platformAdminSubscriptions.processDueBillingReconciliations, {});
 crons.interval("run platform-admin operations maintenance", { minutes: 15 }, api_1.internal.functions.platformAdminOperations.runPlatformAdminMaintenance, {});
 exports.default = crons;

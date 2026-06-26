@@ -446,6 +446,7 @@ async function redeemInvitationCore(args) {
 }
 exports.redeemInvitationCore = redeemInvitationCore;
 async function completeInstitutionProfileCore(args) {
+    const institutionalFiscalYearStartMonth = 7;
     const tenant = await args.ctx.db.get(args.authContext.tenantId);
     if (!tenant || tenant.status !== "active") {
         await (0, _audit_1.appendAuditLogBestEffort)(args.ctx, {
@@ -511,18 +512,16 @@ async function completeInstitutionProfileCore(args) {
             message: primaryContactEmailResult.issue.message,
         });
     }
-    if (!Number.isInteger(args.fiscalYearStartMonth) ||
-        args.fiscalYearStartMonth < 1 ||
-        args.fiscalYearStartMonth > 12) {
+    if (args.fiscalYearStartMonth !== institutionalFiscalYearStartMonth) {
         throw new values_1.ConvexError({
             code: "VALIDATION_FAILED",
             field: "fiscalYearStartMonth",
-            message: "Fiscal year start month must be between 1 and 12.",
+            message: "The institutional fiscal year is fixed from 1 July through 30 June.",
         });
     }
     const now = Date.now();
     await args.ctx.db.patch(tenant._id, {
-        fiscalYearStartMonth: args.fiscalYearStartMonth,
+        fiscalYearStartMonth: institutionalFiscalYearStartMonth,
         logoUrl: typeof args.logoUrl === "string" && args.logoUrl.trim().length > 0
             ? args.logoUrl.trim()
             : undefined,
@@ -550,7 +549,7 @@ async function completeInstitutionProfileCore(args) {
         entityType: "tenant",
         event: audit_1.AUDIT_EVENT_NAMES.tenantAdminOnboardingCompleted,
         metadata: {
-            fiscalYearStartMonth: args.fiscalYearStartMonth,
+            fiscalYearStartMonth: institutionalFiscalYearStartMonth,
         },
         outcome: "allowed",
         recordId: String(tenant._id),

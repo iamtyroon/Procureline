@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.runTenantNotificationDigests = exports.runTenantSubscriptionMaintenance = exports.restoreDeletedTenantAdminAccount = exports.requestAccountDeletion = exports.acceptAdminTransfer = exports.initiateAdminTransfer = exports.getAccountLifecycle = exports.revokeOtherSession = exports.verifyCurrentRecoveryCode = exports.verifyCurrentTwoFactorCode = exports.acknowledgeTwoFactorRecoveryCodes = exports.confirmTwoFactorEnrollment = exports.beginTwoFactorEnrollment = exports.getSecurityWorkspace = exports.sendPoBroadcast = exports.saveNotificationPreset = exports.markNotificationRead = exports.getNotificationCenter = exports.requestSubscriptionChange = exports.getBillingWorkspace = exports.unlockProcurementOfficer = exports.listProcurementOfficerActivity = exports.setProcurementOfficerActive = exports.getPoLifecycleContext = exports.confirmVerifiedEmailChange = exports.requestVerifiedEmailChange = exports.updateCurrentProfile = exports.saveInstitutionLogo = exports.generateInstitutionLogoUploadUrl = exports.updateInstitutionSettings = exports.getInstitutionSettings = void 0;
+exports.runTenantSubscriptionMaintenance = exports.restoreDeletedTenantAdminAccount = exports.requestAccountDeletion = exports.acceptAdminTransfer = exports.initiateAdminTransfer = exports.getAccountLifecycle = exports.revokeOtherSession = exports.verifyCurrentRecoveryCode = exports.verifyCurrentTwoFactorCode = exports.acknowledgeTwoFactorRecoveryCodes = exports.confirmTwoFactorEnrollment = exports.beginTwoFactorEnrollment = exports.getSecurityWorkspace = exports.requestSubscriptionChange = exports.getBillingWorkspace = exports.unlockProcurementOfficer = exports.listProcurementOfficerActivity = exports.setProcurementOfficerActive = exports.getPoLifecycleContext = exports.confirmVerifiedEmailChange = exports.requestVerifiedEmailChange = exports.updateCurrentProfile = exports.saveInstitutionLogo = exports.generateInstitutionLogoUploadUrl = exports.updateInstitutionSettings = exports.getInstitutionSettings = void 0;
 const random_1 = require("@oslojs/crypto/random");
 const server_1 = require("@convex-dev/auth/server");
 const values_1 = require("convex/values");
@@ -12,6 +12,7 @@ const sessions_1 = require("./sessions");
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const DEVELOPMENT_TOTP_ENCRYPTION_KEY = "procureline-dev-tenant-admin-totp-encryption-key";
+const INSTITUTIONAL_FISCAL_YEAR_START_MONTH = 7;
 const tierValidator = values_1.v.union(values_1.v.literal("free"), values_1.v.literal("starter"), values_1.v.literal("professional"), values_1.v.literal("enterprise"));
 function validationError(field, message) {
     throw new values_1.ConvexError({ code: "VALIDATION_FAILED", field, message });
@@ -91,17 +92,6 @@ async function getCurrentTenantAdmin(ctx, auth) {
     }
     return member;
 }
-async function getCurrentTenantMember(ctx, auth) {
-    const member = await ctx.db
-        .query("tenantUsers")
-        .withIndex("by_userId_tenantId", (q) => q.eq("userId", auth.userId).eq("tenantId", auth.tenantId))
-        .filter((q) => q.eq(q.field("role"), auth.role))
-        .first();
-    if (!member || !member.isActive) {
-        throw new values_1.ConvexError({ code: "UNAUTHORIZED", message: "An active tenant membership is required." });
-    }
-    return member;
-}
 async function audit(ctx, auth, args) {
     await ctx.db.insert("auditLogs", {
         action: args.action,
@@ -125,56 +115,6 @@ async function requireWritableTenant(ctx, auth) {
             code: "SUBSCRIPTION_READ_ONLY",
             message: "This tenant is in suspended read-only mode. Restore billing access before changing operational data.",
         });
-    }
-}
-async function notifyTenantAdminsExceptActor(ctx, auth, args) {
-    const existing = await ctx.db.query("tenantNotifications").withIndex("by_eventKey", (q) => q.eq("eventKey", args.eventKey)).first();
-    if (existing)
-        return;
-    const recipients = await ctx.db.query("tenantUsers")
-        .withIndex("by_tenantId", (q) => q.eq("tenantId", auth.tenantId))
-        .filter((q) => q.eq(q.field("role"), "tenant_admin"))
-        .filter((q) => q.eq(q.field("isActive"), true))
-        .collect();
-    for (const recipient of recipients.filter((item) => item.userId !== auth.userId)) {
-        const preference = await ctx.db.query("tenantNotificationPreferences")
-            .withIndex("by_tenantUserId", (q) => q.eq("tenantUserId", recipient._id))
-            .first();
-        const categoryPreference = preference?.categories.find((item) => item.category === args.category);
-        const inApp = args.priority === "critical" || categoryPreference?.inApp !== false;
-        const email = args.priority === "critical" || categoryPreference?.email !== false;
-        if (!inApp && !email)
-            continue;
-        const recent = await ctx.db.query("tenantNotifications")
-            .withIndex("by_recipientTenantUserId", (q) => q.eq("recipientTenantUserId", recipient._id))
-            .filter((q) => q.gte(q.field("createdAt"), Date.now() - DAY_MS))
-            .collect();
-        const emailMode = email ? (0, operations_1.resolveNotificationEmailMode)({
-            isCritical: args.priority === "critical",
-            recentImmediateCount: recent.filter((item) => item.emailStatus === "queued").length,
-        }) : null;
-        await ctx.db.insert("tenantNotifications", {
-            category: args.category,
-            createdAt: Date.now(),
-            emailStatus: emailMode === "digest" ? "digest_queued" : emailMode ? "queued" : "not_requested",
-            eventKey: `${args.eventKey}:${recipient._id}`,
-            message: args.message,
-            priority: args.priority ?? "normal",
-            recipientTenantUserId: recipient._id,
-            recipientUserId: recipient.userId,
-            tenantId: auth.tenantId,
-            title: args.title,
-        });
-        if (emailMode === "immediate") {
-            await scheduleGenericEmail(ctx, {
-                heading: args.title,
-                idempotencyKey: `tenant-notification:${args.eventKey}:${recipient._id}`,
-                message: args.message,
-                recipientUserId: recipient.userId,
-                subject: args.title,
-                tenantId: auth.tenantId,
-            });
-        }
     }
 }
 async function scheduleGenericEmail(ctx, args) {
@@ -237,8 +177,15 @@ exports.updateInstitutionSettings = (0, server_2.mutation)({
         const tenant = await ctx.db.get(auth.tenantId);
         if (!tenant)
             throw new values_1.ConvexError({ code: "NOT_FOUND", message: "Tenant not found." });
-        if (args.fiscalYearStartMonth < 1 || args.fiscalYearStartMonth > 12)
-            validationError("fiscalYearStartMonth", "Start month must be 1 through 12.");
+        if (args.fiscalYearStartMonth !== INSTITUTIONAL_FISCAL_YEAR_START_MONTH) {
+            validationError("fiscalYearStartMonth", "The institutional fiscal year is fixed from 1 July through 30 June.");
+        }
+        try {
+            new Intl.DateTimeFormat("en-US", { timeZone: args.timeZone.trim() }).format(new Date());
+        }
+        catch {
+            validationError("timeZone", "Select a valid IANA timezone.");
+        }
         const complianceErrors = (0, operations_1.validateComplianceTargets)(args.complianceTargets);
         if (complianceErrors.length > 0)
             validationError("complianceTargets", complianceErrors.join(" "));
@@ -275,12 +222,12 @@ exports.updateInstitutionSettings = (0, server_2.mutation)({
             effectiveFromNextCycle: activeCycle,
             fiscalYearCustomFormat: args.fiscalYearCustomFormat,
             fiscalYearDisplayFormat: args.fiscalYearDisplayFormat,
-            fiscalYearStartMonth: args.fiscalYearStartMonth,
+            fiscalYearStartMonth: INSTITUTIONAL_FISCAL_YEAR_START_MONTH,
             tenantId: auth.tenantId,
             version,
         });
         await ctx.db.patch(auth.tenantId, {
-            fiscalYearStartMonth: activeCycle ? tenant.fiscalYearStartMonth : args.fiscalYearStartMonth,
+            fiscalYearStartMonth: INSTITUTIONAL_FISCAL_YEAR_START_MONTH,
             name: args.institutionName.trim(),
             primaryContactEmail: args.primaryContactEmail.trim().toLowerCase(),
             primaryContactName: args.primaryContactName.trim(),
@@ -453,12 +400,6 @@ exports.setProcurementOfficerActive = (0, server_2.mutation)({
             metadata: { after: args.active ? "active" : "inactive", before: member.isActive ? "active" : "inactive" },
             recordId: String(member._id),
         });
-        await notifyTenantAdminsExceptActor(ctx, auth, {
-            category: "po_lifecycle",
-            eventKey: `po-lifecycle:${member._id}:${args.active ? "reactivated" : "deactivated"}:${Date.now()}`,
-            message: `Procurement Officer access was ${args.active ? "reactivated" : "deactivated"}. Historical assignments and records are retained.`,
-            title: `Procurement Officer ${args.active ? "reactivated" : "deactivated"}`,
-        });
         return { active: args.active };
     },
 });
@@ -490,7 +431,6 @@ exports.unlockProcurementOfficer = (0, server_2.mutation)({
             validationError("tenantUserId", "No stored lockout condition exists for this account.");
         await ctx.db.patch(state._id, { failedLoginAttempts: 0, lockedUntil: undefined, updatedAt: Date.now() });
         await audit(ctx, auth, { action: "unlock", entityType: "procurement_officer_membership", event: "procurement_officer.unlocked", recordId: String(member._id) });
-        await notifyTenantAdminsExceptActor(ctx, auth, { category: "security", eventKey: `po-unlock:${member._id}:${Date.now()}`, message: "The stored account lockout condition was manually reset.", priority: "high", title: "Procurement Officer account unlocked" });
         return null;
     },
 });
@@ -534,7 +474,6 @@ exports.requestSubscriptionChange = (0, server_2.mutation)({
         if (args.toTier === "enterprise") {
             const id = await ctx.db.insert("tenantSubscriptionChangeRequests", { changeType: "enterprise_contact", createdAt: Date.now(), fromTier: tenant.tier, requestedByTenantUserId: actor._id, status: "submitted", tenantId: auth.tenantId, toTier: args.toTier });
             await audit(ctx, auth, { action: "contact_sales", entityType: "subscription", event: "tenant_admin.subscription.enterprise_contact_submitted", recordId: String(id) });
-            await notifyTenantAdminsExceptActor(ctx, auth, { category: "billing", eventKey: `subscription-change:${id}`, message: "An enterprise plan enquiry has been recorded for follow-up.", title: "Enterprise plan enquiry submitted" });
             return { status: "submitted", blockers: [] };
         }
         const isDowngrade = order.indexOf(args.toTier) < order.indexOf(tenant.tier);
@@ -550,81 +489,7 @@ exports.requestSubscriptionChange = (0, server_2.mutation)({
         if (status === "scheduled")
             await ctx.db.patch(auth.tenantId, { subscriptionPendingChangeEffectiveAt: tenant.subscriptionNextBillingDate, subscriptionPendingTier: args.toTier });
         await audit(ctx, auth, { action: isDowngrade ? "request_downgrade" : "request_upgrade", entityType: "subscription", event: "tenant_admin.subscription.change_requested", metadata: { blockers, status, toTier: args.toTier }, recordId: String(id) });
-        await notifyTenantAdminsExceptActor(ctx, auth, { category: "billing", eventKey: `subscription-change:${id}`, message: blockers.length ? blockers.join(" ") : `Plan change request status: ${status}.`, priority: blockers.length ? "high" : "normal", title: blockers.length ? "Plan change blocked" : "Plan change requested" });
         return { blockers, checkoutAmountCents: prorationAmountCents, requestId: id, status };
-    },
-});
-exports.getNotificationCenter = (0, server_2.query)({
-    args: {},
-    handler: async (ctx) => {
-        const auth = await (0, _roleGuard_1.requireTenantRole)(ctx, ["tenant_admin", "procurement_officer"]);
-        const actor = await getCurrentTenantMember(ctx, auth);
-        const [notifications, preferences, broadcasts] = await Promise.all([
-            ctx.db.query("tenantNotifications").withIndex("by_recipientTenantUserId", (q) => q.eq("recipientTenantUserId", actor._id)).order("desc").take(50),
-            ctx.db.query("tenantNotificationPreferences").withIndex("by_tenantUserId", (q) => q.eq("tenantUserId", actor._id)).first(),
-            ctx.db.query("tenantNotificationBroadcasts").withIndex("by_tenantId", (q) => q.eq("tenantId", auth.tenantId)).order("desc").take(10),
-        ]);
-        return { broadcasts, notifications, preferences, unreadCount: notifications.filter((item) => item.readAt === undefined).length };
-    },
-});
-exports.markNotificationRead = (0, server_2.mutation)({
-    args: { notificationId: values_1.v.id("tenantNotifications") },
-    handler: async (ctx, args) => {
-        const auth = await (0, _roleGuard_1.requireTenantRole)(ctx, ["tenant_admin", "procurement_officer"]);
-        await requireWritableTenant(ctx, auth);
-        const actor = await getCurrentTenantMember(ctx, auth);
-        const record = await ctx.db.get(args.notificationId);
-        if (!record || record.tenantId !== auth.tenantId || record.recipientTenantUserId !== actor._id)
-            throw new values_1.ConvexError({ code: "NOT_FOUND", message: "Notification not found." });
-        await ctx.db.patch(record._id, { readAt: Date.now() });
-        return null;
-    },
-});
-exports.saveNotificationPreset = (0, server_2.mutation)({
-    args: { preset: values_1.v.union(values_1.v.literal("all"), values_1.v.literal("critical_only")) },
-    handler: async (ctx, args) => {
-        const auth = await (0, _roleGuard_1.requireTenantRole)(ctx, ["tenant_admin"]);
-        await requireWritableTenant(ctx, auth);
-        const actor = await getCurrentTenantAdmin(ctx, auth);
-        const categories = ["po_lifecycle", "submission", "billing", "security", "broadcast"];
-        const settings = categories.map((category) => ({ category, email: args.preset === "all" || category === "billing" || category === "security", inApp: true }));
-        const existing = await ctx.db.query("tenantNotificationPreferences").withIndex("by_tenantUserId", (q) => q.eq("tenantUserId", actor._id)).first();
-        if (existing)
-            await ctx.db.patch(existing._id, { categories: settings, preset: args.preset, updatedAt: Date.now() });
-        else
-            await ctx.db.insert("tenantNotificationPreferences", { categories: settings, preset: args.preset, tenantId: auth.tenantId, tenantUserId: actor._id, updatedAt: Date.now() });
-        await audit(ctx, auth, { action: "update", entityType: "notification_preferences", event: "tenant_admin.notification.preferences_updated", metadata: { preset: args.preset } });
-        return null;
-    },
-});
-exports.sendPoBroadcast = (0, server_2.mutation)({
-    args: { channels: values_1.v.array(values_1.v.union(values_1.v.literal("email"), values_1.v.literal("in_app"))), message: values_1.v.string(), subject: values_1.v.string() },
-    handler: async (ctx, args) => {
-        const auth = await (0, _roleGuard_1.requireTenantRole)(ctx, ["tenant_admin"]);
-        await requireWritableTenant(ctx, auth);
-        const actor = await getCurrentTenantAdmin(ctx, auth);
-        if (!args.subject.trim() || !args.message.trim())
-            validationError("message", "Subject and message are required.");
-        const recipients = await ctx.db.query("tenantUsers").withIndex("by_tenantId", (q) => q.eq("tenantId", auth.tenantId)).filter((q) => q.eq(q.field("role"), "procurement_officer")).filter((q) => q.eq(q.field("isActive"), true)).collect();
-        const broadcastId = await ctx.db.insert("tenantNotificationBroadcasts", { channels: args.channels, createdAt: Date.now(), createdByTenantUserId: actor._id, message: args.message.trim(), subject: args.subject.trim(), tenantId: auth.tenantId });
-        for (const recipient of recipients) {
-            const notificationId = args.channels.includes("in_app") ? await ctx.db.insert("tenantNotifications", {
-                category: "broadcast", createdAt: Date.now(), emailStatus: args.channels.includes("email") ? "queued" : "not_requested", eventKey: `broadcast:${broadcastId}:${recipient._id}`, message: args.message.trim(), priority: "normal", recipientTenantUserId: recipient._id, recipientUserId: recipient.userId, tenantId: auth.tenantId, title: args.subject.trim(),
-            }) : undefined;
-            await ctx.db.insert("tenantNotificationDeliveries", { broadcastId, createdAt: Date.now(), emailStatus: args.channels.includes("email") ? "queued" : "not_requested", inAppNotificationId: notificationId, recipientTenantUserId: recipient._id, tenantId: auth.tenantId });
-            if (args.channels.includes("email")) {
-                await scheduleGenericEmail(ctx, {
-                    heading: args.subject.trim(),
-                    idempotencyKey: `tenant-broadcast:${broadcastId}:${recipient._id}`,
-                    message: args.message.trim(),
-                    recipientUserId: recipient.userId,
-                    subject: args.subject.trim(),
-                    tenantId: auth.tenantId,
-                });
-            }
-        }
-        await audit(ctx, auth, { action: "broadcast", entityType: "notification_broadcast", event: "tenant_admin.notification.broadcast_submitted", metadata: { recipientCount: recipients.length }, recordId: String(broadcastId) });
-        return { recipientCount: recipients.length };
     },
 });
 exports.getSecurityWorkspace = (0, server_2.query)({
@@ -714,7 +579,6 @@ exports.acknowledgeTwoFactorRecoveryCodes = (0, server_2.mutation)({
             });
         }
         await audit(ctx, auth, { action: "enroll", entityType: "security", event: "tenant_admin.security.2fa_enrolled" });
-        await notifyTenantAdminsExceptActor(ctx, auth, { category: "security", eventKey: `security:2fa-enrolled:${actor._id}`, message: "Two-factor authentication is now active for a Tenant Admin account.", priority: "high", title: "Two-factor authentication enabled" });
         return null;
     },
 });
@@ -795,7 +659,6 @@ exports.revokeOtherSession = (0, server_2.mutation)({
             validationError("sessionMetadataId", "The current session cannot be terminated here.");
         await ctx.db.patch(target._id, { revokedAt: Date.now() });
         await audit(ctx, auth, { action: "revoke", entityType: "session", event: "tenant_admin.security.session_revoked", recordId: String(target._id) });
-        await notifyTenantAdminsExceptActor(ctx, auth, { category: "security", eventKey: `security:session-revoked:${target._id}`, message: "A Tenant Admin signed-in session was terminated.", priority: "high", title: "Session terminated" });
         return null;
     },
 });
@@ -941,9 +804,6 @@ exports.runTenantSubscriptionMaintenance = (0, server_2.internalMutation)({
                 if (existing)
                     continue;
                 await ctx.db.insert("tenantSubscriptionReminders", { createdAt: now, deliverAt: now, idempotencyKey: candidate.key, reminderType: candidate.type, tenantId: tenant._id });
-                await ctx.db.insert("tenantNotifications", {
-                    actionTarget: "/tenant-admin/billing", category: "billing", createdAt: now, emailStatus: "queued", eventKey: candidate.key, message: candidate.message, priority: candidate.priority, recipientTenantUserId: recipient._id, recipientUserId: recipient.userId, tenantId: tenant._id, title: candidate.title,
-                });
                 await scheduleGenericEmail(ctx, {
                     heading: candidate.title,
                     idempotencyKey: `tenant-reminder:${candidate.key}`,
@@ -956,43 +816,5 @@ exports.runTenantSubscriptionMaintenance = (0, server_2.internalMutation)({
             }
         }
         return { queued };
-    },
-});
-exports.runTenantNotificationDigests = (0, server_2.internalMutation)({
-    args: {},
-    handler: async (ctx) => {
-        const digestQueued = await ctx.db
-            .query("tenantNotifications")
-            .filter((q) => q.eq(q.field("emailStatus"), "digest_queued"))
-            .collect();
-        const grouped = new Map();
-        for (const notification of digestQueued) {
-            const key = String(notification.recipientTenantUserId);
-            const existing = grouped.get(key);
-            if (existing) {
-                existing.notifications.push(notification);
-            }
-            else {
-                grouped.set(key, { notifications: [notification], recipient: notification });
-            }
-        }
-        let scheduled = 0;
-        for (const { notifications, recipient } of grouped.values()) {
-            const delivered = await scheduleGenericEmail(ctx, {
-                heading: "Procureline notification digest",
-                idempotencyKey: `tenant-digest:${recipient.recipientTenantUserId}:${new Date().toISOString().slice(0, 10)}`,
-                message: notifications.map((notification) => `- ${notification.title}: ${notification.message}`).join("\n"),
-                recipientUserId: recipient.recipientUserId,
-                subject: "Your Procureline notification digest",
-                tenantId: recipient.tenantId,
-            });
-            if (!delivered)
-                continue;
-            for (const notification of notifications) {
-                await ctx.db.patch(notification._id, { emailStatus: "queued" });
-            }
-            scheduled += 1;
-        }
-        return { scheduled };
     },
 });

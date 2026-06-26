@@ -517,7 +517,9 @@ exports.updateTenantSettings = (0, server_1.mutation)({
         if (email && !email.ok) {
             validationError("primaryContactEmail", email.issue.message);
         }
-        const fiscalYearStartMonth = assertIntegerInRange(args.fiscalYearStartMonth, "fiscalYearStartMonth", "Fiscal year start month", 1, 12);
+        if (args.fiscalYearStartMonth !== undefined && args.fiscalYearStartMonth !== 7) {
+            validationError("fiscalYearStartMonth", "The institutional fiscal year is fixed from 1 July through 30 June.");
+        }
         const storageLimitBytes = assertPositiveFiniteNumber(args.storageLimitBytes, "storageLimitBytes", "Storage limit");
         const userLimit = assertIntegerInRange(args.userLimit, "userLimit", "User limit", 1, 100000);
         const procurementBudgetCeiling = assertPositiveFiniteNumber(args.procurementBudgetCeiling, "procurementBudgetCeiling", "Procurement budget ceiling");
@@ -527,7 +529,7 @@ exports.updateTenantSettings = (0, server_1.mutation)({
             primaryContactName: args.primaryContactName ? assertPlainText(args.primaryContactName, "primaryContactName", "Contact name", 120) : undefined,
             primaryContactPhone: args.primaryContactPhone ? assertPlainText(args.primaryContactPhone, "primaryContactPhone", "Contact phone", 40) : undefined,
             procurementBudgetCeiling,
-            fiscalYearStartMonth,
+            fiscalYearStartMonth: 7,
             timeZone: args.timeZone ? assertPlainText(args.timeZone, "timeZone", "Time zone", 80) : undefined,
             storageLimitBytes,
             userLimit,

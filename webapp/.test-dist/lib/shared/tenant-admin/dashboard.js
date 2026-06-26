@@ -50,10 +50,8 @@ function formatFiscalYearLabel(fiscalYearKey) {
 }
 exports.formatFiscalYearLabel = formatFiscalYearLabel;
 function buildAvailableFiscalYears(args) {
-    const years = new Set([getFiscalYearForDate(args.now).key]);
-    if (args.selectedFiscalYear) {
-        years.add(args.selectedFiscalYear);
-    }
+    const currentFiscalYear = getFiscalYearForDate(args.now).key;
+    const years = new Set([currentFiscalYear]);
     for (const timestamp of args.activityTimestamps ?? []) {
         years.add(getFiscalYearKeyForTimestamp(timestamp));
     }
@@ -70,7 +68,9 @@ function buildAvailableFiscalYears(args) {
             years.add(getFiscalYearKeyForTimestamp(department.submissionEndsAt));
         }
     }
-    return Array.from(years).sort((left, right) => right.localeCompare(left));
+    return Array.from(years)
+        .filter((year) => year <= currentFiscalYear)
+        .sort((left, right) => right.localeCompare(left));
 }
 exports.buildAvailableFiscalYears = buildAvailableFiscalYears;
 function isTimestampInFiscalYear(args) {

@@ -1074,50 +1074,6 @@ exports.default = (0, server_1.defineSchema)({
     })
         .index("by_tokenHash", ["tokenHash"])
         .index("by_tenantId_targetTenantUserId", ["tenantId", "targetTenantUserId", "createdAt"]),
-    tenantNotifications: (0, server_1.defineTable)({
-        tenantId: values_1.v.id("tenants"),
-        recipientTenantUserId: values_1.v.id("tenantUsers"),
-        recipientUserId: values_1.v.id("users"),
-        eventKey: values_1.v.string(),
-        category: values_1.v.union(values_1.v.literal("po_lifecycle"), values_1.v.literal("submission"), values_1.v.literal("billing"), values_1.v.literal("security"), values_1.v.literal("broadcast")),
-        priority: values_1.v.union(values_1.v.literal("normal"), values_1.v.literal("high"), values_1.v.literal("critical")),
-        title: values_1.v.string(),
-        message: values_1.v.string(),
-        actionTarget: values_1.v.optional(values_1.v.union(values_1.v.literal("/tenant-admin/po-management"), values_1.v.literal("/tenant-admin/billing"), values_1.v.literal("/tenant-admin/security"), values_1.v.literal("/tenant-admin/notifications"))),
-        emailStatus: values_1.v.union(values_1.v.literal("not_requested"), values_1.v.literal("queued"), values_1.v.literal("digest_queued"), values_1.v.literal("sent"), values_1.v.literal("failed")),
-        readAt: values_1.v.optional(values_1.v.number()),
-        createdAt: values_1.v.number(),
-    })
-        .index("by_eventKey", ["eventKey"])
-        .index("by_recipientTenantUserId", ["recipientTenantUserId", "createdAt"])
-        .index("by_tenantId", ["tenantId", "createdAt"]),
-    tenantNotificationPreferences: (0, server_1.defineTable)({
-        tenantId: values_1.v.id("tenants"),
-        tenantUserId: values_1.v.id("tenantUsers"),
-        preset: values_1.v.union(values_1.v.literal("all"), values_1.v.literal("critical_only"), values_1.v.literal("custom")),
-        categories: values_1.v.array(values_1.v.object({
-            category: values_1.v.union(values_1.v.literal("po_lifecycle"), values_1.v.literal("submission"), values_1.v.literal("billing"), values_1.v.literal("security"), values_1.v.literal("broadcast")),
-            email: values_1.v.boolean(),
-            inApp: values_1.v.boolean(),
-        })),
-        updatedAt: values_1.v.number(),
-    }).index("by_tenantUserId", ["tenantUserId"]),
-    tenantNotificationBroadcasts: (0, server_1.defineTable)({
-        tenantId: values_1.v.id("tenants"),
-        createdByTenantUserId: values_1.v.id("tenantUsers"),
-        subject: values_1.v.string(),
-        message: values_1.v.string(),
-        channels: values_1.v.array(values_1.v.union(values_1.v.literal("email"), values_1.v.literal("in_app"))),
-        createdAt: values_1.v.number(),
-    }).index("by_tenantId", ["tenantId", "createdAt"]),
-    tenantNotificationDeliveries: (0, server_1.defineTable)({
-        tenantId: values_1.v.id("tenants"),
-        broadcastId: values_1.v.id("tenantNotificationBroadcasts"),
-        recipientTenantUserId: values_1.v.id("tenantUsers"),
-        emailStatus: values_1.v.union(values_1.v.literal("not_requested"), values_1.v.literal("queued"), values_1.v.literal("failed")),
-        inAppNotificationId: values_1.v.optional(values_1.v.id("tenantNotifications")),
-        createdAt: values_1.v.number(),
-    }).index("by_broadcastId", ["broadcastId", "createdAt"]),
     tenantAdminSecurityStates: (0, server_1.defineTable)({
         tenantId: values_1.v.id("tenants"),
         tenantUserId: values_1.v.id("tenantUsers"),

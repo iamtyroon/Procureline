@@ -272,6 +272,7 @@ async function registerVerificationResendForBackendTests(args) {
 }
 exports.registerVerificationResendForBackendTests = registerVerificationResendForBackendTests;
 async function completeInstitutionProfileForBackendTests(args) {
+    const institutionalFiscalYearStartMonth = 7;
     const tenant = await args.ctx.db.get(args.authTenantId);
     if (!tenant || requiredString(tenant.status) !== "active") {
         await appendAuditLog(args.ctx, {
@@ -317,13 +318,11 @@ async function completeInstitutionProfileForBackendTests(args) {
     if (!primaryContactEmailResult.ok) {
         backendError("VALIDATION_FAILED", primaryContactEmailResult.issue.message, primaryContactEmailResult.issue.field);
     }
-    if (!Number.isInteger(args.fiscalYearStartMonth) ||
-        args.fiscalYearStartMonth < 1 ||
-        args.fiscalYearStartMonth > 12) {
-        backendError("VALIDATION_FAILED", "Fiscal year start month must be between 1 and 12.", "fiscalYearStartMonth");
+    if (args.fiscalYearStartMonth !== institutionalFiscalYearStartMonth) {
+        backendError("VALIDATION_FAILED", "The institutional fiscal year is fixed from 1 July through 30 June.", "fiscalYearStartMonth");
     }
     await args.ctx.db.patch(args.authTenantId, {
-        fiscalYearStartMonth: args.fiscalYearStartMonth,
+        fiscalYearStartMonth: institutionalFiscalYearStartMonth,
         logoUrl: typeof args.logoUrl === "string" && args.logoUrl.trim().length > 0
             ? args.logoUrl.trim()
             : undefined,
@@ -350,7 +349,7 @@ async function completeInstitutionProfileForBackendTests(args) {
         entityType: "tenant",
         event: audit_1.AUDIT_EVENT_NAMES.tenantAdminOnboardingCompleted,
         metadata: {
-            fiscalYearStartMonth: args.fiscalYearStartMonth,
+            fiscalYearStartMonth: institutionalFiscalYearStartMonth,
         },
         outcome: "allowed",
         recordId: args.authTenantId,

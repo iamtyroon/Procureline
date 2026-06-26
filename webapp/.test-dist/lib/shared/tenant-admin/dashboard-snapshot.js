@@ -11,7 +11,6 @@ function buildTenantAdminDashboardSnapshot(args) {
         departmentWindows: args.departments,
         fiscalYearKeys: args.fiscalYearKeys,
         now: args.now,
-        selectedFiscalYear,
     });
     const selectedFiscalYearHasSignals = selectedFiscalYear === currentFiscalYear ||
         availableFiscalYears.includes(selectedFiscalYear) ||

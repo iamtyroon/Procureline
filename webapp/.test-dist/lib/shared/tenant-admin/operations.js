@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.formatFiscalYearBySetting = exports.resolveNotificationEmailMode = exports.computeLockoutUntil = exports.buildDowngradeBlockers = exports.getUsageTone = exports.validateComplianceTargets = exports.normalizeAllowedEmailDomain = void 0;
+exports.formatFiscalYearBySetting = exports.computeLockoutUntil = exports.buildDowngradeBlockers = exports.getUsageTone = exports.validateComplianceTargets = exports.normalizeAllowedEmailDomain = void 0;
 function normalizeAllowedEmailDomain(value) {
     const normalized = value.trim().toLowerCase().replace(/^@/, "");
     if (normalized.length === 0 ||
@@ -60,13 +60,6 @@ function computeLockoutUntil(args) {
     return null;
 }
 exports.computeLockoutUntil = computeLockoutUntil;
-function resolveNotificationEmailMode(args) {
-    if (args.isCritical) {
-        return "immediate";
-    }
-    return args.recentImmediateCount >= 10 ? "digest" : "immediate";
-}
-exports.resolveNotificationEmailMode = resolveNotificationEmailMode;
 function formatFiscalYearBySetting(args) {
     const endYear = args.startYear + 1;
     if (args.format === "2025/2026") {

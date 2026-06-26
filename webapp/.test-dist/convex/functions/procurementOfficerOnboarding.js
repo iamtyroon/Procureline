@@ -434,6 +434,25 @@ exports.createInvitationRecord = (0, server_2.internalMutation)({
                 message: invitations_1.PROCUREMENT_OFFICER_TENANT_INACTIVE_MESSAGE,
             });
         }
+        const now = Date.now();
+        const [existingPoMemberships, tenantInvitations] = await Promise.all([
+            ctx.db
+                .query("tenantUsers")
+                .withIndex("by_tenantId", (q) => q.eq("tenantId", args.tenantId))
+                .filter((q) => q.eq(q.field("role"), "procurement_officer"))
+                .collect(),
+            ctx.db
+                .query("poInvitations")
+                .withIndex("by_tenantId", (q) => q.eq("tenantId", args.tenantId))
+                .collect(),
+        ]);
+        if (existingPoMemberships.length > 0 ||
+            tenantInvitations.some((invitation) => getInvitationEffectiveStatus({ invitation, now }) === "pending")) {
+            throw new values_1.ConvexError({
+                code: "PO_SEAT_OCCUPIED",
+                message: "This institution already has a Procurement Officer assignment or pending invitation.",
+            });
+        }
         const emailResult = (0, input_1.validateEmailInput)(args.email);
         if (!emailResult.ok) {
             throw new values_1.ConvexError({
@@ -492,7 +511,6 @@ exports.createInvitationRecord = (0, server_2.internalMutation)({
             .query("poInvitations")
             .withIndex("by_tenantId_email", (q) => q.eq("tenantId", args.tenantId).eq("normalizedEmail", emailResult.value))
             .collect();
-        const now = Date.now();
         const hasPendingInvitation = existingInvitations.some((invitation) => getInvitationEffectiveStatus({ invitation, now }) === "pending");
         if (hasPendingInvitation) {
             throw new values_1.ConvexError({
@@ -730,50 +748,15 @@ exports.bulkIssueInvitations = (0, server_2.action)({
         accepted: values_1.v.number(),
         errors: values_1.v.array(values_1.v.object({ message: values_1.v.string(), rowNumber: values_1.v.number() })),
     }),
-    handler: async (ctx, args) => {
+    handler: async (ctx, _args) => {
         const actor = await (0, _helpers_1.getServiceActorContext)(ctx);
         if (actor.role !== "tenant_admin" || !actor.tenantId) {
             throw new values_1.ConvexError({ code: "UNAUTHORIZED", message: "Tenant administrator access is required" });
         }
-        const tenantUser = await ctx.runQuery("functions/users:getCurrentUserTenant", {});
-        const errors = [];
-        let accepted = 0;
-        for (const row of args.rows) {
-            try {
-                const result = await ctx.runMutation("functions/procurementOfficerOnboarding:createInvitationRecord", {
-                    actorUserId: tenantUser.userId,
-                    email: row.email,
-                    fullName: row.fullName,
-                    phone: row.phone,
-                    tenantId: tenantUser.tenantId,
-                    tenantUserId: tenantUser._id,
-                });
-                const delivered = await sendInvitationEmail({
-                    activationCode: result.activationCode,
-                    email: result.email,
-                    fullName: result.fullName,
-                    idempotencyKey: `po-invitation:${result.invitationId}:bulk-issue`,
-                    invitationId: String(result.invitationId),
-                    inviteUrl: result.inviteUrl,
-                    tenantId: String(result.tenantId),
-                    tenantName: result.tenantName,
-                });
-                if (delivered.sent) {
-                    await ctx.runMutation(api_1.internal.functions.procurementOfficerOnboarding.markInvitationEmailSent, {
-                        invitationId: result.invitationId,
-                        providerMessageId: delivered.messageId,
-                    });
-                }
-                accepted += 1;
-            }
-            catch (error) {
-                errors.push({
-                    message: error instanceof Error ? error.message : "Invitation could not be issued.",
-                    rowNumber: row.rowNumber,
-                });
-            }
-        }
-        return { accepted, errors };
+        throw new values_1.ConvexError({
+            code: "PO_SINGLE_SEAT_POLICY",
+            message: "Bulk Procurement Officer invitations are disabled because each institution has one Procurement Officer assignment.",
+        });
     },
 });
 exports.resendInvitation = (0, server_2.action)({
