@@ -7,113 +7,102 @@ import {
     Users2,
     Workflow,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
 
 interface FeatureItem {
     description: string;
     icon: LucideIcon;
-    iconClassName: string;
     title: string;
+    className: string;
 }
 
 const features: FeatureItem[] = [
     {
-        description:
-            "Model categories, items, quantities, and specifications in a guided planning flow instead of a fragile spreadsheet.",
-        icon: Workflow,
-        iconClassName: "bg-primary/10 text-primary",
         title: "Visual planning workspace",
+        description:
+            "Model categories, items, quantities, and specifications in a guided planning flow instead of a fragile spreadsheet. Every block carries its own budget math, so totals stay correct as the plan grows.",
+        icon: Workflow,
+        className: "md:col-span-4",
     },
     {
-        description:
-            "Keep AGPO, PWD, and local-content requirements visible as teams build, review, and submit departmental plans.",
-        icon: ShieldCheck,
-        iconClassName: "bg-secondary text-secondary-foreground",
         title: "Built-in compliance controls",
+        description:
+            "AGPO, PWD, and local-content requirements stay visible as teams build, review, and submit departmental plans.",
+        icon: ShieldCheck,
+        className: "md:col-span-2",
     },
     {
-        description:
-            "Export submission-ready outputs for review and filing without reformatting the planning data by hand.",
-        icon: FileSpreadsheet,
-        iconClassName: "bg-accent text-accent-foreground",
         title: "Submission-ready exports",
-    },
-    {
         description:
-            "Coordinate tenant admins, procurement officers, and department users with clean role boundaries and shared visibility.",
-        icon: Users2,
-        iconClassName: "bg-primary/10 text-primary",
-        title: "Role-based collaboration",
+            "Export official outputs for review and filing without reformatting planning data by hand.",
+        icon: FileSpreadsheet,
+        className: "md:col-span-2",
     },
     {
+        title: "Role-based collaboration",
+        description:
+            "Tenant admins, procurement officers, and department users work with clean role boundaries and shared visibility.",
+        icon: Users2,
+        className: "md:col-span-2",
+    },
+    {
+        title: "Budget and progress intelligence",
         description:
             "Monitor budget posture, submission progress, and departmental readiness from one fiscal-year dashboard.",
         icon: BarChart3,
-        iconClassName: "bg-secondary text-secondary-foreground",
-        title: "Budget and progress intelligence",
+        className: "md:col-span-2",
     },
     {
-        description:
-            "Preserve an auditable history of activity so reviews, approvals, and corrections stay attributable and transparent.",
-        icon: History,
-        iconClassName: "bg-accent text-accent-foreground",
         title: "Reliable audit history",
+        description:
+            "Every review, approval, and correction stays attributable and transparent — a full history your auditors can actually follow, without a single extra spreadsheet.",
+        icon: History,
+        className: "md:col-span-6",
     },
 ];
 
 export function Features(): JSX.Element {
     return (
-        <section id="features" aria-label="Features" className="bg-background px-6 py-24">
+        <section id="features" aria-label="Features" className="bg-background px-6 py-28">
             <div className="mx-auto max-w-7xl">
-                <div className="mx-auto mb-16 max-w-3xl text-center">
-                    <Badge
-                        variant="secondary"
-                        className="mb-4 gap-2 rounded-full border border-primary/15 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary"
-                    >
-                        <Workflow className="h-4 w-4" />
+                <div className="mb-16 max-w-2xl">
+                    <p className="mb-4 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
                         Platform capabilities
-                    </Badge>
-                    <h2 className="text-4xl font-semibold tracking-tight text-foreground">
-                        A procurement operating system built for institutional planning.
+                    </p>
+                    <h2 className="text-balance font-display text-4xl font-semibold tracking-[-0.02em] text-foreground md:text-5xl">
+                        A procurement operating system for institutional planning.
                     </h2>
-                    <p className="mt-4 text-lg leading-8 text-muted-foreground">
-                        Every surface on Procureline is designed to help universities plan faster,
+                    <p className="mt-5 text-lg leading-8 text-muted-foreground">
+                        Every surface on Procureline helps institutions plan faster,
                         validate earlier, and submit with more confidence.
                     </p>
                 </div>
 
-                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-5 md:grid-cols-6">
                     {features.map((feature) => {
                         const Icon = feature.icon;
 
                         return (
-                            <Card
+                            <article
                                 key={feature.title}
-                                className="border-border/60 bg-card/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+                                className={`group relative overflow-hidden rounded-2xl bg-muted/40 p-7 transition-colors duration-300 hover:bg-muted/70 dark:bg-card/60 dark:hover:bg-card ${feature.className}`}
                             >
-                                <CardHeader className="pb-4">
-                                    <div
-                                        className={`flex h-12 w-12 items-center justify-center rounded-2xl ${feature.iconClassName}`}
-                                    >
-                                        <Icon className="h-5 w-5" />
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="pt-0">
-                                    <CardTitle className="text-xl text-foreground">
+                                <div
+                                    className="bg-dot-grid pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-60"
+                                    aria-hidden="true"
+                                />
+                                <div className="relative">
+                                    <Icon
+                                        className="h-6 w-6 text-primary"
+                                        strokeWidth={1.75}
+                                    />
+                                    <h3 className="mt-5 font-display text-xl font-semibold tracking-tight text-foreground">
                                         {feature.title}
-                                    </CardTitle>
-                                    <CardDescription className="mt-3 text-sm leading-7 text-muted-foreground">
+                                    </h3>
+                                    <p className="mt-2.5 max-w-prose text-sm leading-7 text-muted-foreground">
                                         {feature.description}
-                                    </CardDescription>
-                                </CardContent>
-                            </Card>
+                                    </p>
+                                </div>
+                            </article>
                         );
                     })}
                 </div>

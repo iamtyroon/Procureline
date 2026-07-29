@@ -174,37 +174,30 @@ export function ProcurementOfficerPlanReviewSummaryModal({
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
-      <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[72rem] flex-col overflow-hidden border-border/70 p-0 sm:max-h-[calc(100dvh-3rem)] sm:w-[min(96vw,72rem)] sm:rounded-[28px]">
-        <div className="border-b border-border/70 bg-muted/35 px-6 py-5">
-          <DialogHeader className="space-y-3 text-left">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge className="rounded-full bg-primary text-primary-foreground hover:bg-primary">
-                Review summary
-              </Badge>
+      <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[72rem] flex-col overflow-hidden border-border/70 p-0 sm:max-h-[calc(100dvh-3rem)] sm:w-[min(96vw,72rem)] sm:rounded-2xl">
+        <div className="border-b border-border/50 bg-muted/20 px-6 py-5">
+          <DialogHeader className="space-y-2 text-left">
+            <div className="text-[12px] font-medium text-muted-foreground">
+              Review summary
+              {reviewWorkspace?.workspace
+                ? ` · FY ${reviewWorkspace.workspace.meta.fiscalYear}`
+                : ""}
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <DialogTitle className="text-xl font-semibold tracking-tight text-foreground">
+                {reviewWorkspace?.workspace?.department.name ?? "Plan review"}
+              </DialogTitle>
               {reviewWorkspace?.workspace ? (
-                <>
-                  <Badge variant="outline" className="rounded-full">
-                    FY {reviewWorkspace.workspace.meta.fiscalYear}
-                  </Badge>
-                  <Badge variant="outline" className="rounded-full">
-                    {reviewWorkspace.workspace.plan.statusLabel}
-                  </Badge>
-                  {reviewWorkspace.workspace.meta.reviewStartedAt ? (
-                    <Badge
-                      variant="outline"
-                      className="rounded-full border-amber-300 bg-amber-50 text-amber-900"
-                    >
-                      Review started {formatTimestamp(reviewWorkspace.workspace.meta.reviewStartedAt)}
-                    </Badge>
-                  ) : null}
-                </>
+                <Badge variant="outline" className="rounded-full">
+                  {reviewWorkspace.workspace.plan.statusLabel}
+                </Badge>
               ) : null}
             </div>
-            <DialogTitle className="text-3xl tracking-[-0.04em] text-foreground">
-              {reviewWorkspace?.workspace?.department.name ?? "Plan review"}
-            </DialogTitle>
-            <DialogDescription className="max-w-4xl text-sm leading-7 text-muted-foreground">
-              Review the submitted plan in a simpler summary view. This modal remains read-only for plan content and only starts canonical review tracking.
+            <DialogDescription className="max-w-3xl text-[13px] leading-6 text-muted-foreground">
+              Read-only summary of the submitted plan.
+              {reviewWorkspace?.workspace?.meta.reviewStartedAt
+                ? ` Review started ${formatTimestamp(reviewWorkspace.workspace.meta.reviewStartedAt)}.`
+                : ""}
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -218,7 +211,7 @@ export function ProcurementOfficerPlanReviewSummaryModal({
               </div>
             </div>
           ) : reviewWorkspace.state === "redirect" ? (
-            <div className="rounded-2xl border border-amber-300/80 bg-amber-50 px-5 py-5 text-sm leading-6 text-amber-900">
+            <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-5 py-5 text-sm leading-6 text-amber-800 dark:text-amber-200">
               {reviewWorkspace.message ?? "That plan is no longer available for review."}
             </div>
           ) : (
@@ -247,34 +240,34 @@ export function ProcurementOfficerPlanReviewSummaryModal({
               </div>
 
               {renderState.reason ? (
-                <div className="rounded-2xl border border-amber-300/80 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-900">
+                <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-4 text-sm leading-6 text-amber-800 dark:text-amber-200">
                   {renderState.reason}
                 </div>
               ) : null}
 
               {pendingRedraftRequest ? (
-                <div className="rounded-2xl border border-amber-300/80 bg-amber-50/80 p-4">
+                <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-amber-950">
+                      <div className="text-sm font-semibold text-amber-900 dark:text-amber-200">
                         Redraft request
                       </div>
-                      <div className="mt-1 text-xs text-amber-900">
+                      <div className="mt-1 text-xs text-amber-800 dark:text-amber-300">
                         Requested {formatTimestamp(pendingRedraftRequest.requestedAt)}
                       </div>
                     </div>
                     <Badge
                       variant="outline"
-                      className="border-amber-400 bg-amber-100 text-amber-950"
+                      className="border-amber-500/40 bg-amber-500/15 text-amber-800 dark:text-amber-200"
                     >
                       Action needed
                     </Badge>
                   </div>
-                  <div className="mt-3 rounded-xl border border-amber-200 bg-background/85 px-3 py-3 text-sm leading-6 text-foreground">
+                  <div className="mt-3 rounded-lg border border-border/50 bg-background/70 px-3 py-3 text-sm leading-6 text-foreground">
                     {pendingRedraftRequest.reason}
                   </div>
                   <div className="mt-3 space-y-2">
-                    <div className="text-sm font-medium text-amber-950">
+                    <div className="text-sm font-medium text-amber-900 dark:text-amber-200">
                       Decision note
                     </div>
                     <Textarea
@@ -355,8 +348,8 @@ export function ProcurementOfficerPlanReviewSummaryModal({
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-sm text-muted-foreground">Category Total</div>
-                            <div className="text-xl font-semibold text-primary">
+                            <div className="text-sm text-muted-foreground">Category total</div>
+                            <div className="text-xl font-semibold tabular-nums text-foreground">
                               {formatCurrency(category.totalCost)}
                             </div>
                           </div>
@@ -372,7 +365,7 @@ export function ProcurementOfficerPlanReviewSummaryModal({
                                   <TableHead>Q2</TableHead>
                                   <TableHead>Q3</TableHead>
                                   <TableHead>Q4</TableHead>
-                                  <TableHead>Unit Price</TableHead>
+                                  <TableHead>Unit price</TableHead>
                                   <TableHead className="text-right">Total</TableHead>
                                 </TableRow>
                               </TableHeader>
@@ -396,7 +389,7 @@ export function ProcurementOfficerPlanReviewSummaryModal({
                                     <TableCell>{formatQuantity(item.quarterTotals.q3)}</TableCell>
                                     <TableCell>{formatQuantity(item.quarterTotals.q4)}</TableCell>
                                     <TableCell>{formatCurrency(item.unitPrice)}</TableCell>
-                                    <TableCell className="text-right font-semibold text-emerald-600">
+                                    <TableCell className="text-right font-medium tabular-nums text-foreground">
                                       {formatCurrency(item.totalCost)}
                                     </TableCell>
                                   </TableRow>

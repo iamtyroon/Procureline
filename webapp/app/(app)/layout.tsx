@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
-import { Bell, Building2, CheckCircle2, CircleAlert, FileStack, Users2 } from "lucide-react";
+import { Bell, Building2, CircleAlert } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { Badge } from "@/components/ui/badge";
@@ -28,48 +28,6 @@ import { RoleGuard } from "@/src/components/auth/RoleGuard";
 import { Spinner } from "@/src/components/ui/Spinner";
 
 const platformAdminOperationsApi = (api as any).functions.platformAdminOperations;
-
-function ProcurementHeaderPill({
-    icon,
-    label,
-    value,
-    tone = "neutral",
-}: {
-    icon: React.ReactNode;
-    label: string;
-    value: string;
-    tone?: "neutral" | "positive" | "warning";
-}) {
-    return (
-        <div
-            className={cn(
-                "flex min-w-[8.5rem] items-center gap-2 rounded-full border px-2.5 py-1.5",
-                tone === "positive" && "border-emerald-500/25 bg-emerald-500/10",
-                tone === "warning" && "border-amber-500/25 bg-amber-500/10",
-                tone === "neutral" && "border-border/70 bg-muted/20",
-            )}
-        >
-            <div
-                className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
-                    tone === "positive" && "bg-emerald-500/15 text-emerald-500",
-                    tone === "warning" && "bg-amber-500/15 text-amber-500",
-                    tone === "neutral" && "bg-primary/10 text-primary",
-                )}
-            >
-                {icon}
-            </div>
-            <div className="min-w-0">
-                <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                    {label}
-                </div>
-                <div className="truncate text-[13px] font-semibold text-foreground">
-                    {value}
-                </div>
-            </div>
-        </div>
-    );
-}
 
 export default function AppLayout({
     children,
@@ -231,50 +189,35 @@ export default function AppLayout({
         authContext.role === "department_user"
             ? (departmentUserDashboardSnapshot?.heroSupport ?? null)
             : null;
-    const procurementRequestPanel =
-        authContext.role === "procurement_officer"
-            ? procurementDashboardSnapshot?.futurePanels.find(
-                (panel) => panel.id === "request_inbox",
-            ) ?? null
-            : null;
-    const procurementSubmittedDepartments =
-        authContext.role === "procurement_officer"
-            ? procurementDashboardSnapshot?.submissionProgress
-                .submittedDepartmentCount ?? 0
-            : 0;
-    const procurementDepartmentScope =
-        authContext.role === "procurement_officer"
-            ? procurementDashboardSnapshot?.submissionProgress
-                .totalDepartmentCount ??
-              procurementDashboardSnapshot?.meta.selectedDepartmentCount ??
-              0
-            : 0;
-    const procurementStatusValue =
-        authContext.role === "procurement_officer"
-            ? procurementAlerts.length > 0
-                ? "Attention needed"
-                : "Online"
-            : null;
 
     return (
         <div className="min-h-screen bg-background">
+            {pathname.startsWith("/po/consolidation") ? null : (
             <header className="border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
                 <div className="w-full px-4 sm:px-6 lg:px-8">
                     {departmentUserHeroSupport ? (
-                        <div className="flex h-16 items-center gap-4">
-                            <div className="flex shrink-0 items-center gap-3">
-                                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
-                                    Procureline Workspace
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                    Signed in as {getRoleLabel(authContext.role)}
-                                </p>
+                        <div className="flex h-16 items-center gap-6">
+                            <div className="flex shrink-0 items-center gap-2.5">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src="/brand/procureline-logo.png"
+                                    alt="Procureline"
+                                    className="h-8 w-auto"
+                                />
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
+                                        Procureline
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {getRoleLabel(authContext.role)}
+                                    </p>
+                                </div>
                             </div>
 
                             <div className="hidden h-8 w-px shrink-0 bg-border/60 lg:block" />
 
                             <div className="hidden min-w-0 flex-1 items-center gap-3 lg:flex">
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                                     <Building2 className="h-4 w-4" />
                                 </div>
                                 <div className="min-w-0">
@@ -282,7 +225,10 @@ export default function AppLayout({
                                         <div className="truncate text-sm font-semibold text-foreground">
                                             {departmentUserHeroSupport.departmentName}
                                         </div>
-                                        <Badge variant="outline" className="shrink-0 rounded-full">
+                                        <Badge
+                                            variant="outline"
+                                            className="hidden shrink-0 rounded-full font-mono text-[11px] xl:inline-flex"
+                                        >
                                             {departmentUserHeroSupport.departmentCode}
                                         </Badge>
                                     </div>
@@ -292,37 +238,37 @@ export default function AppLayout({
                                 </div>
                             </div>
 
-                            <div className="hidden max-w-[340px] shrink-0 items-center gap-3 rounded-full border border-border/70 bg-muted/20 px-3 py-2 lg:flex">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-                                    {departmentUserHeroSupport.support.initials}
-                                </div>
-                                <div className="min-w-0 leading-tight">
-                                    <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                            <div className="ml-auto flex shrink-0 items-center gap-2">
+                                <div
+                                    className="hidden items-center gap-2.5 rounded-lg border border-border/60 py-1.5 pl-1.5 pr-3 lg:flex"
+                                    title={`${departmentUserHeroSupport.support.name} · ${departmentUserHeroSupport.support.email}`}
+                                >
+                                    <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold text-primary">
+                                        {departmentUserHeroSupport.support.initials}
                                         <span
                                             className={cn(
-                                                "h-1.5 w-1.5 rounded-full",
+                                                "absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-background",
                                                 departmentUserHeroSupport.support.state === "available"
                                                     ? "bg-primary"
                                                     : "bg-muted-foreground",
                                             )}
                                             aria-hidden="true"
                                         />
-                                        Procurement Officer
                                     </div>
-                                    <div className="truncate text-sm font-medium text-foreground">
-                                        {departmentUserHeroSupport.support.name}
-                                    </div>
-                                    <div className="truncate text-xs text-muted-foreground">
-                                        {departmentUserHeroSupport.support.email}
+                                    <div className="min-w-0 leading-tight">
+                                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                                            Procurement Officer
+                                        </div>
+                                        <div className="max-w-[160px] truncate text-xs font-medium text-foreground">
+                                            {departmentUserHeroSupport.support.name}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="ml-auto flex shrink-0 items-center gap-2">
                                 <ModeToggle />
                                 <Button
                                     type="button"
                                     variant="outline"
+                                    size="sm"
                                     onClick={() => void handleLogout()}
                                 >
                                     Log out
@@ -342,37 +288,6 @@ export default function AppLayout({
                                 </div>
                             </div>
                             <div className="flex shrink-0 items-center gap-3">
-                                {authContext.role === "procurement_officer" ? (
-                                    <div className="hidden min-w-0 items-center gap-1.5 xl:flex">
-                                        <ProcurementHeaderPill
-                                            icon={<Users2 className="h-4 w-4" />}
-                                            label="Plans submitted"
-                                            tone={
-                                                procurementDepartmentScope > 0 &&
-                                                    procurementSubmittedDepartments === procurementDepartmentScope
-                                                    ? "positive"
-                                                    : "neutral"
-                                            }
-                                            value={`${procurementSubmittedDepartments}/${procurementDepartmentScope}`}
-                                        />
-                                        <ProcurementHeaderPill
-                                            icon={<FileStack className="h-4 w-4" />}
-                                            label="Pending requests"
-                                            tone={
-                                                procurementRequestPanel?.state === "available"
-                                                    ? "warning"
-                                                    : "neutral"
-                                            }
-                                            value={procurementRequestPanel?.statusLabel ?? "No pending"}
-                                        />
-                                        <ProcurementHeaderPill
-                                            icon={<CheckCircle2 className="h-4 w-4" />}
-                                            label="System status"
-                                            tone={procurementAlerts.length > 0 ? "warning" : "positive"}
-                                            value={procurementStatusValue ?? "Online"}
-                                        />
-                                    </div>
-                                ) : null}
                                 <div className="flex shrink-0 items-center gap-2">
                                 {authContext.role === "procurement_officer" ? (
                                     <DropdownMenu>
@@ -463,6 +378,7 @@ export default function AppLayout({
                     </div>
                 ) : null}
             </header>
+            )}
             <main>
                 <RoleGuard authContext={authContext}>{children}</RoleGuard>
             </main>

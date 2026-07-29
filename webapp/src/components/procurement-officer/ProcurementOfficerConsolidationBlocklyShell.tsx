@@ -656,7 +656,7 @@ function buildConsolidationToolbox(args: {
                           )
                         : [{ kind: "label", text: "No approved plans" }],
                 kind: "category",
-                name: "Submitted Plans",
+                name: "Submitted plans",
             },
             {
                 colour: "#a19448",

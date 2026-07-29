@@ -132,6 +132,25 @@
   }
 }
 
+@layer utilities {
+  /* Blockly-workspace dot grid, theme-aware via border token */
+  .bg-dot-grid {
+    background-image: radial-gradient(var(--border) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* Dot grid for the dark canvas windows (always dark, both themes) */
+  .bg-dot-grid-canvas {
+    background-color: #121212;
+    background-image: radial-gradient(#2a2a2a 1.5px, transparent 1.5px);
+    background-size: 20px 20px;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
 /* LastPass is really dumb and doesn't respect autocomplete attribute */
 .hide-lastpass-icon [data-lastpass-icon-root="true"] {
   display: none;

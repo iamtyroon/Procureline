@@ -48,7 +48,7 @@ export function DeleteDepartmentDialog({
                                 its active Departmental User access.
                             </p>
                             {department && department.deleteBlockerMessages.length > 0 ? (
-                                <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-3 text-sm text-amber-900">
+                                <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
                                     {department.deleteBlockerMessages.map((message) => (
                                         <p key={message}>{message}</p>
                                     ))}
@@ -63,7 +63,7 @@ export function DeleteDepartmentDialog({
                             {department?.canDelete &&
                             department.activeDepartmentUserEmails.length > 0 &&
                             department.deleteBlockerMessages.length === 0 ? (
-                                <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-3 text-sm text-amber-900">
+                                <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
                                     <p>
                                         Assigned Departmental Users and active department codes will be
                                         deactivated.

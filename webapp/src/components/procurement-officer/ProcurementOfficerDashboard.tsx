@@ -2,24 +2,7 @@
 
 import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
-import {
-  AlertTriangle,
-  ArrowRight,
-  Building2,
-  CalendarClock,
-  CheckCircle2,
-  ChevronRight,
-  FileStack,
-  FolderTree,
-  History,
-  KeyRound,
-  Layers3,
-  MapPin,
-  Plus,
-  Users2,
-  Zap,
-} from "lucide-react";
-import type { ReactNode } from "react";
+import { ArrowRight, CheckCircle2, Plus } from "lucide-react";
 import { startTransition, useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -40,7 +23,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
 import {
   buildProcurementOfficerWorkspaceModalPath,
   formatProcurementFiscalYearLabel,
@@ -48,9 +30,6 @@ import {
   resolveProcurementOfficerWorkspaceNavigation,
   type ProcurementOfficerWorkspaceModalState,
 } from "@/lib/procurement-officer/dashboard";
-import {
-  formatDepartmentUserCount,
-} from "@/lib/department-user/dashboard";
 import type { DepartmentFormData } from "@/lib/validators/department";
 import {
   extractProcurementOfficerDashboardSearchParams,
@@ -82,7 +61,6 @@ import {
 } from "@/lib/procurement-officer/items";
 import type { CategoryFormData } from "@/lib/validators/category";
 import type { ItemFormData } from "@/lib/validators/item";
-import { cn } from "@/lib/utils";
 import {
   DepartmentFormDialog,
   type DepartmentFormDialogDepartment,
@@ -96,19 +74,11 @@ import { ProcurementOfficerSubmissionMonitoringWorkspace } from "./ProcurementOf
 import { DashboardCategoryEditorDialog } from "./dashboard/category-editor-dialog";
 import { CategoryManagementRow } from "./dashboard/category-management-row";
 import { DashboardConfirmDialog } from "./dashboard/confirm-dialog";
-import { DepartmentReadinessRow } from "./dashboard/department-readiness-row";
 import { DashboardItemEditorDialog } from "./dashboard/item-editor-dialog";
 import {
   BentoCard,
-  DonutRing,
-  IconBox,
-  MiniStat,
-  OrganizationStatPill,
-  OverviewActionButton,
-  OverviewMetric,
   ProcurementOfficerDashboardSkeleton,
   StateBadge,
-  WorkflowPanelButton,
 } from "./dashboard/primitives";
 import type {
   DashboardCategoryWorkspaceData,
@@ -121,24 +91,58 @@ import {
   findFuturePanel,
   findSummaryCard,
   formatDashboardPermanentDeleteRecordSummary,
-  getInitials,
 } from "./dashboard/utilities";
 import { WorkspaceModal } from "./dashboard/workspace-modal";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-function DashboardStatusPill({
-  icon,
+function QuietStat({
   label,
+  meta,
+  value,
 }: {
-  icon: ReactNode;
   label: string;
+  meta?: string;
+  value: string;
 }) {
   return (
-    <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-border/60 bg-card/90 px-3 py-1.5 text-[11px] font-semibold text-foreground shadow-sm">
-      <span className="text-primary">{icon}</span>
-      <span className="truncate">{label}</span>
+    <div className="rounded-2xl border border-border/50 bg-card/80 px-4 py-3.5">
+      <div className="text-[12px] text-muted-foreground">{label}</div>
+      <div className="mt-1 text-[22px] font-semibold leading-none tracking-tight text-foreground tabular-nums">
+        {value}
+      </div>
+      {meta ? (
+        <div className="mt-1.5 truncate text-[11px] text-muted-foreground">
+          {meta}
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+function QuickLinkTile({
+  label,
+  meta,
+  onClick,
+}: {
+  label: string;
+  meta: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className="group flex items-center justify-between gap-2 rounded-2xl border border-border/50 bg-card/60 px-4 py-3.5 text-left transition hover:border-primary/30 hover:bg-primary/5"
+      onClick={onClick}
+      type="button"
+    >
+      <div className="min-w-0">
+        <div className="text-[13px] font-medium text-foreground">{label}</div>
+        <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+          {meta}
+        </div>
+      </div>
+      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition group-hover:text-primary" />
+    </button>
   );
 }
 
@@ -251,6 +255,30 @@ export function ProcurementOfficerDashboard(): JSX.Element {
   const [isDeleteCategorySubmitting, setIsDeleteCategorySubmitting] =
     useState(false);
 
+  const closeAllLocalDialogs = useCallback((): void => {
+    setIsCreateDepartmentOpen(false);
+    setIsCreateCategoryOpen(false);
+    setIsCreateItemOpen(false);
+    setItemCategoryOverride(null);
+    setIsEditDepartmentOpen(false);
+    setEditDepartment(null);
+    setIsDeleteDepartmentOpen(false);
+    setDeleteDepartmentTarget(null);
+    setIsHardDeleteDepartmentOpen(false);
+    setHardDeleteDepartmentTarget(null);
+    setIsEditCategoryOpen(false);
+    setEditCategory(null);
+    setDeleteCategoryTarget(null);
+  }, []);
+
+  const activeModalParam = searchParams.get("modal");
+
+  useEffect(() => {
+    if (activeModalParam) {
+      closeAllLocalDialogs();
+    }
+  }, [activeModalParam, closeAllLocalDialogs]);
+
   useEffect(() => {
     if (!snapshot?.deadlineOverview.targetAt) {
       return;
@@ -329,14 +357,6 @@ export function ProcurementOfficerDashboard(): JSX.Element {
   const fiscalYearLabel = snapshot.fiscalYears.selectedFiscalYear
     ? formatProcurementFiscalYearLabel(snapshot.fiscalYears.selectedFiscalYear)
     : "Fiscal year unavailable";
-  const departmentsConfiguredCard = findSummaryCard(
-    snapshot.summaryCards,
-    "departments_configured",
-  );
-  const accessCodeCard = findSummaryCard(
-    snapshot.summaryCards,
-    "access_code_coverage",
-  );
   const deadlineCard = findSummaryCard(
     snapshot.summaryCards,
     "deadline_readiness",
@@ -354,15 +374,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
               : deadlineCard.value,
         }
       : deadlineCard;
-  const duCoverageCard = findSummaryCard(
-    snapshot.summaryCards,
-    "du_assignment_coverage",
-  );
   const requestPanel = findFuturePanel(snapshot.futurePanels, "request_inbox");
-  const submissionPanel = findFuturePanel(
-    snapshot.futurePanels,
-    "submission_monitoring",
-  );
   const availableCategories =
     categoriesWorkspace?.rows.filter((row) => row.isActive) ?? [];
   const hasCategories = availableCategories.length > 0;
@@ -377,15 +389,6 @@ export function ProcurementOfficerDashboard(): JSX.Element {
     ...(itemsWorkspace?.categories.filter((category) => category.isActive) ?? []),
     ...fallbackItemCategories,
   ];
-  const readyDepartmentCount = snapshot.departmentReadiness.items.filter(
-    (i) => i.overallState === "available",
-  ).length;
-  const readinessPercent =
-    snapshot.meta.selectedDepartmentCount === 0
-      ? 0
-      : Math.round(
-          (readyDepartmentCount / snapshot.meta.selectedDepartmentCount) * 100,
-        );
   const submittedDepartmentCount =
     snapshot.submissionProgress.submittedDepartmentCount;
   const approvedDepartmentCount =
@@ -394,33 +397,17 @@ export function ProcurementOfficerDashboard(): JSX.Element {
   const submissionPercent = snapshot.submissionProgress.utilizationPercent;
   const submissionHelperText = snapshot.submissionProgress.helperText;
   const organizationBudget = snapshot.organizationOverview.budget;
-  const organizationDepartmentLabel = formatDepartmentUserCount(
-    snapshot.organizationOverview.activeDepartmentCount,
-    "department",
-  );
-  const organizationActiveUserLabel = formatDepartmentUserCount(
-    snapshot.organizationOverview.activeUserCount,
-    "active user",
-  );
-  const organizationItemLabel = formatDepartmentUserCount(
-    snapshot.organizationOverview.totalItemCount,
-    "item",
-  );
   const otherFiscalYears = snapshot.fiscalYears.options.filter(
     (y) => y !== snapshot.fiscalYears.selectedFiscalYear,
   );
-  const dashboardDepartmentRows = (
-    departmentsWorkspace?.rows.map((department) => ({
-      department,
-      readiness: snapshot.departmentReadiness.items.find(
-        (item) => item.id === department.id,
-      ),
-    })) ??
-    snapshot.departmentReadiness.items.map((readiness) => ({
-      department: null,
-      readiness,
-    }))
-  ).slice(0, 6);
+  const allPlansApproved =
+    submittedDepartmentScope > 0 &&
+    approvedDepartmentCount === submittedDepartmentScope;
+  const heroHeadline = allPlansApproved
+    ? `${fiscalYearLabel} is fully approved and ready to consolidate`
+    : submittedDepartmentCount === 0
+      ? `Waiting on department submissions for ${fiscalYearLabel}`
+      : `${approvedDepartmentCount} of ${submittedDepartmentScope} department plans approved so far`;
 
   function setWorkspaceModal(
     modalState: ProcurementOfficerWorkspaceModalState | null,
@@ -456,10 +443,20 @@ export function ProcurementOfficerDashboard(): JSX.Element {
       router.push(target.href);
       return;
     }
+    closeAllLocalDialogs();
     setWorkspaceModal(target.modalState, "push");
   }
 
+  function isWorkspaceModalActive(): boolean {
+    return typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).has("modal")
+      : Boolean(activeModalParam);
+  }
+
   function openDashboardDepartmentCreateDialog(): void {
+    if (isWorkspaceModalActive()) {
+      return;
+    }
     if (!departmentsWorkspace) {
       toast.error("Department details are still loading. Try again.");
       return;
@@ -499,6 +496,9 @@ export function ProcurementOfficerDashboard(): JSX.Element {
   function openDashboardDepartmentEditDialog(
     item: ProcurementOfficerDashboardDepartmentReadinessItem,
   ): void {
+    if (isWorkspaceModalActive()) {
+      return;
+    }
     const departmentRow = departmentsWorkspace?.rows.find((row) => row.id === item.id);
     if (!departmentRow) {
       toast.error("Department details are still loading. Try again.");
@@ -549,7 +549,7 @@ export function ProcurementOfficerDashboard(): JSX.Element {
     departmentRow: DashboardDepartmentWorkspaceRow,
     item?: ProcurementOfficerDashboardDepartmentReadinessItem,
   ): void {
-    if (departmentRow.isArchived) {
+    if (departmentRow.isArchived || isWorkspaceModalActive()) {
       return;
     }
 
@@ -598,6 +598,9 @@ export function ProcurementOfficerDashboard(): JSX.Element {
   function openDashboardDepartmentArchiveDialog(
     departmentRow: DashboardDepartmentWorkspaceRow,
   ): void {
+    if (isWorkspaceModalActive()) {
+      return;
+    }
     setDeleteDepartmentTarget({
       activeDepartmentUserEmails: departmentRow.activeDepartmentUserEmails,
       canDelete: departmentRow.canDelete,
@@ -611,8 +614,42 @@ export function ProcurementOfficerDashboard(): JSX.Element {
   function openDashboardDepartmentHardDeleteDialog(
     departmentRow: DashboardDepartmentWorkspaceRow,
   ): void {
+    if (isWorkspaceModalActive()) {
+      return;
+    }
     setHardDeleteDepartmentTarget(departmentRow);
     setIsHardDeleteDepartmentOpen(true);
+  }
+
+  function handleManageDepartmentById(departmentId: string): void {
+    const departmentRow = departmentsWorkspace?.rows.find(
+      (row) => row.id === departmentId,
+    );
+    const readiness = snapshot?.departmentReadiness.items.find(
+      (item) => item.id === departmentId,
+    );
+    if (departmentRow) {
+      openDashboardDepartmentEditFromRow(departmentRow, readiness);
+      return;
+    }
+    if (readiness) {
+      openDashboardDepartmentEditDialog(readiness);
+    }
+  }
+
+  function handleArchiveDepartmentById(departmentId: string): void {
+    const departmentRow = departmentsWorkspace?.rows.find(
+      (row) => row.id === departmentId,
+    );
+    if (!departmentRow) {
+      toast.error("Department details are still loading. Try again.");
+      return;
+    }
+    if (departmentRow.isArchived) {
+      openDashboardDepartmentHardDeleteDialog(departmentRow);
+    } else {
+      openDashboardDepartmentArchiveDialog(departmentRow);
+    }
   }
 
   async function handleDepartmentEditSubmit(
@@ -748,11 +785,17 @@ export function ProcurementOfficerDashboard(): JSX.Element {
   function openDashboardCategoryEditDialog(
     category: DashboardCategoryWorkspaceData["rows"][number],
   ): void {
+    if (isWorkspaceModalActive()) {
+      return;
+    }
     setEditCategory(category);
     setIsEditCategoryOpen(true);
   }
 
   function openDashboardCategoryCreateDialog(): void {
+    if (isWorkspaceModalActive()) {
+      return;
+    }
     setEditCategory(null);
     setIsEditCategoryOpen(false);
     setIsCreateCategoryOpen(true);
@@ -761,6 +804,9 @@ export function ProcurementOfficerDashboard(): JSX.Element {
   function requestDashboardCategoryDelete(
     category: DashboardCategoryWorkspaceData["rows"][number],
   ): void {
+    if (isWorkspaceModalActive()) {
+      return;
+    }
     if (!category.canDelete) {
       toast.error(
         category.deleteBlockerMessages[0] ??
@@ -839,6 +885,9 @@ export function ProcurementOfficerDashboard(): JSX.Element {
   }
 
   function openDashboardItemCreateDialog(categoryId?: string | null): void {
+    if (isWorkspaceModalActive()) {
+      return;
+    }
     if (!itemsWorkspace && !itemCategoryOverride) {
       toast.error("Item details are still loading. Try again.");
       return;
@@ -997,578 +1046,65 @@ export function ProcurementOfficerDashboard(): JSX.Element {
         </Card>
       </div>
 
-      {/* ── Desktop bento grid ── */}
-      <div className="hidden">
-        <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-none flex-col gap-3 px-4 py-4 xl:px-5">
-          {/* Row 2 — Consolidation Hub + Org Overview + Workflow Panels */}
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,1.56fr)_minmax(320px,0.9fr)]">
-            {/* Left column */}
-            <div className="grid gap-3 xl:grid-cols-[minmax(0,1.38fr)_minmax(280px,0.92fr)]">
-              {/* Consolidation Hub — 2×1 dominant card */}
-              <BentoCard glowColor="primary">
-                <div className="flex flex-col gap-4 p-5">
-                  {/* Header */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <IconBox tone="primary">
-                        <Layers3 className="h-4 w-4" />
-                      </IconBox>
-                      <span className="text-[15px] font-bold text-foreground">
-                        Consolidation Hub
-                      </span>
-                    </div>
-                    <StateBadge state={snapshot.hero.state} />
-                  </div>
-
-                  {/* Donut + stats */}
-                  <div className="flex items-center gap-5 rounded-xl border border-border/60 bg-muted/30 p-4">
-                    <div className="relative shrink-0">
-                      <DonutRing
-                        size={108}
-                        strokeWidth={9}
-                        value={readinessPercent}
-                      />
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-2xl font-black leading-none tracking-[-0.06em] text-foreground">
-                          {readinessPercent}%
-                        </span>
-                        <span className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                          Ready
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex-1 space-y-3">
-                      <div>
-                        <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary mb-1">
-                          Current Fiscal Year
-                        </div>
-                        <div className="text-base font-bold tracking-[-0.03em] text-foreground">
-                          {fiscalYearLabel}
-                        </div>
-                        <div className="mt-0.5 text-[12px] text-muted-foreground">
-                          {readyDepartmentCount} of{" "}
-                          {snapshot.meta.selectedDepartmentCount} Departments
-                          Ready
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-primary via-chart-3 to-chart-4 transition-all duration-700 shadow-[0_0_6px_var(--primary)]"
-                            style={{ width: `${readinessPercent}%` }}
-                          />
-                        </div>
-                        <div className="text-[10px] text-muted-foreground">
-                          Preparation completion
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* CTA */}
-                  <Button
-                    asChild
-                    className="h-10 w-full rounded-xl text-sm font-semibold shadow-sm shadow-primary/20"
-                  >
-                    <Link href="/po/consolidation">
-                      <Zap className="mr-2 h-4 w-4" />
-                      Open Consolidation Workspace
-                      <ArrowRight className="ml-auto h-4 w-4" />
-                    </Link>
-                  </Button>
-
-                  {/* Previous cycles */}
-                  <div className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-3">
-                    <span className="mr-1 text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                      Previous cycles
-                    </span>
-                    {otherFiscalYears.length === 0 ? (
-                      <span className="text-[12px] text-muted-foreground">
-                        None yet
-                      </span>
-                    ) : (
-                      otherFiscalYears.slice(0, 3).map((year) => (
-                        <button
-                          key={year}
-                          className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background px-2.5 py-1 text-[11px] font-medium text-foreground transition hover:border-primary/30 hover:bg-primary/5"
-                          onClick={() => replaceSelectedFiscalYear(year)}
-                          type="button"
-                        >
-                          {formatProcurementFiscalYearLabel(year)}
-                          <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </BentoCard>
-
-              {/* Organization Overview */}
-              <BentoCard>
-                <div className="flex flex-col gap-3 p-5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <IconBox tone="muted">
-                        <Building2 className="h-4 w-4" />
-                      </IconBox>
-                      <span className="text-[14px] font-bold text-foreground">
-                        Organization
-                      </span>
-                    </div>
-                    <StateBadge
-                      state={snapshot.fiscalYears.state}
-                      label={
-                        snapshot.fiscalYears.state === "available"
-                          ? fiscalYearLabel
-                          : "Not configured"
-                      }
-                    />
-                  </div>
-
-                  {/* Tenant */}
-                  <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/20 p-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-sm font-black tracking-[-0.04em] text-primary-foreground shadow-sm shadow-primary/20">
-                      {getInitials(snapshot.meta.tenantName)}
-                    </div>
-                    <div>
-                      <div className="text-sm font-bold tracking-[-0.02em] text-foreground">
-                        {snapshot.meta.tenantName}
-                      </div>
-                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                        <MapPin className="h-3 w-3" />
-                        Procurement workspace
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Progress */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[12px] font-semibold text-foreground">
-                        Preparation
-                      </span>
-                      <span className="text-lg font-black tracking-[-0.04em] text-primary">
-                        {readinessPercent}%
-                      </span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-primary transition-all duration-700"
-                        style={{ width: `${readinessPercent}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-[10px] text-muted-foreground">
-                      <span>Ready: {readyDepartmentCount} depts</span>
-                      <span>{fiscalYearLabel}</span>
-                    </div>
-                  </div>
-
-                  {departmentsConfiguredCard &&
-                  accessCodeCard &&
-                  deadlineCard ? (
-                    <div className="space-y-2">
-                      <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                        Workspace signals
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <OrganizationStatPill
-                          card={departmentsConfiguredCard}
-                          icon={<Building2 className="h-3.5 w-3.5" />}
-                          tone="primary"
-                        />
-                        <OrganizationStatPill
-                          card={accessCodeCard}
-                          icon={<KeyRound className="h-3.5 w-3.5" />}
-                          tone="amber"
-                        />
-                        <OrganizationStatPill
-                          card={liveDeadlineCard ?? deadlineCard}
-                          icon={<CalendarClock className="h-3.5 w-3.5" />}
-                          tone="emerald"
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-2">
-                      <MiniStat
-                        label="Departments"
-                        value={String(snapshot.meta.selectedDepartmentCount)}
-                      />
-                      <MiniStat
-                        label="DU Coverage"
-                        value={duCoverageCard?.value ?? "--"}
-                      />
-                      <MiniStat
-                        label="Alerts"
-                        value={String(snapshot.alerts.length)}
-                        highlight={snapshot.alerts.length > 0}
-                      />
-                    </div>
-                  )}
-                </div>
-              </BentoCard>
-
-              {/* Department Management — full width */}
-              <BentoCard className="xl:col-span-2">
-                <div className="flex items-center justify-between border-b border-border/60 px-5 py-3.5">
-                  <div className="flex items-center gap-2.5">
-                    <IconBox tone="primary">
-                      <Users2 className="h-4 w-4" />
-                    </IconBox>
-                    <div>
-                      <div className="text-[14px] font-bold text-foreground">
-                        Department Readiness
-                      </div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {snapshot.departmentReadiness.summary}
-                      </div>
-                    </div>
-                  </div>
-                  <Button
-                    className="h-8 rounded-lg text-xs"
-                    onClick={openDashboardDepartmentCreateDialog}
-                    type="button"
-                  >
-                    Add department
-                  </Button>
-                </div>
-
-                {dashboardDepartmentRows.length === 0 ? (
-                  <div className="p-5">
-                    <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-6 text-center">
-                      <Building2 className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
-                      <div className="text-sm font-medium text-muted-foreground">
-                        Department readiness appears here once active
-                        departments exist.
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border-separate border-spacing-0">
-                      <thead>
-                        <tr className="bg-muted/20">
-                          {[
-                            "Department",
-                            "Vote #",
-                            "Readiness",
-                            "Coverage",
-                            "Actions",
-                          ].map((h, i) => (
-                            <th
-                              key={h}
-                              className={cn(
-                                "border-b border-border/60 px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground",
-                                i === 0 && "text-left",
-                                i === 4 && "text-right",
-                              )}
-                            >
-                              {h}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {dashboardDepartmentRows.map(({ department, readiness }, index) => (
-                            <DepartmentReadinessRow
-                              key={department?.id ?? readiness?.id ?? index}
-                              department={department}
-                              item={readiness}
-                              showCoverage
-                              onArchiveDepartment={
-                                department
-                                  ? () => openDashboardDepartmentArchiveDialog(department)
-                                  : undefined
-                              }
-                              onDeleteDepartment={
-                                department
-                                  ? () => openDashboardDepartmentHardDeleteDialog(department)
-                                  : undefined
-                              }
-                              onManageDepartment={() =>
-                                department
-                                  ? openDashboardDepartmentEditFromRow(
-                                      department,
-                                      readiness,
-                                    )
-                                  : openDashboardDepartmentEditDialog(readiness)
-                              }
-                            />
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </BentoCard>
-            </div>
-
-            {/* Right column — Workflow Panels */}
-            <BentoCard className="flex flex-col">
-              <div className="flex items-center justify-between border-b border-border/60 px-4 py-3.5">
-                <div className="flex items-center gap-2.5">
-                  <IconBox tone="info">
-                    <FileStack className="h-4 w-4" />
-                  </IconBox>
-                  <span className="text-[14px] font-bold text-foreground">
-                    Workflow Panels
-                  </span>
-                </div>
-                {requestPanel ? (
-                  <StateBadge
-                    state={requestPanel.state}
-                    label={requestPanel.statusLabel}
-                  />
-                ) : null}
-              </div>
-
-              <div className="flex flex-1 flex-col gap-3 p-4">
-                {/* Review Center */}
-                <div className="rounded-xl border border-border/60 bg-muted/20 p-3.5">
-                  <div className="mb-3 flex items-center justify-between">
-                    <div className="text-[13px] font-semibold text-foreground">
-                      Review Center
-                    </div>
-                    {requestPanel ? (
-                      <StateBadge
-                        state={requestPanel.state}
-                        label={requestPanel.statusLabel}
-                      />
-                    ) : null}
-                  </div>
-                  <div className="space-y-2">
-                    {[requestPanel]
-                      .filter(
-                        (p): p is ProcurementOfficerDashboardFuturePanel =>
-                          Boolean(p),
-                      )
-                      .map((panel) => (
-                        <WorkflowPanelButton
-                          key={panel.id}
-                          panel={panel}
-                          onClick={() => handleWorkspaceAction(panel.cta.href)}
-                        />
-                      ))}
-                  </div>
-                </div>
-
-                {/* Categories & Items */}
-                <div className="rounded-xl border border-border/60 bg-muted/20 p-3.5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                        <FolderTree className="h-3.5 w-3.5" />
-                      </div>
-                      <div className="text-[15px] font-bold text-foreground">
-                        Categories
-                      </div>
-                    </div>
-                    <Button
-                      className="h-8 rounded-lg px-3 text-xs font-semibold"
-                      onClick={openDashboardCategoryCreateDialog}
-                      type="button"
-                    >
-                      <Plus className="mr-1.5 h-3.5 w-3.5" />
-                      New
-                    </Button>
-                  </div>
-                  <div className="mt-5 border-t border-border/60 pt-6">
-                    {hasCategories ? (
-                      <div className="space-y-2">
-                        {availableCategories.slice(0, 4).map((category) => (
-                          <CategoryManagementRow
-                            key={category.id}
-                            category={category}
-                            density="compact"
-                            onDelete={requestDashboardCategoryDelete}
-                            onEdit={openDashboardCategoryEditDialog}
-                          />
-                        ))}
-                        {availableCategories.length > 4 ? (
-                          <div className="pt-1 text-center text-[12px] text-muted-foreground">
-                            {availableCategories.length - 4} more categor
-                            {availableCategories.length - 4 === 1 ? "y" : "ies"}{" "}
-                            available
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <div className="flex min-h-[6.5rem] items-center justify-center text-center text-sm text-muted-foreground">
-                        No categories yet. Click &quot;+ New&quot; to add one.
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Department codes quick link */}
-                <div className="mt-auto rounded-xl border border-border/60 bg-muted/20 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-xl border border-amber-300/70 bg-amber-200 text-amber-950 shadow-sm dark:border-amber-300/25 dark:bg-amber-400/20 dark:text-amber-50">
-                        <KeyRound className="h-3.5 w-3.5" />
-                      </div>
-                      <span className="text-[12px] font-semibold text-foreground">
-                        Department Codes
-                      </span>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 px-2 text-[11px] text-primary hover:text-primary"
-                      onClick={() => handleWorkspaceAction("/po/departments")}
-                      type="button"
-                    >
-                      Manage
-                      <ArrowRight className="ml-1 h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Deadlines quick link */}
-                <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={cn(
-                          "flex h-7 w-7 items-center justify-center rounded-xl border shadow-sm",
-                          snapshot.alerts.some((a) => a.id === "deadline")
-                            ? "border-rose-300/70 bg-rose-200 text-rose-950 dark:border-rose-300/25 dark:bg-rose-400/20 dark:text-rose-50"
-                            : "border-emerald-300/70 bg-emerald-200 text-emerald-950 dark:border-emerald-300/25 dark:bg-emerald-400/20 dark:text-emerald-50",
-                        )}
-                      >
-                        {snapshot.alerts.some((a) => a.id === "deadline") ? (
-                          <AlertTriangle className="h-3.5 w-3.5" />
-                        ) : (
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                        )}
-                      </div>
-                      <span className="text-[12px] font-semibold text-foreground">
-                        Deadlines
-                      </span>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 px-2 text-[11px] text-primary hover:text-primary"
-                      onClick={() => handleWorkspaceAction("/po/deadlines")}
-                      type="button"
-                    >
-                      Review
-                      <ArrowRight className="ml-1 h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </BentoCard>
-          </div>
-        </div>
-      </div>
-
       <div className="hidden lg:block">
-        <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-none flex-col gap-4 px-4 py-4 xl:px-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-[1440px] flex-col gap-4 px-4 py-5 xl:px-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-foreground">
+              <h1 className="text-xl font-semibold tracking-tight text-foreground">
                 Overview
               </h1>
-              <p className="mt-1 text-[13px] text-muted-foreground">
-                Monitor procurement readiness, department performance, and upcoming deadlines.
+              <p className="mt-1 max-w-xl text-[13px] text-muted-foreground">
+                Monitor procurement readiness, department performance, and
+                upcoming deadlines.
               </p>
-            </div>
-            <div className="flex flex-wrap justify-end gap-2">
-              <DashboardStatusPill
-                icon={<CalendarClock className="h-3.5 w-3.5" />}
-                label={fiscalYearLabel}
-              />
-              <DashboardStatusPill
-                icon={<CheckCircle2 className="h-3.5 w-3.5" />}
-                label={`${approvedDepartmentCount}/${submittedDepartmentScope} approved`}
-              />
-              <DashboardStatusPill
-                icon={<AlertTriangle className="h-3.5 w-3.5" />}
-                label={requestPanel?.statusLabel ?? "No pending"}
-              />
-              <DashboardStatusPill
-                icon={<Building2 className="h-3.5 w-3.5" />}
-                label={snapshot.fiscalYears.state === "available" ? "Online" : "Setup required"}
-              />
             </div>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(0,2fr)]">
-            <BentoCard glowColor="primary">
-              <div className="flex h-full flex-col justify-between gap-5 p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <IconBox tone="primary">
-                      <Layers3 className="h-4 w-4" />
-                    </IconBox>
-                    <span className="text-[15px] font-bold text-foreground">
-                      Master Plan Progress
-                    </span>
+          <BentoCard glowColor="primary">
+            <div className="flex flex-col gap-5 p-6">
+              <div className="flex flex-wrap items-start justify-between gap-5">
+                <div className="min-w-0 max-w-2xl">
+                  <div className="text-[12px] font-medium text-muted-foreground">
+                    {fiscalYearLabel} master plan
                   </div>
-                  <StateBadge state={snapshot.hero.state} />
-                </div>
-
-                <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-2">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
-                        Current fiscal year
-                      </div>
-                      <div className="text-[15px] font-black tracking-[-0.03em] text-foreground">
-                        {fiscalYearLabel} Master Plan
-                      </div>
-                      <div className="text-[12px] text-muted-foreground">
-                        {submittedDepartmentCount} submitted •{" "}
-                        {approvedDepartmentCount} approved out of{" "}
-                        {submittedDepartmentScope} departments
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-4xl font-black tracking-[-0.07em] text-primary">
-                        {submissionPercent}%
-                      </div>
-                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                        Approved
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all duration-700"
-                      style={{ width: `${Math.min(100, submissionPercent)}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <p className="max-w-sm text-[12px] leading-5 text-muted-foreground">
+                  <h2 className="mt-1 text-[22px] font-semibold leading-snug tracking-tight text-foreground [text-wrap:balance]">
+                    {heroHeadline}
+                  </h2>
+                  <p className="mt-1.5 text-[13px] text-muted-foreground">
                     {submissionHelperText}
                   </p>
-                  <Button
-                    className="h-8 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700"
-                    onClick={() => handleWorkspaceAction("/po/consolidation")}
-                    type="button"
-                  >
-                    Open consolidation hub
-                    <ArrowRight className="ml-2 h-3.5 w-3.5" />
-                  </Button>
                 </div>
-
-                <div className="border-t border-border/60 pt-4">
+                <Button
+                  className="h-10 shrink-0 rounded-xl px-5 text-sm font-semibold"
+                  onClick={() => handleWorkspaceAction("/po/consolidation")}
+                  type="button"
+                >
+                  Open consolidation hub
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-700"
+                    style={{ width: `${Math.min(100, submissionPercent)}%` }}
+                  />
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 text-[12px] text-muted-foreground">
+                  <span className="tabular-nums">
+                    {approvedDepartmentCount} of {submittedDepartmentScope}{" "}
+                    department plans approved · {submittedDepartmentCount}{" "}
+                    submitted
+                  </span>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-                      Other cycles
-                    </span>
+                    <span>Other cycles</span>
                     {otherFiscalYears.length === 0 ? (
-                      <span className="text-sm text-muted-foreground">
-                        None yet
-                      </span>
+                      <span>none yet</span>
                     ) : (
                       otherFiscalYears.slice(0, 3).map((year) => (
                         <button
                           key={year}
-                          className="rounded-full border border-border/70 bg-background px-3 py-1.5 text-[11px] font-medium text-foreground transition hover:border-primary/30 hover:bg-primary/5"
+                          className="rounded-full border border-border/60 bg-background px-2.5 py-1 text-[11px] font-medium text-foreground transition hover:border-primary/30 hover:bg-primary/5"
                           onClick={() => replaceSelectedFiscalYear(year)}
                           type="button"
                         >
@@ -1579,258 +1115,83 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                   </div>
                 </div>
               </div>
-            </BentoCard>
+            </div>
+          </BentoCard>
 
-            <BentoCard>
-              <div className="flex h-full flex-col gap-5 p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <IconBox tone="muted">
-                      <Building2 className="h-4 w-4" />
-                    </IconBox>
-                    <span className="text-[15px] font-bold text-foreground">
-                      Organization Overview
-                    </span>
-                  </div>
-                  <div className="flex min-w-0 flex-nowrap items-center justify-end gap-2">
-                    {departmentsConfiguredCard ? (
-                      <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/60 bg-muted/25 px-2.5 py-1 text-[10px] font-semibold text-foreground">
-                        <Building2 className="h-3 w-3 text-primary" />
-                        <span className="text-muted-foreground">Departments</span>
-                        <span>{departmentsConfiguredCard.value}</span>
-                      </div>
-                    ) : null}
-                    {accessCodeCard ? (
-                      <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/60 bg-muted/25 px-2.5 py-1 text-[10px] font-semibold text-foreground">
-                        <KeyRound className="h-3 w-3 text-amber-500" />
-                        <span className="text-muted-foreground">Codes</span>
-                        <span>{accessCodeCard.value}</span>
-                      </div>
-                    ) : null}
-                    {deadlineCard ? (
-                      <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/60 bg-muted/25 px-2.5 py-1 text-[10px] font-semibold text-foreground">
-                        <CalendarClock className="h-3 w-3 text-emerald-500" />
-                        <span className="text-muted-foreground">Deadline</span>
-                        <span>{(liveDeadlineCard ?? deadlineCard).value}</span>
-                      </div>
-                    ) : null}
-                    <StateBadge
-                      state={snapshot.fiscalYears.state}
-                      label={
-                        snapshot.fiscalYears.state === "available"
-                          ? fiscalYearLabel
-                          : "Not configured"
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-4 rounded-2xl border border-border/60 bg-muted/15 p-4">
-                  <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <OverviewMetric
-                        label="Departments"
-                        value={String(snapshot.organizationOverview.activeDepartmentCount)}
-                        meta={organizationDepartmentLabel}
-                      />
-                      <OverviewMetric
-                        label="Active users"
-                        value={String(snapshot.organizationOverview.activeUserCount)}
-                        meta={organizationActiveUserLabel}
-                      />
-                      <OverviewMetric
-                        label="Total items"
-                        value={String(snapshot.organizationOverview.totalItemCount)}
-                        meta={organizationItemLabel}
-                      />
-                    </div>
-
-                    <div className="rounded-2xl border border-border/60 bg-background/80 p-3.5">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                          Budget utilization
-                        </span>
-                        <span className="text-[22px] font-black tracking-[-0.05em] text-primary">
-                          {organizationBudget.state === "available"
-                            ? `${organizationBudget.utilizationPercent}%`
-                            : "--"}
-                        </span>
-                      </div>
-                      <Progress
-                        className="mt-3 h-2.5 bg-muted/80"
-                        value={Math.min(100, organizationBudget.utilizationPercent)}
-                      />
-                      <div className="mt-3 flex items-center justify-between gap-4 text-[12px] text-muted-foreground">
-                        <span>Used: {organizationBudget.usedBudgetLabel}</span>
-                        <span>Total: {organizationBudget.totalBudgetLabel}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 border-t border-border/60 pt-4 md:grid-cols-2">
-                    <OverviewActionButton
-                      icon={
-                        <IconBox tone="amber">
-                          <KeyRound className="h-4 w-4" />
-                        </IconBox>
-                      }
-                      label="Department Management"
-                      meta="Manage department codes and settings"
-                      onClick={() => handleWorkspaceAction("/po/departments")}
-                    />
-                    <OverviewActionButton
-                      icon={
-                        <IconBox
-                          tone={
-                            snapshot.alerts.some((alert) => alert.id === "deadline")
-                              ? "amber"
-                              : "emerald"
-                          }
-                        >
-                          <CalendarClock className="h-4 w-4" />
-                        </IconBox>
-                      }
-                      label="Manage Deadlines"
-                      meta="View and update shared deadlines"
-                      onClick={() => handleWorkspaceAction("/po/deadlines")}
-                    />
-                  </div>
-                </div>
-
-              </div>
-            </BentoCard>
+          <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+            <QuietStat
+              label="Departments"
+              value={String(snapshot.organizationOverview.activeDepartmentCount)}
+            />
+            <QuietStat
+              label="Active users"
+              value={String(snapshot.organizationOverview.activeUserCount)}
+            />
+            <QuietStat
+              label="Total items"
+              value={String(snapshot.organizationOverview.totalItemCount)}
+            />
+            <QuietStat
+              label="Budget used"
+              value={
+                organizationBudget.state === "available"
+                  ? `${organizationBudget.utilizationPercent}%`
+                  : "--"
+              }
+              meta={
+                organizationBudget.state === "available"
+                  ? `${organizationBudget.usedBudgetLabel} of ${organizationBudget.totalBudgetLabel}`
+                  : "Budget not configured"
+              }
+            />
+            <QuickLinkTile
+              label="Department management"
+              meta="Codes and settings"
+              onClick={() => handleWorkspaceAction("/po/departments")}
+            />
+            <QuickLinkTile
+              label="Deadlines"
+              meta={(liveDeadlineCard ?? deadlineCard)?.value ?? "Not set"}
+              onClick={() => handleWorkspaceAction("/po/deadlines")}
+            />
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-2">
-            <BentoCard>
-              <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
-                <div className="flex items-center gap-2.5">
-                  <IconBox tone="primary">
-                    <Users2 className="h-4 w-4" />
-                  </IconBox>
-                  <div>
-                      <div className="text-[15px] font-bold text-foreground">
-                        Department Readiness
-                    </div>
-                    <div className="text-[12px] text-muted-foreground">
-                      {snapshot.departmentReadiness.summary}
-                    </div>
-                  </div>
+          <BentoCard>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 px-6 py-4">
+              <div>
+                <div className="text-[15px] font-semibold text-foreground">
+                  Departments
                 </div>
-                <Button
-                  className="h-8 rounded-lg text-xs"
-                  onClick={openDashboardDepartmentCreateDialog}
-                  type="button"
-                >
-                  <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  Add department
-                </Button>
-              </div>
-
-              {dashboardDepartmentRows.length === 0 ? (
-                <div className="p-5">
-                  <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-6 text-center">
-                    <Building2 className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
-                    <div className="text-sm font-medium text-muted-foreground">
-                      Department readiness appears here once active departments
-                      exist.
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="overflow-x-auto px-4 pb-4 pt-2">
-                  <table className="min-w-full border-separate border-spacing-0">
-                    <thead>
-                      <tr>
-                        {["Department", "Code", "Budget status", "Coverage", "Actions"].map(
-                          (heading, index) => (
-                            <th
-                              key={heading}
-                              className={cn(
-                                "border-b border-border/60 px-3 py-3 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground",
-                                index === 0 && "text-left",
-                                index === 1 && "text-left",
-                                index === 2 && "text-left",
-                                index === 4 && "text-right",
-                              )}
-                            >
-                              {heading}
-                            </th>
-                          ),
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dashboardDepartmentRows.map(({ department, readiness }, index) => (
-                          <DepartmentReadinessRow
-                            key={department?.id ?? readiness?.id ?? index}
-                            department={department}
-                            item={readiness}
-                            showCoverage
-                            onArchiveDepartment={
-                              department
-                                ? () => openDashboardDepartmentArchiveDialog(department)
-                                : undefined
-                            }
-                            onDeleteDepartment={
-                              department
-                                ? () => openDashboardDepartmentHardDeleteDialog(department)
-                                : undefined
-                            }
-                            onManageDepartment={() =>
-                              department
-                                ? openDashboardDepartmentEditFromRow(
-                                    department,
-                                    readiness,
-                                  )
-                                : openDashboardDepartmentEditDialog(readiness)
-                            }
-                          />
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </BentoCard>
-
-            <BentoCard>
-              <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
-                <div className="flex items-center gap-2.5">
-                  <IconBox tone="amber">
-                    <FileStack className="h-4 w-4" />
-                  </IconBox>
-                  <span className="text-[15px] font-bold text-foreground">
-                    Submission Monitoring
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {submissionPanel ? (
-                    <StateBadge
-                      state={submissionPanel.state}
-                      label={submissionPanel.statusLabel}
-                    />
-                  ) : null}
+                <div className="mt-0.5 text-[12px] text-muted-foreground">
+                  {snapshot.departmentReadiness.summary}
                 </div>
               </div>
-              <div className="p-5">
-                <ProcurementOfficerSubmissionMonitoringWorkspace
-                  selectedFiscalYear={selectedFiscalYear}
-                />
-              </div>
-            </BentoCard>
-          </div>
+              <Button
+                className="h-8 rounded-lg text-xs"
+                onClick={openDashboardDepartmentCreateDialog}
+                type="button"
+                variant="outline"
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Add department
+              </Button>
+            </div>
+            <div className="px-6 py-4">
+              <ProcurementOfficerSubmissionMonitoringWorkspace
+                onArchiveDepartment={handleArchiveDepartmentById}
+                onManageDepartment={handleManageDepartmentById}
+                readinessItems={snapshot.departmentReadiness.items}
+                selectedFiscalYear={selectedFiscalYear}
+              />
+            </div>
+          </BentoCard>
 
-          <div className="grid gap-4 xl:grid-cols-[minmax(300px,0.95fr)_minmax(300px,0.95fr)_minmax(300px,1.05fr)]">
+          <div className="grid gap-4 xl:grid-cols-3">
             <BentoCard>
-              <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
-                <div className="flex items-center gap-2.5">
-                  <IconBox tone="amber">
-                    <AlertTriangle className="h-4 w-4" />
-                  </IconBox>
-                  <span className="text-[15px] font-bold text-foreground">
-                    Requests
-                  </span>
-                </div>
+              <div className="flex items-center justify-between border-b border-border/50 px-5 py-4">
+                <span className="text-[15px] font-semibold text-foreground">
+                  Requests
+                </span>
                 {requestPanel ? (
                   <StateBadge
                     state={requestPanel.state}
@@ -1838,38 +1199,35 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                   />
                 ) : null}
               </div>
-              <div className="grid gap-2.5 p-4">
+              <div className="grid gap-2.5 p-5">
                 {snapshot.alerts.length > 0 ? (
                   snapshot.alerts.slice(0, 3).map((alert) => (
                     <div
                       key={alert.id}
-                      className="grid grid-cols-[minmax(0,1.25fr)_minmax(0,0.95fr)_auto] items-center gap-3 border-b border-border/50 px-1 py-2.5 text-[12px] last:border-b-0"
+                      className="flex items-center justify-between gap-3 border-b border-border/40 py-2.5 text-[12px] last:border-b-0"
                     >
                       <div className="min-w-0">
-                        <div className="truncate font-semibold text-foreground">
+                        <div className="truncate font-medium text-foreground">
                           {alert.title}
                         </div>
                         <div className="truncate text-muted-foreground">
                           {alert.message}
                         </div>
                       </div>
-                      <div className="truncate text-muted-foreground">
-                        {alert.cta.label}
-                      </div>
                       <StateBadge state={alert.cta.state} label="Open" />
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-xl border border-dashed border-border/60 bg-muted/10 px-4 py-7 text-sm text-muted-foreground">
-                    {requestPanel?.description ??
-                      "No request activity is available yet for the selected fiscal year."}
-                  </div>
+                  <p className="py-3 text-[13px] leading-6 text-muted-foreground">
+                    No catalog requests yet. New item and category requests from
+                    departments appear here.
+                  </p>
                 )}
                 <Button
-                  variant="outline"
-                  className="h-9 rounded-lg text-xs"
+                  className="h-9 justify-start rounded-lg px-2 text-xs text-primary hover:text-primary"
                   onClick={() => handleWorkspaceAction("/po/requests")}
                   type="button"
+                  variant="ghost"
                 >
                   View all requests
                   <ArrowRight className="ml-2 h-3.5 w-3.5" />
@@ -1878,55 +1236,50 @@ export function ProcurementOfficerDashboard(): JSX.Element {
             </BentoCard>
 
             <BentoCard>
-              <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
-                <div className="flex items-center gap-2.5">
-                  <IconBox tone="info">
-                    <FolderTree className="h-4 w-4" />
-                  </IconBox>
-                  <span className="text-[15px] font-bold text-foreground">
-                    Categories
-                  </span>
-                </div>
+              <div className="flex items-center justify-between border-b border-border/50 px-5 py-4">
+                <span className="text-[15px] font-semibold text-foreground">
+                  Categories
+                </span>
                 <Button
-                  className="h-9 rounded-lg px-4 text-xs font-semibold"
+                  className="h-8 rounded-lg px-3 text-xs"
                   onClick={openDashboardCategoryCreateDialog}
                   type="button"
+                  variant="outline"
                 >
                   <Plus className="mr-1.5 h-3.5 w-3.5" />
                   New
                 </Button>
               </div>
-              <div className="p-4">
-                <div>
-                  {hasCategories ? (
-                    <div className="space-y-2.5">
-                      {availableCategories.slice(0, 6).map((category) => (
-                        <CategoryManagementRow
-                          key={category.id}
-                          category={category}
-                          density="comfortable"
-                          onDelete={requestDashboardCategoryDelete}
-                          onEdit={openDashboardCategoryEditDialog}
-                        />
-                      ))}
-                      {availableCategories.length > 6 ? (
-                        <div className="pt-1 text-center text-[13px] text-muted-foreground">
-                          {availableCategories.length - 6} more categor
-                          {availableCategories.length - 6 === 1 ? "y" : "ies"} available
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div className="flex min-h-[8.5rem] items-center justify-center text-center text-[15px] text-muted-foreground">
-                      No categories yet. Click &quot;+ New&quot; to add one.
-                    </div>
-                  )}
-                </div>
+              <div className="p-5">
+                {hasCategories ? (
+                  <div className="space-y-2.5">
+                    {availableCategories.slice(0, 5).map((category) => (
+                      <CategoryManagementRow
+                        key={category.id}
+                        category={category}
+                        density="comfortable"
+                        onDelete={requestDashboardCategoryDelete}
+                        onEdit={openDashboardCategoryEditDialog}
+                      />
+                    ))}
+                    {availableCategories.length > 5 ? (
+                      <div className="pt-1 text-[12px] text-muted-foreground">
+                        {availableCategories.length - 5} more categor
+                        {availableCategories.length - 5 === 1 ? "y" : "ies"}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="py-3 text-[13px] leading-6 text-muted-foreground">
+                    No categories yet. Create one to start building the shared
+                    catalog.
+                  </p>
+                )}
                 <Button
-                  className="mt-3 h-9 w-full rounded-lg text-xs"
+                  className="mt-2 h-9 justify-start rounded-lg px-2 text-xs text-primary hover:text-primary"
                   onClick={() => handleWorkspaceAction("/po/items")}
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                 >
                   View all categories
                   <ArrowRight className="ml-2 h-3.5 w-3.5" />
@@ -1935,25 +1288,12 @@ export function ProcurementOfficerDashboard(): JSX.Element {
             </BentoCard>
 
             <BentoCard>
-              <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
-                <div className="flex items-center gap-2.5">
-                  <IconBox tone="emerald">
-                    <History className="h-4 w-4" />
-                  </IconBox>
-                  <span className="text-[15px] font-bold text-foreground">
-                    Recent Activity
-                  </span>
-                </div>
-                <Button
-                  className="h-8 rounded-lg text-xs"
-                  disabled
-                  type="button"
-                  variant="outline"
-                >
-                  View all
-                </Button>
+              <div className="flex items-center justify-between border-b border-border/50 px-5 py-4">
+                <span className="text-[15px] font-semibold text-foreground">
+                  Recent activity
+                </span>
               </div>
-              <div className="grid gap-1 p-4">
+              <div className="grid gap-1 p-5">
                 <ActivityRow
                   label="Master plan progress updated"
                   meta={fiscalYearLabel}
@@ -1964,22 +1304,19 @@ export function ProcurementOfficerDashboard(): JSX.Element {
                   meta={`${submittedDepartmentCount} submitted`}
                   timestamp={snapshot.deadlineOverview.countdownLabel}
                 />
-                {snapshot.alerts.length > 0 ? (
-                  snapshot.alerts.slice(0, 2).map((alert) => (
-                    <ActivityRow
-                      key={alert.id}
-                      label={alert.title}
-                      meta={alert.cta.label}
-                      timestamp={alert.message}
-                    />
-                  ))
-                ) : (
+                {snapshot.alerts.slice(0, 2).map((alert) => (
                   <ActivityRow
-                    label="No pending operational alerts"
-                    meta="System status"
-                    timestamp="Online"
+                    key={alert.id}
+                    label={alert.title}
+                    meta={alert.cta.label}
+                    timestamp={alert.message}
                   />
-                )}
+                ))}
+                <div className="pt-2 text-[11px] text-muted-foreground">
+                  {snapshot.alerts.length === 0
+                    ? "No pending operational alerts · system online"
+                    : "System online"}
+                </div>
               </div>
             </BentoCard>
           </div>

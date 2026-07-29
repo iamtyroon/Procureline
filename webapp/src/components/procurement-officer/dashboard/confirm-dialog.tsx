@@ -25,7 +25,7 @@ export function DashboardConfirmDialog(props: {
           <DialogTitle>{props.title}</DialogTitle>
           <DialogDescription>{props.description}</DialogDescription>
         </DialogHeader>
-        <div className="rounded-2xl border border-border/70 bg-muted/20 px-4 py-4 text-sm leading-6 text-muted-foreground">
+        <div className="rounded-xl border border-border/50 bg-muted/15 px-4 py-3 text-sm leading-6 text-muted-foreground">
           {props.body}
         </div>
         <DialogFooter>

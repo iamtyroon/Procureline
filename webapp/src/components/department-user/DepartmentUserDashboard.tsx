@@ -13,8 +13,6 @@ import {
     ClipboardList,
     Clock3,
     Eye,
-    FileClock,
-    NotebookPen,
     RefreshCcw,
     XCircle,
 } from "lucide-react";
@@ -331,9 +329,9 @@ function OperationalOverview({
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-end justify-between gap-4">
                 <div>
-                    <h1 className="text-xl font-semibold tracking-tight text-foreground">Overview</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground">Overview</h1>
                     <p className="mt-1 text-sm text-muted-foreground">
                         {snapshot.heroSupport.departmentName} procurement workspace
                     </p>
@@ -348,121 +346,256 @@ function OperationalOverview({
                 </Button>
             </div>
 
-            <div className="grid gap-3 xl:grid-cols-5">
+            <div className="grid grid-cols-12 gap-4">
+                <UtilizationHeroCell budget={budget} className="col-span-4 row-span-2" />
                 <MetricTile
-                    icon={<BarChart3 className="h-4 w-4" />}
-                    label="Plan Utilization"
-                    value={budget.state === "available" ? `${budget.utilizationPercent}%` : "--"}
-                    detail={`${budget.usedBudgetLabel} of ${budget.totalBudgetLabel}`}
-                    accent="emerald"
-                    progress={budget.utilizationPercent}
-                />
-                <MetricTile
+                    className="col-span-3"
                     icon={<Boxes className="h-4 w-4" />}
                     label="Budgeted Amount"
                     value={budget.totalBudgetLabel}
                     detail={`FY ${snapshot.meta.fiscalYearKey}`}
-                    accent="blue"
                 />
                 <MetricTile
+                    className="col-span-3"
                     icon={<ClipboardList className="h-4 w-4" />}
                     label="Total Items"
                     value={String(plan.itemCount)}
                     detail={`Across ${categories.length} categories`}
-                    accent="emerald"
                 />
-                <MetricTile
-                    icon={<FileClock className="h-4 w-4" />}
-                    label="Pending Approvals"
-                    value={String(pendingApprovals)}
-                    detail={plan.statusLabel}
-                    accent="violet"
+                <DeadlineCell className="col-span-2 row-span-2" deadline={deadline} />
+                <PlanInfoStrip
+                    className="col-span-6"
+                    currentPlan={currentPlan}
+                    pendingApprovals={pendingApprovals}
+                    plan={plan}
+                    snapshot={snapshot}
                 />
-                <MetricTile
-                    icon={<CalendarClock className="h-4 w-4" />}
-                    label="Submission Deadline"
-                    value={deadline.deadlineDateLabel}
-                    detail={deadline.note}
-                    accent="emerald"
-                />
-            </div>
 
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,2.3fr)_minmax(280px,0.9fr)]">
                 <PlanSummaryCard
                     budget={budget}
                     categories={categories}
+                    className="col-span-8"
                     primaryHref={plan.primaryActionHref}
                 />
-                <TimelineCard timeline={plan.timeline} />
-            </div>
+                <TimelineCard className="col-span-4" timeline={plan.timeline} />
 
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,2.7fr)_minmax(280px,0.95fr)]">
                 <PlanCategoriesCard
                     canSelectCategories={snapshot.launchpad.canSelectCategories}
                     categories={snapshot.launchpad.categories}
+                    className="col-span-8"
                     launchpadStatusLabel={launchpadStatusLabel}
                     onSelectionChange={onSelectionChange}
                     selectedCategoryIds={selectedCategoryIds}
                 />
-                <DepartmentNotesCard
-                    currentPlan={currentPlan}
+                <PlanActionsCard
+                    className="col-span-4"
                     isWithdrawing={isWithdrawing}
                     onRequestRedraft={onRequestRedraft}
                     onWithdrawSubmission={onWithdrawSubmission}
                     plan={plan}
-                    snapshot={snapshot}
                 />
             </div>
         </div>
     );
 }
 
+function UtilizationHeroCell({
+    budget,
+    className,
+}: {
+    budget: DepartmentUserDashboardSnapshot["quickStats"]["budget"];
+    className?: string;
+}) {
+    const percent = budget.state === "available" ? budget.utilizationPercent : 0;
+
+    return (
+        <Card
+            className={cn(
+                "relative overflow-hidden rounded-2xl border-emerald-500/20 bg-gradient-to-br from-emerald-500/[0.08] via-card to-card shadow-sm",
+                className,
+            )}
+        >
+            <CardContent className="flex h-full flex-col justify-between p-5">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        Plan Utilization
+                    </div>
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
+                        <BarChart3 className="h-4 w-4" />
+                    </div>
+                </div>
+                <div>
+                    <div className="text-5xl font-black tracking-tight text-foreground">
+                        {budget.state === "available" ? `${percent}%` : "--"}
+                    </div>
+                    <div className="mt-2 text-sm text-muted-foreground">
+                        {budget.usedBudgetLabel} of {budget.totalBudgetLabel} allocated
+                    </div>
+                </div>
+                <div>
+                    <div className="h-2.5 rounded-full bg-muted">
+                        <div
+                            className="h-full rounded-full bg-emerald-500 transition-all"
+                            style={{ width: `${Math.max(0, Math.min(100, percent))}%` }}
+                        />
+                    </div>
+                    <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+                        <span>{budget.usedBudgetLabel} used</span>
+                        <span>{budget.totalBudgetLabel} budget</span>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+function DeadlineCell({
+    className,
+    deadline,
+}: {
+    className?: string;
+    deadline: DepartmentUserDashboardSnapshot["quickStats"]["deadline"];
+}) {
+    const daysRemaining = deadline.daysRemaining;
+
+    return (
+        <Card
+            className={cn(
+                "rounded-2xl shadow-sm",
+                deadline.isUrgent
+                    ? "border-amber-500/30 bg-gradient-to-br from-amber-500/[0.08] via-card to-card"
+                    : "border-border/60 bg-card/95",
+                className,
+            )}
+        >
+            <CardContent className="flex h-full flex-col justify-between p-5">
+                <div className="flex items-start justify-between gap-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        Deadline
+                    </div>
+                    <div
+                        className={cn(
+                            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                            deadline.isUrgent
+                                ? "bg-amber-500/10 text-amber-400"
+                                : "bg-muted text-muted-foreground",
+                        )}
+                    >
+                        <CalendarClock className="h-4 w-4" />
+                    </div>
+                </div>
+                <div>
+                    <div className="text-4xl font-black tracking-tight text-foreground">
+                        {typeof daysRemaining === "number" ? daysRemaining : "--"}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                        {typeof daysRemaining === "number" ? "days left" : "no deadline"}
+                    </div>
+                </div>
+                <div className="text-xs leading-5 text-muted-foreground">
+                    <div className="font-medium text-foreground">{deadline.deadlineDateLabel}</div>
+                    <div className="mt-0.5">{deadline.note}</div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+function PlanInfoStrip({
+    className,
+    currentPlan,
+    pendingApprovals,
+    plan,
+    snapshot,
+}: {
+    className?: string;
+    currentPlan: DepartmentUserDashboardSnapshot["plans"]["rows"][number] | undefined;
+    pendingApprovals: number;
+    plan: DepartmentUserDashboardSnapshot["quickStats"]["plan"];
+    snapshot: DepartmentUserDashboardSnapshot;
+}) {
+    return (
+        <Card className={cn("rounded-2xl border-border/60 bg-card/95 shadow-sm", className)}>
+            <CardContent className="flex h-full items-center gap-6 p-5">
+                <InfoStat label="Plan status">
+                    <Badge
+                        variant="outline"
+                        className={cn(
+                            "rounded-full",
+                            plan.statusLabel === "Approved"
+                                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                                : plan.statusLabel === "Rejected"
+                                  ? "border-red-500/30 bg-red-500/10 text-red-400"
+                                  : "text-foreground",
+                        )}
+                    >
+                        <span className="inline-flex items-center gap-1.5">
+                            <StatusIcon statusLabel={plan.statusLabel} />
+                            {plan.statusLabel}
+                        </span>
+                    </Badge>
+                </InfoStat>
+                <InfoStat label="Pending approvals">
+                    <span className="text-sm font-semibold text-foreground">{pendingApprovals}</span>
+                </InfoStat>
+                <InfoStat label="Fiscal year">
+                    <span className="text-sm font-semibold text-foreground">
+                        {snapshot.meta.fiscalYearKey}
+                    </span>
+                </InfoStat>
+                {currentPlan?.submissionReference ? (
+                    <InfoStat label="Reference">
+                        <span className="font-mono text-sm font-semibold text-foreground">
+                            {currentPlan.submissionReference}
+                        </span>
+                    </InfoStat>
+                ) : null}
+            </CardContent>
+        </Card>
+    );
+}
+
+function InfoStat({ children, label }: { children: React.ReactNode; label: string }) {
+    return (
+        <div className="min-w-0 flex-1 border-l border-border/50 pl-4 first:border-l-0 first:pl-0">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                {label}
+            </div>
+            <div className="mt-1.5 truncate">{children}</div>
+        </div>
+    );
+}
+
 function MetricTile({
-    accent,
+    className,
     detail,
     icon,
     label,
-    progress,
     value,
 }: {
-    accent: "blue" | "emerald" | "violet";
+    className?: string;
     detail: string;
     icon: React.ReactNode;
     label: string;
-    progress?: number;
     value: string;
 }) {
-    const accentClass = {
-        blue: "bg-blue-500/10 text-blue-300",
-        emerald: "bg-emerald-500/10 text-emerald-300",
-        violet: "bg-violet-500/10 text-violet-300",
-    }[accent];
-
     return (
-        <Card className="rounded-xl border-border/60 bg-card/95 shadow-sm">
-            <CardContent className="p-4">
+        <Card className={cn("rounded-2xl border-border/60 bg-card/95 shadow-sm", className)}>
+            <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                         <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                             {label}
                         </div>
-                        <div className="mt-2 break-words text-2xl font-black text-foreground">
+                        <div className="mt-2 break-words text-3xl font-black tracking-tight text-foreground">
                             {value}
                         </div>
                         <div className="mt-2 text-xs leading-5 text-muted-foreground">{detail}</div>
                     </div>
-                    <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", accentClass)}>
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                         {icon}
                     </div>
                 </div>
-                {typeof progress === "number" ? (
-                    <div className="mt-4 h-2 rounded-full bg-muted">
-                        <div
-                            className="h-full rounded-full bg-primary"
-                            style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
-                        />
-                    </div>
-                ) : null}
             </CardContent>
         </Card>
     );
@@ -471,14 +604,16 @@ function MetricTile({
 function PlanSummaryCard({
     budget,
     categories,
+    className,
     primaryHref,
 }: {
     budget: DepartmentUserDashboardSnapshot["quickStats"]["budget"];
     categories: DepartmentUserDashboardSnapshot["quickStats"]["budget"]["breakdown"]["items"];
+    className?: string;
     primaryHref: string;
 }) {
     return (
-        <Card className="rounded-xl border-border/60 bg-card/95 shadow-sm">
+        <Card className={cn("rounded-2xl border-border/60 bg-card/95 shadow-sm", className)}>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <CardTitle className="text-base font-semibold">Annual Procurement Plan Summary</CardTitle>
                 <Button asChild size="sm" variant="outline" className="rounded-lg">
@@ -532,8 +667,10 @@ function PlanSummaryCard({
 }
 
 function TimelineCard({
+    className,
     timeline,
 }: {
+    className?: string;
     timeline: DepartmentUserDashboardSnapshot["quickStats"]["plan"]["timeline"];
 }) {
     const steps = timeline.length > 0
@@ -546,34 +683,57 @@ function TimelineCard({
               { description: "--", id: "implementation", timestampLabel: "--", title: "Implementation" },
               { description: "--", id: "completed", timestampLabel: "--", title: "Completed" },
           ];
+    const currentIndex = timeline.length - 1;
 
     return (
-        <Card className="rounded-xl border-border/60 bg-card/95 shadow-sm">
+        <Card className={cn("rounded-2xl border-border/60 bg-card/95 shadow-sm", className)}>
             <CardHeader className="pb-3">
                 <CardTitle className="text-base font-semibold">Plan Timeline</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                {steps.map((item, index) => (
-                    <div key={item.id} className="flex gap-3">
-                        <div className="flex flex-col items-center">
-                            <div
-                                className={cn(
-                                    "flex h-6 w-6 items-center justify-center rounded-full border",
-                                    index < timeline.length
-                                        ? "border-primary bg-primary text-primary-foreground"
-                                        : "border-border bg-muted text-muted-foreground",
-                                )}
-                            >
-                                {index < timeline.length ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
+                {steps.map((item, index) => {
+                    const isCurrent = index === currentIndex;
+                    const isPast = index < currentIndex;
+                    return (
+                        <div key={item.id} className="flex gap-3">
+                            <div className="flex flex-col items-center">
+                                <div
+                                    className={cn(
+                                        "flex h-6 w-6 items-center justify-center rounded-full border",
+                                        isCurrent
+                                            ? "border-emerald-500 bg-emerald-500 text-white ring-4 ring-emerald-500/20"
+                                            : isPast
+                                              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+                                              : "border-border bg-muted text-muted-foreground",
+                                    )}
+                                >
+                                    {isCurrent || isPast ? (
+                                        <CheckCircle2 className="h-3.5 w-3.5" />
+                                    ) : null}
+                                </div>
+                                {index < steps.length - 1 ? (
+                                    <div
+                                        className={cn(
+                                            "mt-2 h-7 w-px",
+                                            isPast ? "bg-emerald-500/30" : "bg-border",
+                                        )}
+                                    />
+                                ) : null}
                             </div>
-                            {index < steps.length - 1 ? <div className="mt-2 h-7 w-px bg-border" /> : null}
+                            <div className="min-w-0 pb-1">
+                                <div
+                                    className={cn(
+                                        "font-medium",
+                                        isCurrent ? "text-foreground" : "text-muted-foreground",
+                                    )}
+                                >
+                                    {item.title}
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">{item.timestampLabel}</div>
+                            </div>
                         </div>
-                        <div className="min-w-0 pb-1">
-                            <div className="font-medium text-foreground">{item.title}</div>
-                            <div className="mt-1 text-xs text-muted-foreground">{item.timestampLabel}</div>
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
             </CardContent>
         </Card>
     );
@@ -582,12 +742,14 @@ function TimelineCard({
 function PlanCategoriesCard({
     canSelectCategories,
     categories,
+    className,
     launchpadStatusLabel,
     onSelectionChange,
     selectedCategoryIds,
 }: {
     canSelectCategories: boolean;
     categories: DepartmentUserDashboardSnapshot["launchpad"]["categories"];
+    className?: string;
     launchpadStatusLabel: string;
     onSelectionChange: (categoryId: string, checked: boolean) => void;
     selectedCategoryIds: string[];
@@ -595,7 +757,7 @@ function PlanCategoriesCard({
     const selectedCount = selectedCategoryIds.length;
 
     return (
-        <Card className="rounded-xl border-border/60 bg-card/95 shadow-sm">
+        <Card className={cn("rounded-2xl border-border/60 bg-card/95 shadow-sm", className)}>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <div>
                     <CardTitle className="text-base font-semibold">Plan Categories</CardTitle>
@@ -683,45 +845,34 @@ function PlanCategoriesCard({
     );
 }
 
-function DepartmentNotesCard({
-    currentPlan,
+function PlanActionsCard({
+    className,
     isWithdrawing,
     onRequestRedraft,
     onWithdrawSubmission,
     plan,
-    snapshot,
 }: {
-    currentPlan: DepartmentUserDashboardSnapshot["plans"]["rows"][number] | undefined;
+    className?: string;
     isWithdrawing: boolean;
     onRequestRedraft: () => void;
     onWithdrawSubmission: () => void;
     plan: DepartmentUserDashboardSnapshot["quickStats"]["plan"];
-    snapshot: DepartmentUserDashboardSnapshot;
 }) {
     return (
-        <Card className="rounded-xl border-border/60 bg-card/95 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-                <CardTitle className="text-base font-semibold">Department Notes</CardTitle>
-                <Button type="button" size="sm" variant="outline" disabled className="rounded-lg">
-                    Edit
-                </Button>
+        <Card className={cn("rounded-2xl border-border/60 bg-card/95 shadow-sm", className)}>
+            <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold">Plan Actions</CardTitle>
+                <CardDescription>{plan.helperText}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-center">
-                    <NotebookPen className="mx-auto h-5 w-5 text-muted-foreground" />
-                    <div className="mt-3 font-medium text-foreground">No notes added</div>
-                    <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                        Add notes to keep track of important information.
-                    </div>
-                </div>
-                <div className="space-y-2 text-sm">
-                    <InfoLine label="Department" value={snapshot.heroSupport.departmentName} />
-                    <InfoLine label="Fiscal year" value={snapshot.meta.fiscalYearKey} />
-                    <InfoLine label="Plan status" value={plan.statusLabel} />
-                    {currentPlan?.submissionReference ? (
-                        <InfoLine label="Reference" value={currentPlan.submissionReference} />
-                    ) : null}
-                </div>
+            <CardContent className="space-y-3">
+                {plan.statusLabel !== "No Plan" ? (
+                    <Button asChild className="w-full rounded-lg">
+                        <Link href={plan.primaryActionHref}>
+                            {plan.primaryActionLabel}
+                            <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                    </Button>
+                ) : null}
                 {plan.canWithdraw ? (
                     <Button
                         type="button"
@@ -743,17 +894,13 @@ function DepartmentNotesCard({
                         Request reopen approval
                     </Button>
                 ) : null}
+                {plan.redraftRequest.pendingRequestId ? (
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-amber-400">
+                        Redraft request pending PO approval.
+                    </div>
+                ) : null}
             </CardContent>
         </Card>
-    );
-}
-
-function InfoLine({ label, value }: { label: string; value: string }) {
-    return (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-border/50 px-3 py-2">
-            <span className="text-muted-foreground">{label}</span>
-            <span className="text-right font-medium text-foreground">{value}</span>
-        </div>
     );
 }
 

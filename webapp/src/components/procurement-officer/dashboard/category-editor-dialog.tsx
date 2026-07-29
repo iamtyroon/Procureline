@@ -309,10 +309,10 @@ export function DashboardCategoryEditorDialog({
               />
             </div>
 
-            <div className="rounded-2xl border border-border/70 bg-muted/15">
-              <div className="border-b border-border/60 px-4 py-3">
-                <div className="text-sm font-semibold text-foreground">
-                  Current Items in Category
+            <div className="rounded-xl border border-border/50 bg-muted/15">
+              <div className="border-b border-border/50 px-4 py-3">
+                <div className="text-sm font-medium text-foreground">
+                  Items in this category
                 </div>
               </div>
               {category?.id ? (

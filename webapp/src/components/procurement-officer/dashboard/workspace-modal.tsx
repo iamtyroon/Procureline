@@ -1,5 +1,3 @@
-import { Building2, CalendarClock, FileStack } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -35,7 +33,7 @@ export function WorkspaceModal({
     >
       <DialogContent
         className={cn(
-          "border-border/70 p-0 sm:rounded-[28px]",
+          "border-border/60 p-0 sm:rounded-2xl",
           activeModal?.modal === "deadlines"
             // overflow-visible: lets the absolute-positioned calendar dropdown
             // appear below the date fields without being clipped by the dialog.
@@ -46,52 +44,18 @@ export function WorkspaceModal({
       >
         <div
           className={cn(
-            "border-b border-border/70 bg-muted/35",
+            "border-b border-border/50 bg-muted/20",
             activeModal?.modal === "deadlines" ? "px-5 py-3" : "px-6 py-5",
           )}
         >
-          <DialogHeader
-            className={cn(
-              "text-left",
-              activeModal?.modal === "deadlines" ? "space-y-2" : "space-y-3",
-            )}
-          >
-            <div className="flex items-center gap-3">
-              <div
-                className={cn(
-                  "flex items-center justify-center bg-primary/10 text-primary",
-                  activeModal?.modal === "deadlines"
-                    ? "h-8 w-8 rounded-lg"
-                    : "h-11 w-11 rounded-2xl",
-                )}
-              >
-                {activeModal ? (
-                  getWorkspaceIcon(activeModal.modal)
-                ) : (
-                  <Building2 className="h-5 w-5" />
-                )}
-              </div>
-              <Badge
-                variant="outline"
-                className="rounded-full border-primary/20 bg-primary/10 text-primary"
-              >
-                Procurement workspace
-              </Badge>
+          <DialogHeader className="space-y-1.5 text-left">
+            <div className="text-[12px] font-medium text-muted-foreground">
+              Procurement workspace
             </div>
-            <DialogTitle
-              className={cn(
-                "tracking-[-0.04em] text-foreground",
-                activeModal?.modal === "deadlines" ? "text-xl" : "text-2xl",
-              )}
-            >
+            <DialogTitle className="text-xl font-semibold tracking-tight text-foreground">
               {getWorkspaceTitle(activeModal)}
             </DialogTitle>
-            <DialogDescription
-              className={cn(
-                "max-w-3xl text-sm text-muted-foreground",
-                activeModal?.modal === "deadlines" ? "leading-5" : "leading-7",
-              )}
-            >
+            <DialogDescription className="max-w-3xl text-[13px] leading-6 text-muted-foreground">
               {getWorkspaceDescription(activeModal)}
             </DialogDescription>
           </DialogHeader>
@@ -119,17 +83,6 @@ export function WorkspaceModal({
       </DialogContent>
     </Dialog>
   );
-}
-
-function getWorkspaceIcon(
-  modal: "deadlines" | "requests",
-) {
-  switch (modal) {
-    case "requests":
-      return <FileStack className="h-5 w-5" />;
-    case "deadlines":
-      return <CalendarClock className="h-5 w-5" />;
-  }
 }
 
 function getWorkspaceTitle(

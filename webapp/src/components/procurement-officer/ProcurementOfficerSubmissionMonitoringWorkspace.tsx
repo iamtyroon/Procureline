@@ -3,10 +3,12 @@
 import { useMemo, useState } from "react";
 import { useAction, useQuery } from "convex/react";
 import {
+  Archive,
   ClipboardCheck,
   Download,
   Filter,
   History,
+  PencilLine,
   Search,
   X,
 } from "lucide-react";
@@ -41,7 +43,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { ProcurementOfficerDashboardDepartmentReadinessItem } from "@/lib/procurement-officer/dashboard-snapshot";
+import { cn } from "@/lib/utils";
 import { ProcurementOfficerPlanReviewSummaryModal } from "./ProcurementOfficerPlanReviewSummaryModal";
+import { StateBadge } from "./dashboard/primitives";
 
 const STATUS_FILTER_OPTIONS = [
   { label: "All statuses", value: "all" },
@@ -55,15 +60,15 @@ const STATUS_FILTER_OPTIONS = [
 function getStatusBadgeClassName(status: string): string {
   switch (status) {
     case "approved":
-      return "border-emerald-300/70 bg-emerald-50 text-emerald-900";
+      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
     case "rejected":
-      return "border-rose-300/70 bg-rose-50 text-rose-900";
+      return "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300";
     case "draft":
-      return "border-amber-300/70 bg-amber-50 text-amber-900";
+      return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
     case "not_started":
-      return "border-slate-300/70 bg-slate-50 text-slate-900";
+      return "border-border/60 bg-muted/30 text-muted-foreground";
     default:
-      return "border-sky-300/70 bg-sky-50 text-sky-900";
+      return "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300";
   }
 }
 
@@ -72,10 +77,17 @@ function isReviewableMonitoringStatus(status: string): boolean {
 }
 
 export function ProcurementOfficerSubmissionMonitoringWorkspace({
+  onArchiveDepartment,
+  onManageDepartment,
+  readinessItems,
   selectedFiscalYear,
 }: {
+  onArchiveDepartment?: (departmentId: string) => void;
+  onManageDepartment?: (departmentId: string) => void;
+  readinessItems?: ProcurementOfficerDashboardDepartmentReadinessItem[];
   selectedFiscalYear?: string;
 }): JSX.Element {
+  const isMerged = readinessItems !== undefined;
   const workspace = useQuery(
     api.functions.procurementOfficerSubmissions
       .getProcurementOfficerSubmissionMonitoringWorkspace,
@@ -114,7 +126,7 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
         ? rawToTimestamp
         : null;
     return workspace.rows.filter((row: any) => {
-      if (!row.planId) {
+      if (!isMerged && !row.planId) {
         return false;
       }
 
@@ -145,9 +157,21 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
         (row.departmentCode ?? "").toLowerCase().includes(normalizedSearch)
       );
     });
-  }, [searchText, statusFilter, updatedFrom, updatedTo, workspace]);
+  }, [isMerged, searchText, statusFilter, updatedFrom, updatedTo, workspace]);
 
   const historyRow = rows.find((row: any) => row.departmentId === historyDepartmentId) ?? null;
+  const readinessById = new Map(
+    readinessItems.map((item) => [item.id as string, item]),
+  );
+  const statusBreakdown = workspace
+    ? [
+        { label: "Not started", value: workspace.summary.notStarted },
+        { label: "Draft", value: workspace.summary.draft },
+        { label: "Submitted", value: workspace.summary.submitted },
+        { label: "Rejected", value: workspace.summary.rejected },
+        { label: "Approved", value: workspace.summary.approved },
+      ].filter((entry) => entry.value > 0)
+    : [];
 
   function clearFilters(): void {
     setSearchText("");
@@ -297,20 +321,24 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
         </div>
       </div>
 
-      <div className="grid gap-1.5 sm:grid-cols-3 xl:grid-cols-6">
-        <SummaryPill
-          helper="submitted"
-          label="Progress"
-          value={workspace.summary.submittedOfTotalLabel.replace(
-            " departments submitted",
-            "",
-          )}
-        />
-        <SummaryPill label="Not Started" value={String(workspace.summary.notStarted)} />
-        <SummaryPill label="Draft" value={String(workspace.summary.draft)} />
-        <SummaryPill label="Submitted" value={String(workspace.summary.submitted)} />
-        <SummaryPill label="Rejected" value={String(workspace.summary.rejected)} />
-        <SummaryPill label="Approved" value={String(workspace.summary.approved)} />
+      <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
+        <span className="font-medium text-foreground">
+          {workspace.summary.submittedOfTotalLabel}
+        </span>
+        {statusBreakdown.length > 1
+          ? statusBreakdown.map((entry) => (
+              <span
+                key={entry.label}
+                className="rounded-full border border-border/50 bg-muted/20 px-2.5 py-0.5 tabular-nums"
+              >
+                {entry.label}: {entry.value}
+              </span>
+            ))
+          : statusBreakdown.map((entry) => (
+              <span key={entry.label} className="tabular-nums">
+                · all {entry.label.toLowerCase()} ({entry.value})
+              </span>
+            ))}
       </div>
 
       {rows.length === 0 ? (
@@ -323,62 +351,135 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
             <TableHeader>
               <TableRow>
                 <TableHead>Department</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Plan status</TableHead>
+                {isMerged ? (
+                  <>
+                    <TableHead>Budget</TableHead>
+                    <TableHead>Coverage</TableHead>
+                  </>
+                ) : (
+                  <TableHead>DU contact</TableHead>
+                )}
                 <TableHead>Last updated</TableHead>
-                <TableHead>DU contact</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row: any) => (
-                <TableRow key={row.departmentId}>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="text-sm font-semibold text-foreground">
-                        {row.departmentName}
+              {rows.map((row: any) => {
+                const readiness = readinessById.get(row.departmentId);
+                const coverageReady =
+                  readiness?.departmentUser.state === "available" &&
+                  readiness.accessCode.state === "available";
+                return (
+                  <TableRow key={row.departmentId}>
+                    <TableCell>
+                      <div className="space-y-0.5">
+                        <div className="text-sm font-medium text-foreground">
+                          {row.departmentName}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {row.departmentCode ?? "Code unavailable"}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {row.departmentCode ?? "Code unavailable"}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={getStatusBadgeClassName(row.status)}
-                    >
-                      {row.statusLabel}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {row.lastUpdatedLabel}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {row.duContactLabel}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      {row.planId && isReviewableMonitoringStatus(row.status) ? (
-                        <Button
-                          type="button"
-                          onClick={() => setReviewPlanId(row.planId)}
-                        >
-                          <ClipboardCheck className="mr-2 h-4 w-4" />
-                          Review
-                        </Button>
-                      ) : null}
-                      <Button
-                        type="button"
+                    </TableCell>
+                    <TableCell>
+                      <Badge
                         variant="outline"
-                        onClick={() => setHistoryDepartmentId(row.departmentId)}
+                        className={getStatusBadgeClassName(row.status)}
                       >
-                        <History className="mr-2 h-4 w-4" />
-                        Open history
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                        {row.statusLabel}
+                      </Badge>
+                    </TableCell>
+                    {isMerged ? (
+                      <>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={cn(
+                                "h-2 w-2 shrink-0 rounded-full",
+                                readiness?.budgetStatus.state === "available" &&
+                                  "bg-emerald-500",
+                                readiness?.budgetStatus.state ===
+                                  "setup_required" && "bg-rose-500",
+                                (!readiness ||
+                                  readiness.budgetStatus.state === "empty" ||
+                                  readiness.budgetStatus.state ===
+                                    "unavailable") &&
+                                  "bg-muted-foreground/50",
+                              )}
+                            />
+                            <span className="text-[12px] text-foreground">
+                              {readiness?.budgetStatus.label ?? "--"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <StateBadge
+                            label={coverageReady ? "Ready" : "Setup needed"}
+                            state={coverageReady ? "available" : "setup_required"}
+                          />
+                        </TableCell>
+                      </>
+                    ) : (
+                      <TableCell className="text-sm text-muted-foreground">
+                        {row.duContactLabel}
+                      </TableCell>
+                    )}
+                    <TableCell className="text-sm text-muted-foreground">
+                      {row.lastUpdatedLabel}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1.5">
+                        {row.planId && isReviewableMonitoringStatus(row.status) ? (
+                          <Button
+                            className="h-8 rounded-lg px-3 text-xs"
+                            size="sm"
+                            type="button"
+                            onClick={() => setReviewPlanId(row.planId)}
+                          >
+                            <ClipboardCheck className="mr-1.5 h-3.5 w-3.5" />
+                            Review
+                          </Button>
+                        ) : null}
+                        <Button
+                          aria-label={`Open history for ${row.departmentName}`}
+                          className="h-8 w-8 rounded-lg p-0"
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                          onClick={() => setHistoryDepartmentId(row.departmentId)}
+                        >
+                          <History className="h-3.5 w-3.5" />
+                        </Button>
+                        {onManageDepartment ? (
+                          <Button
+                            aria-label={`Edit ${row.departmentName}`}
+                            className="h-8 w-8 rounded-lg p-0"
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                            onClick={() => onManageDepartment(row.departmentId)}
+                          >
+                            <PencilLine className="h-3.5 w-3.5" />
+                          </Button>
+                        ) : null}
+                        {onArchiveDepartment ? (
+                          <Button
+                            aria-label={`Archive ${row.departmentName}`}
+                            className="h-8 w-8 rounded-lg p-0 hover:border-amber-400/40 hover:bg-amber-500/10"
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                            onClick={() => onArchiveDepartment(row.departmentId)}
+                          >
+                            <Archive className="h-3.5 w-3.5" />
+                          </Button>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -432,32 +533,6 @@ export function ProcurementOfficerSubmissionMonitoringWorkspace({
         open={reviewPlanId !== null}
         planId={reviewPlanId}
       />
-    </div>
-  );
-}
-
-function SummaryPill({
-  helper,
-  label,
-  value,
-}: {
-  helper?: string;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="min-h-[3.25rem] rounded-lg border border-border/70 bg-muted/10 px-2.5 py-2">
-      <div className="truncate text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-0.5 truncate text-sm font-bold leading-tight text-foreground">
-        {value}
-      </div>
-      {helper ? (
-        <div className="truncate text-[10px] leading-tight text-muted-foreground">
-          {helper}
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -10,9 +10,9 @@ import { Footer } from "@/src/components/marketing/Footer";
 import { HomepagePublicAccessExperience } from "@/src/components/marketing/HomepagePublicAccessExperience";
 
 export const metadata: Metadata = {
-    title: "Procureline — University Procurement Planning, Simplified",
+    title: "Procureline — Procurement Planning, Simplified",
     description:
-        "Transform annual procurement planning with visual block-based tools. Create GOK-compliant plans in hours, not weeks. Export ready-to-submit Excel files. Free forever tier available.",
+        "Transform annual procurement planning with visual block-based tools. Create compliant annual plans in hours, not weeks. Export ready-to-submit Excel files. Free forever tier available.",
     keywords: [
         "procurement",
         "university",
@@ -25,18 +25,18 @@ export const metadata: Metadata = {
         "AGPO",
     ],
     openGraph: {
-        title: "Procureline — University Procurement Planning, Simplified",
+        title: "Procureline — Procurement Planning, Simplified",
         description:
-            "Transform annual procurement planning with visual block-based tools. Create GOK-compliant plans in hours, not weeks.",
+            "Transform annual procurement planning with visual block-based tools. Create compliant annual plans in hours, not weeks.",
         type: "website",
         url: "https://procureline.co.ke",
         siteName: "Procureline",
     },
     twitter: {
         card: "summary_large_image",
-        title: "Procureline — University Procurement Planning, Simplified",
+        title: "Procureline — Procurement Planning, Simplified",
         description:
-            "Transform annual procurement planning with visual block-based tools. Create GOK-compliant plans in hours, not weeks.",
+            "Transform annual procurement planning with visual block-based tools. Create compliant annual plans in hours, not weeks.",
     },
     robots: "index, follow",
 };
@@ -49,7 +49,7 @@ const organizationStructuredData = {
             name: "Procureline",
             url: "https://procureline.co.ke",
             description:
-                "Procureline helps universities build procurement plans with Blockly-based workflows, automated compliance checks, and export-ready outputs.",
+                "Procureline helps institutions build procurement plans with Blockly-based workflows, automated compliance checks, and export-ready outputs.",
             areaServed: "Kenya",
             email: "support@procureline.co.ke",
         },

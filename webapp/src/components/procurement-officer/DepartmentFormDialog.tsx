@@ -2,14 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAction } from "convex/react";
-import {
-    AlertTriangle,
-    CheckCircle2,
-    KeyRound,
-    Mail,
-    ShieldCheck,
-    Users2,
-} from "lucide-react";
+import { AlertTriangle, Mail } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -148,7 +141,7 @@ export function DepartmentFormDialog({
     });
     const isCreateMode = !department;
 
-    const title = department ? `Edit ${department.name}` : "Create Department";
+    const title = department ? `Edit ${department.name}` : "Create department";
     const description = department
         ? "Update the department's live structure, budget, and ownership details."
         : "Add a department to anchor DU ownership, budgets, and procurement setup.";
@@ -250,29 +243,33 @@ export function DepartmentFormDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-xl">
+            <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-xl">
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
                     <DialogDescription>{description}</DialogDescription>
                 </DialogHeader>
 
                 {department?.planningImpactWarning ? (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-900">
+                    <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
                         <div className="flex items-center gap-2 font-medium">
                             <AlertTriangle className="h-4 w-4" />
                             Planning activity detected
                         </div>
-                        <p className="mt-1 leading-6">{department.planningImpactWarning}</p>
+                        <p className="mt-1 leading-6 opacity-90">
+                            {department.planningImpactWarning}
+                        </p>
                     </div>
                 ) : null}
 
                 {overAllocationWarning ? (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-900">
+                    <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
                         <div className="flex items-center gap-2 font-medium">
                             <AlertTriangle className="h-4 w-4" />
                             Budget warning
                         </div>
-                        <p className="mt-1 leading-6">{overAllocationWarning.message}</p>
+                        <p className="mt-1 leading-6 opacity-90">
+                            {overAllocationWarning.message}
+                        </p>
                     </div>
                 ) : null}
 
@@ -421,7 +418,7 @@ export function DepartmentFormDialog({
                         />
 
                         {department ? (
-                            <div className="flex flex-col gap-3 rounded-lg border border-border/70 bg-muted/20 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex flex-col gap-3 rounded-xl border border-border/50 bg-muted/15 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
                                     <div className="text-sm font-medium text-foreground">
                                         Department deadline
@@ -440,7 +437,7 @@ export function DepartmentFormDialog({
                                         typeof department.submissionEndsAt !== "number"
                                     }
                                     onClick={() => {
-                                        if (department && onExtendDeadlineOneWeek) {
+                                        if (onExtendDeadlineOneWeek) {
                                             void onExtendDeadlineOneWeek(department);
                                         }
                                     }}
@@ -451,11 +448,11 @@ export function DepartmentFormDialog({
                         ) : null}
 
                         {department?.readinessPills?.length ? (
-                            <div className="space-y-2">
+                            <div className="rounded-xl border border-border/50 bg-muted/15 px-4 py-3">
                                 <div className="text-sm font-medium text-foreground">
-                                    Readiness status
+                                    Readiness
                                 </div>
-                                <div className="flex flex-wrap gap-2">
+                                <div className="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-2">
                                     {department.readinessPills.map((pill) => (
                                         <DepartmentReadinessPill
                                             key={pill.id}
@@ -503,48 +500,24 @@ function DepartmentReadinessPill({
     state: ProcurementDashboardState;
     value: string;
 }): JSX.Element {
-    const icon =
-        label === "Department code" ? (
-            <KeyRound className="h-3.5 w-3.5" />
-        ) : label === "DU" ? (
-            <Users2 className="h-3.5 w-3.5" />
-        ) : label === "Deadline" ? (
-            <ShieldCheck className="h-3.5 w-3.5" />
-        ) : (
-            <CheckCircle2 className="h-3.5 w-3.5" />
-        );
-
     return (
-        <div className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/20 px-3 py-1.5">
-            <div
-                className={cn(
-                    "flex h-7 w-7 items-center justify-center rounded-full",
-                    state === "available" &&
-                        "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
-                    state === "setup_required" &&
-                        "bg-amber-500/15 text-amber-600 dark:text-amber-300",
-                    (state === "empty" || state === "unavailable") &&
-                        "bg-muted text-muted-foreground",
-                )}
-            >
-                {icon}
-            </div>
-            <div className="min-w-0">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                    {label}
-                </div>
-                <div className="text-xs font-medium text-foreground">{value}</div>
-            </div>
+        <div className="flex min-w-0 items-center gap-2.5">
             <span
                 aria-label={state === "available" ? `${label} ready` : `${label} not ready`}
                 className={cn(
-                    "ml-auto h-2.5 w-2.5 shrink-0 rounded-full",
-                    state === "available" &&
-                        "bg-emerald-500 shadow-[0_0_0_3px_rgba(34,197,94,0.12)]",
-                    state !== "available" &&
-                        "bg-muted-foreground/35 shadow-[0_0_0_3px_rgba(148,163,184,0.12)]",
+                    "h-2 w-2 shrink-0 rounded-full",
+                    state === "available" && "bg-emerald-500",
+                    state === "setup_required" && "bg-amber-500",
+                    (state === "empty" || state === "unavailable") &&
+                        "bg-muted-foreground/40",
                 )}
             />
+            <div className="min-w-0">
+                <div className="text-[11px] text-muted-foreground">{label}</div>
+                <div className="truncate text-xs font-medium text-foreground">
+                    {value}
+                </div>
+            </div>
         </div>
     );
 }

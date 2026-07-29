@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Building2, Mail, ShieldCheck } from "lucide-react";
+import { ArrowRight, Mail, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { MARKETING_ACCESS_CTA } from "@/lib/shared/auth/public-entry";
@@ -28,7 +28,7 @@ const columns: FooterColumn[] = [
         title: "Access",
         links: [
             { href: MARKETING_ACCESS_CTA.href, label: MARKETING_ACCESS_CTA.label },
-            { href: "/signup", label: "Register University" },
+            { href: "/signup", label: "Register Institution" },
             { href: "/login", label: "Sign In" },
             { href: "mailto:support@procureline.co.ke", label: "Contact Support" },
         ],
@@ -42,11 +42,14 @@ export function Footer(): JSX.Element {
                 <div className="grid gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
                     <div>
                         <div className="flex items-center gap-3">
-                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                                <Building2 className="h-5 w-5" />
-                            </div>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src="/brand/procureline-logo.png"
+                                alt="Procureline logo"
+                                className="h-11 w-auto"
+                            />
                             <div>
-                                <p className="text-2xl font-semibold tracking-tight text-foreground">
+                                <p className="font-display text-2xl font-semibold tracking-tight text-foreground">
                                     Procure<span className="text-primary">line</span>
                                 </p>
                                 <p className="text-sm text-muted-foreground">
@@ -56,7 +59,7 @@ export function Footer(): JSX.Element {
                         </div>
 
                         <p className="mt-5 max-w-xl text-sm leading-7 text-muted-foreground">
-                            Procureline gives universities a cleaner path to role-based planning,
+                            Procureline gives institutions a cleaner path to role-based planning,
                             compliance review, and submission-ready procurement outputs.
                         </p>
 
@@ -128,7 +131,7 @@ export function Footer(): JSX.Element {
 
                 <div className="flex flex-col gap-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
                     <p>Copyright {new Date().getFullYear()} Procureline. All rights reserved.</p>
-                    <p>Built for accountable university procurement planning.</p>
+                    <p>Built for accountable institutional procurement planning.</p>
                 </div>
             </div>
         </footer>

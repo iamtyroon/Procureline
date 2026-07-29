@@ -144,7 +144,7 @@ export function DashboardItemEditorDialog(props: {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Item Description</FormLabel>
+                    <FormLabel>Item description</FormLabel>
                     <FormControl>
                       <Input placeholder="Laptop Computer Core i7" {...field} />
                     </FormControl>
@@ -184,7 +184,7 @@ export function DashboardItemEditorDialog(props: {
                 name="unitPrice"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Unit Price</FormLabel>
+                    <FormLabel>Unit price</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -205,7 +205,7 @@ export function DashboardItemEditorDialog(props: {
                 name="procurementMethod"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Proc Method</FormLabel>
+                    <FormLabel>Procurement method</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value ?? "RFQ"}
@@ -235,7 +235,7 @@ export function DashboardItemEditorDialog(props: {
                 name="customUnit"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Custom Unit</FormLabel>
+                    <FormLabel>Custom unit</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="service"
@@ -255,7 +255,7 @@ export function DashboardItemEditorDialog(props: {
                 name="sourceOfFunds"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Source Of Funds</FormLabel>
+                    <FormLabel>Source of funds</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="GOK"
@@ -272,7 +272,7 @@ export function DashboardItemEditorDialog(props: {
                 name="minQuantity"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Min Quantity</FormLabel>
+                    <FormLabel>Min quantity</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -298,7 +298,7 @@ export function DashboardItemEditorDialog(props: {
                 name="maxQuantity"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Max Quantity</FormLabel>
+                    <FormLabel>Max quantity</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -322,7 +322,7 @@ export function DashboardItemEditorDialog(props: {
             </div>
 
             {selectedCategory?.limit.atLimit ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-amber-900">
+              <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
                 This category is already at its active-item cap for the current
                 plan tier.
               </div>

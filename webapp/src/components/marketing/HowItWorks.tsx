@@ -1,56 +1,38 @@
-import type { LucideIcon } from "lucide-react";
-import {
-    ArrowRight,
-    ClipboardCheck,
-    Send,
-    ShieldCheck,
-    Users,
-    Workflow,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
-
 interface Step {
     description: string;
-    icon: LucideIcon;
     number: string;
     title: string;
+    actor: string;
 }
 
 const steps: Step[] = [
     {
-        description:
-            "Tenant Admin sets up departments, budgets, and user access so every planning unit starts inside the right workspace.",
-        icon: Users,
         number: "01",
         title: "Onboard the institution",
+        actor: "Tenant Admin",
+        description:
+            "Set up departments, budgets, and user access so every planning unit starts inside the right workspace.",
     },
     {
-        description:
-            "Department users structure procurement needs in guided blocks for categories, items, and specifications.",
-        icon: Workflow,
         number: "02",
         title: "Build the plan",
+        actor: "Department Users",
+        description:
+            "Structure procurement needs in guided blocks for categories, items, and specifications — budgets calculate as you build.",
     },
     {
-        description:
-            "Procurement leadership validates submissions, watches quota posture, and closes any readiness gaps before export.",
-        icon: ShieldCheck,
         number: "03",
         title: "Review and validate",
+        actor: "Procurement Officer",
+        description:
+            "Validate submissions, watch quota posture, and close readiness gaps before anything is exported.",
     },
     {
-        description:
-            "Generate the official output package and move the consolidated plan into final review and submission.",
-        icon: Send,
         number: "04",
         title: "Export and submit",
+        actor: "Procurement leadership",
+        description:
+            "Generate the official output package and move the consolidated plan into final review and submission.",
     },
 ];
 
@@ -59,67 +41,46 @@ export function HowItWorks(): JSX.Element {
         <section
             id="how-it-works"
             aria-label="How it works"
-            className="bg-muted/20 px-6 py-24"
+            className="bg-muted/30 px-6 py-28 dark:bg-card/30"
         >
-            <div className="mx-auto max-w-7xl">
-                <div className="mx-auto mb-16 max-w-3xl text-center">
-                    <Badge
-                        variant="secondary"
-                        className="mb-4 gap-2 rounded-full border border-primary/15 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary"
-                    >
-                        <ClipboardCheck className="h-4 w-4" />
+            <div className="mx-auto grid max-w-7xl gap-14 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+                <div className="lg:sticky lg:top-28 lg:self-start">
+                    <p className="mb-4 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
                         Workflow overview
-                    </Badge>
-                    <h2 className="text-4xl font-semibold tracking-tight text-foreground">
-                        A clear four-step path from setup to submission.
+                    </p>
+                    <h2 className="text-balance font-display text-4xl font-semibold tracking-[-0.02em] text-foreground md:text-5xl">
+                        From setup to submission in four steps.
                     </h2>
-                    <p className="mt-4 text-lg leading-8 text-muted-foreground">
-                        Procureline keeps the handoff between departments and procurement leadership
-                        visible, structured, and ready for review.
+                    <p className="mt-5 max-w-md text-lg leading-8 text-muted-foreground">
+                        Procureline keeps the handoff between departments and
+                        procurement leadership visible, structured, and ready for
+                        review.
                     </p>
                 </div>
 
-                <div className="grid gap-6 xl:grid-cols-4">
-                    {steps.map((step, index) => {
-                        const Icon = step.icon;
-
-                        return (
-                            <div key={step.number} className="relative">
-                                <Card className="h-full border-border/60 bg-card/80 shadow-sm">
-                                    <CardHeader className="pb-4">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                                                <Icon className="h-5 w-5" />
-                                            </div>
-                                            <Badge
-                                                variant="outline"
-                                                className="rounded-full border-border/70 bg-background/80 px-3 py-1 text-xs font-semibold text-muted-foreground"
-                                            >
-                                                {step.number}
-                                            </Badge>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="pt-0">
-                                        <CardTitle className="text-xl text-foreground">
-                                            {step.title}
-                                        </CardTitle>
-                                        <CardDescription className="mt-3 text-sm leading-7 text-muted-foreground">
-                                            {step.description}
-                                        </CardDescription>
-                                    </CardContent>
-                                </Card>
-
-                                {index < steps.length - 1 ? (
-                                    <div className="pointer-events-none absolute -right-4 top-1/2 hidden -translate-y-1/2 xl:block">
-                                        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground">
-                                            <ArrowRight className="h-4 w-4" />
-                                        </div>
-                                    </div>
-                                ) : null}
+                <ol className="divide-y divide-border/70">
+                    {steps.map((step) => (
+                        <li key={step.number} className="group flex gap-8 py-8 first:pt-0 last:pb-0">
+                            <span
+                                aria-hidden="true"
+                                className="select-none font-display text-6xl font-semibold leading-none tracking-tight text-primary/20 transition-colors duration-300 group-hover:text-primary/50 md:text-7xl"
+                            >
+                                {step.number}
+                            </span>
+                            <div className="pt-1.5">
+                                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                    {step.actor}
+                                </p>
+                                <h3 className="mt-1.5 font-display text-2xl font-semibold tracking-tight text-foreground">
+                                    {step.title}
+                                </h3>
+                                <p className="mt-2.5 max-w-lg text-sm leading-7 text-muted-foreground">
+                                    {step.description}
+                                </p>
                             </div>
-                        );
-                    })}
-                </div>
+                        </li>
+                    ))}
+                </ol>
             </div>
         </section>
     );

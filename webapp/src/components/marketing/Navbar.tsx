@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Landmark, Menu } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ArrowRight, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Sheet,
@@ -52,17 +51,18 @@ export function Navbar(): JSX.Element {
                 <div className="flex items-center gap-4">
                     <Link
                         href="/"
-                        className="text-2xl font-semibold tracking-tight text-foreground transition-colors hover:text-primary"
+                        className="flex items-center gap-2.5 font-display text-2xl font-semibold tracking-tight text-foreground transition-colors hover:text-primary"
                     >
-                        Procure<span className="text-primary">line</span>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src="/brand/procureline-logo.png"
+                            alt=""
+                            className="h-8 w-auto"
+                        />
+                        <span>
+                            Procure<span className="text-primary">line</span>
+                        </span>
                     </Link>
-                    <Badge
-                        variant="outline"
-                        className="hidden gap-2 rounded-full border-primary/15 bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground lg:inline-flex"
-                    >
-                        <Landmark className="h-3.5 w-3.5 text-primary" />
-                        University procurement OS
-                    </Badge>
                 </div>
 
                 <ul className="hidden items-center gap-8 md:flex">
@@ -86,7 +86,7 @@ export function Navbar(): JSX.Element {
                     </Button>
                     <Button asChild size="sm" className="gap-2">
                         <Link href="/signup">
-                            Register university
+                            Register institution
                             <ArrowRight className="h-4 w-4" />
                         </Link>
                     </Button>
@@ -138,7 +138,7 @@ export function Navbar(): JSX.Element {
                                     <SheetClose asChild>
                                         <Button asChild className="w-full justify-between">
                                             <Link href="/signup">
-                                                Register university
+                                                Register institution
                                                 <ArrowRight className="h-4 w-4" />
                                             </Link>
                                         </Button>

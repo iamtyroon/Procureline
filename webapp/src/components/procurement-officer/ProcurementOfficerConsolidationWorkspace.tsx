@@ -1,11 +1,12 @@
-"use client";
+﻿"use client";
 
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import Link from "next/link";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { AlertTriangle, Building2, CheckCircle2, Download, FileSpreadsheet, Loader2, Lock, Minus, PencilLine, Plus, Save, Search, X } from "lucide-react";
+import { AlertTriangle, Bell, Building2, CheckCircle2, CircleAlert, Download, FileSpreadsheet, Loader2, Lock, Minus, PencilLine, Plus, Save, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import type { ReactNode, RefObject } from "react";
 import { api } from "@/convex/_generated/api";
@@ -21,7 +22,16 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { CONSOLIDATION_EMPTY_MESSAGE } from "@/lib/procurement-officer/consolidation";
+import { ModeToggle } from "@/src/components/mode-toggle";
 import type {
     ConsolidationBlocklyState,
     ConsolidationSourceDepartment,
@@ -397,12 +407,19 @@ function formatQty(amount: number): string {
 }
 
 export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
+    const router = useRouter();
     const searchParams = useSearchParams();
     const requestedFiscalYear = searchParams.get("poFiscalYear") ?? undefined;
     const workspace = useQuery(
         api.functions.consolidations.getProcurementOfficerConsolidationWorkspace,
         requestedFiscalYear ? { selectedFiscalYear: requestedFiscalYear } : {},
     ) as ConsolidationWorkspaceData | undefined;
+    const dashboardSnapshot = useQuery(
+        api.functions.procurementOfficerDashboard
+            .getProcurementOfficerDashboardSnapshot,
+        {},
+    );
+    const consolidationAlerts = dashboardSnapshot?.alerts ?? [];
     const saveDraft = useMutation(
         api.functions.consolidations.saveProcurementOfficerConsolidationDraft,
     );
@@ -659,7 +676,7 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
 
     if (!workspace) {
         return (
-            <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-background">
+            <div className="flex min-h-screen items-center justify-center bg-background">
                 <div className="flex items-center gap-3 rounded-md border border-border px-5 py-4 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Loading consolidation workspace...
@@ -702,29 +719,108 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
     }
 
     return (
-        <div className="flex h-[calc(100vh-4rem)] min-h-[42rem] flex-col overflow-hidden bg-background dark:bg-[#0B1220]">
-            <div className="flex items-center justify-between gap-4 border-b border-border bg-card px-6 py-4 dark:border-[#243041] dark:bg-[#111827]/95 dark:shadow-[0_12px_34px_rgba(0,0,0,0.24)]">
-                <div className="min-w-0">
-                    <h1 className="text-base font-semibold text-foreground">
-                        Master Consolidation Plan
-                    </h1>
-                    {!isFinalized ? (
-                        <p className="text-sm text-muted-foreground">
-                            Review university-wide plans
-                        </p>
-                    ) : null}
-                    {isFinalized ? (
-                        <div className="mt-2 flex items-center gap-2 text-xs text-emerald-300">
-                            <Lock className="h-3.5 w-3.5" />
-                            <span>
-                                Finalized on {formatDateTime(workspace.draft?.finalizedAt ?? workspace.snapshot?.capturedAt)} by{" "}
-                                {finalizedByLabel}
-                            </span>
+        <div className="flex h-screen min-h-[42rem] flex-col overflow-hidden bg-background dark:bg-[#0B1220]">
+            <div className="flex items-center justify-between gap-4 border-b border-border/60 bg-card px-4 py-2 dark:border-[#243041] dark:bg-[#111827]/95 sm:px-6">
+                <div className="flex min-w-0 items-center gap-3">
+                    <Link
+                        className="flex shrink-0 items-center gap-2.5"
+                        href="/po"
+                    >
+                        <Image
+                            alt="Procureline"
+                            className="h-8 w-8 rounded-lg object-contain"
+                            height={32}
+                            src="/brand/procureline-logo.png"
+                            width={32}
+                        />
+                        <div className="hidden leading-tight lg:block">
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary">
+                                Procureline
+                            </div>
+                            <div className="text-[11px] text-muted-foreground">
+                                Signed in as Procurement Officer
+                            </div>
                         </div>
-                    ) : null}
+                    </Link>
+                    <div className="h-7 w-px shrink-0 bg-border/60" />
+                    <div className="flex min-w-0 items-baseline gap-3">
+                        <h1 className="truncate text-base font-semibold tracking-tight text-foreground">
+                            Master consolidation plan
+                        </h1>
+                        {!isFinalized ? (
+                            <p className="hidden truncate text-[13px] text-muted-foreground xl:block">
+                                Review university-wide plans
+                            </p>
+                        ) : (
+                            <div className="flex min-w-0 items-center gap-1.5 truncate text-xs text-emerald-600 dark:text-emerald-300">
+                                <Lock className="h-3.5 w-3.5 shrink-0" />
+                                <span className="truncate">
+                                    Finalized on {formatDateTime(workspace.draft?.finalizedAt ?? workspace.snapshot?.capturedAt)} by{" "}
+                                    {finalizedByLabel}
+                                </span>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-2">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="relative h-8 w-8"
+                            >
+                                <Bell className="h-4 w-4" />
+                                {consolidationAlerts.length > 0 ? (
+                                    <span className="absolute right-1 top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-0.5 text-[9px] font-bold text-primary-foreground">
+                                        {consolidationAlerts.length}
+                                    </span>
+                                ) : null}
+                                <span className="sr-only">Open notifications</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-[22rem]">
+                            <DropdownMenuLabel className="flex items-center justify-between">
+                                Notifications
+                                <span className="text-xs font-medium text-muted-foreground">
+                                    {consolidationAlerts.length}
+                                </span>
+                            </DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {consolidationAlerts.length === 0 ? (
+                                <div className="px-2 py-3 text-sm text-muted-foreground">
+                                    No active procurement alerts.
+                                </div>
+                            ) : (
+                                consolidationAlerts.map((alert) => (
+                                    <DropdownMenuItem
+                                        key={alert.id}
+                                        className="items-start gap-3 py-3"
+                                        onClick={() => router.push(alert.cta.href)}
+                                    >
+                                        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
+                                            <CircleAlert className="h-4 w-4" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="text-sm font-semibold text-foreground">
+                                                {alert.title}
+                                            </div>
+                                            <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                                                {alert.message}
+                                            </div>
+                                            <div className="mt-2 text-[11px] font-semibold text-primary">
+                                                {alert.cta.label}
+                                            </div>
+                                        </div>
+                                    </DropdownMenuItem>
+                                ))
+                            )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <ModeToggle />
+                    <div className="h-7 w-px shrink-0 bg-border/60" />
                     <Button
                         variant="outline"
                         size="sm"
@@ -736,7 +832,8 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
                     <Button
                         type="button"
                         size="sm"
-                        className="dark:bg-emerald-500 dark:text-slate-950 dark:shadow-[0_0_16px_rgba(34,197,94,0.28)] dark:hover:bg-emerald-400"
+                        variant="outline"
+                        className="dark:border-[#243041] dark:bg-[#0B1220] dark:text-slate-100 dark:hover:bg-[#172131] dark:hover:text-white"
                         onClick={() => void persistDraft("manual")}
                         disabled={isFinalized || isSaving || !workspaceState}
                     >
@@ -745,7 +842,7 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
                         ) : (
                             <Save className="mr-2 h-4 w-4" />
                         )}
-                        Save Draft
+                        Save draft
                     </Button>
                     {isFinalized ? (
                         <AlertDialog>
@@ -762,7 +859,7 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
                                     ) : (
                                         <PencilLine className="mr-2 h-4 w-4" />
                                     )}
-                                    Edit Draft
+                                    Edit draft
                                 </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -775,7 +872,7 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                                     <AlertDialogAction onClick={() => void reopenConsolidation()}>
-                                        Edit Draft
+                                        Edit draft
                                     </AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
@@ -816,7 +913,7 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
                                 ) : (
                                     <CheckCircle2 className="mr-2 h-4 w-4" />
                                 )}
-                                {isFinalized ? "Finalized" : "Finalize Plan"}
+                                {isFinalized ? "Finalized" : "Finalize plan"}
                             </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -829,7 +926,7 @@ export function ProcurementOfficerConsolidationWorkspace(): JSX.Element {
                             <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction onClick={() => void finalizeConsolidation()}>
-                                    Finalize Plan
+                                    Finalize plan
                                 </AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
@@ -1601,76 +1698,83 @@ function ConsolidationDepartmentDetailsPanel(props: {
     }, [normalizedSearchQuery, selectedCategoryId]);
 
     return (
-        <aside className="flex w-[34rem] shrink-0 flex-col border-l border-border/80 bg-card shadow-[-12px_0_32px_rgba(15,23,42,0.08)] dark:border-[#243041] dark:bg-[#111827] dark:shadow-[-12px_0_36px_rgba(0,0,0,0.36)]">
+        <aside className="flex w-[34rem] shrink-0 flex-col border-l border-border/60 bg-card dark:border-[#243041] dark:bg-[#111827]">
             {!props.department ? (
                 <EmptyDepartmentDetailsPanel />
             ) : (
                 <>
-                    <div className="border-b border-border/80 bg-card px-4 py-2.5 shadow-sm dark:border-[#243041] dark:bg-[#111827]">
+                    <div className="border-b border-border/60 bg-card px-4 py-3 dark:border-[#243041] dark:bg-[#111827]">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <div className="truncate text-sm font-semibold text-foreground">
                                     {props.department.departmentName}
                                 </div>
                                 <div className="mt-0.5 text-xs text-muted-foreground">
-                                    Vote {props.department.voteNumber} -{" "}
-                                    {props.department.categoryCount ?? categories.length} categories -{" "}
+                                    Vote {props.department.voteNumber} ·{" "}
+                                    {props.department.categoryCount ?? categories.length} categories ·{" "}
                                     {props.department.itemCount} items
                                 </div>
                             </div>
                             <div className="shrink-0 text-right">
-                                <div className="text-xs uppercase text-muted-foreground">Total</div>
-                                <div className="text-sm font-semibold text-foreground">
+                                <div className="text-[11px] text-muted-foreground">Total</div>
+                                <div className="text-base font-semibold tabular-nums tracking-tight text-foreground">
                                     {formatKes(props.department.totalCost ?? 0)}
                                 </div>
                             </div>
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-1.5 text-[0.68rem] text-muted-foreground">
-                            <span className="rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 dark:border-[#243041] dark:bg-[#172131]">
-                                Budget {formatKes(props.department.estimatedBudgetUsed)}
-                            </span>
-                            <span className="rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 dark:border-[#243041] dark:bg-[#172131]">
-                                Q1 {formatKes(props.department.quarterTotals?.q1 ?? 0)}
-                            </span>
-                            <span className="rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 dark:border-[#243041] dark:bg-[#172131]">
-                                Q2 {formatKes(props.department.quarterTotals?.q2 ?? 0)}
-                            </span>
-                            <span className="rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 dark:border-[#243041] dark:bg-[#172131]">
-                                Q3 {formatKes(props.department.quarterTotals?.q3 ?? 0)}
-                            </span>
-                            <span className="rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 dark:border-[#243041] dark:bg-[#172131]">
-                                Q4 {formatKes(props.department.quarterTotals?.q4 ?? 0)}
-                            </span>
+                        <div className="mt-3 grid grid-cols-5 gap-1.5">
+                            <PanelQuarterStat
+                                label="Budget"
+                                value={props.department.estimatedBudgetUsed}
+                            />
+                            <PanelQuarterStat
+                                label="Q1"
+                                value={props.department.quarterTotals?.q1 ?? 0}
+                            />
+                            <PanelQuarterStat
+                                label="Q2"
+                                value={props.department.quarterTotals?.q2 ?? 0}
+                            />
+                            <PanelQuarterStat
+                                label="Q3"
+                                value={props.department.quarterTotals?.q3 ?? 0}
+                            />
+                            <PanelQuarterStat
+                                label="Q4"
+                                value={props.department.quarterTotals?.q4 ?? 0}
+                            />
                         </div>
                     </div>
 
-                    <div className="border-b border-border/80 bg-card p-3 shadow-sm dark:border-[#243041] dark:bg-[#111827]">
+                    <div className="border-b border-border/60 bg-card p-3 dark:border-[#243041] dark:bg-[#111827]">
                         <TimingDetailsPanel sections={props.department.timingSections ?? []} />
 
-                        <div className="flex items-center gap-2 rounded-md border border-border/80 bg-background px-2 shadow-inner dark:border-[#243041] dark:bg-[#0B1220]">
-                            <Search className="h-4 w-4 text-muted-foreground" />
-                            <input
-                                className="h-9 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-                                placeholder="Search items"
-                                value={searchQuery}
-                                onChange={(event) => setSearchQuery(event.target.value)}
-                            />
+                        <div className="flex gap-2">
+                            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-border/60 bg-background px-2 dark:border-[#243041] dark:bg-[#0B1220]">
+                                <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                <input
+                                    className="h-9 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                                    placeholder="Search items"
+                                    value={searchQuery}
+                                    onChange={(event) => setSearchQuery(event.target.value)}
+                                />
+                            </div>
+                            <select
+                                className="h-9 w-40 shrink-0 rounded-lg border border-border/60 bg-background px-2 text-sm text-foreground dark:border-[#243041] dark:bg-[#0B1220] dark:text-slate-100"
+                                value={selectedCategoryId}
+                                onChange={(event) => setSelectedCategoryId(event.target.value)}
+                            >
+                                <option value="all">All categories</option>
+                                {categories.map((category) => (
+                                    <option
+                                        key={category.categoryId || category.categoryName}
+                                        value={category.categoryId}
+                                    >
+                                        {category.categoryName} ({category.itemCount})
+                                    </option>
+                                ))}
+                            </select>
                         </div>
-                        <select
-                            className="mt-2 h-9 w-full rounded-md border border-border/80 bg-background px-2 text-sm text-foreground shadow-sm dark:border-[#243041] dark:bg-[#0B1220] dark:text-slate-100"
-                            value={selectedCategoryId}
-                            onChange={(event) => setSelectedCategoryId(event.target.value)}
-                        >
-                            <option value="all">All categories</option>
-                            {categories.map((category) => (
-                                <option
-                                    key={category.categoryId || category.categoryName}
-                                    value={category.categoryId}
-                                >
-                                    {category.categoryName} ({category.itemCount})
-                                </option>
-                            ))}
-                        </select>
                     </div>
 
                     <VirtualizedItemRows
@@ -1685,6 +1789,20 @@ function ConsolidationDepartmentDetailsPanel(props: {
                 </>
             )}
         </aside>
+    );
+}
+
+function PanelQuarterStat(props: { label: string; value: number }) {
+    return (
+        <div className="min-w-0 rounded-lg border border-border/50 bg-muted/20 px-2 py-1.5 dark:border-[#243041] dark:bg-[#172131]/72">
+            <div className="text-[10px] text-muted-foreground">{props.label}</div>
+            <div
+                className="truncate text-[11px] font-medium tabular-nums text-foreground"
+                title={formatKes(props.value)}
+            >
+                {formatAmount(props.value)}
+            </div>
+        </div>
     );
 }
 
@@ -1717,8 +1835,8 @@ function TimingDetailsPanel(props: { sections: ConsolidationTimingSection[] }) {
     ).length;
 
     return (
-        <details className="mb-2 rounded-md border border-border/80 bg-muted/35 px-3 py-2 text-xs shadow-sm dark:border-[#243041] dark:bg-[#172131]/72">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
+        <details className="mb-2 rounded-lg border border-border/50 bg-muted/20 px-3 py-2 text-xs dark:border-[#243041] dark:bg-[#172131]/72">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">
                 <span>Timing details</span>
                 <span className="text-xs font-medium text-muted-foreground">
                     {completedCount}/3 filled
@@ -1739,11 +1857,11 @@ function TimingDetailsPanel(props: { sections: ConsolidationTimingSection[] }) {
 
                     return (
                         <div
-                            className="rounded border border-border/70 bg-background px-2 py-1.5 dark:border-[#243041] dark:bg-[#0B1220]"
+                            className="rounded-lg border border-border/50 bg-background px-2.5 py-1.5 dark:border-[#243041] dark:bg-[#0B1220]"
                             key={section.type}
                         >
                             <div className="flex items-center justify-between gap-2">
-                                <div className="font-semibold text-foreground">
+                                <div className="font-medium text-foreground">
                                     {section.label}
                                 </div>
                                 <div className="text-muted-foreground">
@@ -1762,88 +1880,28 @@ function TimingDetailsPanel(props: { sections: ConsolidationTimingSection[] }) {
 }
 
 function EmptyDepartmentDetailsPanel() {
-    const placeholderRows = [
-        ["Category", "Submitted item", "-", "-", "-", "-", "-", "-", "-", "-"],
-        ["Category", "Submitted item", "-", "-", "-", "-", "-", "-", "-", "-"],
-        ["Category", "Submitted item", "-", "-", "-", "-", "-", "-", "-", "-"],
-        ["Category", "Submitted item", "-", "-", "-", "-", "-", "-", "-", "-"],
-    ];
-
     return (
         <>
-            <div className="border-b border-border/80 bg-card p-4 shadow-sm dark:border-[#243041] dark:bg-[#111827]">
+            <div className="border-b border-border/60 bg-card p-4 dark:border-[#243041] dark:bg-[#111827]">
                 <div className="text-sm font-semibold text-foreground">
                     Department details
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
                     Select a department summary block to inspect its submitted plan.
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                    <SummaryMetric label="Total" value="KES 0.00" muted />
-                    <SummaryMetric label="Budget" value="KES 0.00" muted />
-                    <SummaryMetric label="Q1" value="KES 0.00" muted />
-                    <SummaryMetric label="Q2" value="KES 0.00" muted />
-                    <SummaryMetric label="Q3" value="KES 0.00" muted />
-                    <SummaryMetric label="Q4" value="KES 0.00" muted />
-                </div>
             </div>
 
-            <div className="border-b border-border bg-card p-3 dark:border-[#243041] dark:bg-[#111827]">
-                <div className="flex items-center gap-2 rounded-md border border-border/80 bg-background px-2 opacity-75 shadow-inner dark:border-[#243041] dark:bg-[#0B1220]">
-                    <Search className="h-4 w-4 text-muted-foreground" />
-                    <input
-                        className="h-9 min-w-0 flex-1 bg-transparent text-sm text-muted-foreground outline-none"
-                        disabled
-                        placeholder="Search items"
-                    />
-                </div>
-                <select
-                    className="mt-2 h-9 w-full rounded-md border border-border/80 bg-background px-2 text-sm text-muted-foreground opacity-75 shadow-sm dark:border-[#243041] dark:bg-[#0B1220]"
-                    disabled
-                    value="all"
-                >
-                    <option value="all">All categories</option>
-                </select>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <div className="grid min-w-[68rem] grid-cols-[1.1fr_1.8fr_0.7fr_0.7fr_0.7fr_0.7fr_0.7fr_0.8fr_0.8fr_0.8fr] gap-2 border-b border-border/80 bg-muted px-3 py-2 text-[0.7rem] font-semibold uppercase text-foreground/75 shadow-sm dark:border-[#243041] dark:bg-[#172131] dark:text-slate-200">
-                        <span>Category</span>
-                        <span>Item</span>
-                        <span>Q1</span>
-                        <span>Q2</span>
-                        <span>Q3</span>
-                        <span>Q4</span>
-                        <span>Qty</span>
-                        <span>Unit</span>
-                        <span>Method</span>
-                        <span>Total</span>
+            <div className="flex min-h-0 flex-1 items-center justify-center p-6">
+                <div className="max-w-xs text-center">
+                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-muted/40 text-muted-foreground">
+                        <Search className="h-4 w-4" />
                     </div>
-                    <div className="relative">
-                        {placeholderRows.map((row, rowIndex) => (
-                            <div
-                                className="grid min-w-[68rem] grid-cols-[1.1fr_1.8fr_0.7fr_0.7fr_0.7fr_0.7fr_0.7fr_0.8fr_0.8fr_0.8fr] gap-2 border-b border-border/70 bg-background/60 px-3 py-2 text-xs text-muted-foreground/70 dark:border-[#243041]/80 dark:bg-[#0B1220]/72 dark:text-slate-300"
-                                key={`empty-row-${rowIndex}`}
-                            >
-                                {row.map((cell, cellIndex) => (
-                                    <span
-                                        className={cellIndex === 1 ? "font-medium" : ""}
-                                        key={`empty-cell-${rowIndex}-${cellIndex}`}
-                                    >
-                                        {cell}
-                                    </span>
-                                ))}
-                            </div>
-                        ))}
-                        <div className="mx-4 mt-6 rounded-md border border-dashed border-border/90 bg-muted/35 px-4 py-5 text-center shadow-sm dark:border-slate-600 dark:bg-[#172131]/55">
-                            <div className="text-sm font-medium text-foreground">
-                                No department selected
-                            </div>
-                            <div className="mt-1 text-xs text-muted-foreground">
-                                Select a connected department block to load submitted categories and items.
-                            </div>
-                        </div>
+                    <div className="mt-3 text-sm font-medium text-foreground">
+                        No department selected
+                    </div>
+                    <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                        Select a department block on the canvas to load its
+                        submitted categories, items, and totals here.
                     </div>
                 </div>
             </div>
@@ -1853,9 +1911,9 @@ function EmptyDepartmentDetailsPanel() {
 
 function SummaryMetric(props: { label: string; muted?: boolean; value: string }) {
     return (
-        <div className={`rounded-md border border-border/80 bg-muted/35 px-2 py-1 shadow-sm dark:border-[#243041] dark:bg-[#172131]/72 ${props.muted ? "opacity-75" : ""}`}>
-            <div className="text-[0.68rem] uppercase text-muted-foreground">{props.label}</div>
-            <div className="font-semibold text-foreground">{props.value}</div>
+        <div className={`rounded-md border border-border/60 bg-muted/25 px-2.5 py-1.5 dark:border-[#243041] dark:bg-[#172131]/72 ${props.muted ? "opacity-75" : ""}`}>
+            <div className="text-[11px] text-muted-foreground">{props.label}</div>
+            <div className="font-semibold tabular-nums text-foreground">{props.value}</div>
         </div>
     );
 }
@@ -1883,7 +1941,7 @@ function VirtualizedItemRows(props: {
                 }}
             >
                 <div
-                    className={`sticky top-0 z-10 grid min-w-[70rem] ${columnClass} gap-x-3 border-b border-border/80 bg-muted/95 px-3 py-2 text-[0.68rem] font-semibold uppercase tracking-wide text-foreground/75 shadow-sm backdrop-blur dark:border-[#243041] dark:bg-[#172131]/95 dark:text-slate-200`}
+                    className={`sticky top-0 z-10 grid min-w-[70rem] ${columnClass} gap-x-3 border-b border-border/60 bg-muted/95 px-3 py-2 text-[11px] font-medium text-muted-foreground backdrop-blur dark:border-[#243041] dark:bg-[#172131]/95 dark:text-slate-300`}
                 >
                     <span>Category</span>
                     <span>Item</span>
@@ -1960,7 +2018,7 @@ function WorkspaceStatePanel(props: {
     title: string;
 }) {
     return (
-        <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-background p-6">
+        <div className="flex min-h-screen items-center justify-center bg-background p-6">
             <div className="max-w-lg text-center">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-md bg-muted text-muted-foreground">
                     {props.icon}
